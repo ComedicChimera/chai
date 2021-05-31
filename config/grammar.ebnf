@@ -72,7 +72,7 @@ args_decl = '(' [arg_decl next_arg_decl | var_arg_decl] ')' ;
 next_arg_decl = ',' (arg_decl next_arg_decl | var_arg_decl) | '' ;
 arg_decl = ['vol'] identifier_list type_ext [initializer] ;
 var_arg_decl = '...' 'IDENTIFIER' type_ext ;
-decl_func_body = expr 'NEWLINE' | 'INDENT' expr 'DEDENT' ;
+decl_func_body = block_expr 'NEWLINE' | simple_expr 'NEWLINE' | do_block | 'INDENT' expr 'DEDENT' ;
 
 type_def = ['closed'] 'type' 'IDENTIFIER' [generic_tag] ['of' type] '=' ( type | newtype ) ;
 newtype = alg_suffix | 'INDENT' '|' alg_suffix 'DEDENT' | struct_suffix ;
@@ -87,8 +87,8 @@ cons_bdy = type {'|' type} ;
 
 
 (* -- Block Expressions -- *)
-expr = block_expr | simple_expr ;
-block_expr = async_for_loop | for_loop | while_loop | if_chain | match_block | do_block ;
+expr = block_expr | simple_expr | do_block ;
+block_expr = async_for_loop | for_loop | while_loop | if_chain | match_block ;
 
 async_for_loop = 'async' for_loop ;
 for_loop = 'for' iterator loop_body ;
