@@ -36,7 +36,7 @@ const (
 	LMKMetadata        // Error occuring in metadata
 	LMKUsage           // Error ocurring generally (due to some other rule)
 	LMKUser            // Error caused by the user (through `!! warn`)
-	LMKInterf          // Error related some specific interface behavior
+	LMKClass           // Error related to some specific type class
 	LMKGeneric         // Error related to a generic or generic instance
 	LMKDef             // Error related to a definition in general
 	LMKAnnot           // Error related to annotations

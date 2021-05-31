@@ -4,8 +4,12 @@ package syntax
 type Token struct {
 	Kind  int
 	Value string
-	Line  int
-	Col   int
+
+	// Line is line number starting at 1
+	Line int
+
+	// Col is the column number counted tabs as four columns
+	Col int
 }
 
 // The various kinds of a tokens supported by the scanner

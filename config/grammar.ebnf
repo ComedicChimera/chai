@@ -137,7 +137,7 @@ assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|'
 
 
 (* -- Simple Expressions -- *)
-simple_expr = core_expr then_suffix | lambda ;
+simple_expr = core_expr [then_suffix] | lambda ;
 then_suffix = 'then' expr ;
 lambda = 'fn' lambda_args_decl '->' expr ;
 lambda_args = lambda_arg {',' lambda_arg} ;

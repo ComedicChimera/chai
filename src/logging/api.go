@@ -36,24 +36,24 @@ func ShouldProceed() bool {
 
 // LogCompileError logs and a compilation error (user-induced, bad code)
 func LogCompileError(lctx *LogContext, message string, kind int, pos *TextPosition) {
-	// logger.logMsgChan <- &CompileMessage{
-	// 	Message:  message,
-	// 	Kind:     kind,
-	// 	Position: pos,
-	// 	Context:  lctx,
-	// 	IsError:  true,
-	// }
+	logger.handleMsg(&CompileMessage{
+		Message:  message,
+		Kind:     kind,
+		Position: pos,
+		Context:  lctx,
+		IsError:  true,
+	})
 }
 
 // LogCompileWarning logs a compilation warning (user-induced, problematic code)
 func LogCompileWarning(lctx *LogContext, message string, kind int, pos *TextPosition) {
-	// logger.logMsgChan <- &CompileMessage{
-	// 	Message:  message,
-	// 	Kind:     kind,
-	// 	Position: pos,
-	// 	Context:  lctx,
-	// 	IsError:  false,
-	// }
+	logger.handleMsg(&CompileMessage{
+		Message:  message,
+		Kind:     kind,
+		Position: pos,
+		Context:  lctx,
+		IsError:  false,
+	})
 }
 
 // LogConfigError logs an error related to project or compiler configuration
