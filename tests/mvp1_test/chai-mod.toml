@@ -1,0 +1,26 @@
+
+[module]
+  allow-profile-elision = true
+  caching = false
+  chai-version = "0.1.0"
+  name = "mvp1_test"
+
+  [[module.profiles]]
+    debug = true
+    default = true
+    format = "bin"
+    name = "debug"
+    output = "C:\\Users\\forlo\\dev\\Projects\\chai\\tests\\mvp1_test\\bin\\mvp1_test_debug.exe"
+    primary = false
+    target-arch = "amd64"
+    target-os = "windows"
+
+  [[module.profiles]]
+    debug = false
+    default = false
+    format = "bin"
+    name = "release"
+    output = "C:\\Users\\forlo\\dev\\Projects\\chai\\tests\\mvp1_test\\bin\\mvp1_test_debug.exe"
+    primary = false
+    target-arch = "amd64"
+    target-os = "windows"

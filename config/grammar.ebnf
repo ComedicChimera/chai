@@ -1,0 +1,232 @@
+(* 
+The Formal Chai Language Grammar
+--------------------------------
+- This grammar is complex and is technically not LALR(1) in certain locations
+  but some adjustments to the parsing algorithm and parser generator allow for
+  these conflicts to either be ignored or automatically resolved.
+- Indentation is managed by the lexer which produces the tokens INDENT and
+  DEDENT to denote changes in the level of indentation (an increase and a
+  decrease respectively)
+- NEWLINE is as the name would suggest a newline.  However, it does not
+  incorporate a carriage return, and it is produced separately from indentation
+  changes (ie. DEDENT happens after a NEWLINE).
+- All other tokens in all caps are simply special tokens produced by the lexer.
+  All tokens in lowercase are just raw strings.  However, all keyword tokens
+  assert an implicit word-boundary.   
+- The `? ... ?` syntax marks a group that can be optionally wrapped in an
+  indentation suite.  In the current version of the grammar, this feature is
+  basically never used (due to indentation framing), but it was used more in an
+  older version of the grammar so I saw no need to remove it as it is
+  occasionally conventient.
+- The parser will ignore any unexpected newlines.  This means that there are
+  situations in which the programmer can arbitrarily choose to insert newlines
+  as long as they do not change the interpretation of the source code.
+- Because the parser ignores unexpected newlines, there is no need to specify
+  NEWLINE before every INDENT because a NEWLINE must be there in order for an
+  INDENT to be registered.
+- Some constructs such as lists do not include any reference to indentation even
+  though Chai allows indentation inside those constructs.  This is due to a rule
+  that allows indentation suites to be created freely within grouping symbols.
+- The special token '' denotes an epsilon.  Normally, these are only generated
+  by constructs like optional blocks during BNF conversion, but there are
+  specific cases in which we need to define custom epsilon rules for more
+  complex repetition patterns (like those required for arguments) where regular
+  repetition would cause an unresolveable shift-reduce conflict.
+*)
+
+(* file is our goal symbol *)
+file = {import_stmt} top_level ;
+
+
+(* -- Imports -- *)
+import_stmt = 'import' ( package_name ['as' 'IDENTIFIER'] | ( identifier_list | '(' identifier_list ')' ) 'from' package_name ) 'NEWLINE' ;
+package_name = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
+
+
+(* -- Definitions -- *)
+top_level = definition { definition } ;
+definition = annotated_def | public_def | def_core | variable_decl ;
+
+annotated_def = annotation def_core;
+annotation = '@' (annot_single | '[' annot_single {',' annot_single} ']') 'NEWLINE' ;
+annot_single = 'IDENTIFIER' ['(' 'STRINGLIT' {',' 'STRINGLIT'} ')'] ;
+
+public_def = 'pub' ( def_core | variable_decl ) ;
+
+def_core = class_def | space_def | func_def | type_def | oper_def | cons_def ;
+
+class_def = 'class' 'IDENTIFIER' 'IDENTIFIER' [generic_tag] 'of' space_body ;
+space_def = 'space' 'for' type ['is' type {',' type}] 'of' space_body ;
+space_body = 'INDENT' space_member { space_member } 'DEDENT' ;
+space_member = func_def | annotated_method ;
+
+oper_def = 'oper' oper_value [generic_tag] signature ( '=' decl_func_body | 'NEWLINE' ) ;
+oper_value = '+' | '-' | '*' | '/' | '//'
+  | '**' | '%' | '>' | '>>' | '<' | '<<' | '<=' | '>=' 
+  | '==' | '!' | '!=' | '&' | '&&' | '|' | '||' | '^' 
+  | '~' | '[' [':'] ']' ;
+
+func_def = ['async'] 'def' 'IDENTIFIER' [generic_tag] signature ( '=' decl_func_body | 'NEWLINE' ) ;
+signature = args_decl [type] ;
+args_decl = '(' [arg_decl next_arg_decl | var_arg_decl] ')' ;
+next_arg_decl = ',' (arg_decl next_arg_decl | var_arg_decl) | '' ;
+arg_decl = ['vol'] identifier_list type_ext [initializer] ;
+var_arg_decl = '...' 'IDENTIFIER' type_ext ;
+decl_func_body = expr 'NEWLINE' | 'INDENT' expr 'DEDENT' ;
+
+type_def = ['closed'] 'type' 'IDENTIFIER' [generic_tag] ['of' type] '=' ( type | newtype ) ;
+newtype = alg_suffix | 'INDENT' '|' alg_suffix 'DEDENT' | struct_suffix ;
+alg_suffix = alg_variant { '|' alg_variant} ;
+alg_variant = 'IDENTIFIER' [tupled_suffix] ;
+tupled_suffix = '(' type {',' type} ')' ;
+struct_suffix = '{' struct_member { struct_member } '}' ;
+struct_member = ['vol'] identifier_list type_ext [initializer] 'NEWLINE' ;
+
+cons_def = 'cons' 'IDENTIFIER' [generic_tag] '=' ( cons_body | 'INDENT' '|' cons_body 'DEDENT' ) ;
+cons_bdy = type {'|' type} ;
+
+
+(* -- Block Expressions -- *)
+expr = block_expr | simple_expr ;
+block_expr = async_for_loop | for_loop | while_loop | if_chain | match_block | do_block ;
+
+async_for_loop = 'async' for_loop ;
+for_loop = 'for' iterator loop_body ;
+while_loop = 'while' expr loop_body ;
+loop_body = block_body [nobreak_clause] ;
+nobreak_clause = 'nobreak' (block_body | block_content) ;
+
+if_chain = 'if' [variable_decl ';'] expr block_body {elif_block} [else_block] ;
+elif_block = 'elif' [variable_decl ';'] expr block_body ;
+else_block = 'else' (block_content | block_body) ;
+
+match_block = 'match' expr (type_match_block | val_match_block ) ;
+type_match_block = 'type' 'to' 'INDENT' type_case {type_case} 'DEDENT' ;
+type_case = type_pattern_list [when_cond] block_body 'NEWLINE' ;
+val_match_block = 'to' 'INDENT' val_case {val_case} 'DEDENT' ;
+val_case = expr_list [when_cond] block_body 'NEWLINE' ;
+
+block_body = '->' ? expr ? | do_block ;
+
+(* ellipsis is used to designate a block that hasn't been filled in yet *)
+do_block = 'do' block_content ;
+block_content = 'INDENT' ( block_element {block_element} | '...') 'DEDENT' ;
+block_element = stmt 'NEWLINE' | expr_stmt 'NEWLINE' | block_expr ;
+
+
+(* -- Statements -- *)
+stmt = break_stmt | continue_stmt | fallthrough_stmt
+  | yield_stmt | variable_decl | return_stmt ;
+
+break_stmt = 'break' ;
+continue_stmt = 'continue';
+fallthrough_stmt = 'fallthrough' ['to' 'match'] ;
+
+yield_stmt = 'yield' expr_list ;
+return_stmt = 'return' [ expr_list] ;
+
+variable_decl = 'let' ['vol'] ? (unpack_var (type_ext | initializer) | var {',' var} ) ? ;
+var = 'IDENTIFIER' [type_ext] [initializer];
+unpack_var = '(' unpack_elem next_unpack_elem ')' ;
+next_unpack_elem = ',' (unpack_elem next_unpack_elem | '...') | '' ;
+unpack_elem = 'IDENTIFIER' | unpack_var ;
+
+expr_stmt = mut_expr {',' mut_expr} [assign_op expr_list | '++' | '--'] ;
+mut_expr = ['await'] ['*'] 'IDENTIFIER' {trailer} ;
+assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^'] '=' | '<-' ;
+
+
+(* -- Simple Expressions -- *)
+simple_expr = core_expr then_suffix | lambda ;
+then_suffix = 'then' expr ;
+lambda = 'fn' lambda_args_decl '->' expr ;
+lambda_args = lambda_arg {',' lambda_arg} ;
+lambda_arg = 'IDENTIFIER' [type_ext];
+
+core_expr = ['await'] or_expr [core_expr_suffix] ;
+core_expr_suffix = '..' or_expr
+  | 'as' type {'as' type}
+  | 'is' (type_pattern | '!' type) ;
+
+or_expr = xor_expr {('||' | '|') xor_expr} ;
+xor_expr = and_expr {'^' and_expr} ;
+and_expr = comp_expr {('&&' | '&') comp_expr} ;
+comp_expr = shift_expr {comp_op shift_expr} ;
+comp_op = '<' | '>' | '>=' | '<=' | '==' | '!=' ;
+shift_expr = arith_expr {('>>' | '<<') arith_expr} ;
+arith_expr = term {('+' | '-') term} ;
+term = factor {('*' | '/' | '//' | '%') factor} ;
+factor = unary_expr {'**' unary_expr} ;
+unary_expr = ['&' | '*' | '-' | '~'] atom_expr ['?'] ;
+
+atom_expr = atom {trailer} ;
+trailer = '.' ( 'IDENTIFIER' | 'INTLIT' | generic_spec )
+  | '[' sub_slice ']'
+  | '{' [init_list] '}' 
+  | '(' [args_list] ')'
+  ;
+sub_slice = expr [':' [expr]] | ':' expr ;
+init_list = '...' expr {',' init_member_expr} | init_member_expr {',' init_member_expr} ;
+init_member_expr = 'IDENTIFIER' '=' expr;
+args_list = arg {',' arg} ;
+arg = expr ['=' expr] ; (* has to be written like this to prevent a shift-reduce conflict *)
+
+atom = 'INTLIT' | 'STRINGLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT' | vec_builder
+  | tupled_expr | list_builder | dict_builder | 'IDENTIFIER' | 'null' | super_access ;
+
+list_builder = '{' list_contents '}' ;
+list_contents = expr ({',' expr} | [comp_suffix]) ;
+dict_builder = '{' dict_contents '}' ;
+dict_contents = expr '->' expr ({',' expr ':' expr} | [comp_suffix]) ;
+vec_builder = '[' vec_contents ']' ;
+vec_contents = expr {(',' | ';') expr };
+
+tupled_expr = '(' expr_list ')' ;
+
+super_access = 'super' '(' [type] ')' ;
+
+
+(* -- Types -- *)
+type_list = type {',' type} ;
+type_ext = ':' type ;
+type_pattern_list = type_pattern {',' type_pattern};
+type_pattern = 'IDENTIFIER' ':' type | type ;
+
+type = named_type | value_type | ref_type ;
+
+named_type = 'IDENTIFIER' ['.' 'IDENTIFIER'] [generic_spec [size_spec]] ;
+size_spec = '(' size_val {',' size_val} ')' ;
+size_val = 'INTLIT' | 'IDENTIFIER' ;
+
+value_type = prim_type | vec_type | func_type | tup_type ;
+
+prim_type = 'i8' | 'i16' | 'i32' | 'i64' | 'u8' | 'u16' | 'u32' | 'u64' | 'f32' | 'f64' 
+  | 'nothing' | 'string' | 'rune' | 'bool' | 'any' ;
+
+vec_type = '<' 'INTLIT' '>' ( prim_type | 'IDENTIFIER' ) ;
+
+func_type = ('fn' | 'async') '(' [func_type_args] ')' type ;
+func_type_args = (func_type_arg next_func_type_arg | func_type_var_arg) ;
+next_func_type_arg = ',' (func_type_arg next_func_type_arg | func_type_var_arg) | '' ; 
+func_type_arg = ['~'] type ;
+func_type_var_arg = '...' type ;
+
+tup_type = '(' type ',' type {',' type} ')' ;
+
+ref_type = '&' (value_type | named_type) ; 
+
+(* generic constructions *)
+generic_tag = '[' generic_param {',' generic_param} ']' ;
+generic_param = 'IDENTIFIER' [':' type {'|' type}];
+generic_spec = '[' type_list ']' ;
+
+
+(* -- Common Productions -- *)
+comp_suffix = 'for' iterator [when_cond] ;
+iterator = iter_var {',' iter_var} 'in' expr ;
+iter_var = 'IDENTIFIER' | unpack_var ;
+
+expr_list = expr {',' expr} ;
+when_cond = 'when' expr ;
+initializer = '=' expr ;
+identifier_list = 'IDENTIFIER' {',' 'IDENTIFIER'} ;

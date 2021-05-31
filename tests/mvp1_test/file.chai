@@ -1,0 +1,28 @@
+@intrinsic
+oper + (a, b: i32) i32
+
+@intrinsic
+oper + (a, b: u8) u8
+
+@intrinsic
+oper // (a, b: i32) i32
+
+@intrinsic
+oper % (a, b: i32) i32
+
+@intrinsic
+def print_byte(b: u8) 
+
+def print_digit(d: i32) = 
+	print_byte('0' + (d as u8))
+
+def print_int(i: i32) = do
+	let x = i
+	let p = 10
+
+	while p < i do
+		print_digit(x % 10)
+		x //= 10
+		p *= 10
+
+def main() = print_int(123)
