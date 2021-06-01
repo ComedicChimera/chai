@@ -39,8 +39,8 @@ file = {import_stmt} top_level ;
 
 
 (* -- Imports -- *)
-import_stmt = 'import' ( package_name ['as' 'IDENTIFIER'] | ( identifier_list | '(' identifier_list ')' ) 'from' package_name ) 'NEWLINE' ;
-package_name = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
+import_stmt = 'import' ( package_path ['as' 'IDENTIFIER'] | ( identifier_list | '(' identifier_list ')' ) 'from' package_path ) 'NEWLINE' ;
+package_path = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
 
 
 (* -- Definitions -- *)

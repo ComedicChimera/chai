@@ -1,14 +1,33 @@
 package mods
 
-import "time"
+import (
+	"chai/deps"
+	"time"
+)
 
 // ChaiModule represents a module -- specifically, the module configuration.
 // NOTE: Profile information is not stored on the module but on the compiler
 // object itself (as things like target, output, static libraries, etc are
 // consistent and/or determined based on all loaded modules)
 type ChaiModule struct {
+	// ID is the module's unique ID
+	ID uint
+
 	// Name is the name of the module
 	Name string
+
+	// RootPackage is the package at the root of the module
+	RootPackage *deps.ChaiPackage
+
+	// SubPackages is a map of all the subpackages of this module organized by
+	// their subpath (eg. `io.std` => `std`; `mod.b.c` => `b/c`)
+	SubPackages map[string]*deps.ChaiPackage
+
+	// DependsOn is a map of all the other modules this module depends on
+	// organized by module name
+	DependsOn map[string]*ChaiModule
+
+	// -----------------------------------------------------------------------------
 
 	// ModuleRoot is the path to the root directory of the current module
 	ModuleRoot string
@@ -28,12 +47,6 @@ type ChaiModule struct {
 	// LastBuildTime indicates when this module was last built for the purposes
 	// of compilation caching.  It is stored as a field on the active profile.
 	LastBuildTime *time.Time
-
-	// PathReplacements maps certain import paths to different directories. The
-	// key is the original path and the value is the path to replace it with.
-	// Note that these paths override explicit import paths and import
-	// semantics.
-	PathReplacements map[string]string
 }
 
 // BuildProfile represents the profile that compiler will use to build -- it is
@@ -89,13 +102,6 @@ const (
 	ArchArm
 	// ...
 )
-
-// ResolveImportPath attempts to convert a relative import path into an absolute
-// path to a package or module.  This fails if the path cannot be resolved but
-// does not check for Chai code in those directories.
-func (m *ChaiModule) ResolveImportPath(path string) (string, bool) {
-	return "", false
-}
 
 // IsValidIdentifier returns whether or not a given string would be a valid
 // identifier (module name, package name, etc.)

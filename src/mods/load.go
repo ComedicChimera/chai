@@ -24,7 +24,6 @@ type tomlModule struct {
 	LocalImportDirs     []string          `toml:"local-import-dirs,omitempty"`
 	ShouldCache         bool              `toml:"caching"`
 	CacheDirectory      string            `toml:"cache-directory,omitempty"`
-	PathReplacements    map[string]string `toml:"path-replacements,omitempty"`
 	BuildProfiles       []*tomlProfile    `toml:"profiles"`
 	Dependencies        []*tomlDependency `toml:"dependencies"`
 	Version             string            `toml:"chai-version"`
@@ -84,6 +83,7 @@ func LoadModule(path, selectedProfile string, rootProfile *BuildProfile) (*ChaiM
 	chaiMod := &ChaiModule{
 		// module root is the directory enclosing the module file
 		ModuleRoot: path,
+		ID:         common.GenerateIDFromPath(path),
 	}
 
 	// ensure that the base module is valid
@@ -107,7 +107,6 @@ func LoadModule(path, selectedProfile string, rootProfile *BuildProfile) (*ChaiM
 	chaiMod.CacheDirectory = tmf.Module.CacheDirectory
 	chaiMod.ShouldCache = tmf.Module.ShouldCache
 	chaiMod.LocalImportDirs = tmf.Module.LocalImportDirs
-	chaiMod.PathReplacements = tmf.Module.PathReplacements
 
 	return chaiMod, nil
 }

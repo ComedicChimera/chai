@@ -2,7 +2,6 @@ package build
 
 import (
 	"chai/common"
-	"chai/deps"
 	"chai/logging"
 	"chai/mods"
 	"chai/syntax"
@@ -18,9 +17,8 @@ type Compiler struct {
 	// buildProfile is the profile that is being used to build the project
 	buildProfile *mods.BuildProfile
 
-	// depGraph is the graph of all the packages in the project (from
-	// all submodules) organized by package ID
-	depGraph map[uint]*deps.ChaiPackage
+	// depGraph is the graph of all the modules in the project organized by ID
+	depGraph map[uint]*mods.ChaiModule
 
 	// parsingTable is the global, shared parsing table used by all instances of
 	// the Chai LALR(1) parser
@@ -32,7 +30,9 @@ func NewCompiler(rootMod *mods.ChaiModule, buildProfile *mods.BuildProfile) *Com
 	return &Compiler{
 		rootMod:      rootMod,
 		buildProfile: buildProfile,
-		depGraph:     make(map[uint]*deps.ChaiPackage),
+		depGraph: map[uint]*mods.ChaiModule{
+			rootMod.ID: rootMod,
+		},
 	}
 }
 
@@ -59,12 +59,22 @@ func (c *Compiler) Analyze() bool {
 	c.parsingTable = ptable
 
 	// start by initializing the root package
-	rootpkg, ok := c.initPackage(c.rootMod.ModuleRoot)
+	rootpkg, ok := c.initPackage(c.rootMod, c.rootMod.ModuleRoot)
 	if !ok {
 		return false
 	}
 
-	// TODO
-	_ = rootpkg
-	return true
+	// initialize the root package's dependencies
+	if !c.initDependencies(c.rootMod, rootpkg) {
+		return false
+	}
+
+	// TODO: check for import cycles across modules
+
+	// TODO: resolve type defs, class defs, and imported symbols and process all
+	// dependent definitions (functions, operators, etc.)
+
+	// TODO: validate expressions (func bodies, initializers, etc.)
+
+	return logging.ShouldProceed()
 }

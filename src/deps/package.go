@@ -1,9 +1,9 @@
 package deps
 
 import (
+	"chai/common"
 	"chai/logging"
 	"chai/syntax"
-	"hash/fnv"
 	"path/filepath"
 )
 
@@ -28,17 +28,10 @@ type ChaiPackage struct {
 // (does NOT perform file initialization)
 func NewPackage(rootPath string) *ChaiPackage {
 	return &ChaiPackage{
-		ID:       generatePkgID(rootPath),
+		ID:       common.GenerateIDFromPath(rootPath),
 		Name:     filepath.Base(rootPath),
 		RootPath: rootPath,
 	}
-}
-
-// generatePkgID converts a package path into a package ID
-func generatePkgID(abspath string) uint {
-	h := fnv.New32a()
-	h.Write([]byte(abspath))
-	return uint(h.Sum32())
 }
 
 // ChaiFile represents a file of Chai source code
@@ -53,8 +46,25 @@ type ChaiFile struct {
 	LogContext *logging.LogContext
 
 	// AST is the abstract syntax tree representing the contents of this file
-	AST syntax.ASTNode
+	AST *syntax.ASTBranch
 
 	// GlobalTable is the table of globally declared symbols in this package
 	GlobalTable map[string]*Symbol
+}
+
+// AddSymbolImports adds a list of names as imported symbols of this file. This
+// function does NOT validate that those symbols are visible in the imported
+// package.
+func (cf *ChaiFile) AddSymbolImports(importedPkg *ChaiPackage, importedSymbolNames []string) {
+	// TODO
+}
+
+// AddPackageImport adds a package as an import of this file -- this is a
+// package that is visible by name within the file (eg. `import pkg`).  This
+// does NOT check for cross-module import cycles, but it will return an error if
+// the imported symbols occur multiple times within the file (this error's
+// message is the name of the duplicate imported symbol).
+func (cf *ChaiFile) AddPackageImport(importedPkg *ChaiPackage, importedPkgName string) error {
+	// TODO
+	return nil
 }

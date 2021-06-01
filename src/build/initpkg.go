@@ -4,6 +4,7 @@ import (
 	"chai/common"
 	"chai/deps"
 	"chai/logging"
+	"chai/mods"
 	"chai/syntax"
 	"fmt"
 	"io/ioutil"
@@ -13,9 +14,10 @@ import (
 
 // initPackage attempts to initialize a directory as a Chai Package. It loads
 // and parses all Chai files in the directory but does not process dependencies.
-// The package is returned after it is initialized along with a boolean flag
-// indicating success or failure.
-func (c *Compiler) initPackage(abspath string) (*deps.ChaiPackage, bool) {
+// The package is appropriately added as a subpackage of its module. The package
+// is returned after it is initialized along with a boolean flag indicating
+// success or failure.
+func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*deps.ChaiPackage, bool) {
 	// validate package path
 	finfo, err := os.Stat(abspath)
 	if err != nil {
@@ -60,6 +62,18 @@ func (c *Compiler) initPackage(abspath string) (*deps.ChaiPackage, bool) {
 		}
 	}
 
+	// add the new package to its parent module
+	modPkgPath, err := filepath.Rel(parentMod.ModuleRoot, abspath)
+	if err != nil {
+		logging.LogFatal("failed to compute package path inside module")
+	}
+
+	if modPkgPath == "." {
+		parentMod.RootPackage = newpkg
+	} else {
+		parentMod.SubPackages[modPkgPath] = newpkg
+	}
+
 	return newpkg, logging.ShouldProceed()
 }
 
@@ -83,7 +97,8 @@ func (c *Compiler) initFile(fchan chan *deps.ChaiFile, parentpkg *deps.ChaiPacka
 		// create and runs the parser
 		p := syntax.NewParser(c.parsingTable, sc)
 		if ast, ok := p.Parse(); ok {
-			newfile.AST = ast
+			// this is never NOT an ast branch
+			newfile.AST = ast.(*syntax.ASTBranch)
 
 			// parsing succeeds => write file to channel and return
 			fchan <- newfile
