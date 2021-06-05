@@ -8,4 +8,6 @@ It boasts numerous new and old features and is designed to represent the needs o
 
 ***Language IP and Source Code Copyright &copy; Jordan Gaines 2018-2021***
 
-***NOTE: This language is still in development! This is the third version of the compiler and language.***
+***NOTE: This language is still in development! This is the fourth version of the compiler and language.***
+
+***New Home of [Whirlwind](https://github.com/ComedicChimera/whirlwind)***
