@@ -35,12 +35,18 @@ The Formal Chai Language Grammar
 *)
 
 (* file is our goal symbol *)
-file = {import_stmt} top_level ;
+file = {import_stmt} (pub_block [top_level] | top_level) ;
 
 
 (* -- Imports -- *)
 import_stmt = 'import' ( package_path ['as' 'IDENTIFIER'] | ( identifier_list | '(' identifier_list ')' ) 'from' package_path ) 'NEWLINE' ;
 package_path = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
+
+
+(* -- Public Block -- *)
+pub_block = 'pub' 'of' 'INDENT' pub_top_level 'DEDENT' ;
+pub_top_level = pub_definition {pub_definition} ;
+pub_definition = annotated_def | variable_decl | def_core ;
 
 
 (* -- Definitions -- *)

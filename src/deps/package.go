@@ -56,13 +56,18 @@ type ChaiFile struct {
 
 	// GlobalTable is the table of globally declared symbols in this package
 	GlobalTable map[string]*Symbol
+
+	// Metadata is the map of metadata flags and arguments set for this file
+	Metadata map[string]string
 }
 
 // AddSymbolImports adds a list of names as imported symbols of this file. This
 // function does NOT validate that those symbols are visible in the imported
-// package.
-func (cf *ChaiFile) AddSymbolImports(importedPkg *ChaiPackage, importedSymbolNames []string) {
+// package.  It handles all errors and returns a flag indicating whether or not
+// the attachment succeeded.
+func (cf *ChaiFile) AddSymbolImports(importedPkg *ChaiPackage, importedSymbols map[string]*logging.TextPosition) bool {
 	// TODO
+	return false
 }
 
 // AddPackageImport adds a package as an import of this file -- this is a

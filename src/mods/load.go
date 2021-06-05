@@ -2,6 +2,7 @@ package mods
 
 import (
 	"chai/common"
+	"chai/deps"
 	"chai/logging"
 	"errors"
 	"fmt"
@@ -82,8 +83,10 @@ func LoadModule(path, selectedProfile string, rootProfile *BuildProfile) (*ChaiM
 	// chaiMod is the final, extracted module that is returned
 	chaiMod := &ChaiModule{
 		// module root is the directory enclosing the module file
-		ModuleRoot: path,
-		ID:         common.GenerateIDFromPath(path),
+		ModuleRoot:  path,
+		ID:          common.GenerateIDFromPath(path),
+		SubPackages: make(map[string]*deps.ChaiPackage),
+		DependsOn:   make(map[string]*ChaiModule),
 	}
 
 	// ensure that the base module is valid
@@ -252,13 +255,13 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ro
 	return nil
 }
 
-// osNames maps TOML os name strings to enumerated OS values
-var osNames = map[string]int{
+// OSNames maps TOML os name strings to enumerated OS values
+var OSNames = map[string]int{
 	"windows": OSWindows,
 }
 
-// archNames maps TOML os name strings to enumerated arch values
-var archNames = map[string]int{
+// ArchNames maps TOML os name strings to enumerated arch values
+var ArchNames = map[string]int{
 	"i386":  ArchI386,
 	"amd64": ArchAmd64,
 	"arm":   ArchArm,
@@ -297,13 +300,13 @@ func convertProfile(tprof *tomlProfile) (*BuildProfile, error) {
 
 	newProfile := &BuildProfile{}
 
-	if osVal, ok := osNames[tprof.TargetOS]; ok {
+	if osVal, ok := OSNames[tprof.TargetOS]; ok {
 		newProfile.TargetOS = osVal
 	} else {
 		return nil, fmt.Errorf("%s is not a supported OS", tprof.TargetOS)
 	}
 
-	if archVal, ok := archNames[tprof.TargetArch]; ok {
+	if archVal, ok := ArchNames[tprof.TargetArch]; ok {
 		newProfile.TargetArch = archVal
 	} else {
 		return nil, fmt.Errorf("%s is not a supported architecture", tprof.TargetArch)

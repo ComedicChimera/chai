@@ -99,7 +99,11 @@ func (c *Compiler) initFile(fchan chan *deps.ChaiFile, parentpkg *deps.ChaiPacka
 
 	// create the scanner for the file
 	if sc, ok := syntax.NewScanner(fabspath, newfile.LogContext); ok {
-		// TODO: process metadata
+		// process metadata before compiling; check compilation conditions
+		if !c.processMetadata(newfile, sc) {
+			fchan <- nil
+			return
+		}
 
 		// create and runs the parser
 		p := syntax.NewParser(c.parsingTable, sc)

@@ -23,6 +23,10 @@ type Compiler struct {
 	// parsingTable is the global, shared parsing table used by all instances of
 	// the Chai LALR(1) parser
 	parsingTable *syntax.ParsingTable
+
+	// coreMod is a reference to the `core` module that is imported as a part of
+	// the prelude by all files
+	coreMod *mods.ChaiModule
 }
 
 // NewCompiler creates a new compiler for a given root module and build profile
@@ -58,7 +62,18 @@ func (c *Compiler) Analyze() bool {
 	}
 	c.parsingTable = ptable
 
-	// start by initializing the root package
+	// load and initialize the core module
+	c.coreMod, err = mods.LoadModule(filepath.Join(common.ChaiPath, "lib/std/core"), "", c.buildProfile)
+	if err != nil {
+		logging.LogConfigError("Module", "error loading core module: "+err.Error())
+		return false
+	}
+
+	if _, ok := c.initPackage(c.coreMod, c.coreMod.ModuleRoot); !ok {
+		return false
+	}
+
+	// then initialize the root package
 	rootpkg, ok := c.initPackage(c.rootMod, c.rootMod.ModuleRoot)
 	if !ok {
 		return false

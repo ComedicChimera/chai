@@ -17,7 +17,10 @@ import (
 // boolean indicating whether or not it was successful in this initialization
 // process.
 func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *deps.ChaiPackage) bool {
-	// TODO: handle prelude
+	// start by attaching the prelude import
+	if !c.attachPrelude(parentMod, pkg) {
+		return false
+	}
 
 	// walk each import appropriately
 	for _, file := range pkg.Files {
@@ -43,8 +46,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 	var importedMod *mods.ChaiModule
 	var importedPkg *deps.ChaiPackage
 
-	var importedSymbolNames []string
-	var importedSymbolPositions map[string]*logging.TextPosition
+	importedSymbols := make(map[string]*logging.TextPosition)
 
 	// name to declare the imported package as (support for renaming)
 	var importedPkgName string
@@ -62,13 +64,13 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 					return false
 				}
 			} else /* `identifier_list` */ {
-				importedSymbolNames, importedSymbolPositions, err = validate.WalkIdentifierList(v)
+				_, importedSymbols, err = validate.WalkIdentifierList(v)
 				if err != nil {
 					logging.LogCompileError(
 						file.LogContext,
 						fmt.Sprintf("symbol `%s` imported multiple times", err.Error()),
 						logging.LMKImport,
-						importedSymbolPositions[err.Error()],
+						importedSymbols[err.Error()],
 					)
 					return false
 				}
@@ -125,14 +127,14 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 	}
 
 	// add imported symbols to file if they exist
-	if len(importedSymbolNames) > 0 {
-		file.AddSymbolImports(importedPkg, importedSymbolNames)
+	if len(importedSymbols) > 0 {
+		return file.AddSymbolImports(importedPkg, importedSymbols)
 	} else if err := file.AddPackageImport(importedPkg, importedPkgName); err != nil {
 		logging.LogCompileError(
 			file.LogContext,
 			fmt.Sprintf("multiple symbols imported with name `%s`", err.Error()),
 			logging.LMKImport,
-			importedSymbolPositions[err.Error()],
+			importedSymbols[err.Error()],
 		)
 		return false
 	}
@@ -206,7 +208,6 @@ func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods
 	if modAbsPath, ok := parentMod.ResolveModulePath(modName); ok {
 		// check first to see if we have already loaded the module
 		if loadedMod, ok := c.depGraph[common.GenerateIDFromPath(modAbsPath)]; ok {
-			parentMod.DependsOn[loadedMod.Name] = loadedMod
 			return loadedMod, nil
 		}
 
@@ -217,8 +218,6 @@ func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods
 		}
 
 		c.depGraph[mod.ID] = mod
-		parentMod.DependsOn[mod.Name] = mod
-
 		return mod, nil
 	}
 
