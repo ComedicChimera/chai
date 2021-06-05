@@ -13,7 +13,7 @@ import (
 )
 
 // initPackage attempts to initialize a directory as a Chai Package. It loads
-// and parses all Chai files in the directory but does not process dependencies.
+// and parses all Chai files in the directory and processes all dependencies.
 // The package is appropriately added as a subpackage of its module. The package
 // is returned after it is initialized along with a boolean flag indicating
 // success or failure.
@@ -74,7 +74,14 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*dep
 		parentMod.SubPackages[modPkgPath] = newpkg
 	}
 
-	return newpkg, logging.ShouldProceed()
+	if logging.ShouldProceed() && c.initDependencies(parentMod, newpkg) {
+		// set the initialization flag only after we have fully processed the
+		// dependencies -- again, we are looking to flag down cycling imports
+		newpkg.Initialized = true
+		return newpkg, true
+	}
+
+	return nil, false
 }
 
 // initFile attempts to load and parse a file concurrently.  It takes in a

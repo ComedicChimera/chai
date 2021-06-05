@@ -106,7 +106,16 @@ func LoadModule(path, selectedProfile string, rootProfile *BuildProfile) (*ChaiM
 	chaiMod.Name = tmf.Module.Name
 	chaiMod.CacheDirectory = tmf.Module.CacheDirectory
 	chaiMod.ShouldCache = tmf.Module.ShouldCache
-	chaiMod.LocalImportDirs = tmf.Module.LocalImportDirs
+
+	// convert local import directories to abs paths before we load them
+	chaiMod.LocalImportDirs = make([]string, len(tmf.Module.LocalImportDirs))
+	for i, ldrelpath := range tmf.Module.LocalImportDirs {
+		if ldabspath, err := filepath.Abs(ldrelpath); err == nil {
+			chaiMod.LocalImportDirs[i] = ldabspath
+		} else {
+			return nil, fmt.Errorf("invalid local import path `%s`", ldrelpath)
+		}
+	}
 
 	return chaiMod, nil
 }

@@ -67,7 +67,7 @@ func newInitProfile(modName, modDir string, debug bool) *tomlProfile {
 	prof := &tomlProfile{
 		TargetOS:    runtime.GOOS,
 		TargetArch:  runtime.GOARCH,
-		OutputPath:  filepath.Clean(filepath.Join(modDir, "bin", modName+"_debug")),
+		OutputPath:  filepath.Clean(filepath.Join(filepath.Dir(modDir), "bin", modName+"_debug")),
 		Format:      "bin",
 		Debug:       debug,
 		DefaultProf: debug, // debug profile is the default

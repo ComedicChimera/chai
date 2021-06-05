@@ -64,12 +64,7 @@ func (c *Compiler) Analyze() bool {
 		return false
 	}
 
-	// initialize the root package's dependencies
-	if !c.initDependencies(c.rootMod, rootpkg) {
-		return false
-	}
-
-	// TODO: check for import cycles across modules
+	_ = rootpkg
 
 	// TODO: resolve type defs, class defs, and imported symbols and process all
 	// dependent definitions (functions, operators, etc.)

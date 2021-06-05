@@ -20,7 +20,7 @@ type ChaiModule struct {
 	RootPackage *deps.ChaiPackage
 
 	// SubPackages is a map of all the subpackages of this module organized by
-	// their subpath (eg. `io.std` => `std`; `mod.b.c` => `b/c`)
+	// their subpath (eg. `io.std` => `std`; `mod.b.c` => `b.c`)
 	SubPackages map[string]*deps.ChaiPackage
 
 	// DependsOn is a map of all the other modules this module depends on

@@ -9,6 +9,7 @@ import (
 	"chai/validate"
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // initDependencies walks the imports of a given package and recursively
@@ -89,7 +90,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 	if file.Parent != importedPkg {
 		logging.LogCompileError(
 			file.LogContext,
-			fmt.Sprintf("package `%s` cannot import itself", importedPkg.Name),
+			fmt.Sprintf("package `%s` cannot import itself", buildPackageModulePath(parentMod, importedPkg)),
 			logging.LMKImport,
 			importedPkgPathPos,
 		)
@@ -102,6 +103,23 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 	// importing another package within the same module)
 	if parentMod != importedMod {
 		if _, ok := parentMod.DependsOn[importedMod.Name]; !ok {
+			// if the imported package is uninitialized, then there must be an
+			// import cycle since it must still be processing its imports
+			if !importedPkg.Initialized {
+				// create the import paths to the two packages
+
+				logging.LogCompileError(
+					file.LogContext,
+					fmt.Sprintf(
+						"cross-module import cycle detected between `%s` and `%s`",
+						buildPackageModulePath(parentMod, file.Parent),
+						buildPackageModulePath(importedMod, importedPkg),
+					),
+					logging.LMKImport,
+					importedPkgPathPos,
+				)
+			}
+
 			parentMod.DependsOn[importedMod.Name] = importedMod
 		}
 	}
@@ -136,7 +154,7 @@ func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *synt
 				subPath += itemleaf.Value
 			}
 		} else if itemleaf.Kind == syntax.DOT && i != 1 {
-			subPath += "/"
+			subPath += string(filepath.Separator)
 		}
 	}
 
@@ -149,6 +167,14 @@ func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *synt
 	// if there is no subpath, then we can safely just return the root package
 	// and first-determined imported module as the correct package and module
 	if subPath == "" {
+		if importedMod.RootPackage == nil {
+			if pkg, ok := c.initPackage(importedMod, importedMod.ModuleRoot); ok {
+				return importedMod, pkg, nil
+			} else {
+				return nil, nil, fmt.Errorf("failed to load root package of module `%s`", importedMod.Name)
+			}
+		}
+
 		return importedMod, importedMod.RootPackage, nil
 	}
 
@@ -172,10 +198,15 @@ func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *synt
 // on its module name. The `parentMod` provides the search context for finding
 // the module (eg. local import directories)
 func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods.ChaiModule, error) {
+	if subMod, ok := parentMod.DependsOn[modName]; ok {
+		return subMod, nil
+	}
+
 	// first, determine the appropriate path to the new module
 	if modAbsPath, ok := parentMod.ResolveModulePath(modName); ok {
 		// check first to see if we have already loaded the module
 		if loadedMod, ok := c.depGraph[common.GenerateIDFromPath(modAbsPath)]; ok {
+			parentMod.DependsOn[loadedMod.Name] = loadedMod
 			return loadedMod, nil
 		}
 
@@ -186,9 +217,27 @@ func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods
 		}
 
 		c.depGraph[mod.ID] = mod
+		parentMod.DependsOn[mod.Name] = mod
 
 		return mod, nil
 	}
 
 	return nil, fmt.Errorf("unable to locate module by name `%s`", modName)
+}
+
+// buildPackageModulePath builds a descriptive string identifying package inside
+// its module (based on its subpath)
+func buildPackageModulePath(parentMod *mods.ChaiModule, pkg *deps.ChaiPackage) string {
+	if parentMod.RootPackage == pkg {
+		return parentMod.Name
+	}
+
+	for subpath, subpkg := range parentMod.SubPackages {
+		if subpkg == pkg {
+			return parentMod.Name + "." + strings.ReplaceAll(subpath, string(filepath.Separator), ".")
+		}
+	}
+
+	// unreachable
+	return ""
 }

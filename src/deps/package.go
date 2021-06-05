@@ -22,6 +22,12 @@ type ChaiPackage struct {
 
 	// Files contains all the individual files in this package
 	Files []*ChaiFile
+
+	// Initialized is used to indicate whether or not this package has been
+	// initialized fully yet (ie. all its files have been initialized and all
+	// their dependencies have been initialized).  We use this to detect modular
+	// import cycles.
+	Initialized bool
 }
 
 // NewPackage creates a new Chai package based on the given absolute, root path
