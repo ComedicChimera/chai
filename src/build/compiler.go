@@ -4,8 +4,10 @@ import (
 	"chai/common"
 	"chai/logging"
 	"chai/mods"
+	"chai/resolve"
 	"chai/syntax"
 	"path/filepath"
+	"sync"
 )
 
 // Compiler is the data structure responsible for maintaining all high-level
@@ -74,17 +76,69 @@ func (c *Compiler) Analyze() bool {
 	}
 
 	// then initialize the root package
-	rootpkg, ok := c.initPackage(c.rootMod, c.rootMod.ModuleRoot)
+	_, ok := c.initPackage(c.rootMod, c.rootMod.ModuleRoot)
 	if !ok {
 		return false
 	}
 
-	_ = rootpkg
-
-	// TODO: resolve type defs, class defs, and imported symbols and process all
+	// resolve type defs, class defs, and imported symbols and process all
 	// dependent definitions (functions, operators, etc.)
+	batches := c.createResolutionBatches(c.rootMod)
+	for _, batch := range batches {
+		// each batch is resolved concurrently -- this makes the compiler far
+		// more performant on large projects and allows it to take advantage of
+		// any concurrent architecture provided to it.
+		var wg *sync.WaitGroup
+		resolutionSucceeded := true
+
+		for _, mod := range batch {
+			wg.Add(1)
+			go func(mod *mods.ChaiModule) {
+				defer wg.Done()
+				r := resolve.NewResolver(mod)
+
+				// don't need to use a mutex here since we are always setting
+				// this boolean flag to the same value -- even if two goroutines
+				// write to it at the same time, we know that the correct value
+				// will always be written
+				if !r.ResolveAll() {
+					resolutionSucceeded = false
+				}
+			}(mod)
+		}
+
+		wg.Wait()
+
+		// we don't want to continue with resolution since other modules will
+		// fail to load dependencies from the batch that failed to resolve
+		if !resolutionSucceeded {
+			return false
+		}
+	}
 
 	// TODO: validate expressions (func bodies, initializers, etc.)
 
 	return logging.ShouldProceed()
+}
+
+// createResolutionBatches creates a list of batches of modules whose symbols
+// can be resolved concurrently.  The batches at the front should be evaluated
+// first.  The root module is the module to start created batches from.
+func (c *Compiler) createResolutionBatches(rootMod *mods.ChaiModule) [][]*mods.ChaiModule {
+	var currentBatch []*mods.ChaiModule
+	var nextBatches [][]*mods.ChaiModule
+
+	for _, mod := range rootMod.DependsOn {
+		currentBatch = append(currentBatch, mod)
+
+		for i, batch := range c.createResolutionBatches(mod) {
+			if i < len(nextBatches) {
+				nextBatches[i] = append(nextBatches[i], batch...)
+			} else {
+				nextBatches = append(nextBatches, batch)
+			}
+		}
+	}
+
+	return append(nextBatches, currentBatch)
 }

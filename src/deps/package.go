@@ -23,6 +23,9 @@ type ChaiPackage struct {
 	// Files contains all the individual files in this package
 	Files []*ChaiFile
 
+	// ImportTable stores all the packages this package depends on
+	ImportTable map[uint]*ChaiPackage
+
 	// Initialized is used to indicate whether or not this package has been
 	// initialized fully yet (ie. all its files have been initialized and all
 	// their dependencies have been initialized).  We use this to detect modular

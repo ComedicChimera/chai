@@ -146,7 +146,7 @@ assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|'
 (* -- Simple Expressions -- *)
 simple_expr = core_expr [then_suffix] | lambda ;
 then_suffix = 'then' expr ;
-lambda = 'fn' lambda_args_decl '->' expr ;
+lambda = ['async'] 'fn' lambda_args_decl '->' expr ;
 lambda_args = lambda_arg {',' lambda_arg} ;
 lambda_arg = 'IDENTIFIER' [type_ext];
 
@@ -205,12 +205,10 @@ named_type = 'IDENTIFIER' ['.' 'IDENTIFIER'] [generic_spec [size_spec]] ;
 size_spec = '(' size_val {',' size_val} ')' ;
 size_val = 'INTLIT' | 'IDENTIFIER' ;
 
-value_type = prim_type | vec_type | func_type | tup_type ;
+value_type = prim_type | func_type | tup_type ;
 
-prim_type = 'i8' | 'i16' | 'i32' | 'i64' | 'u8' | 'u16' | 'u32' | 'u64' | 'f32' | 'f64' 
-  | 'nothing' | 'string' | 'rune' | 'bool' | 'any' ;
-
-vec_type = '<' 'INTLIT' '>' ( prim_type | 'IDENTIFIER' ) ;
+prim_type = 'i8' | 'i16' | 'i32' | 'i64' | 'u8' | 'u16' | 'u32' | 'u64' 
+  | 'f32' | 'f64' | 'nothing' | 'string' | 'rune' | 'bool' | 'any' ;
 
 func_type = ('fn' | 'async') '(' [func_type_args] ')' type ;
 func_type_args = (func_type_arg next_func_type_arg | func_type_var_arg) ;

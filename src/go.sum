@@ -1,7 +1,5 @@
 bou.ke/monkey v1.0.2 h1:kWcnsrCNUatbxncxR/ThdYqbytgOIArtYWqcQLQzKLI=
 bou.ke/monkey v1.0.2/go.mod h1:OqickVX3tNx6t33n1xvtTtu85YN5s6cKwVug+oHMaIA=
-github.com/ComedicChimera/olive v0.0.0-20210521204944-b45e6fbea1ab h1:Z2iFhy6P91PZI5a3LJqRO7XLG9EeQ+UCeNVDVhR3YHY=
-github.com/ComedicChimera/olive v0.0.0-20210521204944-b45e6fbea1ab/go.mod h1:NqfdkaUfMZQbwrilt3293u+oRRiJ9G9tpjCxISDCfD8=
 github.com/ComedicChimera/olive v0.0.0-20210523010613-c9916e4999d6 h1:7ANHAJsqfbkzrJhGn5rdP77VDeb5GnquABtLptoBU60=
 github.com/ComedicChimera/olive v0.0.0-20210523010613-c9916e4999d6/go.mod h1:NqfdkaUfMZQbwrilt3293u+oRRiJ9G9tpjCxISDCfD8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
