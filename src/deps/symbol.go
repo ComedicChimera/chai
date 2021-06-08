@@ -1,9 +1,14 @@
 package deps
 
+import "chai/logging"
+
 // Symbol represents a named symbol (globally or locally)
 type Symbol struct {
 	// Name is the name of the symbol (as it is referenced in source code)
 	Name string
+
+	// SrcPackage is the package this symbol is defined in
+	SrcPackage *ChaiPackage
 
 	// DefKind is the kind of definition that produced this definition. This
 	// must be one of the enumerated definition kinds below
@@ -14,6 +19,9 @@ type Symbol struct {
 
 	// Immutable indicates whether or not this symbol can be mutated
 	Immutable bool
+
+	// Position is the text position where this symbol is defined
+	Position *logging.TextPosition
 }
 
 // Enumeration of symbol definition kinds

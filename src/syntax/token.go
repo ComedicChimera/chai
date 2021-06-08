@@ -82,9 +82,9 @@ const (
 	I64
 	F32
 	F64
-	STRING
 	BOOL
 	RUNE
+	STRING
 	ANY
 	NOTHING
 

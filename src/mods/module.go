@@ -2,6 +2,8 @@ package mods
 
 import (
 	"chai/deps"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -47,6 +49,33 @@ type ChaiModule struct {
 	// LastBuildTime indicates when this module was last built for the purposes
 	// of compilation caching.  It is stored as a field on the active profile.
 	LastBuildTime *time.Time
+}
+
+// Packages returns a slice of all the packages in the module
+func (cm *ChaiModule) Packages() []*deps.ChaiPackage {
+	pkgs := []*deps.ChaiPackage{cm.RootPackage}
+	for _, subpkg := range cm.SubPackages {
+		pkgs = append(pkgs, subpkg)
+	}
+
+	return pkgs
+}
+
+// BuildPackagePathString builds a string indicating the full path to a package
+// within a given module for use in producing informative error messages.
+func (cm *ChaiModule) BuildPackagePathString(pkg *deps.ChaiPackage) string {
+	if cm.RootPackage == pkg {
+		return cm.Name
+	}
+
+	for subpath, subpkg := range cm.SubPackages {
+		if subpkg == pkg {
+			return cm.Name + "." + strings.ReplaceAll(subpath, string(filepath.Separator), ".")
+		}
+	}
+
+	// unreachable
+	return ""
 }
 
 // BuildProfile represents the profile that compiler will use to build -- it is

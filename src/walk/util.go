@@ -1,4 +1,4 @@
-package validate
+package walk
 
 import (
 	"chai/logging"

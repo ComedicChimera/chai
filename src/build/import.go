@@ -6,10 +6,9 @@ import (
 	"chai/logging"
 	"chai/mods"
 	"chai/syntax"
-	"chai/validate"
+	"chai/walk"
 	"fmt"
 	"path/filepath"
-	"strings"
 )
 
 // initDependencies walks the imports of a given package and recursively
@@ -24,14 +23,18 @@ func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *deps.ChaiPa
 
 	// walk each import appropriately
 	for _, file := range pkg.Files {
-		for _, ast := range file.AST.Content {
+		for i, ast := range file.AST.Content {
 			if branch, ok := ast.(*syntax.ASTBranch); ok {
 				if branch.Name == "import_stmt" {
 					if !c.processImport(parentMod, file, branch) {
 						return false
 					}
 				} else {
-					// imports are only at the top so first non-import we encounter, we exit
+					// imports are only at the top so first non-import we
+					// encounter, we exit, but also make sure to slice the
+					// imports off the AST so future components of the compiler
+					// won't have to worry with them
+					file.AST.Content = file.AST.Content[i+1:]
 					break
 				}
 			}
@@ -64,7 +67,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 					return false
 				}
 			} else /* `identifier_list` */ {
-				_, importedSymbols, err = validate.WalkIdentifierList(v)
+				_, importedSymbols, err = walk.WalkIdentifierList(v)
 				if err != nil {
 					logging.LogCompileError(
 						file.LogContext,
@@ -92,7 +95,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 	if file.Parent != importedPkg {
 		logging.LogCompileError(
 			file.LogContext,
-			fmt.Sprintf("package `%s` cannot import itself", buildPackageModulePath(parentMod, importedPkg)),
+			fmt.Sprintf("package `%s` cannot import itself", parentMod.BuildPackagePathString(importedPkg)),
 			logging.LMKImport,
 			importedPkgPathPos,
 		)
@@ -114,8 +117,8 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 					file.LogContext,
 					fmt.Sprintf(
 						"cross-module import cycle detected between `%s` and `%s`",
-						buildPackageModulePath(parentMod, file.Parent),
-						buildPackageModulePath(importedMod, importedPkg),
+						parentMod.BuildPackagePathString(file.Parent),
+						importedMod.BuildPackagePathString(importedPkg),
 					),
 					logging.LMKImport,
 					importedPkgPathPos,
@@ -222,21 +225,4 @@ func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods
 	}
 
 	return nil, fmt.Errorf("unable to locate module by name `%s`", modName)
-}
-
-// buildPackageModulePath builds a descriptive string identifying package inside
-// its module (based on its subpath)
-func buildPackageModulePath(parentMod *mods.ChaiModule, pkg *deps.ChaiPackage) string {
-	if parentMod.RootPackage == pkg {
-		return parentMod.Name
-	}
-
-	for subpath, subpkg := range parentMod.SubPackages {
-		if subpkg == pkg {
-			return parentMod.Name + "." + strings.ReplaceAll(subpath, string(filepath.Separator), ".")
-		}
-	}
-
-	// unreachable
-	return ""
 }

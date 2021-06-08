@@ -95,7 +95,7 @@ func (c *Compiler) Analyze() bool {
 			wg.Add(1)
 			go func(mod *mods.ChaiModule) {
 				defer wg.Done()
-				r := resolve.NewResolver(mod)
+				r := resolve.NewResolver(mod, c.depGraph)
 
 				// don't need to use a mutex here since we are always setting
 				// this boolean flag to the same value -- even if two goroutines

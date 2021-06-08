@@ -90,12 +90,7 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*dep
 // will be logged and `nil` will be written to the channel.
 func (c *Compiler) initFile(fchan chan *deps.ChaiFile, parentpkg *deps.ChaiPackage, fabspath string) {
 	// create the file struct
-	newfile := &deps.ChaiFile{
-		Parent:      parentpkg,
-		FilePath:    fabspath,
-		LogContext:  &logging.LogContext{PackageID: parentpkg.ID, FilePath: fabspath},
-		GlobalTable: make(map[string]*deps.Symbol),
-	}
+	newfile := deps.NewFile(parentpkg, fabspath)
 
 	// create the scanner for the file
 	if sc, ok := syntax.NewScanner(fabspath, newfile.LogContext); ok {
