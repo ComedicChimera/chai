@@ -55,6 +55,7 @@ const (
 	IMPORT
 	PUB
 	FROM
+	PRIV
 
 	// expression utils
 	SUPER

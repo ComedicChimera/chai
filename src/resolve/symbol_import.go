@@ -26,7 +26,7 @@ func (r *Resolver) processSymbolImport(file *deps.ChaiFile, sym *deps.Symbol) bo
 func (r *Resolver) resolveSymbolImport(file *deps.ChaiFile, sym *deps.Symbol) bool {
 	if importedSym, ok := sym.SrcPackage.ImportSymbol(sym.Name); ok {
 		// update the sym in the local file's import table
-		sym.Immutable = importedSym.Immutable
+		file.ImportedSymbols[sym.Name] = importedSym
 	}
 
 	logging.LogCompileError(

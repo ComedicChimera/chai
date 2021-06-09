@@ -1,8 +1,10 @@
 package typing
 
-// PrimitiveType represents a primitive Chai type such as an `i32` or a `string`.
-// Its value must be one of the enumerated primitive kinds below
-type PrimitiveType uint
+import "strings"
+
+// PrimType represents a primitive Chai type such as an `i32` or a `string`. Its
+// value must be one of the enumerated primitive kinds below
+type PrimType uint
 
 // Enumeration of primitive types
 const (
@@ -23,9 +25,9 @@ const (
 	PrimKindNothing
 )
 
-// equals for integers is an integer comparison
-func (pt PrimitiveType) equals(other DataType) bool {
-	if opt, ok := other.(PrimitiveType); ok {
+// equals for primitives is an integer comparison
+func (pt PrimType) equals(other DataType) bool {
+	if opt, ok := other.(PrimType); ok {
 		return pt == opt
 	}
 
@@ -33,7 +35,7 @@ func (pt PrimitiveType) equals(other DataType) bool {
 }
 
 // Repr of a primitive type is just its corresponding token value
-func (pt PrimitiveType) Repr() string {
+func (pt PrimType) Repr() string {
 	switch pt {
 	case PrimKindU8:
 		return "u8"
@@ -66,4 +68,81 @@ func (pt PrimitiveType) Repr() string {
 	default:
 		return "nothing"
 	}
+}
+
+// -----------------------------------------------------------------------------
+
+// FuncType represents a Chai function (or operator variant) type
+type FuncType struct {
+	Args       []*FuncArg
+	ReturnType DataType
+	Async      bool
+
+	// compiler internal properties
+	Intrinsic bool
+	Boxed     bool
+}
+
+func (ft *FuncType) equals(other DataType) bool {
+	if oft, ok := other.(*FuncType); ok {
+		if len(ft.Args) != len(oft.Args) {
+			return false
+		}
+
+		for i, arg := range ft.Args {
+			if !arg.equals(oft.Args[i]) {
+				return false
+			}
+		}
+
+		// boxed and intrinsic are compiler internal properties, so they can be
+		// used to test equality
+		return ft.Async == oft.Async
+	}
+
+	return false
+}
+
+func (ft *FuncType) Repr() string {
+	sb := strings.Builder{}
+
+	if ft.Async {
+		sb.WriteString("async(")
+	} else {
+		sb.WriteString("fn(")
+	}
+
+	for i, arg := range ft.Args {
+		if arg.Indefinite {
+			sb.WriteString("...")
+		} else if arg.Optional {
+			sb.WriteRune('~')
+		}
+
+		sb.WriteString(arg.Type.Repr())
+
+		if i < len(ft.Args)-1 {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteRune(')')
+	sb.WriteString(ft.ReturnType.Repr())
+	return sb.String()
+}
+
+// FuncArg represents an argument to a Chai function
+type FuncArg struct {
+	Name                 string
+	Type                 DataType
+	Volatile             bool
+	Optional, Indefinite bool
+}
+
+func (fa *FuncArg) equals(ofa *FuncArg) bool {
+	return fa.Name == ofa.Name &&
+		Equals(fa.Type, ofa.Type) &&
+		fa.Volatile == ofa.Volatile &&
+		fa.Optional == ofa.Optional &&
+		fa.Indefinite == ofa.Indefinite
 }

@@ -38,6 +38,8 @@ func (r *Resolver) ResolveAll() bool {
 		}
 	}
 
+	// NOTE: the global imported symbol references will CHANGE
+
 	// TODO: resolve all independent definitions
 	// TODO: resolve all dependent definitions
 	return true

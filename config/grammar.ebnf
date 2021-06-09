@@ -64,7 +64,7 @@ def_core = class_def | space_def | func_def | type_def | oper_def | cons_def ;
 class_def = 'class' 'IDENTIFIER' 'IDENTIFIER' [generic_tag] 'of' space_body ;
 space_def = 'space' 'for' type ['is' type {',' type}] 'of' space_body ;
 space_body = 'INDENT' space_member { space_member } 'DEDENT' ;
-space_member = func_def | annotated_method ;
+space_member = [annotation] ['priv'] func_def ;
 
 oper_def = 'oper' oper_value [generic_tag] signature ( '=' decl_func_body | 'NEWLINE' ) ;
 oper_value = '+' | '-' | '*' | '/' | '//'
@@ -86,7 +86,7 @@ alg_suffix = alg_variant { '|' alg_variant} ;
 alg_variant = 'IDENTIFIER' [tupled_suffix] ;
 tupled_suffix = '(' type {',' type} ')' ;
 struct_suffix = '{' struct_member { struct_member } '}' ;
-struct_member = ['vol'] identifier_list type_ext [initializer] 'NEWLINE' ;
+struct_member = ['priv'] ['vol'] identifier_list type_ext [initializer] 'NEWLINE' ;
 
 cons_def = 'cons' 'IDENTIFIER' [generic_tag] '=' ( cons_body | 'INDENT' '|' cons_body 'DEDENT' ) ;
 cons_bdy = type {'|' type} ;
@@ -188,7 +188,7 @@ dict_contents = expr '->' expr ({',' expr ':' expr} | [comp_suffix]) ;
 vec_builder = '[' vec_contents ']' ;
 vec_contents = expr {(',' | ';') expr };
 
-tupled_expr = '(' expr_list ')' ;
+tupled_expr = '(' [expr_list] ')' ;
 
 super_access = 'super' '(' [type] ')' ;
 

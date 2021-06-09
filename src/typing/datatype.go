@@ -9,7 +9,15 @@ type DataType interface {
 	// This method should return exact/true equality with no considerations for
 	// other types (such as type parameters).  It is meant to only be called
 	// internally.
-	equals(dt DataType) bool
+	equals(other DataType) bool
+
+	// coerce checks whether the argument type can be coerced to this data type.
+	// It should only check for coercion not equality.
+	coerce(from DataType) bool
+
+	// cast checks whether this data type can cast to the argument type. It
+	// should only check for casting not coercion or equality.
+	cast(to DataType) bool
 }
 
 // -----------------------------------------------------------------------------
