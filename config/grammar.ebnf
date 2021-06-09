@@ -46,18 +46,18 @@ package_path = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
 (* -- Public Block -- *)
 pub_block = 'pub' 'of' 'INDENT' pub_top_level 'DEDENT' ;
 pub_top_level = pub_definition {pub_definition} ;
-pub_definition = annotated_def | variable_decl | def_core ;
-
+pub_definition = internal_annotated_def | variable_decl | def_core ;
+internal_annotated_def = annotation def_core ;
 
 (* -- Definitions -- *)
 top_level = definition { definition } ;
-definition = annotated_def | public_def | def_core | variable_decl ;
+definition = annotated_def | pub_def | def_core | variable_decl ;
 
-annotated_def = annotation def_core;
+annotated_def = annotation (def_core | pub_def);
 annotation = '@' (annot_single | '[' annot_single {',' annot_single} ']') 'NEWLINE' ;
 annot_single = 'IDENTIFIER' ['(' 'STRINGLIT' {',' 'STRINGLIT'} ')'] ;
 
-public_def = 'pub' ( def_core | variable_decl ) ;
+pub_def = 'pub' ( def_core | variable_decl ) ;
 
 def_core = class_def | space_def | func_def | type_def | oper_def | cons_def ;
 
