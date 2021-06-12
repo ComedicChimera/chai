@@ -2,9 +2,9 @@ package build
 
 import (
 	"chai/common"
-	"chai/deps"
 	"chai/logging"
 	"chai/mods"
+	"chai/sem"
 	"chai/syntax"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +17,7 @@ import (
 // The package is appropriately added as a subpackage of its module. The package
 // is returned after it is initialized along with a boolean flag indicating
 // success or failure.
-func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*deps.ChaiPackage, bool) {
+func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*sem.ChaiPackage, bool) {
 	// validate package path
 	finfo, err := os.Stat(abspath)
 	if err != nil {
@@ -31,7 +31,7 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*dep
 	}
 
 	// create a new package
-	newpkg := deps.NewPackage(abspath)
+	newpkg := sem.NewPackage(abspath)
 
 	// load and parse package files concurrently
 	finfos, err := ioutil.ReadDir(abspath)
@@ -40,7 +40,7 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*dep
 		return nil, false
 	}
 
-	fchan := make(chan *deps.ChaiFile)
+	fchan := make(chan *sem.ChaiFile)
 	fcount := 0
 	for _, finfo := range finfos {
 		// we only want to parse Chai files (not directories or other files)
@@ -88,9 +88,9 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*dep
 // channel to write to if the file is initialized successfully as well as a path
 // to the file.  Note that if the file fails to initialize, an appropriate error
 // will be logged and `nil` will be written to the channel.
-func (c *Compiler) initFile(fchan chan *deps.ChaiFile, parentpkg *deps.ChaiPackage, fabspath string) {
+func (c *Compiler) initFile(fchan chan *sem.ChaiFile, parentpkg *sem.ChaiPackage, fabspath string) {
 	// create the file struct
-	newfile := deps.NewFile(parentpkg, fabspath)
+	newfile := sem.NewFile(parentpkg, fabspath)
 
 	// create the scanner for the file
 	if sc, ok := syntax.NewScanner(fabspath, newfile.LogContext); ok {

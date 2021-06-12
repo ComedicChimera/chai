@@ -1,8 +1,8 @@
 package resolve
 
 import (
-	"chai/deps"
 	"chai/mods"
+	"chai/sem"
 	"chai/syntax"
 	"chai/walk"
 )
@@ -67,7 +67,7 @@ func (r *Resolver) ResolveAll() bool {
 
 	// NOTE: the global imported symbol references will CHANGE
 
-	walkers := make(map[*deps.ChaiFile]*walk.Walker)
+	walkers := make(map[*sem.ChaiFile]*walk.Walker)
 
 	// TODO: resolve all independent definitions
 

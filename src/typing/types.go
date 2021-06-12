@@ -79,8 +79,8 @@ type FuncType struct {
 	Async      bool
 
 	// compiler internal properties
-	Intrinsic bool
-	Boxed     bool
+	IntrinsicName string
+	Boxed         bool
 }
 
 func (ft *FuncType) equals(other DataType) bool {

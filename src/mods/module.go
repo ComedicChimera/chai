@@ -1,7 +1,7 @@
 package mods
 
 import (
-	"chai/deps"
+	"chai/sem"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,11 +19,11 @@ type ChaiModule struct {
 	Name string
 
 	// RootPackage is the package at the root of the module
-	RootPackage *deps.ChaiPackage
+	RootPackage *sem.ChaiPackage
 
 	// SubPackages is a map of all the subpackages of this module organized by
 	// their subpath (eg. `io.std` => `std`; `mod.b.c` => `b.c`)
-	SubPackages map[string]*deps.ChaiPackage
+	SubPackages map[string]*sem.ChaiPackage
 
 	// DependsOn is a map of all the other modules this module depends on
 	// organized by module name
@@ -52,8 +52,8 @@ type ChaiModule struct {
 }
 
 // Packages returns a slice of all the packages in the module
-func (cm *ChaiModule) Packages() []*deps.ChaiPackage {
-	pkgs := []*deps.ChaiPackage{cm.RootPackage}
+func (cm *ChaiModule) Packages() []*sem.ChaiPackage {
+	pkgs := []*sem.ChaiPackage{cm.RootPackage}
 	for _, subpkg := range cm.SubPackages {
 		pkgs = append(pkgs, subpkg)
 	}
@@ -63,7 +63,7 @@ func (cm *ChaiModule) Packages() []*deps.ChaiPackage {
 
 // BuildPackagePathString builds a string indicating the full path to a package
 // within a given module for use in producing informative error messages.
-func (cm *ChaiModule) BuildPackagePathString(pkg *deps.ChaiPackage) string {
+func (cm *ChaiModule) BuildPackagePathString(pkg *sem.ChaiPackage) string {
 	if cm.RootPackage == pkg {
 		return cm.Name
 	}

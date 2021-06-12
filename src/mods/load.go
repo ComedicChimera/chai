@@ -2,8 +2,8 @@ package mods
 
 import (
 	"chai/common"
-	"chai/deps"
 	"chai/logging"
+	"chai/sem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -85,7 +85,7 @@ func LoadModule(path, selectedProfile string, rootProfile *BuildProfile) (*ChaiM
 		// module root is the directory enclosing the module file
 		ModuleRoot:  path,
 		ID:          common.GenerateIDFromPath(path),
-		SubPackages: make(map[string]*deps.ChaiPackage),
+		SubPackages: make(map[string]*sem.ChaiPackage),
 		DependsOn:   make(map[string]*ChaiModule),
 	}
 

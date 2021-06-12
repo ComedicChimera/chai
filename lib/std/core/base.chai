@@ -1,14 +1,14 @@
 pub of 
-    @intrinsic
+    @intrinsic_op("add")
     oper + (a, b: i32) i32
     
-    @intrinsic
+    @intrinsic_op("add")
     oper + (a, b: u8) u8
     
-    @intrinsic
+    @intrinsic_op("sdiv")
     oper // (a, b: i32) i32
     
-    @intrinsic
+    @intrinsic_op("srem")
     oper % (a, b: i32) i32
     
     @intrinsic

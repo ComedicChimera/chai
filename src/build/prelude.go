@@ -1,9 +1,9 @@
 package build
 
 import (
-	"chai/deps"
 	"chai/logging"
 	"chai/mods"
+	"chai/sem"
 )
 
 // preludeImports is a table of each prelude package and what to import from it
@@ -13,7 +13,7 @@ var preludeImports = map[string][]string{
 }
 
 // attachPrelude adds the prelude imports to a standard package
-func (c *Compiler) attachPrelude(parentMod *mods.ChaiModule, pkg *deps.ChaiPackage) bool {
+func (c *Compiler) attachPrelude(parentMod *mods.ChaiModule, pkg *sem.ChaiPackage) bool {
 	// make sure not to attach core as dependency of itself
 	if parentMod != c.coreMod {
 		// note that we are adding the core module by name here so that it is
@@ -39,7 +39,7 @@ func (c *Compiler) attachPrelude(parentMod *mods.ChaiModule, pkg *deps.ChaiPacka
 }
 
 // attachPreludePackage attaches a single package to a prelude file
-func (c *Compiler) attachPreludePackage(file *deps.ChaiFile, preludePkg *deps.ChaiPackage) bool {
+func (c *Compiler) attachPreludePackage(file *sem.ChaiFile, preludePkg *sem.ChaiPackage) bool {
 	// obviously, we don't want to attach a prelude package to itself
 	if file.Parent != preludePkg {
 		var preludeImportedSymbolNames []string

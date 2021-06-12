@@ -1,4 +1,4 @@
-package deps
+package sem
 
 import (
 	"chai/logging"

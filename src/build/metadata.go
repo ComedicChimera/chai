@@ -1,9 +1,9 @@
 package build
 
 import (
-	"chai/deps"
 	"chai/logging"
 	"chai/mods"
+	"chai/sem"
 	"chai/syntax"
 	"fmt"
 )
@@ -12,7 +12,7 @@ import (
 // to the file as necessary, and indicates whether or not the compiler should
 // compile the file as necessary.  It takes the scanner for the file as its
 // second argument (so that it can read metadata easily)
-func (c *Compiler) processMetadata(file *deps.ChaiFile, sc *syntax.Scanner) bool {
+func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool {
 	// scan metadata
 	if metadata, ok := c.scanMetadata(sc); ok {
 		// check for compilation conditions

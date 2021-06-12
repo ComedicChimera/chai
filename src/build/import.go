@@ -2,9 +2,9 @@ package build
 
 import (
 	"chai/common"
-	"chai/deps"
 	"chai/logging"
 	"chai/mods"
+	"chai/sem"
 	"chai/syntax"
 	"chai/walk"
 	"fmt"
@@ -15,7 +15,7 @@ import (
 // initializes all the dependencies determined from those imports.  It returns a
 // boolean indicating whether or not it was successful in this initialization
 // process.
-func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *deps.ChaiPackage) bool {
+func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *sem.ChaiPackage) bool {
 	// start by attaching the prelude import
 	if !c.attachPrelude(parentMod, pkg) {
 		return false
@@ -45,9 +45,9 @@ func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *deps.ChaiPa
 }
 
 // processImport walks a single import statement and initializes the dependency
-func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile, importStmt *syntax.ASTBranch) bool {
+func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile, importStmt *syntax.ASTBranch) bool {
 	var importedMod *mods.ChaiModule
-	var importedPkg *deps.ChaiPackage
+	var importedPkg *sem.ChaiPackage
 
 	importedSymbols := make(map[string]*logging.TextPosition)
 
@@ -146,7 +146,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *deps.ChaiFile
 }
 
 // importPackage attempts to import a package based on a given `package_path` AST
-func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *syntax.ASTBranch) (*mods.ChaiModule, *deps.ChaiPackage, error) {
+func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *syntax.ASTBranch) (*mods.ChaiModule, *sem.ChaiPackage, error) {
 	// extract the module path
 	var modName string
 	subPath := ""

@@ -1,8 +1,8 @@
 package resolve
 
 import (
-	"chai/deps"
 	"chai/logging"
+	"chai/sem"
 	"chai/syntax"
 	"chai/walk"
 	"fmt"
@@ -18,7 +18,7 @@ type Definition struct {
 	NamePos *logging.TextPosition
 
 	// SrcFile is the file this definition is defined in
-	SrcFile *deps.ChaiFile
+	SrcFile *sem.ChaiFile
 
 	// Definition properties
 	Public      bool
@@ -31,7 +31,7 @@ type Definition struct {
 // extractDefinition extracts `Definition` from a single definition node (ie.
 // the subnode of a `definition` or `pub_definition` node) and adds it to the
 // appropriate resolution list.
-func (r *Resolver) extractDefinition(srcfile *deps.ChaiFile, branch *syntax.ASTBranch) bool {
+func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) bool {
 	def := &Definition{
 		Annotations: make(map[string]*walk.Annotation),
 		SrcFile:     srcfile,
@@ -74,7 +74,7 @@ func (r *Resolver) extractDefinition(srcfile *deps.ChaiFile, branch *syntax.ASTB
 }
 
 // walkAnnotations walks the annotations (`annotation` branch) of a definition
-func (r *Resolver) walkAnnotations(srcfile *deps.ChaiFile, branch *syntax.ASTBranch) (map[string]*walk.Annotation, bool) {
+func (r *Resolver) walkAnnotations(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) (map[string]*walk.Annotation, bool) {
 	annots := make(map[string]*walk.Annotation)
 
 	for _, item := range branch.Content {
