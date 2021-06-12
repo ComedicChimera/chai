@@ -1,6 +1,9 @@
 package sem
 
-import "chai/typing"
+import (
+	"chai/syntax"
+	"chai/typing"
+)
 
 // HIRExpr is the parent interface for all HIR (high-level intermediate
 // representation) expressions
@@ -39,4 +42,19 @@ func (eb *exprBase) Category() int {
 
 func (eb *exprBase) Constant() bool {
 	return eb.constant
+}
+
+// HIRIncomplete represents an AST branch that hasn't been evaluated yet
+type HIRIncomplete syntax.ASTBranch
+
+func (hi *HIRIncomplete) Type() typing.DataType {
+	return typing.PrimType(typing.PrimKindNothing)
+}
+
+func (hi *HIRIncomplete) Category() int {
+	return RValue
+}
+
+func (hi *HIRIncomplete) Constant() bool {
+	return false
 }
