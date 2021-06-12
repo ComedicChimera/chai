@@ -362,12 +362,16 @@ func (s *Scanner) ReadToken() (*Token, bool) {
 		return tok, true
 	}
 
-	// if we're are at the end of the file, we need to first return an
-	// appropriate DEDENT to get us back to the top level and then store an EOF
-	// token in the lookahead (this section should only run once)
-	s.lookahead = &Token{Kind: EOF}
+	// if we're are at the end of the file, we need to first return a NEWLINE to
+	// exit any blocks we may be in or end any statements found at the end of
+	// the file.  Then, we return an appropriate DEDENT to get us to the top of
+	// the file followed by an EOF token.  We do this by storing the last two
+	// tokens in our lookaheads and returning our initial NEWLINE.  This section
+	// should only run once.
+	s.auxLookahead = &Token{Kind: EOF}
+	s.lookahead = &Token{Kind: DEDENT, Value: string(s.indentLevel)}
 
-	return s.makeToken(DEDENT, string(s.indentLevel)), true
+	return s.makeToken(NEWLINE, ""), true
 }
 
 // UnreadToken is used to undo the preprocessor read the occurs at the start of

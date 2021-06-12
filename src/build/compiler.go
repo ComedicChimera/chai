@@ -88,7 +88,7 @@ func (c *Compiler) Analyze() bool {
 		// each batch is resolved concurrently -- this makes the compiler far
 		// more performant on large projects and allows it to take advantage of
 		// any concurrent architecture provided to it.
-		var wg *sync.WaitGroup
+		wg := &sync.WaitGroup{}
 		resolutionSucceeded := true
 
 		for _, mod := range batch {

@@ -185,6 +185,7 @@ var keywordPatterns = map[string]int{
 	"cons":        CONS,
 	"import":      IMPORT,
 	"pub":         PUB,
+	"priv":        PRIV,
 	"from":        FROM,
 	"super":       SUPER,
 	"null":        NULL,
