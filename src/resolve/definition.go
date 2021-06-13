@@ -4,7 +4,6 @@ import (
 	"chai/logging"
 	"chai/sem"
 	"chai/syntax"
-	"chai/walk"
 	"fmt"
 )
 
@@ -22,7 +21,7 @@ type Definition struct {
 
 	// Definition properties
 	Public      bool
-	Annotations map[string]*walk.Annotation
+	Annotations map[string]*sem.Annotation
 
 	// AST is the full AST branch of the definition
 	AST *syntax.ASTBranch
@@ -33,7 +32,7 @@ type Definition struct {
 // appropriate resolution list.
 func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) bool {
 	def := &Definition{
-		Annotations: make(map[string]*walk.Annotation),
+		Annotations: make(map[string]*sem.Annotation),
 		SrcFile:     srcfile,
 	}
 
@@ -74,8 +73,8 @@ func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBr
 }
 
 // walkAnnotations walks the annotations (`annotation` branch) of a definition
-func (r *Resolver) walkAnnotations(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) (map[string]*walk.Annotation, bool) {
-	annots := make(map[string]*walk.Annotation)
+func (r *Resolver) walkAnnotations(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) (map[string]*sem.Annotation, bool) {
+	annots := make(map[string]*sem.Annotation)
 
 	for _, item := range branch.Content {
 		// only branch is `annot_single`
@@ -98,7 +97,7 @@ func (r *Resolver) walkAnnotations(srcfile *sem.ChaiFile, branch *syntax.ASTBran
 						return nil, false
 					}
 
-					annots[name] = &walk.Annotation{
+					annots[name] = &sem.Annotation{
 						Name:    name,
 						NamePos: leaf.Position(),
 					}

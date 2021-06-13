@@ -8,20 +8,33 @@ type HIRRoot struct {
 // HIRDef is the parent interface for all definition HIR Nodes
 type HIRDef interface {
 	Sym() *Symbol
+	Annotations() map[string]*Annotation
 }
 
-// defBase is the base struct for all definitions
-type defBase struct {
-	sym *Symbol
+// DefBase is the base struct for all definitions
+type DefBase struct {
+	sym    *Symbol
+	annots map[string]*Annotation
 }
 
-func (db *defBase) Sym() *Symbol {
+func NewDefBase(sym *Symbol, annots map[string]*Annotation) DefBase {
+	return DefBase{
+		sym:    sym,
+		annots: annots,
+	}
+}
+
+func (db *DefBase) Sym() *Symbol {
 	return db.sym
+}
+
+func (db *DefBase) Annotations() map[string]*Annotation {
+	return db.annots
 }
 
 // HIRFuncDef represents a function definition
 type HIRFuncDef struct {
-	defBase
+	DefBase
 
 	// ArgumentInitializers stores the HIR expressions initializing all optional
 	// arguments of a function.

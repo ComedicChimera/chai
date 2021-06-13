@@ -2,6 +2,7 @@ package sem
 
 import (
 	"chai/logging"
+	"chai/syntax"
 	"chai/typing"
 )
 
@@ -43,3 +44,12 @@ const (
 	NeverMutated        // Can be mutated, never has been
 	Mutable             // Can and has been mutated
 )
+
+// Annotation represents an annotation (name and value)
+type Annotation struct {
+	Name    string
+	NamePos *logging.TextPosition
+
+	// Values stores leaves so we can keep their position
+	Values []*syntax.ASTLeaf
+}

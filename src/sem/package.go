@@ -77,6 +77,10 @@ type ChaiFile struct {
 	// AST is the abstract syntax tree representing the contents of this file
 	AST *syntax.ASTBranch
 
+	// Root is the root the node of the high-level intermediate representation
+	// for this file
+	Root *HIRRoot
+
 	// Metadata is the map of metadata flags and arguments set for this file
 	Metadata map[string]string
 
@@ -97,6 +101,7 @@ func NewFile(parent *ChaiPackage, fabspath string) *ChaiFile {
 		LogContext:      &logging.LogContext{PackageID: parent.ID, FilePath: fabspath},
 		ImportedSymbols: make(map[string]*Symbol),
 		VisiblePackages: make(map[string]*ChaiPackage),
+		Root:            &HIRRoot{},
 	}
 }
 
@@ -171,4 +176,9 @@ func (cf *ChaiFile) AddPackageImport(importedPkg *ChaiPackage, importedPkgName s
 	}
 
 	return nil
+}
+
+// AddDefNode adds a HIR definition node to this file
+func (cf *ChaiFile) AddDefNode(node HIRDef) {
+	cf.Root.Defs = append(cf.Root.Defs, node)
 }

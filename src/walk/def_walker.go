@@ -9,7 +9,7 @@ import (
 )
 
 // WalkDef walks a core definition node (eg. `type_def` or `variable_decl`)
-func (w *Walker) WalkDef(branch *syntax.ASTBranch, public bool, annots map[string]*Annotation) bool {
+func (w *Walker) WalkDef(branch *syntax.ASTBranch, public bool, annots map[string]*sem.Annotation) bool {
 	switch branch.Name {
 	case "func_def":
 		return w.walkFuncDef(branch, public, annots)
@@ -23,11 +23,38 @@ func (w *Walker) WalkDef(branch *syntax.ASTBranch, public bool, annots map[strin
 // -----------------------------------------------------------------------------
 
 // walkFuncDef walks a function definition
-func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, public bool, annots map[string]*Annotation) bool {
+func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, public bool, annots map[string]*sem.Annotation) bool {
 	if sym, namePos, argInits, ok := w.walkFuncHeader(branch, public); ok {
-		_ = sym
-		_ = namePos
-		_ = argInits
+		if w.defineGlobal(sym, namePos) {
+			needsBody, ok := w.validateFuncAnnotations(annots)
+			if !ok {
+				return false
+			}
+
+			if dfn, ok := branch.Last().(*syntax.ASTBranch); ok {
+				w.SrcFile.AddDefNode(&sem.HIRFuncDef{
+					DefBase:              sem.NewDefBase(sym, annots),
+					ArgumentInitializers: argInits,
+					Body:                 (*sem.HIRIncomplete)(dfn),
+				})
+			} else if needsBody {
+				w.logError(
+					fmt.Sprintf("function `%s` must provide a body", sym.Name),
+					logging.LMKDef,
+					branch.Content[branch.Len()-2].Position(), // error on the parenthesis
+				)
+
+				return false
+			} else {
+				w.SrcFile.AddDefNode(&sem.HIRFuncDef{
+					DefBase:              sem.NewDefBase(sym, annots),
+					ArgumentInitializers: argInits,
+					Body:                 nil,
+				})
+			}
+
+			return true
+		}
 	}
 
 	return false
