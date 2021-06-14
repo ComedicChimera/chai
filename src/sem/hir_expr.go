@@ -25,23 +25,35 @@ const (
 	RValue
 )
 
-// exprBase is the base struct for all expressions
-type exprBase struct {
+// ExprBase is the base struct for all expressions
+type ExprBase struct {
 	dt       typing.DataType
 	cat      int
 	constant bool
 }
 
-func (eb *exprBase) Type() typing.DataType {
+func NewExprBase(dt typing.DataType, cat int, constant bool) ExprBase {
+	return ExprBase{
+		dt:       dt,
+		cat:      cat,
+		constant: constant,
+	}
+}
+
+func (eb *ExprBase) Type() typing.DataType {
 	return eb.dt
 }
 
-func (eb *exprBase) Category() int {
+func (eb *ExprBase) Category() int {
 	return eb.cat
 }
 
-func (eb *exprBase) Constant() bool {
+func (eb *ExprBase) Constant() bool {
 	return eb.constant
+}
+
+func (eb *ExprBase) SetType(dt typing.DataType) {
+	eb.dt = dt
 }
 
 // HIRIncomplete represents an AST branch that hasn't been evaluated yet
@@ -57,4 +69,13 @@ func (hi *HIRIncomplete) Category() int {
 
 func (hi *HIRIncomplete) Constant() bool {
 	return false
+}
+
+// -----------------------------------------------------------------------------
+
+// HIRDoBlock represents a do block expression
+type HIRDoBlock struct {
+	ExprBase
+
+	Statements []HIRExpr
 }
