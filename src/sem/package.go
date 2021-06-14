@@ -31,6 +31,9 @@ type ChaiPackage struct {
 	// GlobalTable is the table of globally declared symbols in this package
 	GlobalTable map[string]*Symbol
 
+	// GlobalOperators is the table of globally declared operators in this package
+	GlobalOperators map[int][]*Symbol
+
 	// ImportTable stores all the packages this package depends on
 	ImportTable map[uint]*ChaiPackage
 
@@ -45,11 +48,12 @@ type ChaiPackage struct {
 // (does NOT perform file initialization)
 func NewPackage(rootPath string) *ChaiPackage {
 	return &ChaiPackage{
-		ID:          common.GenerateIDFromPath(rootPath),
-		Name:        filepath.Base(rootPath),
-		RootPath:    rootPath,
-		GlobalTable: make(map[string]*Symbol),
-		ImportTable: make(map[uint]*ChaiPackage),
+		ID:              common.GenerateIDFromPath(rootPath),
+		Name:            filepath.Base(rootPath),
+		RootPath:        rootPath,
+		GlobalTable:     make(map[string]*Symbol),
+		ImportTable:     make(map[uint]*ChaiPackage),
+		GlobalOperators: make(map[int][]*Symbol),
 	}
 }
 
@@ -87,6 +91,9 @@ type ChaiFile struct {
 	// ImportedSymbols stores all the symbols this file imports
 	ImportedSymbols map[string]*Symbol
 
+	// ImportedOperators stores all the operators this file imports
+	ImportedOperators map[int][]*Symbol
+
 	// VisiblePackages is a map of all the packages visible within the namespace
 	// of the package arranged by the name by which they can be accessed
 	VisiblePackages map[string]*ChaiPackage
@@ -96,12 +103,13 @@ type ChaiFile struct {
 // the list of files in that package
 func NewFile(parent *ChaiPackage, fabspath string) *ChaiFile {
 	return &ChaiFile{
-		Parent:          parent,
-		FilePath:        fabspath,
-		LogContext:      &logging.LogContext{PackageID: parent.ID, FilePath: fabspath},
-		ImportedSymbols: make(map[string]*Symbol),
-		VisiblePackages: make(map[string]*ChaiPackage),
-		Root:            &HIRRoot{},
+		Parent:            parent,
+		FilePath:          fabspath,
+		LogContext:        &logging.LogContext{PackageID: parent.ID, FilePath: fabspath},
+		ImportedSymbols:   make(map[string]*Symbol),
+		VisiblePackages:   make(map[string]*ChaiPackage),
+		ImportedOperators: make(map[int][]*Symbol),
+		Root:              &HIRRoot{},
 	}
 }
 
@@ -176,6 +184,24 @@ func (cf *ChaiFile) AddPackageImport(importedPkg *ChaiPackage, importedPkgName s
 	}
 
 	return nil
+}
+
+// ImportOperators makes the public operator definitions of an imported package
+// visible inside the current file.  This function is called before symbol
+// definition and resolution; therefore, there is no need to check for
+// definition conflicts.
+func (cf *ChaiFile) ImportOperators(importedPackage *ChaiPackage) {
+	for opCode, opSymbols := range importedPackage.GlobalOperators {
+		for _, opSym := range opSymbols {
+			if opSym.Public {
+				if localOpSymbols, ok := cf.ImportedOperators[opCode]; ok {
+					cf.ImportedOperators[opCode] = append(localOpSymbols, opSym)
+				} else {
+					cf.ImportedOperators[opCode] = []*Symbol{opSym}
+				}
+			}
+		}
+	}
 }
 
 // AddDefNode adds a HIR definition node to this file

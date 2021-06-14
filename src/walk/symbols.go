@@ -3,6 +3,7 @@ package walk
 import (
 	"chai/logging"
 	"chai/sem"
+	"chai/typing"
 	"fmt"
 )
 
@@ -37,5 +38,42 @@ func (w *Walker) defineGlobal(sym *sem.Symbol, pos *logging.TextPosition) bool {
 	}
 
 	w.SrcFile.Parent.GlobalTable[sym.Name] = sym
+	return true
+}
+
+// defineOperator attempts to define an operator in the global scope of a file
+func (w *Walker) defineOperator(opCode int, sym *sem.Symbol, pos *logging.TextPosition) bool {
+	if opSyms, ok := w.SrcFile.ImportedOperators[opCode]; ok {
+		for _, opSym := range opSyms {
+			if typing.Equivalent(sym.Type, opSym.Type) {
+				w.logError(
+					fmt.Sprintf("operator's signature conflicts with that of an operator imported from package `%s`", opSym.SrcPackage.Name),
+					logging.LMKDef,
+					pos,
+				)
+
+				return false
+			}
+		}
+	}
+
+	if opSyms, ok := w.SrcFile.Parent.GlobalOperators[opCode]; ok {
+		for _, opSym := range opSyms {
+			if typing.Equivalent(sym.Type, opSym.Type) {
+				w.logError(
+					"operator's signature conflicts with that of globally defined operator",
+					logging.LMKDef,
+					pos,
+				)
+
+				return false
+			}
+		}
+
+		w.SrcFile.Parent.GlobalOperators[opCode] = append(opSyms, sym)
+	} else {
+		w.SrcFile.Parent.GlobalOperators[opCode] = []*sem.Symbol{sym}
+	}
+
 	return true
 }

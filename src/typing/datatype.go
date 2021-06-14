@@ -30,6 +30,12 @@ func Equals(a, b DataType) bool {
 	return InnerType(a).equals(InnerType(b))
 }
 
+// Equivalent checks if two types are effectively/logically equivalent
+func Equivalent(a, b DataType) bool {
+	// TODO: revise later
+	return Equals(a, b)
+}
+
 // InnerType returns the type "stored" by another data type (such as the value
 // of a type parameter).  This is used for quickly unwrapping types before
 // comparison and analysis.

@@ -43,3 +43,15 @@ type HIRFuncDef struct {
 	// Body is the body of the function
 	Body HIRExpr
 }
+
+// HIROperDef represents an operator definition
+type HIROperDef struct {
+	DefBase
+
+	// OperCode is the operator code that is used to look up an operator. These
+	// are derived from the tokens used for operators.
+	OperCode int
+
+	// Body is the body of the function
+	Body HIRExpr
+}

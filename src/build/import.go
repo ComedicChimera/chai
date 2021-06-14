@@ -142,6 +142,9 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 		return false
 	}
 
+	// import public operators
+	file.ImportOperators(importedPkg)
+
 	return true
 }
 
