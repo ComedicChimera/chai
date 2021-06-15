@@ -19,7 +19,7 @@ func NewScanner(fpath string, lctx *logging.LogContext) (*Scanner, bool) {
 		return nil, false
 	}
 
-	s := &Scanner{file: bufio.NewReader(f), fpath: fpath, line: 1, lctx: lctx}
+	s := &Scanner{fh: f, file: bufio.NewReader(f), fpath: fpath, line: 1, lctx: lctx}
 	return s, true
 }
 
@@ -37,6 +37,7 @@ func IsDigit(r rune) bool {
 type Scanner struct {
 	lctx *logging.LogContext
 
+	fh    *os.File
 	file  *bufio.Reader
 	fpath string
 
@@ -245,10 +246,16 @@ func (s *Scanner) ReadToken() (*Token, bool) {
 			}
 		// handle string-like
 		case '"':
+			// trim off leading `"`
+			s.tokBuilder.Reset()
 			tok, malformed = s.readStdStringLiteral()
 		case '\'':
+			// trim off leading `'`
+			s.tokBuilder.Reset()
 			tok, malformed = s.readRuneLiteral()
 		case '`':
+			// trim off leading ```
+			s.tokBuilder.Reset()
 			tok, malformed = s.readRawStringLiteral()
 		// handle comments
 		case '#':
@@ -393,6 +400,11 @@ func (s *Scanner) UnreadToken(tok *Token) {
 // Context returns the scanner's log context
 func (s *Scanner) Context() *logging.LogContext {
 	return s.lctx
+}
+
+// Close closes the open file handle the scanner is processing
+func (s *Scanner) Close() error {
+	return s.fh.Close()
 }
 
 // create a token at the current position from the provided data
@@ -750,15 +762,16 @@ loop:
 	return s.getToken(INTLIT), false
 }
 
-// read in a standard string literal
+// read in a standard string literal -- assuming leading `"` has been dropped
 func (s *Scanner) readStdStringLiteral() (*Token, bool) {
 	expectingEscape := false
 
-	// no lookahead pattern necessary here
-	for s.readNext() {
+	// use a lookahead pattern to avoid reading the closing quote
+	for next, ok := s.peek(); ok; next, ok = s.peek() {
 		// test for escape first
 		if expectingEscape {
-			// handle invalid escape sequences
+			// handle invalid escape sequences -- no need to read next here
+			// since our `readEscapeSequence` does that for us
 			if s.readEscapeSequence() {
 				expectingEscape = false
 			} else {
@@ -766,29 +779,30 @@ func (s *Scanner) readStdStringLiteral() (*Token, bool) {
 			}
 		}
 
-		if s.curr == '\\' {
+		switch next {
+		case '\\':
 			expectingEscape = true
-			continue
-		} else if s.curr == '"' {
-			break
-		} else if s.curr == '\n' {
+			s.readNext()
+		case '"':
+			// we don't want to read the closing quote, so we make
+			// our string token, skip it (so the column is right)
+			// and we return.  We know that this quote is valid since
+			// escape sequences are handled above this switch
+			tok := s.getToken(STRINGLIT)
+			s.skipNext()
+			return tok, false
+		case '\n':
 			// catch newlines in strings
 			return nil, true
 		}
 	}
 
-	// escape sequence occurred at end of file
-	if expectingEscape {
-		return nil, true
-		// EOF occurred before end of string
-	} else if s.tokBuilder.String()[s.tokBuilder.Len()-1] != '"' {
-		return nil, true
-	}
-
-	return s.getToken(STRINGLIT), false
+	// if we reach here, we didn't encounter a proper closing quotation and
+	// therefore, we need to indicate that this token is malformed
+	return nil, true
 }
 
-// read in a rune literal
+// read in a rune literal -- assuming leading `'` has been dropped
 func (s *Scanner) readRuneLiteral() (*Token, bool) {
 	// if the rune has no content then it is malformed
 	if !s.readNext() {
@@ -801,17 +815,21 @@ func (s *Scanner) readRuneLiteral() (*Token, bool) {
 		return nil, true
 	}
 
-	// if the next token after processing the escape sequence is not a closing
-	// quote than the rune literal is too long on we are at EOF => malformed in
-	// either case
-	if !s.readNext() || s.curr != '\'' {
+	// if the next token after processing the escape sequence/rune body is not a
+	// closing quote than the rune literal is too long on we are at EOF =>
+	// malformed in either case
+	if next, ok := s.peek(); !ok || next != '\'' {
 		return nil, true
 	}
 
-	// assume it is properly formed
-	return s.getToken(RUNELIT), false
+	// assume it is properly formed and skip the closing single quote; skip
+	// after creating the token so the column is correct
+	tok := s.getToken(RUNELIT)
+	s.skipNext()
+	return tok, false
 }
 
+// read and interpret an escape sequence inside a string or rune literal
 func (s *Scanner) readEscapeSequence() bool {
 	if !s.readNext() {
 		return false
@@ -847,16 +865,30 @@ func (s *Scanner) readEscapeSequence() bool {
 	return true
 }
 
-// read in a raw string literal
+// read in a raw string literal -- assuming leading backtick has been dropped
 func (s *Scanner) readRawStringLiteral() (*Token, bool) {
-	for ok := true; ok; ok = s.curr != '`' {
-		// catch incomplete raw string literals
-		if !s.readNext() {
-			return nil, true
+	// used to signal when we need to escape a backtick
+	escapeNext := true
+
+	// use a lookahead pattern to avoid reading the closing backtick
+	for next, ok := s.peek(); ok; next, ok = s.peek() {
+		if next != '`' || escapeNext {
+			s.readNext()
+		} else {
+			// skip closing backtick; creating stringlit token before skipping
+			// to generate correct column position
+			tok := s.getToken(STRINGLIT)
+			s.skipNext()
+			return tok, false
 		}
+
+		// check for escapes for backticks; update after we have handled the
+		// exit condition
+		escapeNext = next == '\\'
 	}
 
-	return s.getToken(STRINGLIT), false
+	// only stringlits that reach here are incomplete
+	return nil, true
 }
 
 func (s *Scanner) skipLineComment() bool {

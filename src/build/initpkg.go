@@ -94,6 +94,9 @@ func (c *Compiler) initFile(fchan chan *sem.ChaiFile, parentpkg *sem.ChaiPackage
 
 	// create the scanner for the file
 	if sc, ok := syntax.NewScanner(fabspath, newfile.LogContext); ok {
+		// make sure to close the file we are scanning
+		defer sc.Close()
+
 		// process metadata before compiling; check compilation conditions
 		if !c.processMetadata(newfile, sc) {
 			fchan <- nil
