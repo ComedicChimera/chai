@@ -76,7 +76,8 @@ func_def = ['async'] 'def' 'IDENTIFIER' [generic_tag] signature ( '=' decl_func_
 signature = args_decl [type] ;
 args_decl = '(' [arg_decl next_arg_decl | var_arg_decl] ')' ;
 next_arg_decl = ',' (arg_decl next_arg_decl | var_arg_decl) | '' ;
-arg_decl = ['vol'] identifier_list type_ext [initializer] ;
+arg_decl = arg_id_list type_ext [initializer] ;
+arg_id_list = ['&'] 'IDENTIFIER' {',' ['&'] 'IDENTIFIER'};
 var_arg_decl = '...' 'IDENTIFIER' type_ext ;
 decl_func_body = block_expr 'NEWLINE' | simple_expr 'NEWLINE' | do_block | 'INDENT' expr 'DEDENT' ;
 
@@ -140,13 +141,13 @@ var_initializer = '<-' expr | '=' expr ;
 
 expr_stmt = mut_expr {',' mut_expr} [assign_op expr_list | '++' | '--'] ;
 mut_expr = ['await'] ['*'] 'IDENTIFIER' {trailer} ;
-assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^'] '=' | '<-' ;
+assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | "&&" | "||"] '=' | '<-' ;
 
 
 (* -- Simple Expressions -- *)
 simple_expr = core_expr [then_suffix] | lambda ;
 then_suffix = 'then' expr ;
-lambda = ['async'] 'fn' lambda_args_decl '->' expr ;
+lambda = ['async'] 'fn' lambda_args_decl '->' ? expr ? ;
 lambda_args = lambda_arg {',' lambda_arg} ;
 lambda_arg = 'IDENTIFIER' [type_ext];
 
