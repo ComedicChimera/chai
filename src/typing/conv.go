@@ -14,6 +14,42 @@ package typing
 // snese.  However, casting from an int to a string makes no sense in terms of
 // the actual data manipulation involved.
 
+func CoerceTo(src, dest DataType) bool {
+	if Equivalent(src, dest) {
+		return true
+	}
+
+	src = InnerType(src)
+	dest = InnerType(dest)
+
+	switch v := dest.(type) {
+	case PrimType:
+		return v.coerce(src)
+	default:
+		// no known coercion
+		return false
+	}
+}
+
+func CastTo(src, dest DataType) bool {
+	if CoerceTo(src, dest) {
+		return true
+	}
+
+	src = InnerType(src)
+	dest = InnerType(dest)
+
+	switch v := src.(type) {
+	case PrimType:
+		return v.cast(dest)
+	default:
+		// no known casts
+		return false
+	}
+}
+
+// -----------------------------------------------------------------------------
+
 func (pt PrimType) coerce(from DataType) bool {
 	// all types will coerce to `any`
 	if pt == PrimKindAny {
@@ -62,16 +98,5 @@ func (pt PrimType) cast(to DataType) bool {
 		return pt < PrimKindF32 && opt == PrimKindBool || opt < PrimKindF32 && pt == PrimKindBool
 	}
 
-	return false
-}
-
-// -----------------------------------------------------------------------------
-
-// Functions don't allow coercion or casting of any kind
-func (ft *FuncType) coerce(from DataType) bool {
-	return false
-}
-
-func (ft *FuncType) cast(to DataType) bool {
 	return false
 }

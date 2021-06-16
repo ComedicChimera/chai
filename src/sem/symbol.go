@@ -39,16 +39,16 @@ func (sym *Symbol) HasModifier(modifier int) bool {
 
 // Enumeration of symbol definition kinds
 const (
-	DefKindTypeDef    = iota // Type, Class, and Constraint definitions
-	DefKindFuncDef           // Function and operator definitions
-	DefKindNamedValue        // Variables and other identifiers
+	DefKindTypeDef  = iota // Type and Class definitions
+	DefKindConsDef         // Constraint Definitions
+	DefKindFuncDef         // Function and operator definitions
+	DefKindValueDef        // Variables and other identifiers
 )
 
-// Enumeration of symbol modifiers.  These are used as bitfields values
+// Enumeration of symbol modifiers.  These are used as bitfield values
 const (
 	ModPublic   = 1
 	ModVolatile = 2
-	ModByRef    = 4
 )
 
 // Enumeration of mutabilities

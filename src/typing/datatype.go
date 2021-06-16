@@ -10,14 +10,6 @@ type DataType interface {
 	// other types (such as type parameters).  It is meant to only be called
 	// internally.
 	equals(other DataType) bool
-
-	// coerce checks whether the argument type can be coerced to this data type.
-	// It should only check for coercion not equality.
-	coerce(from DataType) bool
-
-	// cast checks whether this data type can cast to the argument type. It
-	// should only check for casting not coercion or equality.
-	cast(to DataType) bool
 }
 
 // -----------------------------------------------------------------------------
@@ -32,13 +24,34 @@ func Equals(a, b DataType) bool {
 
 // Equivalent checks if two types are effectively/logically equivalent
 func Equivalent(a, b DataType) bool {
-	// TODO: revise later
-	return Equals(a, b)
+	a = InnerType(a)
+	b = InnerType(b)
+
+	if pcs, ok := a.(*PolyConsSet); ok {
+		return pcs.contains(b)
+	}
+
+	return a.equals(b)
 }
 
 // InnerType returns the type "stored" by another data type (such as the value
 // of a type parameter).  This is used for quickly unwrapping types before
 // comparison and analysis.
 func InnerType(dt DataType) DataType {
-	return dt
+	switch v := dt.(type) {
+	case *TypeVariable:
+		if v.EvalType == nil {
+			return v
+		}
+
+		return v.EvalType
+	case *MonoConsSet:
+		if len(v.Set) == 1 {
+			return v.Set[0]
+		}
+
+		return v
+	default:
+		return v
+	}
 }

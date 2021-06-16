@@ -12,13 +12,42 @@ import (
 // can yield multiple different, ununifiable types on different branches because
 // their value is not used.
 
-// WalkExpr walks an expression node and returns a HIRExpr
-func (w *Walker) WalkExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+// WalkFuncBody walks a function body (`decl_func_body`)
+func (w *Walker) WalkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (sem.HIRExpr, bool) {
+	w.pushFuncContext(fn)
+	defer w.popExprContext()
+
+	// maps branch of len 1 and 2 to 0, maps branch of len 3 to 1 -- always
+	// giving us the correct branch for the expression
+	exprBranch := branch.BranchAt(branch.Len() / 2)
+
+	switch exprBranch.Name {
+	case "block_expr":
+		// TODO
+	}
+
 	return nil, false
 }
 
-// WalkDoBlock walks a `do_block` node and returns a HIRExpr
-func (w *Walker) WalkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+// WalkExpr walks an expression node and returns a HIRExpr
+func (w *Walker) WalkExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	exprBranch := branch.BranchAt(0)
+
+	switch exprBranch.Name {
+	case "do_block":
+		return w.walkDoBlock(exprBranch, yieldsValue)
+	case "simple_expr":
+		return w.walkSimpleExpr(exprBranch)
+	case "block_expr":
+		return w.walkBlockExpr(exprBranch, yieldsValue)
+	}
+
+	// unreachable
+	return nil, false
+}
+
+// walkDoBlock walks a `do_block` node and returns a HIRExpr
+func (w *Walker) walkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
 	return w.walkBlockContents(branch.BranchAt(1), yieldsValue)
 }
 
@@ -44,6 +73,14 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 				}
 			case "expr_stmt":
 			case "block_expr":
+				// the value is only yielded if it is the last element inside
+				// the `block_content` and the enclosing block itself is
+				// supposed to yield a value
+				if dt, ok := w.walkBlockExpr(blockElem, yieldsValue && i == len(branch.Content)-1); ok {
+					_ = dt
+				} else {
+					return nil, false
+				}
 			}
 		}
 	}
@@ -53,4 +90,9 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 	}
 
 	return block, true
+}
+
+// walkBlockExpr walks a block expression (`block_expr`)
+func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	return nil, false
 }

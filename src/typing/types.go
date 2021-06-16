@@ -143,7 +143,7 @@ type FuncArg struct {
 }
 
 func (fa *FuncArg) equals(ofa *FuncArg) bool {
-	return fa.Name == ofa.Name &&
+	return (fa.Name == "" || ofa.Name == "" || fa.Name == ofa.Name) &&
 		Equals(fa.Type, ofa.Type) &&
 		fa.Volatile == ofa.Volatile &&
 		fa.Optional == ofa.Optional &&
