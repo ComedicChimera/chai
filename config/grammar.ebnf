@@ -141,13 +141,13 @@ var_initializer = '<-' expr | '=' expr ;
 
 expr_stmt = mut_expr {',' mut_expr} [assign_op expr_list | '++' | '--'] ;
 mut_expr = ['await'] ['*'] 'IDENTIFIER' {trailer} ;
-assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | "&&" | "||"] '=' | '<-' ;
+assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | '&&' | '||'] '=' | '<-' ;
 
 
 (* -- Simple Expressions -- *)
 simple_expr = core_expr [then_suffix] | lambda ;
 then_suffix = 'then' expr ;
-lambda = ['async'] 'fn' lambda_args_decl '->' ? expr ? ;
+lambda = ('async' | 'fn') lambda_args_decl '->' ? expr ? ;
 lambda_args = lambda_arg {',' lambda_arg} ;
 lambda_arg = 'IDENTIFIER' [type_ext];
 
@@ -214,7 +214,7 @@ prim_type = 'i8' | 'i16' | 'i32' | 'i64' | 'u8' | 'u16' | 'u32' | 'u64'
 func_type = ('fn' | 'async') '(' [func_type_args] ')' type ;
 func_type_args = (func_type_arg next_func_type_arg | func_type_var_arg) ;
 next_func_type_arg = ',' (func_type_arg next_func_type_arg | func_type_var_arg) | '' ; 
-func_type_arg = ['~'] type ;
+func_type_arg = '~' type | '&' ':' type | type ;
 func_type_var_arg = '...' type ;
 
 tup_type = '(' type ',' type {',' type} ')' ;

@@ -9,12 +9,12 @@ import (
 )
 
 // WalkDef walks a core definition node (eg. `type_def` or `variable_decl`)
-func (w *Walker) WalkDef(branch *syntax.ASTBranch, public bool, annots map[string]*sem.Annotation) bool {
+func (w *Walker) WalkDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
 	switch branch.Name {
 	case "func_def":
-		return w.walkFuncDef(branch, public, annots)
+		return w.walkFuncDef(branch, symbolModifiers, annots)
 	case "oper_def":
-		return w.walkOperDef(branch, public, annots)
+		return w.walkOperDef(branch, symbolModifiers, annots)
 	}
 
 	// TODO: handle generics
@@ -25,7 +25,7 @@ func (w *Walker) WalkDef(branch *syntax.ASTBranch, public bool, annots map[strin
 // -----------------------------------------------------------------------------
 
 // walkOperDef walks an operator definition
-func (w *Walker) walkOperDef(branch *syntax.ASTBranch, public bool, annots map[string]*sem.Annotation) bool {
+func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
 	ft := &typing.FuncType{}
 	var body *syntax.ASTBranch
 
@@ -117,7 +117,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, public bool, annots map[s
 		ft.IntrinsicName = intrinsicName
 		operSym := &sem.Symbol{
 			Type:       ft,
-			Public:     public,
+			Modifiers:  symbolModifiers,
 			Mutability: sem.Immutable,
 			DefKind:    sem.DefKindFuncDef,
 			Position:   branch.Content[1].Position(),
@@ -142,8 +142,8 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, public bool, annots map[s
 // -----------------------------------------------------------------------------
 
 // walkFuncDef walks a function definition
-func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, public bool, annots map[string]*sem.Annotation) bool {
-	if sym, namePos, argInits, ok := w.walkFuncHeader(branch, public); ok {
+func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
+	if sym, namePos, argInits, ok := w.walkFuncHeader(branch, symbolModifiers); ok {
 		if w.defineGlobal(sym, namePos) {
 			needsBody, ok := w.validateFuncAnnotations(annots)
 			if !ok {
@@ -186,11 +186,11 @@ func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, public bool, annots map[s
 // walkFuncHeader walks the header (top-branch not `signature`) of a function or
 // method and returns an appropriate symbol based on that signature.  It does
 // NOT define this symbol.
-func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, public bool) (*sem.Symbol, *logging.TextPosition, map[string]sem.HIRExpr, bool) {
+func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (*sem.Symbol, *logging.TextPosition, map[string]sem.HIRExpr, bool) {
 	ft := &typing.FuncType{}
 	sym := &sem.Symbol{
 		Type:       ft,
-		Public:     public,
+		Modifiers:  symbolModifiers,
 		SrcPackage: w.SrcFile.Parent,
 		Mutability: sem.Immutable,
 	}
@@ -244,65 +244,90 @@ func (w *Walker) walkFuncSignature(branch *syntax.ASTBranch, isOperator bool) (t
 // list of valid arguments if possible
 func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]*typing.FuncArg, map[string]sem.HIRExpr, bool) {
 	var args []*typing.FuncArg
+
+	// we are going to store `nil` values in this map to keep track of which
+	// argument names have been taken -- even values that don't have an
+	// initializer will be stored here.  We will prune them after we have
+	// finished taking in all the arguments.
 	argInits := make(map[string]sem.HIRExpr)
 
 	for _, item := range branch.Content {
 		if itembranch, ok := item.(*syntax.ASTBranch); ok {
 			switch itembranch.Name {
 			case "arg_decl":
-				arg := &typing.FuncArg{}
-				var names []string
+				// use one funcArg to store shared argument data
+				arg := typing.FuncArg{}
+
+				// the values in this map indicate whether or not the argument
+				// is passed by reference
+				names := make(map[string]bool)
 
 				for _, elem := range itembranch.Content {
-					if elembranch, ok := elem.(*syntax.ASTBranch); ok {
-						switch elembranch.Name {
-						case "identifier_list":
-							_names, namePos, err := WalkIdentifierList(elembranch)
-							if err == nil {
-								names = _names
+					// all elements of `arg_decl` are branches
+					elembranch := elem.(*syntax.ASTBranch)
 
-								for _, name := range names {
-									argInits[name] = nil
+					switch elembranch.Name {
+					case "arg_id_list":
+						nextByRef := false
+						for _, item := range elembranch.Content {
+							itemleaf := item.(*syntax.ASTLeaf)
+							switch itemleaf.Kind {
+							case syntax.IDENTIFIER:
+								if _, ok := argInits[itemleaf.Value]; ok {
+									w.logError(
+										fmt.Sprintf("multiple arguments named `%s`", itemleaf.Value),
+										logging.LMKArg,
+										item.Position(),
+									)
+
+									return nil, nil, false
+								} else {
+									names[itemleaf.Value] = nextByRef
+									nextByRef = false
 								}
-							} else {
-								w.logError(
-									fmt.Sprintf("multiple arguments named `%s`", err.Error()),
-									logging.LMKArg,
-									namePos[err.Error()],
-								)
-
-								return nil, nil, false
-							}
-						case "type_ext":
-							if dt, ok := w.walkTypeExt(elembranch); ok {
-								arg.Type = dt
-							} else {
-								return nil, nil, false
-							}
-						case "initializer":
-							if isOperator {
-								w.logError(
-									"operators cannot take optional arguments",
-									logging.LMKArg,
-									elembranch.Position(),
-								)
-
-								return nil, nil, false
-							}
-
-							for _, name := range names {
-								argInits[name] = (*sem.HIRIncomplete)(itembranch)
+							case syntax.AMP:
+								nextByRef = true
 							}
 						}
-					} else {
-						// only token in `arg_decl` is vol
-						arg.Volatile = true
+					case "type_ext":
+						if dt, ok := w.walkTypeExt(elembranch); ok {
+							arg.Type = dt
+						} else {
+							return nil, nil, false
+						}
+					case "initializer":
+						if isOperator {
+							w.logError(
+								"operators cannot take optional arguments",
+								logging.LMKArg,
+								elembranch.Position(),
+							)
+
+							return nil, nil, false
+						}
+
+						for name, byRef := range names {
+							if byRef {
+								w.logError(
+									fmt.Sprintf("by-reference argument `%s` cannot have an initializer", name),
+									logging.LMKArg,
+									elem.Position(),
+								)
+
+								return nil, nil, false
+							}
+
+							argInits[name] = (*sem.HIRIncomplete)(itembranch)
+						}
 					}
 				}
 
-				for _, name := range names {
-					fa := *arg
+				// use our shared FuncArg by simply duplicating it for each
+				// different name and update the fields that change.
+				for name, byRef := range names {
+					fa := arg
 					fa.Name = name
+					fa.ByReference = byRef
 
 					args = append(args, &fa)
 				}

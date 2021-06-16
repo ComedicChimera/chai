@@ -21,8 +21,9 @@ type Symbol struct {
 	// must be one of the enumerated definition kinds below
 	DefKind int
 
-	// Public indicates whether or not this symbol is public (exported)
-	Public bool
+	// Modifiers is a bit field that is used to store the modifiers of the
+	// symbol.  The various bit field values are enumerated below.
+	Modifiers int
 
 	// Mutability indicates whether or not this symbol can and has been mutated
 	Mutability int
@@ -31,11 +32,23 @@ type Symbol struct {
 	Position *logging.TextPosition
 }
 
+// HasModifier checks if the symbol has a given modifier
+func (sym *Symbol) HasModifier(modifier int) bool {
+	return sym.Modifiers&modifier != 0
+}
+
 // Enumeration of symbol definition kinds
 const (
 	DefKindTypeDef    = iota // Type, Class, and Constraint definitions
 	DefKindFuncDef           // Function and operator definitions
 	DefKindNamedValue        // Variables and other identifiers
+)
+
+// Enumeration of symbol modifiers.  These are used as bitfields values
+const (
+	ModPublic   = 1
+	ModVolatile = 2
+	ModByRef    = 4
 )
 
 // Enumeration of mutabilities

@@ -73,11 +73,16 @@ func (r *Resolver) ResolveAll() bool {
 
 	// resolve all dependent definitions
 	for _, def := range r.dependents {
+		var modifiers int
+		if def.Public {
+			modifiers = sem.ModPublic
+		}
+
 		if w, ok := walkers[def.SrcFile]; ok {
-			w.WalkDef(def.AST, def.Public, def.Annotations)
+			w.WalkDef(def.AST, modifiers, def.Annotations)
 		} else {
 			walkers[def.SrcFile] = walk.NewWalker(def.SrcFile)
-			walkers[def.SrcFile].WalkDef(def.AST, def.Public, def.Annotations)
+			walkers[def.SrcFile].WalkDef(def.AST, modifiers, def.Annotations)
 		}
 	}
 	return true

@@ -117,6 +117,8 @@ func (ft *FuncType) Repr() string {
 			sb.WriteString("...")
 		} else if arg.Optional {
 			sb.WriteRune('~')
+		} else if arg.ByReference {
+			sb.WriteString("&:")
 		}
 
 		sb.WriteString(arg.Type.Repr())
@@ -137,6 +139,7 @@ type FuncArg struct {
 	Type                 DataType
 	Volatile             bool
 	Optional, Indefinite bool
+	ByReference          bool
 }
 
 func (fa *FuncArg) equals(ofa *FuncArg) bool {
@@ -144,5 +147,6 @@ func (fa *FuncArg) equals(ofa *FuncArg) bool {
 		Equals(fa.Type, ofa.Type) &&
 		fa.Volatile == ofa.Volatile &&
 		fa.Optional == ofa.Optional &&
-		fa.Indefinite == ofa.Indefinite
+		fa.Indefinite == ofa.Indefinite &&
+		fa.ByReference == ofa.ByReference
 }

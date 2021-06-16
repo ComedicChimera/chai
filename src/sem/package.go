@@ -60,7 +60,7 @@ func NewPackage(rootPath string) *ChaiPackage {
 // ImportSymbol attempts to import a symbol from the public namespace of a
 // package.  It does not throw an error if the symbol could not imported.
 func (pkg *ChaiPackage) ImportSymbol(name string) (*Symbol, bool) {
-	if sym, ok := pkg.GlobalTable[name]; ok && sym.Public {
+	if sym, ok := pkg.GlobalTable[name]; ok && sym.HasModifier(ModPublic) {
 		return sym, true
 	}
 
@@ -153,7 +153,6 @@ func (cf *ChaiFile) AddSymbolImports(importedPkg *ChaiPackage, importedSymbols m
 		cf.ImportedSymbols[name] = &Symbol{
 			Name:       name,
 			SrcPackage: importedPkg,
-			Public:     true,
 		}
 	}
 
@@ -193,7 +192,7 @@ func (cf *ChaiFile) AddPackageImport(importedPkg *ChaiPackage, importedPkgName s
 func (cf *ChaiFile) ImportOperators(importedPackage *ChaiPackage) {
 	for opCode, opSymbols := range importedPackage.GlobalOperators {
 		for _, opSym := range opSymbols {
-			if opSym.Public {
+			if opSym.HasModifier(ModPublic) {
 				if localOpSymbols, ok := cf.ImportedOperators[opCode]; ok {
 					cf.ImportedOperators[opCode] = append(localOpSymbols, opSym)
 				} else {
