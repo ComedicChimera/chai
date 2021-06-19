@@ -194,9 +194,16 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 		// we can just apply the substitution the right type since in doing so
 		// we will handle the cast where both left and right are tvars.
 		return s.applySubstitution(rhTypeVar, lhs, consKind, false)
+	} else if rhMCS, ok := rhs.(*MonoConsSet); ok {
+		// if both sides are monomorphic constraint sets, then we need to use
+		// different logic -- otherwise, we proceed accordingly
+		if lhMCS, ok := lhs.(*MonoConsSet); ok {
+			_ = lhMCS
+			_ = rhMCS
+		}
 	}
 
-	// note: we now know right is not a type var
+	// note: we now know right is not a type var or mono cons set
 	switch v := lhs.(type) {
 	case *TypeVariable:
 		return s.applySubstitution(v, rhs, consKind, true)
@@ -259,7 +266,16 @@ func (s *Solver) applySubstitution(tv *TypeVariable, subType DataType, consKind 
 		return true
 	}
 
-	// TODO
+	if tv.Substitution.IsLHS && !s.unify(tv.Substitution.Value, subType, tv.Substitution.ConsKind) {
+		return false
+	} else if !s.unify(subType, tv.Substitution.Value, tv.Substitution.ConsKind) {
+		return false
+	}
+
+	// direction doesn't matter when determining substitution precedence
+	if tv.Substitution.ConsKind > consKind {
+		tv.Substitution.Value = subType
+	}
 
 	return true
 }
