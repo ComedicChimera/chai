@@ -16,12 +16,17 @@ type Walker struct {
 	// traverse the tree.  Eg. when we enter a loop, we push a loop context and
 	// pop it when we exit.
 	exprContextStack []*ExprContext
+
+	// solver is the solver used for performing type checking and inference
+	// within this source file
+	solver *typing.Solver
 }
 
 // NewWalker creates a new walker for a given file
 func NewWalker(f *sem.ChaiFile) *Walker {
 	return &Walker{
 		SrcFile: f,
+		solver:  typing.NewSolver(f.LogContext),
 	}
 }
 

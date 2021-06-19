@@ -141,20 +141,9 @@ func (s *Solver) Solve() bool {
 		if tvar.Substitution.Value != nil {
 			subVal := tvar.Substitution.Value
 
-			// if a mono cons set is all that remains as the substituted type,
-			// then we need to make sure a value was actually determined and we
-			// aren't just still sitting in flux.
-			if mcs, ok := subVal.(*MonoConsSet); ok {
-				if len(mcs.Set) > 1 {
-					tvar.HandleUndetermined()
-					allEvaluated = false
-				} else {
-					tvar.EvalType = subVal
-					continue
-				}
-			} else if _, ok := subVal.(*PolyConsSet); !ok {
-				// poly cons sets can never be used as raw data types; all other
-				// types are acceptable
+			// poly cons sets can never be used as raw data types; all other
+			// types are acceptable
+			if _, ok := subVal.(*ConstraintSet); !ok {
 				tvar.EvalType = tvar.Substitution.Value
 				continue
 			}
@@ -194,21 +183,12 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 		// we can just apply the substitution the right type since in doing so
 		// we will handle the cast where both left and right are tvars.
 		return s.applySubstitution(rhTypeVar, lhs, consKind, false)
-	} else if rhMCS, ok := rhs.(*MonoConsSet); ok {
-		// if both sides are monomorphic constraint sets, then we need to use
-		// different logic -- otherwise, we proceed accordingly
-		if lhMCS, ok := lhs.(*MonoConsSet); ok {
-			_ = lhMCS
-			_ = rhMCS
-		}
 	}
 
 	// note: we now know right is not a type var or mono cons set
 	switch v := lhs.(type) {
 	case *TypeVariable:
 		return s.applySubstitution(v, rhs, consKind, true)
-	case *MonoConsSet:
-		// TODO
 	case *FuncType:
 		if rft, ok := rhs.(*FuncType); ok {
 			if v.Async != rft.Async {

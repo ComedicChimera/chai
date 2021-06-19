@@ -14,6 +14,7 @@ import (
 
 // WalkFuncBody walks a function body (`decl_func_body`)
 func (w *Walker) WalkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (sem.HIRExpr, bool) {
+	// handle function context management
 	w.pushFuncContext(fn)
 	defer w.popExprContext()
 
@@ -21,23 +22,61 @@ func (w *Walker) WalkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	// giving us the correct branch for the expression
 	exprBranch := branch.BranchAt(branch.Len() / 2)
 
-	switch exprBranch.Name {
-	case "block_expr":
-		// TODO
+	// a function that returns nothing effectively yields no meaningful value
+	yieldsValue := true
+	if pt, ok := fn.ReturnType.(typing.PrimType); ok && pt == typing.PrimKindNothing {
+		yieldsValue = false
 	}
 
-	return nil, false
+	// walk the function body
+	var hirExpr sem.HIRExpr
+	switch exprBranch.Name {
+	case "block_expr":
+		if e, ok := w.walkBlockExpr(exprBranch, yieldsValue); ok {
+			hirExpr = e
+		} else {
+			return nil, false
+		}
+	case "simple_expr":
+		if e, ok := w.walkSimpleExpr(exprBranch, yieldsValue); ok {
+			hirExpr = e
+		} else {
+			return nil, false
+		}
+	case "do_block":
+		if e, ok := w.walkDoBlock(exprBranch, yieldsValue); ok {
+			hirExpr = e
+		} else {
+			return nil, false
+		}
+	case "expr":
+		if e, ok := w.walkExpr(exprBranch, yieldsValue); ok {
+			hirExpr = e
+		} else {
+			return nil, false
+		}
+	}
+
+	// run the solver at the end of the function body
+	if !w.solver.Solve() {
+		return nil, false
+	}
+
+	// if we reach here, then the body was walked successfully
+	return hirExpr, true
 }
 
-// WalkExpr walks an expression node and returns a HIRExpr
-func (w *Walker) WalkExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+// -----------------------------------------------------------------------------
+
+// walkExpr walks an expression node and returns a HIRExpr
+func (w *Walker) walkExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
 	exprBranch := branch.BranchAt(0)
 
 	switch exprBranch.Name {
 	case "do_block":
 		return w.walkDoBlock(exprBranch, yieldsValue)
 	case "simple_expr":
-		return w.walkSimpleExpr(exprBranch)
+		return w.walkSimpleExpr(exprBranch, yieldsValue)
 	case "block_expr":
 		return w.walkBlockExpr(exprBranch, yieldsValue)
 	}
@@ -46,53 +85,7 @@ func (w *Walker) WalkExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIREx
 	return nil, false
 }
 
-// walkDoBlock walks a `do_block` node and returns a HIRExpr
-func (w *Walker) walkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	return w.walkBlockContents(branch.BranchAt(1), yieldsValue)
-}
-
-// walkBlockContents walks a `block_content` node and returns a HIRExpr
-func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	block := &sem.HIRDoBlock{
-		ExprBase: sem.NewExprBase(nil, sem.RValue, false),
-	}
-
-	for i, item := range branch.Content {
-		_ = i
-
-		// only `block_element` can be a branch inside `block_content`
-		if itembranch, ok := item.(*syntax.ASTBranch); ok {
-			// access the inner node
-			blockElem := itembranch.BranchAt(0)
-
-			switch blockElem.Name {
-			case "stmt":
-				stmt := blockElem.BranchAt(0)
-				switch stmt.Name {
-
-				}
-			case "expr_stmt":
-			case "block_expr":
-				// the value is only yielded if it is the last element inside
-				// the `block_content` and the enclosing block itself is
-				// supposed to yield a value
-				if dt, ok := w.walkBlockExpr(blockElem, yieldsValue && i == len(branch.Content)-1); ok {
-					_ = dt
-				} else {
-					return nil, false
-				}
-			}
-		}
-	}
-
-	if block.Type() == nil {
-		block.SetType(typing.PrimType(typing.PrimKindNothing))
-	}
-
-	return block, true
-}
-
-// walkBlockExpr walks a block expression (`block_expr`)
-func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+// walkSimpleExpr walks a simple expression (`simple_expr`)
+func (w *Walker) walkSimpleExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
 	return nil, false
 }

@@ -27,8 +27,8 @@ func Equivalent(a, b DataType) bool {
 	a = InnerType(a)
 	b = InnerType(b)
 
-	if pcs, ok := a.(*PolyConsSet); ok {
-		return pcs.contains(b)
+	if cs, ok := a.(*ConstraintSet); ok {
+		return cs.contains(b)
 	}
 
 	return a.equals(b)
@@ -45,12 +45,6 @@ func InnerType(dt DataType) DataType {
 		}
 
 		return v.EvalType
-	case *MonoConsSet:
-		if len(v.Set) == 1 {
-			return v.Set[0]
-		}
-
-		return v
 	default:
 		return v
 	}

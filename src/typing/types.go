@@ -150,3 +150,58 @@ func (fa *FuncArg) equals(ofa *FuncArg) bool {
 		fa.Indefinite == ofa.Indefinite &&
 		fa.ByReference == ofa.ByReference
 }
+
+// -----------------------------------------------------------------------------
+
+// ConstraintSet is a polymorphic constraint set (ie. a user-defined
+// constraint). These are primarily used in generics to facilitate situations
+// where multiple type parameter values are legal, but there is no logical type
+// class grouping them. They are also used for numeric literals.
+type ConstraintSet struct {
+	// Name is the name of the defined type constraint this poly cons set
+	// corresponds to.  It can be empty if this is a "synthetic" poly cons set.
+	Name string
+
+	// SrcPackageID is the ID of the package this poly cons set was created in.
+	SrcPackageID uint
+
+	// Set is the list of possible types for this constraint set.  This cannot
+	// contain type variables.
+	Set []DataType
+}
+
+func (cs *ConstraintSet) Repr() string {
+	if cs.Name == "" {
+		reprs := make([]string, len(cs.Set))
+		for i, dt := range cs.Set {
+			reprs[i] = dt.Repr()
+		}
+
+		return "(" + strings.Join(reprs, " | ") + ")"
+	}
+
+	return cs.Name
+}
+
+func (cs *ConstraintSet) equals(other DataType) bool {
+	// because this function is only ever called at the top level --
+	// there is no possibility for our poly cons set to be synthetic;
+	// therefore, we can just do a name and package comparison
+	if opcs, ok := other.(*ConstraintSet); ok {
+		return cs.Name == opcs.Name && cs.SrcPackageID == opcs.SrcPackageID
+	}
+
+	return false
+}
+
+// contains is used as the equivalence test for poly cons sets in place of
+// `equals` which is only used for pure equality
+func (cs *ConstraintSet) contains(other DataType) bool {
+	for _, item := range cs.Set {
+		if Equivalent(other, item) {
+			return true
+		}
+	}
+
+	return false
+}
