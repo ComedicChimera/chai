@@ -2,13 +2,12 @@ package logging
 
 import (
 	"sync"
-	"time"
 )
 
 // Logger is a type that is responsible for storing and logging output from the
 // compiler as necessary
 type Logger struct {
-	ErrorCount int // Total encountered errors
+	errorCount int // Total encountered errors
 	LogLevel   int
 
 	// warnings is a list of all warnings to be logged at the end of compilation
@@ -16,9 +15,6 @@ type Logger struct {
 
 	// buildPath is used to shorten display paths in errors
 	buildPath string
-
-	// prevUpdate is used to hold the last time when the state updated
-	prevUpdate time.Time
 
 	// m is the mutex used to synchonize the printing of error messages
 	m *sync.Mutex
@@ -48,7 +44,7 @@ func (l *Logger) handleMsg(lm LogMessage) {
 	l.m.Lock()
 
 	if lm.isError() {
-		l.ErrorCount++
+		l.errorCount++
 
 		if l.LogLevel > LogLevelSilent {
 			lm.display()

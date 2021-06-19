@@ -21,7 +21,7 @@ func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool 
 		}
 
 		if osName, ok := metadata["os"]; ok {
-			if os, ok := mods.OSNames[osName]; ok && os == c.buildProfile.TargetOS {
+			if _, ok := mods.OSNames[osName]; ok && osName == c.buildProfile.TargetOS {
 				return true
 			}
 
@@ -29,7 +29,7 @@ func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool 
 		}
 
 		if archName, ok := metadata["arch"]; ok {
-			if arch, ok := mods.ArchNames[archName]; ok && arch == c.buildProfile.TargetArch {
+			if _, ok := mods.ArchNames[archName]; ok && archName == c.buildProfile.TargetArch {
 				return true
 			}
 

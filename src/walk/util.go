@@ -3,6 +3,7 @@ package walk
 import (
 	"chai/logging"
 	"chai/syntax"
+	"chai/typing"
 	"errors"
 )
 
@@ -29,4 +30,9 @@ func WalkIdentifierList(idBranch *syntax.ASTBranch) ([]string, map[string]*loggi
 	}
 
 	return idList, encountered, nil
+}
+
+// nothingType returns a new nothing type
+func nothingType() typing.DataType {
+	return typing.PrimType(typing.PrimKindNothing)
 }

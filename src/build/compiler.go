@@ -45,9 +45,20 @@ func NewCompiler(rootMod *mods.ChaiModule, buildProfile *mods.BuildProfile) *Com
 // Compile runs the full compilation algorithm on the root module and build
 // profile. It handles all compilation errors appropriately.
 func (c *Compiler) Compile() {
+	logging.LogCompileHeader(
+		c.buildProfile.TargetOS+"/"+c.buildProfile.TargetArch,
+		c.rootMod.ShouldCache,
+	)
+
 	if c.Analyze() {
 		// TODO
+	} else {
+		// close unfinished working phase
+		logging.LogEndPhase()
 	}
+
+	// log ending compilation message
+	logging.LogCompilationFinished()
 }
 
 // Analyze runs just the analysis portion of the compilation algorithm.  It
@@ -71,6 +82,9 @@ func (c *Compiler) Analyze() bool {
 		return false
 	}
 
+	// log begin phase 1
+	logging.LogBeginPhase("Parsing")
+
 	if _, ok := c.initPackage(c.coreMod, c.coreMod.ModuleRoot); !ok {
 		return false
 	}
@@ -80,6 +94,10 @@ func (c *Compiler) Analyze() bool {
 	if !ok {
 		return false
 	}
+
+	// log end phase 1; begin phase 2
+	logging.LogEndPhase()
+	logging.LogBeginPhase("Transforming")
 
 	// resolve type defs, class defs, and imported symbols and process all
 	// dependent definitions (functions, operators, etc.)
@@ -117,6 +135,9 @@ func (c *Compiler) Analyze() bool {
 	}
 
 	// TODO: validate expressions (func bodies, initializers, etc.)
+
+	// log end of the transformation phase
+	logging.LogEndPhase()
 
 	return logging.ShouldProceed()
 }

@@ -794,6 +794,9 @@ func (s *Scanner) readStdStringLiteral() (*Token, bool) {
 		case '\n':
 			// catch newlines in strings
 			return nil, true
+		default:
+			// otherwise, just read in the next character
+			s.readNext()
 		}
 	}
 

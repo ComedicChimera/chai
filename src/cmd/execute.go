@@ -5,11 +5,12 @@ import (
 	"chai/common"
 	"chai/logging"
 	"chai/mods"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/ComedicChimera/olive"
-	"github.com/pterm/pterm"
 )
 
 // TODO: implement commands
@@ -27,13 +28,12 @@ import (
 func Execute() {
 	// compilation cannot proceed without the chai_path
 	if !initChaiPath() {
-		logging.PrintCLIError("missing CHAI_PATH environment variable")
 		return
 	}
 
 	// set up the argument parser and all its extended commands and arguments
 	cli := olive.NewCLI("chai", "chai is a tool for managing Chai projects", true)
-	logLvlArg := cli.AddSelectorArg("loglevel", "ll", "the compiler log level", false, []string{"silent", "error", "warning", "verbose"})
+	logLvlArg := cli.AddSelectorArg("loglevel", "ll", "the compiler log level", false, []string{"silent", "error", "warn", "verbose"})
 	logLvlArg.SetDefaultValue("verbose")
 
 	buildCmd := cli.AddSubcommand("build", "compile source code", true)
@@ -51,7 +51,7 @@ func Execute() {
 	// run the argument parser
 	result, err := olive.ParseArgs(cli, os.Args)
 	if err != nil {
-		logging.PrintCLIError(err.Error())
+		logging.PrintErrorMessage("CLI Usage Error", err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func Execute() {
 	case "mod":
 		execModCommand(subResult)
 	case "version":
-		logging.PrintBlockMessage(common.ChaiVersion, "Chai Version", pterm.FgCyan, pterm.BgCyan)
+		logging.PrintInfoMessage("Chai Version", common.ChaiVersion)
 	}
 }
 
@@ -74,7 +74,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 
 	modulePath, err := filepath.Abs(moduleRelPath)
 	if err != nil {
-		logging.PrintCLIError(err.Error())
+		logging.PrintErrorMessage("Path Error", err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	buildProfile := &mods.BuildProfile{}
 	mod, err := mods.LoadModule(modulePath, selectedProfile, buildProfile)
 	if err != nil {
-		logging.PrintCLIError(err.Error())
+		logging.PrintErrorMessage("Module Load Error", err)
 		return
 	}
 
@@ -107,7 +107,7 @@ func execModCommand(result *olive.ArgParseResult) {
 
 	workDir, err := os.Getwd()
 	if err != nil {
-		logging.PrintCLIError(err.Error())
+		logging.PrintErrorMessage("Path Error", err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func execModCommand(result *olive.ArgParseResult) {
 	case "init":
 		modNameValue, _ := subResult.PrimaryArg()
 		if err := mods.InitModule(modNameValue, workDir, subResult.HasFlag("no-profiles"), subResult.HasFlag("caching")); err != nil {
-			logging.PrintCLIError(err.Error())
+			logging.PrintErrorMessage("Module Init Error", err)
 		}
 	}
 }
@@ -129,16 +129,19 @@ func initChaiPath() bool {
 		finfo, err := os.Stat(chaiPath)
 
 		if err != nil {
-			logging.PrintCLIError("error loading chai_path:" + err.Error())
+			logging.PrintErrorMessage("Config Error", fmt.Errorf("error loading chai_path: %s", err.Error()))
+			return false
 		}
 
 		if !finfo.IsDir() {
-			logging.PrintCLIError("error loading chai_path: must point to a directory")
+			logging.PrintErrorMessage("Config Error", errors.New("error loading chai_path: must point to a directory"))
+			return false
 		}
 
 		common.ChaiPath = chaiPath
 		return true
 	}
 
+	logging.PrintErrorMessage("Config Error", errors.New("missing CHAI_PATH environment variable"))
 	return false
 }

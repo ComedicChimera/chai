@@ -256,15 +256,15 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ro
 }
 
 // OSNames maps TOML os name strings to enumerated OS values
-var OSNames = map[string]int{
-	"windows": OSWindows,
+var OSNames = map[string]struct{}{
+	"windows": struct{}{},
 }
 
 // ArchNames maps TOML os name strings to enumerated arch values
-var ArchNames = map[string]int{
-	"i386":  ArchI386,
-	"amd64": ArchAmd64,
-	"arm":   ArchArm,
+var ArchNames = map[string]struct{}{
+	"i386":  struct{}{},
+	"amd64": struct{}{},
+	"arm":   struct{}{},
 }
 
 // formatNames maps TOML os name strings to enumerated format values
@@ -300,14 +300,14 @@ func convertProfile(tprof *tomlProfile) (*BuildProfile, error) {
 
 	newProfile := &BuildProfile{}
 
-	if osVal, ok := OSNames[tprof.TargetOS]; ok {
-		newProfile.TargetOS = osVal
+	if _, ok := OSNames[tprof.TargetOS]; ok {
+		newProfile.TargetOS = tprof.TargetOS
 	} else {
 		return nil, fmt.Errorf("%s is not a supported OS", tprof.TargetOS)
 	}
 
-	if archVal, ok := ArchNames[tprof.TargetArch]; ok {
-		newProfile.TargetArch = archVal
+	if _, ok := ArchNames[tprof.TargetArch]; ok {
+		newProfile.TargetArch = tprof.TargetArch
 	} else {
 		return nil, fmt.Errorf("%s is not a supported architecture", tprof.TargetArch)
 	}

@@ -1,5 +1,7 @@
 package logging
 
+import "os"
+
 // logger is a global reference to a shared Logger (created/initialized with the
 // compiler, but separated for general usage)
 var logger Logger
@@ -12,7 +14,7 @@ func Initialize(buildPath string, loglevelname string) {
 		loglevel = LogLevelSilent
 	case "error":
 		loglevel = LogLevelError
-	case "warning":
+	case "warn":
 		loglevel = LogLevelWarning
 	// everything else (including invalid log levels) should default to verbose
 	default:
@@ -26,7 +28,7 @@ func Initialize(buildPath string, loglevelname string) {
 // This is useful for sections of the compiler where multiple items are processed
 // concurrently and having an error accumulator would be practical
 func ShouldProceed() bool {
-	return logger.ErrorCount == 0
+	return logger.errorCount == 0
 }
 
 // -----------------------------------------------------------------------------
@@ -69,5 +71,49 @@ func LogBuildWarning(kind, warning string) {
 // LogFatal logs a fatal compilation error that was not expected: ie. the
 // compiler did something it wasn't supposed to.
 func LogFatal(message string) {
+	displayFatalError(message)
+	os.Exit(1)
+}
 
+// -----------------------------------------------------------------------------
+// Below are all the "aesthetic" log functions that will only run if the log
+// level is to verbose.  These provide additional information about the
+// compilation process to the user so as to make the compiler more friendly.
+
+// LogCompileHeader logs the pre-compilation header: information about the
+// compiler's current configuration (version, target, caching, etc.)
+func LogCompileHeader(target string, caching bool) {
+	if logger.LogLevel == LogLevelVerbose {
+		displayCompileHeader(target, caching)
+	}
+}
+
+// LogBeginPhase logs the beginning of a compilation phase
+func LogBeginPhase(phase string) {
+	if logger.LogLevel == LogLevelVerbose {
+		displayBeginPhase(phase)
+	}
+}
+
+// LogEndPhase logs the conclusion of the current compilation phase
+func LogEndPhase() {
+	if logger.LogLevel == LogLevelVerbose {
+		displayEndPhase(ShouldProceed())
+	}
+}
+
+// LogCompilationFinished logs the concluding message for compilation. This
+// displays information about the end of the compilation process.
+func LogCompilationFinished() {
+	// log all warnings
+	if logger.LogLevel >= LogLevelWarning {
+		for _, warning := range logger.warnings {
+			warning.display()
+		}
+	}
+
+	// log closing message
+	if logger.LogLevel == LogLevelVerbose {
+		displayCompilationFinished(ShouldProceed(), logger.errorCount, len(logger.warnings))
+	}
 }

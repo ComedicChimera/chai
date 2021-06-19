@@ -2,24 +2,45 @@ package logging
 
 import (
 	"bufio"
+	"chai/common"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pterm/pterm"
 )
 
-// PrintBlockMessage prints a message with text in a block before it
-func PrintBlockMessage(message, tag string, fgColor, bgColor pterm.Color) {
-	bgColor.Print(tag)
-	fgColor.Println(" ", message)
+var (
+	SuccessColorFG = pterm.FgLightGreen
+	SuccessStyleBG = pterm.NewStyle(pterm.BgLightGreen, pterm.FgBlack)
+	WarnColorFG    = pterm.FgYellow
+	WarnStyleBG    = pterm.NewStyle(pterm.BgYellow, pterm.FgBlack)
+	ErrorColorFG   = pterm.FgRed
+	ErrorStyleBG   = pterm.NewStyle(pterm.BgRed, pterm.FgWhite)
+	InfoColorFG    = SuccessColorFG
+	InfoStyleBG    = SuccessStyleBG
+)
+
+// PrintErrorMessage prints a standard Go error to the console
+func PrintErrorMessage(tag string, err error) {
+	ErrorStyleBG.Print(tag)
+	ErrorColorFG.Println(" " + err.Error())
 }
 
-// PrintCLIError prints an error in using the CLI
-func PrintCLIError(errMsg string) {
-	PrintBlockMessage(errMsg, "Error", pterm.FgLightRed, pterm.BgLightRed)
+// PrintWarningMessage prints a warning message to the console
+func PrintWarningMessage(tag, msg string) {
+	WarnStyleBG.Print(tag)
+	WarnColorFG.Println(" " + msg)
+}
+
+// PrintInfoMessage prints an informational message to the user
+func PrintInfoMessage(tag, msg string) {
+	InfoStyleBG.Print(tag)
+	InfoColorFG.Println(" " + msg)
 }
 
 // -----------------------------------------------------------------------------
@@ -28,7 +49,7 @@ func PrintCLIError(errMsg string) {
 // the screen.
 
 func (ce *ConfigError) display() {
-	PrintBlockMessage(ce.Message, ce.Kind+" Error", pterm.FgLightRed, pterm.BgLightRed)
+	PrintErrorMessage(ce.Kind+" Error", errors.New(ce.Message))
 }
 
 var compileMsgStrings = map[int]string{
@@ -64,10 +85,10 @@ func (cm *CompileMessage) displayBanner() {
 	kindStr := compileMsgStrings[cm.Kind]
 	kindLen := len(kindStr)
 	if cm.isError() {
-		pterm.BgLightRed.Print(kindStr + " Error")
+		ErrorStyleBG.Print(kindStr + " Error")
 		kindLen += 7
 	} else {
-		pterm.BgLightYellow.Print(kindStr + " Warning")
+		WarnStyleBG.Print(kindStr + " Warning")
 		kindLen += 9
 	}
 
@@ -81,7 +102,7 @@ func (cm *CompileMessage) displayBanner() {
 	dashCount := bannerLen - len(fileName) - kindLen - 1
 
 	fmt.Print(strings.Repeat("-", dashCount) + " ")
-	pterm.FgCyan.Println(fileName)
+	InfoColorFG.Println(fileName)
 }
 
 // displayCodeSelection displays the erroneous code (with line numbers) and
@@ -137,7 +158,7 @@ func (cm *CompileMessage) displayCodeSelection() {
 	// print each line followed by the line of selecting underscores
 	for i, line := range lines {
 		// print the line number and the line itself (trimmed)
-		pterm.FgLightGreen.Print(fmt.Sprintf(lineNumberFmtStr, i+cm.Position.StartLn))
+		InfoColorFG.Print(fmt.Sprintf(lineNumberFmtStr, i+cm.Position.StartLn))
 		fmt.Print("|  ")
 		fmt.Println(strings.ReplaceAll(line, "\t", "    ")[minWhitespace:])
 
@@ -150,21 +171,132 @@ func (cm *CompileMessage) displayCodeSelection() {
 			// the end of the line; if it isn't, then we print carrets to the
 			// end
 			if i == len(lines)-1 {
-				pterm.FgRed.Print(strings.Repeat("^", cm.Position.EndCol-cm.Position.StartCol))
+				ErrorColorFG.Print(strings.Repeat("^", cm.Position.EndCol-cm.Position.StartCol))
 				fmt.Println()
 			} else {
-				pterm.FgRed.Println(strings.Repeat("^", len(line)-cm.Position.StartCol-minWhitespace))
+				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol-minWhitespace))
 			}
 		} else if i == len(lines)-1 {
 			// if we are at the last line, we print carrets until the end column
 			// and then stop
-			pterm.FgRed.Println(strings.Repeat("^", cm.Position.EndCol-minWhitespace))
+			ErrorColorFG.Println(strings.Repeat("^", cm.Position.EndCol-minWhitespace))
 		} else {
 			// if we are in the middle of highlighting then we simply fill the
 			// line with carrets
-			pterm.FgRed.Println(strings.Repeat("^", len(line)-minWhitespace))
+			ErrorColorFG.Println(strings.Repeat("^", len(line)-minWhitespace))
 		}
 	}
 
 	fmt.Println()
+}
+
+const fatalErrorPostlude = `
+This is likely a bug in the compiler.
+Please open an issue on Github: github.com/ComedicChimera/chai`
+
+func displayFatalError(msg string) {
+	fmt.Print("\n\n")
+	ErrorStyleBG.Print("Fatal Error ")
+	ErrorColorFG.Println(msg)
+	InfoColorFG.Println(fatalErrorPostlude)
+}
+
+// -----------------------------------------------------------------------------
+
+// displayCompileHeader displays all the compiler information before starting compilation
+func displayCompileHeader(target string, caching bool) {
+	fmt.Print("chai ")
+	InfoColorFG.Print("v" + common.ChaiVersion)
+	fmt.Print(" -- target: ")
+	InfoColorFG.Println(target)
+
+	if caching {
+		fmt.Println("compiling using cache")
+	}
+}
+
+// phaseSpinner stores the current phase spinner
+var phaseSpinner *pterm.SpinnerPrinter
+var currentPhase string
+var phaseStartTime time.Time
+
+const maxPhaseLength = len("Transforming")
+
+// displayBeginPhase displays the beginning of a compilation phase
+func displayBeginPhase(phase string) {
+	currentPhase = phase
+	phaseText := phase + "..." + strings.Repeat(" ", maxPhaseLength-len(phase)+2)
+	phaseSpinner = pterm.DefaultSpinner.WithStyle(pterm.NewStyle(InfoColorFG))
+
+	phaseSpinner.SuccessPrinter = &pterm.PrefixPrinter{
+		MessageStyle: pterm.NewStyle(pterm.FgDefault),
+		Prefix: pterm.Prefix{
+			Style: SuccessStyleBG,
+			Text:  "Done",
+		},
+	}
+
+	phaseSpinner.FailPrinter = &pterm.PrefixPrinter{
+		MessageStyle: pterm.NewStyle(pterm.FgDefault),
+		Prefix: pterm.Prefix{
+			Style: ErrorStyleBG,
+			Text:  "Fail",
+		},
+	}
+
+	phaseSpinner.Start(phaseText)
+	phaseStartTime = time.Now()
+}
+
+// displayEndPhase displays the end of a compilation phase
+func displayEndPhase(success bool) {
+	if phaseSpinner != nil {
+		if success {
+			phaseSpinner.Success(
+				currentPhase+strings.Repeat(" ", maxPhaseLength-len(currentPhase)+2),
+				fmt.Sprintf("(%.3fs)", time.Since(phaseStartTime).Seconds()),
+			)
+		} else {
+			phaseSpinner.Fail(currentPhase + strings.Repeat(" ", maxPhaseLength-len(currentPhase)+2))
+		}
+
+		phaseSpinner = nil
+	}
+}
+
+// displayCompilationFinished displays a compilation finished message
+func displayCompilationFinished(success bool, errorCount, warningCount int) {
+	fmt.Print("\n")
+
+	if success {
+		SuccessColorFG.Print("All done! ")
+	} else {
+		ErrorColorFG.Print("Oh no! ")
+	}
+
+	fmt.Print("(")
+
+	switch errorCount {
+	case 0:
+		SuccessColorFG.Print(0)
+		fmt.Print(" errors, ")
+	case 1:
+		ErrorColorFG.Print(1)
+		fmt.Print(" error, ")
+	default:
+		ErrorColorFG.Print(errorCount)
+		fmt.Print(" errors, ")
+	}
+
+	switch warningCount {
+	case 0:
+		SuccessColorFG.Print(0)
+		fmt.Println(" warnings)")
+	case 1:
+		WarnColorFG.Print(1)
+		fmt.Println(" warning)")
+	default:
+		WarnColorFG.Print(warningCount)
+		fmt.Println(" warnings)")
+	}
 }

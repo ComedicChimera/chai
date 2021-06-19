@@ -92,13 +92,11 @@ type BuildProfile struct {
 	// debug or for release
 	Debug bool
 
-	// TargetOS is the target operating system for compilation. This should be
-	// one of the enumerated operating systems (prefixed `OS`)
-	TargetOS int
+	// TargetOS is the target operating system for compilation
+	TargetOS string
 
-	// TargetArch is the target architecure for compilation.  This should be one
-	// of the enumerated architectures (prefixed `Arch`)
-	TargetArch int
+	// TargetArch is the target architecure for compilation
+	TargetArch string
 
 	// StaticLibraries is the list of static libraries to be linked into the
 	// final build output.  These are absolute paths.
@@ -116,20 +114,6 @@ const (
 	FormatASM           // Assembly
 	FormatLLVM          // LLVM
 	FormatObject        // Unlinked Object Files
-)
-
-// Available Target OSs
-const (
-	OSWindows = iota
-	// ...
-)
-
-// Available Target Archs
-const (
-	ArchI386 = iota
-	ArchAmd64
-	ArchArm
-	// ...
 )
 
 // IsValidIdentifier returns whether or not a given string would be a valid
