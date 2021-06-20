@@ -6,6 +6,7 @@ import (
 	"chai/mods"
 	"chai/resolve"
 	"chai/syntax"
+	"chai/walk"
 	"path/filepath"
 	"sync"
 )
@@ -100,7 +101,9 @@ func (c *Compiler) Analyze() bool {
 	logging.LogBeginPhase("Transforming")
 
 	// resolve type defs, class defs, and imported symbols and process all
-	// dependent definitions (functions, operators, etc.)
+	// dependent definitions (functions, operators, etc.), then validate
+	// predicates (function bodies, etc) using the same resolution batch
+	// grouping (enabling us to process them concurrently)
 	batches := c.createResolutionBatches(c.rootMod)
 	for _, batch := range batches {
 		// each batch is resolved concurrently -- this makes the compiler far
@@ -115,11 +118,21 @@ func (c *Compiler) Analyze() bool {
 				defer wg.Done()
 				r := resolve.NewResolver(mod, c.depGraph)
 
-				// don't need to use a mutex here since we are always setting
-				// this boolean flag to the same value -- even if two goroutines
-				// write to it at the same time, we know that the correct value
-				// will always be written
-				if !r.ResolveAll() {
+				if r.ResolveAll() {
+					// if we can resolve all symbols, we can then validate
+					// predicates -- note that this does not validate generic
+					// instances (that will happen after this)
+					for _, pkg := range mod.Packages() {
+						for _, file := range pkg.Files {
+							w := walk.NewWalker(file)
+							w.WalkPredicates(file.Root)
+						}
+					}
+				} else {
+					// don't need to use a mutex here since we are always
+					// setting this boolean flag to the same value -- even if
+					// two goroutines write to it at the same time, we know that
+					// the correct value will always be written
 					resolutionSucceeded = false
 				}
 			}(mod)
@@ -133,8 +146,6 @@ func (c *Compiler) Analyze() bool {
 			return false
 		}
 	}
-
-	// TODO: validate expressions (func bodies, initializers, etc.)
 
 	// log end of the transformation phase
 	logging.LogEndPhase()

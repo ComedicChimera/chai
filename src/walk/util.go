@@ -2,6 +2,7 @@ package walk
 
 import (
 	"chai/logging"
+	"chai/sem"
 	"chai/syntax"
 	"chai/typing"
 	"errors"
@@ -32,7 +33,15 @@ func WalkIdentifierList(idBranch *syntax.ASTBranch) ([]string, map[string]*loggi
 	return idList, encountered, nil
 }
 
+// -----------------------------------------------------------------------------
+
 // nothingType returns a new nothing type
 func nothingType() typing.DataType {
 	return typing.PrimType(typing.PrimKindNothing)
+}
+
+// convertIncompleteToBranch converts a HIRExpr to an AST Branch assuming the
+// HIRExpr is a HIRIncomplete
+func convertIncompleteToBranch(expr sem.HIRExpr) *syntax.ASTBranch {
+	return (*syntax.ASTBranch)(expr.(*sem.HIRIncomplete))
 }

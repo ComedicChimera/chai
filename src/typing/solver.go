@@ -66,7 +66,7 @@ const (
 // given variable and on what basis it is making that guess (coercion, casting,
 // etc.)
 type TypeSubstitution struct {
-	// Value is the type currently being substituted
+	// Values is the type currently being substituted
 	Value DataType
 
 	// ConsKind indicates the type of constraint that determined the value
@@ -182,13 +182,13 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 	if rhTypeVar, ok := rhs.(*TypeVariable); ok {
 		// we can just apply the substitution the right type since in doing so
 		// we will handle the cast where both left and right are tvars.
-		return s.applySubstitution(rhTypeVar, lhs, consKind, false)
+		return s.substitute(rhTypeVar, lhs, consKind, false)
 	}
 
 	// note: we now know right is not a type var or mono cons set
 	switch v := lhs.(type) {
 	case *TypeVariable:
-		return s.applySubstitution(v, rhs, consKind, true)
+		return s.substitute(v, rhs, consKind, true)
 	case *FuncType:
 		if rft, ok := rhs.(*FuncType); ok {
 			if v.Async != rft.Async {
@@ -231,11 +231,12 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 	return false
 }
 
-// applySubstitution attempts to apply a type substitution to a given type. The
+// substitute attempts to apply a type substitution to a given type. The
 // `subType` may be another type variable.  The flag `isLhs` refers to the type
-// variable not the argument.  This function returns a boolean indicating
-// success.
-func (s *Solver) applySubstitution(tv *TypeVariable, subType DataType, consKind int, isLhs bool) bool {
+// variable not the argument.  Note that the `subType` may still be valid, but
+// not become the new substituted type -- eg. coercion for most general type.
+// This function returns a boolean indicating success.
+func (s *Solver) substitute(tv *TypeVariable, subType DataType, consKind int, isLhs bool) bool {
 	if tv.Substitution == nil {
 		tv.Substitution = &TypeSubstitution{
 			Value:    subType,
@@ -246,18 +247,15 @@ func (s *Solver) applySubstitution(tv *TypeVariable, subType DataType, consKind 
 		return true
 	}
 
-	if tv.Substitution.IsLHS && !s.unify(tv.Substitution.Value, subType, tv.Substitution.ConsKind) {
-		return false
-	} else if !s.unify(subType, tv.Substitution.Value, tv.Substitution.ConsKind) {
+	if tv.Substitution.IsLHS && s.unify(tv.Substitution.Value, subType, tv.Substitution.ConsKind) {
+		// TODO: determine whether a new substitution should occur or not
+		return true
+	} else if s.unify(subType, tv.Substitution.Value, tv.Substitution.ConsKind) {
+		// TODO: determine whether a new substitution should occur or not
+		return true
+	} else {
 		return false
 	}
-
-	// direction doesn't matter when determining substitution precedence
-	if tv.Substitution.ConsKind > consKind {
-		tv.Substitution.Value = subType
-	}
-
-	return true
 }
 
 // logTypeError logs a type error between two data types

@@ -1,6 +1,7 @@
 package walk
 
 import (
+	"chai/logging"
 	"chai/sem"
 	"chai/syntax"
 	"chai/typing"
@@ -14,23 +15,20 @@ func (w *Walker) walkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HI
 // walkBlockContents walks a `block_content` node and returns a HIRExpr
 func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
 	block := &sem.HIRDoBlock{
-		ExprBase: sem.NewExprBase(nil, sem.RValue, false),
+		ExprBase: sem.NewExprBase(
+			w.solver.CreateTypeVar(nothingType(), func() {}),
+			sem.RValue,
+			false,
+		),
 	}
-
-	updateBlockType := func(i int, sdt typing.DataType) bool {
+	updateBlockType := func(i int, sdt typing.DataType, pos *logging.TextPosition) {
 		// the value is only yielded if it is the last element inside the
 		// `block_content`, and the enclosing block is supposed to yield a
 		// value; we don't care about the yielded value of the block if it isn't
 		// actually used or expected
 		if yieldsValue && i == branch.Len()-1 {
-			if bdt, ok := w.setBlockType(block.Type(), sdt); ok {
-				block.SetType(bdt)
-			} else {
-				return false
-			}
+			w.solver.AddConstraint(block.Type(), sdt, typing.TCCoerce, pos)
 		}
-
-		return true
 	}
 
 	for i, item := range branch.Content {
@@ -41,7 +39,8 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 
 			switch blockElem.Name {
 			case "stmt":
-				if stmt, ok := w.walkStmt(blockElem); ok && updateBlockType(i, stmt.Type()) {
+				if stmt, ok := w.walkStmt(blockElem); ok {
+					updateBlockType(i, stmt.Type(), blockElem.Position())
 					block.Statements = append(block.Statements, stmt)
 
 					// TODO: handle yield statements
@@ -49,14 +48,16 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 					return nil, false
 				}
 			case "expr_stmt":
-				if stmt, ok := w.walkExprStmt(blockElem); ok && updateBlockType(i, stmt.Type()) {
+				if stmt, ok := w.walkExprStmt(blockElem); ok {
+					updateBlockType(i, stmt.Type(), blockElem.Position())
 					block.Statements = append(block.Statements, stmt)
 				} else {
 					return nil, false
 				}
 			case "block_expr":
 				// the same logic used in `updateBlockType` for yielding values
-				if expr, ok := w.walkBlockExpr(blockElem, yieldsValue && i == branch.Len()-1); ok && updateBlockType(i, expr.Type()) {
+				if expr, ok := w.walkBlockExpr(blockElem, yieldsValue && i == branch.Len()-1); ok {
+					updateBlockType(i, expr.Type(), blockElem.Position())
 					block.Statements = append(block.Statements, expr)
 				} else {
 					return nil, false
@@ -75,18 +76,5 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 
 // walkBlockExpr walks a block expression (`block_expr`)
 func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	return nil, false
-}
-
-// -----------------------------------------------------------------------------
-
-// setBlockType updates the yielded type value of a block
-func (w *Walker) setBlockType(blockType, newType typing.DataType) (typing.DataType, bool) {
-	if w.coerce(newType, blockType) {
-		return blockType, true
-	} else if w.coerce(blockType, newType) {
-		return newType, true
-	}
-
 	return nil, false
 }

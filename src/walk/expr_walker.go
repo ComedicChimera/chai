@@ -6,14 +6,61 @@ import (
 	"chai/typing"
 )
 
+// WalkPredicates walks the predicates (func bodies, initializers) of a file
+func (w *Walker) WalkPredicates(root *sem.HIRRoot) {
+	for _, def := range root.Defs {
+		switch v := def.(type) {
+		case *sem.HIRFuncDef:
+			ft := v.DefBase.Sym().Type.(*typing.FuncType)
+
+			// validate the argument initializers
+			for name, argInit := range v.ArgumentInitializers {
+				var expectedType typing.DataType
+				for _, arg := range ft.Args {
+					if arg.Name == name {
+						expectedType = arg.Type
+						break
+					}
+				}
+
+				argBranch := convertIncompleteToBranch(argInit)
+				if expr, ok := w.walkExpr(argBranch, true); ok {
+					w.solver.AddConstraint(expectedType, expr.Type(), typing.TCCoerce, argBranch.Position())
+
+					// solve the argument initializer immediately -- the only
+					// context should be that of the initializer
+					if w.solver.Solve() {
+						v.ArgumentInitializers[name] = expr
+					}
+				}
+			}
+
+			// validate the function body
+			if expr, ok := w.walkFuncBody(convertIncompleteToBranch(v.Body), ft); ok {
+				v.Body = expr
+			}
+		case *sem.HIROperDef:
+			// validate the operator body
+			if expr, ok := w.walkFuncBody(
+				convertIncompleteToBranch(v.Body),
+				v.DefBase.Sym().Type.(*typing.FuncType)); ok {
+
+				v.Body = expr
+			}
+		}
+	}
+}
+
+// -----------------------------------------------------------------------------
+
 // Many expression functions take a boolean parameter called `yieldsValue` which
 // essentially indicates whether or not the block yields a meaningful value.
 // This is used to facilitate the behavior of if-blocks, match-blocks, etc. that
 // can yield multiple different, ununifiable types on different branches because
 // their value is not used.
 
-// WalkFuncBody walks a function body (`decl_func_body`)
-func (w *Walker) WalkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (sem.HIRExpr, bool) {
+// walkFuncBody walks a function body (`decl_func_body`)
+func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (sem.HIRExpr, bool) {
 	// handle function context management
 	w.pushFuncContext(fn)
 	defer w.popExprContext()
@@ -55,6 +102,11 @@ func (w *Walker) WalkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 		} else {
 			return nil, false
 		}
+	}
+
+	// constraint the return type of the block if the function yields a value
+	if yieldsValue {
+		w.solver.AddConstraint(fn.ReturnType, hirExpr.Type(), typing.TCCoerce, branch.Position())
 	}
 
 	// run the solver at the end of the function body
