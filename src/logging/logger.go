@@ -47,6 +47,7 @@ func (l *Logger) handleMsg(lm LogMessage) {
 		l.errorCount++
 
 		if l.LogLevel > LogLevelSilent {
+			displayEndPhase(false)
 			lm.display()
 		}
 	} else {

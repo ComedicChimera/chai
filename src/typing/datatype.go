@@ -24,14 +24,7 @@ func Equals(a, b DataType) bool {
 
 // Equivalent checks if two types are effectively/logically equivalent
 func Equivalent(a, b DataType) bool {
-	a = InnerType(a)
-	b = InnerType(b)
-
-	if cs, ok := a.(*ConstraintSet); ok {
-		return cs.contains(b)
-	}
-
-	return a.equals(b)
+	return InnerType(a).equals(InnerType(b))
 }
 
 // InnerType returns the type "stored" by another data type (such as the value

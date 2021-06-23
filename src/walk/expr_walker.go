@@ -25,7 +25,7 @@ func (w *Walker) WalkPredicates(root *sem.HIRRoot) {
 
 				argBranch := convertIncompleteToBranch(argInit)
 				if expr, ok := w.walkExpr(argBranch, true); ok {
-					w.solver.AddConstraint(expectedType, expr.Type(), typing.TCCoerce, argBranch.Position())
+					w.solver.AddSubConstraint(expectedType, expr.Type(), argBranch.Position())
 
 					// solve the argument initializer immediately -- the only
 					// context should be that of the initializer
@@ -106,7 +106,7 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 
 	// constraint the return type of the block if the function yields a value
 	if yieldsValue {
-		w.solver.AddConstraint(fn.ReturnType, hirExpr.Type(), typing.TCCoerce, branch.Position())
+		w.solver.AddSubConstraint(fn.ReturnType, hirExpr.Type(), branch.Position())
 	}
 
 	// run the solver at the end of the function body

@@ -154,7 +154,8 @@ lambda_arg = 'IDENTIFIER' [type_ext];
 core_expr = ['await'] or_expr [core_expr_suffix] ;
 core_expr_suffix = '..' or_expr
   | 'as' type {'as' type}
-  | 'is' (type_pattern | '!' type) ;
+  | 'is' (type_pattern | '!' type)
+  | ':' ':' type ;
 
 or_expr = xor_expr {('||' | '|') xor_expr} ;
 xor_expr = and_expr {'^' and_expr} ;

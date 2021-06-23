@@ -14,7 +14,9 @@ package typing
 // snese.  However, casting from an int to a string makes no sense in terms of
 // the actual data manipulation involved.
 
-func CoerceTo(src, dest DataType) bool {
+// SubTypeOf returns whether or not the source type is a subtype of the
+// destination type (viz. whether the src type can be coerced to the dest type)
+func SubTypeOf(src, dest DataType) bool {
 	if Equivalent(src, dest) {
 		return true
 	}
@@ -25,6 +27,8 @@ func CoerceTo(src, dest DataType) bool {
 	switch v := dest.(type) {
 	case PrimType:
 		return v.coerce(src)
+	case *ConstraintSet:
+		return v.contains(src)
 	default:
 		// no known coercion
 		return false
@@ -32,7 +36,7 @@ func CoerceTo(src, dest DataType) bool {
 }
 
 func CastTo(src, dest DataType) bool {
-	if CoerceTo(src, dest) {
+	if SubTypeOf(src, dest) {
 		return true
 	}
 

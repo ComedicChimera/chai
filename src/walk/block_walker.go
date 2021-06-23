@@ -27,7 +27,7 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 		// value; we don't care about the yielded value of the block if it isn't
 		// actually used or expected
 		if yieldsValue && i == branch.Len()-1 {
-			w.solver.AddConstraint(block.Type(), sdt, typing.TCCoerce, pos)
+			w.solver.AddSubConstraint(block.Type(), sdt, pos)
 		}
 	}
 

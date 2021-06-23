@@ -5,80 +5,6 @@ import (
 	"fmt"
 )
 
-// TypeVariable is a special data type that represents an unknown type to be
-// determined by the solver.  It is somewhat of a placeholder, but it does
-// eventually have a known value.
-type TypeVariable struct {
-	// ID is a unique value identifying this type variable
-	ID int
-
-	// EvalType is the type that this type variable has been evaluated to. This
-	// field is `nil` until the type variable is determined
-	EvalType DataType
-
-	// DefaultType is the type this type variable will be substituted with if no
-	// other constraints are placed on it.  This field can be `nil` indicating
-	// that there is no default type.  This is primarily used for numeric
-	// literals when no more specific type for them can be determined
-	DefaultType DataType
-
-	// Substitution is the type substitution currently applied to this data type.
-	Substitution *TypeSubstitution
-
-	// HandleUndetermined is called whenever a type value cannot be determined
-	// for this type variable, but there was no other type error.
-	HandleUndetermined func()
-}
-
-func (tv *TypeVariable) Repr() string {
-	if tv.EvalType == nil {
-		return "<unknown type>"
-	}
-
-	return tv.EvalType.Repr()
-}
-
-func (tv *TypeVariable) equals(other DataType) bool {
-	logging.LogFatal("`equals` called directly on unevaluated type variable")
-	return false
-}
-
-// TypeConstraint represents a single Hindley-Milner type constraint: a
-// statement of some relation one type has to another.
-type TypeConstraint struct {
-	Lhs, Rhs DataType
-
-	// kind must be one of the enumerated constraint kinds
-	Kind int
-
-	// Pos is the position of the element(s) that generated this constraint
-	Pos *logging.TextPosition
-}
-
-// Enumeration of constraint kind
-const (
-	TCEquiv  = iota // LHS and RHS are equivalent
-	TCCoerce        // RHS coerces to LHS
-	TCCast          // RHS casts to LHS
-)
-
-// TypeSubstitution a "guess" the solver is making about one type to infer for a
-// given variable and on what basis it is making that guess (coercion, casting,
-// etc.)
-type TypeSubstitution struct {
-	// Values is the type currently being substituted
-	Value DataType
-
-	// ConsKind indicates the type of constraint that determined the value
-	ConsKind int
-
-	// IsLHS indicates whether this type was on the left (true) or right (false)
-	// of the type constraint
-	IsLHS bool
-}
-
-// -----------------------------------------------------------------------------
-
 // Solver is the state machine responsible for performing Hindley-Milner type
 // inference within expression bodies.  It is the main mechanism by which the
 // Walker interacts with the type system.
@@ -100,12 +26,22 @@ func NewSolver(lctx *logging.LogContext) *Solver {
 	return &Solver{lctx: lctx}
 }
 
-// AddConstraint adds a new type constraint to the solver
-func (s *Solver) AddConstraint(lhs, rhs DataType, consKind int, pos *logging.TextPosition) {
+// AddEqConstraint adds a new equality constraint to the solver
+func (s *Solver) AddEqConstraint(lhs, rhs DataType, pos *logging.TextPosition) {
 	s.constraints = append(s.constraints, &TypeConstraint{
 		Lhs:  lhs,
 		Rhs:  rhs,
-		Kind: consKind,
+		Kind: TCEquiv,
+		Pos:  pos,
+	})
+}
+
+// AddSubConstraint adds a new subtype constraint to the solver
+func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) {
+	s.constraints = append(s.constraints, &TypeConstraint{
+		Lhs:  lhs,
+		Rhs:  rhs,
+		Kind: TCSubType,
 		Pos:  pos,
 	})
 }
@@ -127,24 +63,35 @@ func (s *Solver) CreateTypeVar(defaultType DataType, handler func()) *TypeVariab
 // context will be cleared after Solve has completed.  It returns a boolean
 // indicating whether solution succeeded.
 func (s *Solver) Solve() bool {
+	// create a global set of type substitutions for the given constraints
+	substitutions := make(map[int]*TypeSubstitution)
+
 	// attempt initial unification of the type constraints
 	for _, cons := range s.constraints {
-		if !s.unify(cons.Lhs, cons.Rhs, cons.Kind) {
-			s.logTypeError(cons.Lhs, cons.Rhs, cons.Kind, cons.Pos)
-			return false
+		if newSubs, ok := s.unify(cons.Lhs, cons.Rhs, cons.Kind); ok {
+			if usubs, ok := s.union(substitutions, newSubs); ok {
+				substitutions = usubs
+				continue
+			}
 		}
+
+		s.logTypeError(cons.Lhs, cons.Rhs, cons.Kind, cons.Pos)
 	}
+
+	// TODO: apply all type assertions to the types
 
 	// determine final values for all our unknown types
 	allEvaluated := true
 	for _, tvar := range s.vars {
-		if tvar.Substitution.Value != nil {
-			subVal := tvar.Substitution.Value
-
-			// poly cons sets can never be used as raw data types; all other
-			// types are acceptable
-			if _, ok := subVal.(*ConstraintSet); !ok {
-				tvar.EvalType = tvar.Substitution.Value
+		if sub, ok := substitutions[tvar.ID]; ok {
+			if sub.equivTo != nil {
+				tvar.EvalType = sub.equivTo
+				continue
+			} else if SubTypeOf(sub.superTypeOf, sub.subTypeOf) {
+				// we always want to deduce the lowest possible type so if the
+				// super type bound satisfies the subtype bound, then, we can
+				// just place in the type variable.
+				tvar.EvalType = sub.superTypeOf
 				continue
 			}
 		}
@@ -165,6 +112,11 @@ func (s *Solver) Solve() bool {
 		return false
 	}
 
+	// simplify all the performed substitutions for the type variables
+	for _, tvar := range s.vars {
+		tvar.EvalType = s.simplify(tvar.EvalType)
+	}
+
 	// clear the solution context for the next solve
 	s.vars = nil
 	s.constraints = nil
@@ -173,101 +125,287 @@ func (s *Solver) Solve() bool {
 
 // -----------------------------------------------------------------------------
 
-// unify attempts to unify a pair of types based on a given type constraint
-// between them.  This will apply substitutions as necessary and is the primary
-// mechanism for Hindley-Milner type inference.  The boolean returned indicates
-// whether or not unification was successful.
-func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
+// unify performs unification on a pair of types based on the given type
+// constraint between them (equivalent or subtype).  It returns a map of the
+// substitutions applied by this unification as well as a boolean indicating
+// whether or not the unification was possible.  The returned map can be `nil`
+// if no substitutions were performed.
+func (s *Solver) unify(lhs, rhs DataType, consKind int) (map[int]*TypeSubstitution, bool) {
 	// check for type variables on the right before switching of the left
 	if rhTypeVar, ok := rhs.(*TypeVariable); ok {
-		// we can just apply the substitution the right type since in doing so
-		// we will handle the cast where both left and right are tvars.
-		return s.substitute(rhTypeVar, lhs, consKind, false)
+		// all we need to do to handle type variables alone in unification is
+		// add a new substitution for them.  `union` will catch any conflicts in
+		// substitution.
+		return s.apply(nil, rhTypeVar.ID, lhs, consKind, false)
 	}
 
 	// note: we now know right is not a type var or mono cons set
 	switch v := lhs.(type) {
 	case *TypeVariable:
-		return s.substitute(v, rhs, consKind, true)
+		// same logic as for rhs type vars
+		return s.apply(nil, v.ID, rhs, consKind, true)
 	case *FuncType:
 		if rft, ok := rhs.(*FuncType); ok {
 			if v.Async != rft.Async {
-				return false
+				return nil, false
 			}
 
 			if len(v.Args) != len(rft.Args) {
-				return false
+				return nil, false
 			}
 
+			var subs map[int]*TypeSubstitution
 			for i, arg := range v.Args {
 				rarg := rft.Args[i]
-				if !s.unify(arg.Type, rarg.Type, TCEquiv) {
-					return false
-				}
 
 				if arg.Name != "" && rarg.Name != "" && arg.Name != rarg.Name {
-					return false
+					return nil, false
 				}
 
 				if arg.Indefinite != rarg.Indefinite || arg.Optional != rarg.Optional || arg.ByReference != rarg.ByReference {
-					return false
+					return nil, false
 				}
+
+				if newSubs, ok := s.unify(arg.Type, rarg.Type, TCEquiv); ok {
+					if usubs, ok := s.union(subs, newSubs); ok {
+						subs = usubs
+					} else {
+						return nil, false
+					}
+				} else {
+					return nil, false
+				}
+
 			}
 
-			return s.unify(v.ReturnType, rft.ReturnType, TCEquiv)
+			if rtsubs, ok := s.unify(v.ReturnType, rft.ReturnType, TCEquiv); ok {
+				return s.union(subs, rtsubs)
+			} else {
+				return nil, false
+			}
 		}
+	case *ConstraintSet:
+		// TODO
 	default:
 		switch consKind {
 		case TCEquiv:
-			return Equivalent(lhs, rhs)
-		case TCCoerce:
-			return CoerceTo(rhs, lhs)
-		case TCCast:
-			return CastTo(rhs, lhs)
+			return nil, Equivalent(lhs, rhs)
+		case TCSubType:
+			return nil, SubTypeOf(rhs, lhs)
 		}
 	}
 
 	// if we reach here, we had a type error
-	return false
+	return nil, false
 }
 
-// substitute attempts to apply a type substitution to a given type. The
-// `subType` may be another type variable.  The flag `isLhs` refers to the type
-// variable not the argument.  Note that the `subType` may still be valid, but
-// not become the new substituted type -- eg. coercion for most general type.
-// This function returns a boolean indicating success.
-func (s *Solver) substitute(tv *TypeVariable, subType DataType, consKind int, isLhs bool) bool {
-	if tv.Substitution == nil {
-		tv.Substitution = &TypeSubstitution{
-			Value:    subType,
-			ConsKind: consKind,
-			IsLHS:    isLhs,
+// apply checks a type against the known type substitutions for a given type
+// variable and performs a type substitution for a given type variable in a
+// substitution set.  `isLhs` indicates whether the type variable is on the left
+// or right side of the type constraint.  This function will mutate the input
+// `set` as well as returning the new one; however, only the returned set is
+// guaranteed to be valid.  It returns a boolean flag that indicates whether the
+// value is acceptable by the current substitution.
+func (s *Solver) apply(set map[int]*TypeSubstitution, tvarID int, value DataType, consKind int, isLhs bool) (map[int]*TypeSubstitution, bool) {
+	// validate and combine substitutions as applicable
+	if set != nil {
+		if sub, ok := set[tvarID]; ok {
+			if consKind == TCEquiv {
+				// if the type variable already has an equivalency constraint,
+				// then the types must be equivalent; otherwise, the application
+				// is not valid
+				if sub.equivTo != nil {
+					// ordering doesn't matter for equivalency
+					if usubs, ok := s.unify(sub.equivTo, value, TCEquiv); ok {
+						return s.union(set, usubs)
+					}
+
+					return nil, false
+				}
+
+				// check that the value is in between the bounds of the type var
+				if sub.subTypeOf != nil {
+					if usubs, ok := s.unify(sub.subTypeOf, value, TCSubType); ok {
+						set, ok = s.union(set, usubs)
+
+						if !ok {
+							return nil, false
+						}
+					} else {
+						return nil, false
+					}
+				}
+
+				if sub.superTypeOf != nil {
+					if usubs, ok := s.unify(value, sub.superTypeOf, TCSubType); ok {
+						set, ok = s.union(set, usubs)
+
+						if !ok {
+							return nil, false
+						}
+					} else {
+						return nil, false
+					}
+				}
+
+				// if we reach here, we know it is within bounds, so we replace
+				// the bounded substitution with an exact substitution
+				sub.equivTo = value
+				return set, true
+			} else if isLhs /* type var is super type of value */ {
+				// if the variable has a type that it is exactly equivalent to,
+				// then we check the passed value against that substituted value
+				if sub.equivTo != nil {
+					if usubs, ok := s.unify(sub.equivTo, value, TCSubType); ok {
+						return s.union(set, usubs)
+					}
+
+					return nil, false
+				}
+
+				// in order for this substitution to be possible, either the
+				// value has to be a sub type of the super type of the type
+				// variable or there has to be no super type for the variable
+				if sub.superTypeOf != nil {
+					if usubs, ok := s.unify(sub.superTypeOf, value, TCSubType); ok {
+						set, ok = s.union(set, usubs)
+
+						if !ok {
+							return nil, false
+						}
+					} else {
+						return nil, false
+					}
+				}
+
+				// if we know that this substitution is valid, we only override
+				// if the sub type of the type variable is a sub type of the
+				// passed in value -- narrowing the bounds
+				if usubs, ok := s.unify(value, sub.subTypeOf, TCSubType); ok {
+					set, ok = s.union(set, usubs)
+					sub.subTypeOf = value
+					return set, ok
+				} else {
+					sub.subTypeOf = value
+					return set, true
+				}
+			} else /* type var is sub type of value */ {
+				// if the variable has a type that it is exactly equivalent to,
+				// then we check the passed value against that substituted value
+				if sub.equivTo != nil {
+					if usubs, ok := s.unify(value, sub.equivTo, TCSubType); ok {
+						return s.union(set, usubs)
+					}
+
+					return nil, false
+				}
+
+				// in order for this substitution to be possible, either the
+				// value has to be a super type of the sub type of the type
+				// substitution or there has to be no sub type for the variable
+				if sub.subTypeOf != nil {
+					if usubs, ok := s.unify(value, sub.subTypeOf, TCSubType); ok {
+						set, ok = s.union(set, usubs)
+
+						if !ok {
+							return nil, false
+						}
+					} else {
+						return nil, false
+					}
+				}
+
+				// if we know that this substitution is valid, we only override
+				// if the super type of the type variable is a super type of the
+				// passed in value -- narrowing the bounds
+				if sub.superTypeOf != nil {
+					if usubs, ok := s.unify(sub.superTypeOf, value, TCSubType); ok {
+						set, ok = s.union(set, usubs)
+						sub.superTypeOf = value
+						return set, ok
+					}
+				} else {
+					sub.superTypeOf = value
+					return set, true
+				}
+			}
 		}
-
-		return true
 	}
 
-	if tv.Substitution.IsLHS && s.unify(tv.Substitution.Value, subType, tv.Substitution.ConsKind) {
-		// TODO: determine whether a new substitution should occur or not
-		return true
-	} else if s.unify(subType, tv.Substitution.Value, tv.Substitution.ConsKind) {
-		// TODO: determine whether a new substitution should occur or not
-		return true
+	// there is no preexisting substitution, so we can just add and return
+	if consKind == TCEquiv {
+		return map[int]*TypeSubstitution{
+			tvarID: {equivTo: value},
+		}, true
+	} else if isLhs {
+		// type var on lhs => super type
+		return map[int]*TypeSubstitution{
+			tvarID: {superTypeOf: value},
+		}, true
 	} else {
-		return false
+		// type var on rhs => sub type
+		return map[int]*TypeSubstitution{
+			tvarID: {subTypeOf: value},
+		}, true
 	}
+}
+
+// union combines two substitution sets and returns the combination if possible;
+// the input substitutions can be `nil` (empty).  This may mutate the sets
+// passed in, but only the returned set is guaranteed to be valid.
+func (s *Solver) union(a, b map[int]*TypeSubstitution) (map[int]*TypeSubstitution, bool) {
+	if a == nil {
+		return b, true
+	} else if b == nil {
+		return a, true
+	}
+
+	for tvarID, sub := range b {
+		if sub.equivTo != nil {
+			// lhs v rhs doesn't matter for equivalency substitution
+			if nextA, ok := s.apply(a, tvarID, sub.equivTo, TCEquiv, true); ok {
+				a = nextA
+			} else {
+				return nil, false
+			}
+		} else {
+			if sub.superTypeOf != nil {
+				if nextA, ok := s.apply(a, tvarID, sub.superTypeOf, TCSubType, true); ok {
+					a = nextA
+				} else {
+					return nil, false
+				}
+			}
+
+			if sub.subTypeOf != nil {
+				if nextA, ok := s.apply(a, tvarID, sub.subTypeOf, TCSubType, false); ok {
+					a = nextA
+				} else {
+					return nil, false
+				}
+			}
+		}
+	}
+
+	return a, true
+}
+
+// simplify removes all nested types from the deduced type for a type parameter
+func (s *Solver) simplify(dt DataType) DataType {
+	// TODO
+	return dt
 }
 
 // logTypeError logs a type error between two data types
 func (s *Solver) logTypeError(lhs, rhs DataType, consKind int, pos *logging.TextPosition) {
+	// TODO: fix to give informative error messages involving substitutions
+
 	var msg string
 	switch consKind {
 	case TCEquiv:
-		msg = fmt.Sprintf("type mismatch: %s v. %s", lhs.Repr(), rhs.Repr())
-	case TCCoerce:
-		msg = fmt.Sprintf("invalid coercion: %s to %s", rhs.Repr(), lhs.Repr())
-	case TCCast:
-		msg = fmt.Sprintf("invalid cast: %s to %s", rhs.Repr(), lhs.Repr())
+		msg = fmt.Sprintf("type mismatch: `%s` v. `%s`", lhs.Repr(), rhs.Repr())
+	case TCSubType:
+		msg = fmt.Sprintf("`%s` must be a subtype of `%s`", rhs.Repr(), lhs.Repr())
 	}
 
 	logging.LogCompileError(
