@@ -116,4 +116,5 @@ func (ot *OperatorType) Repr() string {
 
 func (ot *OperatorType) equals(other DataType) bool {
 	logging.LogFatal("`equals` called directly on operator type")
+	return false
 }
