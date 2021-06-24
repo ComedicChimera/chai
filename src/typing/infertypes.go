@@ -109,3 +109,11 @@ type OperatorType struct {
 	// OperatorName is the name of the operator as a string
 	OperatorName string
 }
+
+func (ot *OperatorType) Repr() string {
+	return ot.OperatorName
+}
+
+func (ot *OperatorType) equals(other DataType) bool {
+	logging.LogFatal("`equals` called directly on operator type")
+}

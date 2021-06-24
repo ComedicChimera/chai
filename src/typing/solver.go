@@ -159,9 +159,13 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 		// add a new substitution for them.  `union` will catch any conflicts in
 		// substitution.
 		return s.substitute(rhTypeVar.ID, lhs, consKind, false)
+	} else if rhOperType, ok := rhs.(*OperatorType); ok {
+		// TODO
+		_ = rhOperType
 	}
 
-	// note: we now know right is not a type var or mono cons set
+	// note: we now know right is not a type var, and that operators can only
+	// appear on the right (so left is not an operator)
 	switch v := lhs.(type) {
 	case *TypeVariable:
 		// same logic as for rhs type vars
