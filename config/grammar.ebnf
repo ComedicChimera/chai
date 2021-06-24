@@ -178,10 +178,10 @@ sub_slice = expr [':' [expr]] | ':' expr ;
 init_list = '...' expr {',' init_member_expr} | init_member_expr {',' init_member_expr} ;
 init_member_expr = 'IDENTIFIER' '=' expr;
 args_list = arg {',' arg} ;
-arg = expr ['=' expr] ; (* has to be written like this to prevent a shift-reduce conflict *)
+arg = expr ['=' expr] | '...' expr ; (* has to be written like this to prevent a shift-reduce conflict *)
 
-atom = 'INTLIT' | 'STRINGLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT' | vec_builder
-  | tupled_expr | list_builder | dict_builder | 'IDENTIFIER' | 'null' | super_access ;
+atom = 'INTLIT' | 'STRINGLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT' | 'IDENTIFIER' | 'null' 
+ | vec_builder | tupled_expr | list_builder | dict_builder | partial_call | super_access ;
 
 list_builder = '{' list_contents '}' ;
 list_contents = expr ({',' expr} | [comp_suffix]) ;
@@ -193,6 +193,8 @@ vec_contents = expr {(',' | ';') expr };
 tupled_expr = '(' [expr_list] ')' ;
 
 super_access = 'super' '(' [type] ')' ;
+
+partial_call = '|' expr args_list ')' ;
 
 
 (* -- Types -- *)
