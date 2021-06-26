@@ -143,7 +143,14 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 	}
 
 	// import public operators
-	file.ImportOperators(importedPkg)
+	if err := file.ImportOperators(importedPkg); err != nil {
+		logging.LogCompileError(
+			file.LogContext,
+			fmt.Sprintf("multiple conflicting overloads for `%s` operator", err.Error()),
+			logging.LMKImport,
+			importedPkgPathPos,
+		)
+	}
 
 	return true
 }

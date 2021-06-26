@@ -258,25 +258,3 @@ var symbolPatterns = map[string]int{
 	"/":   DIVIDE,
 	"?":   ACC,
 }
-
-// GetOperatorTokenValueByKind converts an operator token kind to a token value
-// for displaying error messages regarding operators.  This function is very
-// inefficient, but it is almost never used and by far the simplest way of going
-// about our goal.
-func GetOperatorTokenValueByKind(tokKind int) string {
-	switch tokKind {
-	case LBRACKET:
-		return "[]"
-	case COLON:
-		return "[:]"
-	default:
-		for value, kind := range symbolPatterns {
-			if kind == tokKind {
-				return value
-			}
-		}
-	}
-
-	// unreachable
-	return ""
-}

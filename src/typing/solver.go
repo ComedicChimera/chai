@@ -21,14 +21,9 @@ type Solver struct {
 	constraints []*TypeConstraint
 
 	// substitutions is the map of global type substitutions applied to type
-	// variables.  This will contain the solver's final set of deductions.
+	// variables.  This will contain the solver's final deductions for the types
+	// of type variables.
 	substitutions map[int]*TypeSubstitution
-
-	// preview is the map of type substitutions that are being tested.  The
-	// solver will put new substitutions in this map but check them against the
-	// old substitutions before it does.  These will eventually be moved into
-	// the final map of substitutions if their unification suceeds.
-	preview map[int]*TypeSubstitution
 }
 
 // NewSolver creates a new type solver in a given log context
@@ -36,8 +31,21 @@ func NewSolver(lctx *logging.LogContext) *Solver {
 	return &Solver{
 		lctx:          lctx,
 		substitutions: make(map[int]*TypeSubstitution),
-		preview:       make(map[int]*TypeSubstitution),
 	}
+}
+
+// CreateTypeVar creates a new type variable with a given default type and a
+// handler which is called when the type can't be inferred.  The default type
+// may be `nil` if there is none.
+func (s *Solver) CreateTypeVar(defaultType DataType, handler func()) *TypeVariable {
+	s.vars = append(s.vars, &TypeVariable{
+		s:                  s,
+		ID:                 len(s.vars),
+		DefaultType:        defaultType,
+		HandleUndetermined: handler,
+	})
+
+	return s.vars[len(s.vars)-1]
 }
 
 // AddEqConstraint adds a new equality constraint to the solver
@@ -60,35 +68,13 @@ func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) 
 	})
 }
 
-// CreateTypeVar creates a new type variable with a given default type and a
-// handler which is called when the type can't be inferred.  The default type
-// may be `nil` if there is none.
-func (s *Solver) CreateTypeVar(defaultType DataType, handler func()) *TypeVariable {
-	s.vars = append(s.vars, &TypeVariable{
-		s:                  s,
-		ID:                 len(s.vars),
-		DefaultType:        defaultType,
-		HandleUndetermined: handler,
-	})
-
-	return s.vars[len(s.vars)-1]
-}
-
 // Solve runs the main solution algorithm on the given solution context. This
 // context will be cleared after Solve has completed.  It returns a boolean
 // indicating whether solution succeeded.
 func (s *Solver) Solve() bool {
 	// attempt initial unification of the type constraints
 	for _, cons := range s.constraints {
-		if s.unify(cons.Lhs, cons.Rhs, cons.Kind) {
-			// migrate the preview into the final map of substitutions
-			for id, sub := range s.preview {
-				// these substitutions have already been validated
-				s.substitutions[id] = sub
-			}
-
-			s.preview = make(map[int]*TypeSubstitution)
-		} else {
+		if !s.unify(cons.Lhs, cons.Rhs, cons.Kind) {
 			// we don't want to continue solving here since otherwise our type
 			// errors may cascade and cause a bunch of other non-related type
 			// errors that will just confuse the user
@@ -159,9 +145,6 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 		// add a new substitution for them.  `union` will catch any conflicts in
 		// substitution.
 		return s.substitute(rhTypeVar.ID, lhs, consKind, false)
-	} else if rhOperType, ok := rhs.(*OperatorType); ok {
-		// TODO
-		_ = rhOperType
 	}
 
 	// note: we now know right is not a type var, and that operators can only
@@ -217,41 +200,17 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 // variable is on the left (true) or right (false) side of the constraint.  It
 // attempts to perform a substitution according to that constraint and returns a
 // boolean indicating whether or not the constraint was valid by the current set
-// of substitutions.  Note that this function may not always update the
-// preexisting substitution; rather, it might only check against it.
+// of substitutions
 func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool) bool {
-	// first, check if there are any previous substitutions applied to the type
-	// variable.  Give precedence to the preview as those are the "latest"
-	// substitutions -- most accurate to current state of the solver
-	var sub *TypeSubstitution
-	if psub, ok := s.preview[tvarID]; ok {
-		sub = psub
-	} else if ssub, ok := s.substitutions[tvarID]; ok {
-		sub = ssub
-	}
+	// check if there are any previous substitutions applied to the type
+	// variable so the constraint can be checked against the current subsitution
+	if sub, ok := s.substitutions[tvarID]; ok {
+		// validate constraint and update substitutions as necessary
 
-	// if there was no substitution, add a new substitution to the preview
-	if sub == nil {
 		if consKind == TCEquiv {
-			s.preview[tvarID] = &TypeSubstitution{
-				equivTo: value,
-			}
-		} else if isLhs {
-			// type var on lhs => super type
-			s.preview[tvarID] = &TypeSubstitution{
-				superTypeOf: value,
-			}
-		} else {
-			// type var on rhs => sub type
-			s.preview[tvarID] = &TypeSubstitution{
-				subTypeOf: value,
-			}
-		}
-	} else /* validate constraint and update substitutions as necessary */ {
-		if consKind == TCEquiv {
-			// if the type variable already has an equivalency constraint,
-			// then the types must be equivalent; otherwise, the application
-			// is not valid
+			// if the type variable already has an equivalency constraint, then
+			// the types must be equivalent; otherwise, the application is not
+			// valid
 			if sub.equivTo != nil {
 				// ordering doesn't matter for equivalency
 				return s.unify(sub.equivTo, value, TCEquiv)
@@ -266,54 +225,70 @@ func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool
 				return false
 			}
 
-			// if we reach here, we know it is within bounds, so we replace
-			// the bounded substitution with an exact substitution
-			s.preview[tvarID] = &TypeSubstitution{equivTo: value}
+			// if we reach here, we know it is within bounds, so we replace the
+			// bounded substitution with an exact substitution
+			s.substitutions[tvarID].equivTo = value
 		} else if isLhs /* type var is super type of value */ {
-			// if the variable has a type that it is exactly equivalent to,
-			// then we check the passed value against that substituted value
+			// if the variable has a type that it is exactly equivalent to, then
+			// we check the passed value against that substituted value
 			if sub.equivTo != nil {
 				return s.unify(sub.equivTo, value, TCSubType)
 			}
 
-			// in order for this substitution to be possible, either the
-			// value has to be a sub type of the super type of the type
-			// variable or there has to be no super type for the variable
+			// in order for this substitution to be possible, either the value
+			// has to be a sub type of the super type of the type variable or
+			// there has to be no super type for the variable
 			if sub.superTypeOf != nil && !s.unify(sub.superTypeOf, value, TCSubType) {
 				return false
 			}
 
-			// if we know that this substitution is valid, we only override
-			// if the sub type of the type variable is a sub type of the
-			// passed in value -- narrowing the bounds
+			// if we know that this substitution is valid, we only override if
+			// the sub type of the type variable is a sub type of the passed in
+			// value -- narrowing the bounds
 			if sub.subTypeOf == nil || s.unify(value, sub.subTypeOf, TCSubType) {
-				s.preview[tvarID] = &TypeSubstitution{subTypeOf: value, superTypeOf: sub.superTypeOf}
+				s.substitutions[tvarID].subTypeOf = value
 				return true
 			}
 
 			// we know the substitution is legal whether or not we update it
 		} else /* type var is sub type of value */ {
-			// if the variable has a type that it is exactly equivalent to,
-			// then we check the passed value against that substituted value
+			// if the variable has a type that it is exactly equivalent to, then
+			// we check the passed value against that substituted value
 			if sub.equivTo != nil {
 				return s.unify(sub.equivTo, value, TCSubType)
 			}
 
-			// in order for this substitution to be possible, either the
-			// value has to be a super type of the sub type of the type
-			// substitution or there has to be no sub type for the variable
+			// in order for this substitution to be possible, either the value
+			// has to be a super type of the sub type of the type substitution
+			// or there has to be no sub type for the variable
 			if sub.subTypeOf != nil && !s.unify(value, sub.subTypeOf, TCSubType) {
 				return false
 			}
 
-			// if we know that this substitution is valid, we only override
-			// if the super type of the type variable is a super type of the
-			// passed in value -- narrowing the bounds
+			// if we know that this substitution is valid, we only override if
+			// the super type of the type variable is a super type of the passed
+			// in value -- narrowing the bounds
 			if sub.superTypeOf == nil || s.unify(sub.superTypeOf, value, TCSubType) {
-				s.preview[tvarID] = &TypeSubstitution{superTypeOf: value, subTypeOf: sub.subTypeOf}
+				s.substitutions[tvarID].superTypeOf = value
 			}
 
 			// we know the substitution is legal whether or not we update it
+		}
+	} else /* if there was no substitution, add a new substitution */ {
+		if consKind == TCEquiv {
+			s.substitutions[tvarID] = &TypeSubstitution{
+				equivTo: value,
+			}
+		} else if isLhs {
+			// type var on lhs => super type
+			s.substitutions[tvarID] = &TypeSubstitution{
+				superTypeOf: value,
+			}
+		} else {
+			// type var on rhs => sub type
+			s.substitutions[tvarID] = &TypeSubstitution{
+				subTypeOf: value,
+			}
 		}
 	}
 
@@ -322,10 +297,44 @@ func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool
 }
 
 // simplify removes all nested types from the deduced type for a type parameter.
-// It also checks for types such as constraint sets and operator definitions
-// that are not valid types on their own.
+// It also checks for types such as constraint sets that are not valid types on
+// their own.
 func (s *Solver) simplify(dt DataType) (DataType, bool) {
-	// TODO
+	// operators never appear here
+	switch v := dt.(type) {
+	case *TypeVariable:
+		return s.simplify(v.EvalType)
+	case *FuncType:
+		newArgs := make([]*FuncArg, len(v.Args))
+		for i, arg := range v.Args {
+			if newAdt, ok := s.simplify(arg.Type); ok {
+				newArgs[i] = &FuncArg{
+					Type:        newAdt,
+					Name:        arg.Name,
+					ByReference: arg.ByReference,
+					Optional:    arg.Optional,
+					Indefinite:  arg.Indefinite,
+				}
+			} else {
+				return nil, false
+			}
+		}
+
+		if newRt, ok := s.simplify(v.ReturnType); ok {
+			return &FuncType{
+				Args:          newArgs,
+				ReturnType:    newRt,
+				Async:         v.Async,
+				IntrinsicName: v.IntrinsicName,
+				Boxed:         v.Boxed,
+			}, true
+		} else {
+			return nil, false
+		}
+	case *ConstraintSet:
+		return nil, false
+	}
+
 	return dt, true
 }
 

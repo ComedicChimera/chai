@@ -32,7 +32,7 @@ type ChaiPackage struct {
 	GlobalTable map[string]*Symbol
 
 	// GlobalOperators is the table of globally declared operators in this package
-	GlobalOperators map[int][]*Symbol
+	GlobalOperators map[int]*Operator
 
 	// ImportTable stores all the packages this package depends on
 	ImportTable map[uint]*ChaiPackage
@@ -53,7 +53,7 @@ func NewPackage(rootPath string) *ChaiPackage {
 		RootPath:        rootPath,
 		GlobalTable:     make(map[string]*Symbol),
 		ImportTable:     make(map[uint]*ChaiPackage),
-		GlobalOperators: make(map[int][]*Symbol),
+		GlobalOperators: make(map[int]*Operator),
 	}
 }
 
@@ -92,7 +92,7 @@ type ChaiFile struct {
 	ImportedSymbols map[string]*Symbol
 
 	// ImportedOperators stores all the operators this file imports
-	ImportedOperators map[int][]*Symbol
+	ImportedOperators map[int]*Operator
 
 	// VisiblePackages is a map of all the packages visible within the namespace
 	// of the package arranged by the name by which they can be accessed
@@ -108,7 +108,7 @@ func NewFile(parent *ChaiPackage, fabspath string) *ChaiFile {
 		LogContext:        &logging.LogContext{PackageID: parent.ID, FilePath: fabspath},
 		ImportedSymbols:   make(map[string]*Symbol),
 		VisiblePackages:   make(map[string]*ChaiPackage),
-		ImportedOperators: make(map[int][]*Symbol),
+		ImportedOperators: make(map[int]*Operator),
 		Root:              &HIRRoot{},
 	}
 }
@@ -186,21 +186,32 @@ func (cf *ChaiFile) AddPackageImport(importedPkg *ChaiPackage, importedPkgName s
 }
 
 // ImportOperators makes the public operator definitions of an imported package
-// visible inside the current file.  This function is called before symbol
-// definition and resolution; therefore, there is no need to check for
-// definition conflicts.
-func (cf *ChaiFile) ImportOperators(importedPackage *ChaiPackage) {
-	for opCode, opSymbols := range importedPackage.GlobalOperators {
-		for _, opSym := range opSymbols {
-			if opSym.HasModifier(ModPublic) {
-				if localOpSymbols, ok := cf.ImportedOperators[opCode]; ok {
-					cf.ImportedOperators[opCode] = append(localOpSymbols, opSym)
+// visible inside the current file.  This function does still check for local
+// conflicts (in which two packages export conflicting operator overloads) and
+// returns an error containing the name of the operator causing the conflict if
+// there were conflicts and `nil` if not.
+func (cf *ChaiFile) ImportOperators(importedPackage *ChaiPackage) error {
+	for opCode, operator := range importedPackage.GlobalOperators {
+		for _, overload := range operator.Overloads {
+			// we only want to import the public overloads
+			if overload.Public {
+				if localOperator, ok := cf.ImportedOperators[opCode]; ok {
+					if !localOperator.AddOverload(overload) {
+						return errors.New(localOperator.Name)
+					}
 				} else {
-					cf.ImportedOperators[opCode] = []*Symbol{opSym}
+					cf.ImportedOperators[opCode] = &Operator{
+						Name:       operator.Name,
+						Overloads:  []*OperatorOverload{overload},
+						ArgsForm:   operator.ArgsForm,
+						ReturnForm: operator.ReturnForm,
+					}
 				}
 			}
 		}
 	}
+
+	return nil
 }
 
 // AddDefNode adds a HIR definition node to this file

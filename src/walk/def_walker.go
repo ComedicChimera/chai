@@ -6,6 +6,9 @@ import (
 	"chai/syntax"
 	"chai/typing"
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
 )
 
 // WalkDef walks a core definition node (eg. `type_def` or `variable_decl`)
@@ -51,6 +54,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 	}
 
 	if intrinsicName, ok := w.validateOperatorAnnotations(annots); ok {
+		// handle intrinsics
 		if intrinsicName == "" && body == nil {
 			w.logError(
 				"operator definition required a body",
@@ -61,75 +65,83 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 			return false
 		}
 
+		ft.IntrinsicName = intrinsicName
+
+		// get the `operator` branch for use repeatedly later
+		operBranch := branch.BranchAt(1)
+
 		// maps to the first token of the `oper_value` branch unless the
 		// operator is `[:]` in which case it maps to the second token
-		operCode := branch.BranchAt(1).LeafAt(branch.BranchAt(1).Len() / 2).Kind
+		operCode := operBranch.LeafAt(branch.BranchAt(1).Len() / 2).Kind
 
-		// validate the operator takes the correct number of arguments
-		switch operCode {
-		// slice operator is ternary
-		case syntax.COLON:
-			if len(ft.Args) != 3 {
-				w.logError(
-					"the slice operator takes 3 arguments",
-					logging.LMKDef,
-					branch.Content[1].Position(),
-				)
+		// operName is the string name of the operator (for error messages)
+		operName := ""
+		for _, item := range operBranch.Content {
+			operName += item.(*syntax.ASTLeaf).Value
+		}
 
-				return false
-			}
-		// minus for negation and for subtraction
-		case syntax.MINUS:
-			if len(ft.Args) != 1 && len(ft.Args) != 2 {
+		// validate the operator against the expected form for it
+		expectedArgsForm, expectedReturnForm := getOperatorForm(operCode, len(ft.Args) == 2)
+		overload, argsForm, returnForm := w.getOverloadFromSignature(ft)
+		overload.Public = symbolModifiers&sem.ModPublic != 0
+
+		if len(expectedArgsForm) != len(argsForm) {
+			if operCode == syntax.MINUS {
 				w.logError(
 					"the `-` operator may take either 1 or 2 arguments",
 					logging.LMKDef,
-					branch.Content[1].Position(),
+					operBranch.Position(),
 				)
-
-				return false
-			}
-		// not and complement operator
-		case syntax.NOT, syntax.COMPL:
-			if len(ft.Args) != 1 {
+			} else {
 				w.logError(
-					fmt.Sprintf("the `%s` operator takes 1 argument", branch.BranchAt(1).LeafAt(0).Value),
+					fmt.Sprintf("the `%s` operator takes %d arguments", operName, len(expectedArgsForm)),
 					logging.LMKDef,
-					branch.Content[1].Position(),
+					operBranch.Position(),
 				)
-
-				return false
 			}
-		// all other operators are binary
-		default:
-			if len(ft.Args) != 2 {
-				w.logError(
-					fmt.Sprintf("the `%s` operator takes 2 arguments", branch.BranchAt(1).LeafAt(0).Value),
-					logging.LMKDef,
-					branch.Content[1].Position(),
-				)
 
-				return false
-			}
+			return false
 		}
 
-		// check that the operator isn't already defined
-		ft.IntrinsicName = intrinsicName
-		operSym := &sem.Symbol{
-			Type:       ft,
-			Modifiers:  symbolModifiers,
-			Mutability: sem.Immutable,
-			DefKind:    sem.DefKindFuncDef,
-			Position:   branch.Content[1].Position(),
+		if !reflect.DeepEqual(argsForm, expectedArgsForm) || returnForm != expectedReturnForm {
+			b := strings.Builder{}
+			b.WriteRune('(')
+
+			for i, n := range expectedArgsForm {
+				b.WriteRune('T')
+				b.WriteString(strconv.Itoa(n))
+
+				if i != len(expectedArgsForm)-1 {
+					b.WriteString(", ")
+				}
+			}
+
+			b.WriteString(") -> T")
+			b.WriteString(strconv.Itoa(expectedReturnForm))
+
+			w.logError(
+				fmt.Sprintf("signature for operator `%s` must be of form `%s`", operName, b.String()),
+				logging.LMKDef,
+				operBranch.Position(),
+			)
 		}
 
-		if !w.defineOperator(operCode, operSym, branch.Content[1].Position()) {
+		// define the operator overload; errors handled inside
+		if !w.defineOperator(operCode, operName, overload, operBranch.Position()) {
 			return false
 		}
 
 		// create and add the operator definition
 		w.SrcFile.AddDefNode(&sem.HIROperDef{
-			DefBase:  sem.NewDefBase(operSym, annots),
+			DefBase: sem.NewDefBase(&sem.Symbol{
+				Name:       operName,
+				Type:       ft,
+				SrcPackage: w.SrcFile.Parent,
+				DefKind:    sem.DefKindFuncDef,
+				Mutability: sem.Immutable,
+				Modifiers:  symbolModifiers,
+				Position:   operBranch.Position(),
+			}, annots),
 			OperCode: operCode,
 			Body:     (*sem.HIRIncomplete)(body),
 		})
@@ -143,8 +155,8 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 
 // walkFuncDef walks a function definition
 func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
-	if sym, namePos, argInits, ok := w.walkFuncHeader(branch, symbolModifiers); ok {
-		if w.defineGlobal(sym, namePos) {
+	if sym, argInits, ok := w.walkFuncHeader(branch, symbolModifiers); ok {
+		if w.defineGlobal(sym, sym.Position) {
 			needsBody, ok := w.validateFuncAnnotations(annots)
 			if !ok {
 				return false
@@ -186,7 +198,7 @@ func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 // walkFuncHeader walks the header (top-branch not `signature`) of a function or
 // method and returns an appropriate symbol based on that signature.  It does
 // NOT define this symbol.
-func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (*sem.Symbol, *logging.TextPosition, map[string]sem.HIRExpr, bool) {
+func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (*sem.Symbol, map[string]sem.HIRExpr, bool) {
 	ft := &typing.FuncType{}
 	sym := &sem.Symbol{
 		Type:       ft,
@@ -194,7 +206,6 @@ func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (
 		SrcPackage: w.SrcFile.Parent,
 		Mutability: sem.Immutable,
 	}
-	var namePos *logging.TextPosition
 	var argInits map[string]sem.HIRExpr
 
 	for _, item := range branch.Content {
@@ -207,21 +218,21 @@ func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (
 				var ok bool
 				ft.ReturnType, ft.Args, argInits, ok = w.walkFuncSignature(v, false)
 				if !ok {
-					return nil, nil, nil, false
+					return nil, nil, false
 				}
 			}
 		case *syntax.ASTLeaf:
 			switch v.Kind {
 			case syntax.IDENTIFIER:
 				sym.Name = v.Value
-				namePos = v.Position()
+				sym.Position = v.Position()
 			case syntax.ASYNC:
 				ft.Async = true
 			}
 		}
 	}
 
-	return sym, namePos, argInits, true
+	return sym, argInits, true
 }
 
 // walkFuncSignature walks a `signature` node

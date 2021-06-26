@@ -1,6 +1,8 @@
 package typing
 
-import "strings"
+import (
+	"strings"
+)
 
 // PrimType represents a primitive Chai type such as an `i32` or a `string`. Its
 // value must be one of the enumerated primitive kinds below
@@ -137,7 +139,6 @@ func (ft *FuncType) Repr() string {
 type FuncArg struct {
 	Name                 string
 	Type                 DataType
-	Volatile             bool
 	Optional, Indefinite bool
 	ByReference          bool
 }
@@ -145,7 +146,6 @@ type FuncArg struct {
 func (fa *FuncArg) equals(ofa *FuncArg) bool {
 	return (fa.Name == "" || ofa.Name == "" || fa.Name == ofa.Name) &&
 		Equals(fa.Type, ofa.Type) &&
-		fa.Volatile == ofa.Volatile &&
 		fa.Optional == ofa.Optional &&
 		fa.Indefinite == ofa.Indefinite &&
 		fa.ByReference == ofa.ByReference

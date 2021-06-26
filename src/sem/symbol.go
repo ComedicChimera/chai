@@ -41,7 +41,7 @@ func (sym *Symbol) HasModifier(modifier int) bool {
 const (
 	DefKindTypeDef  = iota // Type and Class definitions
 	DefKindConsDef         // Constraint Definitions
-	DefKindFuncDef         // Function and operator definitions
+	DefKindFuncDef         // Function (and operator) definitions
 	DefKindValueDef        // Variables and other identifiers
 )
 

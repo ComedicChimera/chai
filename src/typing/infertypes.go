@@ -39,23 +39,23 @@ func (tv *TypeVariable) Repr() string {
 		}
 
 		b := strings.Builder{}
-		b.WriteRune('(')
+		b.WriteRune('{')
 
 		if sub.superTypeOf != nil {
 			b.WriteString(sub.superTypeOf.Repr() + " < ")
 		}
 
-		b.WriteString("??")
+		b.WriteRune('_')
 
 		if sub.subTypeOf != nil {
 			b.WriteString(" < " + sub.subTypeOf.Repr())
 		}
 
-		b.WriteRune(')')
+		b.WriteRune('}')
 		return b.String()
 	}
 
-	return "??"
+	return "_"
 }
 
 func (tv *TypeVariable) equals(other DataType) bool {
@@ -95,26 +95,4 @@ type TypeSubstitution struct {
 
 	// superTypeOf is the type that this substitution is a super type of (lower bound)
 	superTypeOf DataType
-}
-
-// -----------------------------------------------------------------------------
-
-// OperatorType is a special data type used to represent the signature of an
-// operator as it is used in type inference.  These are essentially constraint
-// sets but distinct in how the inferencer handles them.
-type OperatorType struct {
-	// Signatures is the slice of operator signatures defined for this operator
-	Signatures []DataType
-
-	// OperatorName is the name of the operator as a string
-	OperatorName string
-}
-
-func (ot *OperatorType) Repr() string {
-	return ot.OperatorName
-}
-
-func (ot *OperatorType) equals(other DataType) bool {
-	logging.LogFatal("`equals` called directly on operator type")
-	return false
 }
