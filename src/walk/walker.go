@@ -11,6 +11,11 @@ type Walker struct {
 	// SrcFile is the file this walker is walking
 	SrcFile *sem.ChaiFile
 
+	// scopeStack is the stack of scopes containing local symbols.  These scopes
+	// are not preserved for the backend (because the generator is going to
+	// recreate this stack using LLVMValues) so a simple stack is sufficient
+	scopeStack []map[string]*sem.Symbol
+
 	// exprContextStack stores the contextual values and flags used for an
 	// expression.  The stack allows us to push and pop contexts at will as
 	// traverse the tree.  Eg. when we enter a loop, we push a loop context and

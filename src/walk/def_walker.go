@@ -156,7 +156,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 // walkFuncDef walks a function definition
 func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
 	if sym, argInits, ok := w.walkFuncHeader(branch, symbolModifiers); ok {
-		if w.defineGlobal(sym, sym.Position) {
+		if w.defineGlobal(sym) {
 			needsBody, ok := w.validateFuncAnnotations(annots)
 			if !ok {
 				return false

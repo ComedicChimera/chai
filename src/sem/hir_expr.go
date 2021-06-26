@@ -1,6 +1,7 @@
 package sem
 
 import (
+	"chai/logging"
 	"chai/syntax"
 	"chai/typing"
 )
@@ -78,4 +79,36 @@ type HIRDoBlock struct {
 	ExprBase
 
 	Statements []HIRExpr
+}
+
+// -----------------------------------------------------------------------------
+
+// HIRIdentifier represents an identifier
+type HIRIdentifier struct {
+	Sym *Symbol
+
+	// IdPos is the position of the identifier token
+	IdPos *logging.TextPosition
+}
+
+func (hi *HIRIdentifier) Type() typing.DataType {
+	return hi.Sym.Type
+}
+
+func (hi *HIRIdentifier) Category() int {
+	// all identifiers are LValues
+	return LValue
+}
+
+func (hi *HIRIdentifier) Constant() bool {
+	return hi.Sym.Mutability == Immutable
+}
+
+// HIRLiteral represents a literal
+type HIRLiteral struct {
+	ExprBase
+
+	// Value can be `null` if this is a null literal; otherwise, it is just the
+	// value of the literal (eg. `12`, `0b101`, etc.)
+	Value string
 }

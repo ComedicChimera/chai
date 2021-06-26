@@ -30,3 +30,58 @@ func (w *Walker) walkTypeLabelCore(branch *syntax.ASTBranch) (typing.DataType, b
 
 	return nil, false
 }
+
+// -----------------------------------------------------------------------------
+
+func (w *Walker) lookupNamedBuiltin(name string) typing.DataType {
+	// TODO: replace with actual look up logic
+	switch name {
+	case "Integral":
+		return &typing.ConstraintSet{
+			Name:         "Integral",
+			SrcPackageID: w.SrcFile.Parent.ID,
+			Set: []typing.DataType{
+				typing.PrimType(typing.PrimKindI8),
+				typing.PrimType(typing.PrimKindI16),
+				typing.PrimType(typing.PrimKindI32),
+				typing.PrimType(typing.PrimKindI64),
+				typing.PrimType(typing.PrimKindU8),
+				typing.PrimType(typing.PrimKindU16),
+				typing.PrimType(typing.PrimKindU32),
+				typing.PrimType(typing.PrimKindU64),
+			},
+		}
+	case "Floating":
+		return &typing.ConstraintSet{
+			Name:         "Floating",
+			SrcPackageID: w.SrcFile.Parent.ID,
+			Set: []typing.DataType{
+				typing.PrimType(typing.PrimKindF32),
+				typing.PrimType(typing.PrimKindF64),
+			},
+		}
+	case "Numeric":
+		return &typing.ConstraintSet{
+			Name:         "Integral",
+			SrcPackageID: w.SrcFile.Parent.ID,
+			Set: []typing.DataType{
+				typing.PrimType(typing.PrimKindI8),
+				typing.PrimType(typing.PrimKindI16),
+				typing.PrimType(typing.PrimKindI32),
+				typing.PrimType(typing.PrimKindI64),
+				typing.PrimType(typing.PrimKindU8),
+				typing.PrimType(typing.PrimKindU16),
+				typing.PrimType(typing.PrimKindU32),
+				typing.PrimType(typing.PrimKindU64),
+				typing.PrimType(typing.PrimKindF32),
+				typing.PrimType(typing.PrimKindF64),
+			},
+		}
+	case "int":
+		return typing.PrimType(typing.PrimKindI32)
+	case "uint":
+		return typing.PrimType(typing.PrimKindU32)
+	}
+
+	return nil
+}
