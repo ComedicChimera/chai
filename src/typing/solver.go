@@ -118,26 +118,27 @@ func (s *Solver) Solve() bool {
 
 // -----------------------------------------------------------------------------
 
-// unify performs unification on a pair of types based on the given type
-// constraint between them (equivalent or subtype).  All substitutions are
-// placed in `s.preview` by default but will be checked against the previous map
-// of substitutions.  It returns  a boolean indicating whether or not the
-// unification was possible.
+// unify takes two types and a constraint relating them and attempts to find a
+// substitution involving those two types that satisfies the constraint.  It
+// returns a boolean indicating whether or not the unification was possible.
 func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 	// check for type variables on the right before switching of the left
 	if rhTypeVar, ok := rhs.(*TypeVariable); ok {
-		// all we need to do to handle type variables alone in unification is
-		// add a new substitution for them.  `union` will catch any conflicts in
-		// substitution.
-		return s.substitute(rhTypeVar.ID, lhs, consKind, false)
+		// check to see if both arguments are type variables, and return true if
+		// they correspond to the same type variable
+		if lhTypeVar, ok := lhs.(*TypeVariable); ok && lhTypeVar.ID == rhTypeVar.ID {
+			return true
+		}
+
+		// otherwise, perform type variable unification on the right side
+		return s.unifyTypeVar(rhTypeVar.ID, lhs, consKind, false)
 	}
 
-	// note: we now know right is not a type var, and that operators can only
-	// appear on the right (so left is not an operator)
 	switch v := lhs.(type) {
 	case *TypeVariable:
-		// same logic as for rhs type vars
-		return s.substitute(v.ID, rhs, consKind, true)
+		// since we know rhs is not a type variable, we can safely perform type
+		// variable unification on the left side
+		return s.unifyTypeVar(v.ID, rhs, consKind, true)
 	case *FuncType:
 		if rft, ok := rhs.(*FuncType); ok {
 			if v.Async != rft.Async {
@@ -180,13 +181,13 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 	return false
 }
 
-// substitute takes in type variable ID, a value to substitute, the constraint
-// kind applying the substitution, and a boolean indicating whether the type
-// variable is on the left (true) or right (false) side of the constraint.  It
-// attempts to perform a substitution according to that constraint and returns a
-// boolean indicating whether or not the constraint was valid by the current set
-// of substitutions
-func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool) bool {
+// unifyTypeVar takes in type variable ID, a value the unify it with, the
+// constraint kind applying the substitution, and a boolean indicating whether
+// the type variable is on the left (true) or right (false) side of the
+// constraint.  It checks to see if the value is unifiable with the known
+// substitution for the type variable and updates that substitution if
+// appropriate.  It returns a boolean indicating unification success.
+func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bool) bool {
 	// check if there are any previous substitutions applied to the type
 	// variable so the constraint can be checked against the current subsitution
 	if sub, ok := s.substitutions[tvarID]; ok {
@@ -285,9 +286,8 @@ func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool
 // types for any other type variables used in the value of this type variable
 func (s *Solver) deduce(tv *TypeVariable) bool {
 	if sub, ok := s.substitutions[tv.ID]; ok {
-		// if the type has an equivalency substitution then determining the
-		// final type is as simple as simplifying the resultant type; we know
-		// constraint sets can't appear here
+		// if the type has an equivalency substitution then we evaluate to the
+		// simplified substitution type
 		if sub.equivTo != nil {
 			if dt, ok := s.simplify(sub.equivTo); ok {
 				tv.EvalType = dt
@@ -298,36 +298,26 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 		}
 
 		if sub.subTypeOf != nil {
-			// if there is both a super type and a subtype, then we want to
-			// deduce the supertype if it is a subtype of the subtype; if it
-			// isn't, then no deduction is possible without a default type
+			// if there is both an upper bound and a lower bound, then we want
+			// to deduce the lower bound if it is a subtype of the upper bound;
+			// if it isn't, then no deduction is possible without a default type
 			if sub.superTypeOf != nil {
 				if SubTypeOf(sub.superTypeOf, sub.subTypeOf) {
-					if _, ok := sub.superTypeOf.(*ConstraintSet); !ok {
-						if dt, ok := s.simplify(sub.superTypeOf); ok {
-							tv.EvalType = dt
-							return true
-						}
+					if dt, ok := s.simplify(sub.superTypeOf); ok {
+						tv.EvalType = dt
+						return true
 					}
-				} else if tv.DefaultType != nil {
-					// TODO: handle default types (somehow...)
-				} else {
-					return false
 				}
-			}
-
-			// assuming super type either isn't usable or has already been
-			// considered, we want to try and substitute the sub type;
-			// first, we have to check for constraint sets
-			if _, ok := sub.subTypeOf.(*ConstraintSet); !ok {
-				if dt, ok := s.simplify(sub.subTypeOf); ok {
-					tv.EvalType = dt
-					return true
-				}
+			} else if dt, ok := s.simplify(sub.subTypeOf); ok {
+				// if there is no lower bound, then we can just evaluate to the
+				// simplified upper bound -- this is all the information we have
+				// to make a deduction and have to work with what we know
+				tv.EvalType = dt
+				return true
 			}
 		} else if sub.superTypeOf != nil {
-			// if there is no sub type, then a type variable can accumulate to
-			// its super type if that super type is not a constraint set
+			// if there is no upper bound, then a type variable can evaluate to
+			// its lower bound without any additional checks
 			if _, ok := sub.superTypeOf.(*ConstraintSet); !ok {
 				if dt, ok := s.simplify(sub.superTypeOf); ok {
 					tv.EvalType = dt
@@ -337,11 +327,14 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 		}
 	}
 
-	// if we reach here, deduction has failed
+	// if we reach here, the substitution was not usable to determine a final
+	// value for the type variable.  We can evaluate to the default type if it
+	// exists (assumes that the default type is valid by all the constraints
+	// applied to the type)
 	if tv.DefaultType != nil {
 		tv.EvalType = tv.DefaultType
 		return true
-	} else /* no deduction occurred at all */ {
+	} else /* deduction has completely failed */ {
 		tv.HandleUndetermined()
 		tv.EvalFailed = true
 		return false
