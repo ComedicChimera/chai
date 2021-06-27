@@ -101,6 +101,7 @@ func (s *Solver) Solve() bool {
 	// clear the solution context for the next solve and return
 	s.vars = nil
 	s.constraints = nil
+	s.substitutions = make(map[int]*TypeSubstitution)
 	return allEvaluated
 }
 
