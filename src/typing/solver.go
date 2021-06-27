@@ -98,22 +98,10 @@ func (s *Solver) Solve() bool {
 
 	}
 
-	// if any of the types were indeterminate then solving fails
-	if !allEvaluated {
-		return false
-	}
-
-	// simplify all the performed substitutions for the type variables
-	for _, tvar := range s.vars {
-		if s, ok := s.simplify(tvar.EvalType); ok {
-			tvar.EvalType = s
-		}
-	}
-
-	// clear the solution context for the next solve
+	// clear the solution context for the next solve and return
 	s.vars = nil
 	s.constraints = nil
-	return true
+	return allEvaluated
 }
 
 // -----------------------------------------------------------------------------

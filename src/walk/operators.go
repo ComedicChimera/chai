@@ -95,7 +95,13 @@ func getOperatorForm(opCode int, binary bool) ([]int, int) {
 		return []int{0, 1, 1}, 2
 	case syntax.LBRACKET:
 		// subscript/index operator
-		return []int{0, 1}, 2
+		if binary {
+			return []int{0, 1}, 2
+		} else {
+			// ternary/mutation form
+			return []int{0, 1, 2}, 3
+		}
+
 	default:
 		if binary {
 			return []int{0, 0}, 0
