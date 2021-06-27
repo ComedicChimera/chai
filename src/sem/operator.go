@@ -34,6 +34,20 @@ func (op *Operator) AddOverload(newOverload *OperatorOverload) bool {
 	return true
 }
 
+// GetOperatorFromTable looks up an operator by both opcode and form
+// and returns it if it exists in an operator table.
+func GetOperatorFromTable(table map[int][]*Operator, opCode int, argCount int) (*Operator, bool) {
+	if operatorSet, ok := table[opCode]; ok {
+		for _, operator := range operatorSet {
+			if len(operator.ArgsForm) == argCount {
+				return operator, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
 // OperatorOverload represents a single overload of a given operator
 type OperatorOverload struct {
 	// SrcPackage is the package this operator is defined in

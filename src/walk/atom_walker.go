@@ -11,20 +11,31 @@ import (
 
 // walkAtomExpr walks an `atom_expr` branch
 func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	if root, ok := w.walkAtom(branch.BranchAt(0), yieldsValue); ok {
+	atomBranch := branch.BranchAt(0)
+
+	if root, ok := w.walkAtom(atomBranch, yieldsValue); ok {
 		for _, trailer := range branch.Content[1:] {
+			// determine a position for the whole root
+			rootPos := &logging.TextPosition{
+				StartLn:  atomBranch.Position().StartLn,
+				EndLn:    trailer.Position().EndLn,
+				StartCol: atomBranch.Position().StartCol,
+				EndCol:   trailer.Position().EndCol,
+			}
+
+			// walk the trailer branch
 			trailerBranch := trailer.(*syntax.ASTBranch)
 			switch trailerBranch.LeafAt(0).Kind {
 			case syntax.LPAREN: // function call
 				// function takes no arguments
 				if trailerBranch.Len() == 2 {
-					if call, ok := w.walkFuncCall(root, nil); ok {
+					if call, ok := w.walkFuncCall(root, rootPos, nil); ok {
 						root = call
 					} else {
 						return nil, false
 					}
 				} else /* function does take arguments */ {
-					if call, ok := w.walkFuncCall(root, trailerBranch.BranchAt(1)); ok {
+					if call, ok := w.walkFuncCall(root, rootPos, trailerBranch.BranchAt(1)); ok {
 						root = call
 					} else {
 						return nil, false
@@ -33,6 +44,9 @@ func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 			}
 		}
 
+		// return the fully accumulated root; each trailer wraps around the
+		// original root and stores the wrapped value in `root` to be the root
+		// of the next trailer
 		return root, true
 	} else {
 		return nil, false
@@ -41,8 +55,109 @@ func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 
 // walkFuncCall walks a function call.  The `argsListBranch` can be `nil` if
 // there are no arguments to the function
-func (w *Walker) walkFuncCall(root sem.HIRExpr, argsListBranch *syntax.ASTBranch) (sem.HIRExpr, bool) {
+func (w *Walker) walkFuncCall(root sem.HIRExpr, rootPos *logging.TextPosition, argsListBranch *syntax.ASTBranch) (sem.HIRExpr, bool) {
+	type positionedArg struct {
+		value      sem.HIRExpr
+		pos        *logging.TextPosition
+		indefinite bool
+	}
+
+	// walk the arguments
+	var posArgs []*positionedArg
+	namedArgs := make(map[string]*positionedArg)
+	for _, item := range argsListBranch.Content {
+		// only branch is `arg`
+		if itembranch, ok := item.(*syntax.ASTBranch); ok {
+			// branch length always indicates the kind of argument:
+			// 1 => positioned, 2 => positioned spread, 3 => named
+			switch itembranch.Len() {
+			case 1:
+				if argExpr, ok := w.walkExpr(itembranch.BranchAt(0), true); ok {
+					posArgs = append(posArgs, &positionedArg{
+						value: argExpr,
+						pos:   itembranch.Position(),
+					})
+				} else {
+					return nil, false
+				}
+			case 2:
+				if argExpr, ok := w.walkExpr(itembranch.BranchAt(1), true); ok {
+					// TODO: validate that `argExpr` can be spread
+					posArgs = append(posArgs, &positionedArg{
+						value: argExpr,
+						pos:   itembranch.Position(),
+					})
+				} else {
+					return nil, false
+				}
+			case 3:
+				if name, ok := w.extractIdentifier(itembranch.BranchAt(0)); ok {
+					if argExpr, ok := w.walkExpr(itembranch.BranchAt(2), true); ok {
+						if _, ok := namedArgs[name]; ok {
+							w.logError(
+								fmt.Sprintf("multiple values specified for argument `%s`", name),
+								logging.LMKArg,
+								itembranch.Position(),
+							)
+						}
+
+						namedArgs[name] = &positionedArg{
+							value: argExpr,
+							pos:   itembranch.Content[2].Position(),
+						}
+					} else {
+						return nil, false
+					}
+				} else {
+					w.logError(
+						"expected identifier not expression",
+						logging.LMKSyntax,
+						itembranch.Position(),
+					)
+
+					return nil, false
+				}
+			}
+		}
+	}
+
+	// check to see if the type of the root is known
+	rootType := typing.InnerType(root.Type())
+	if ft, ok := rootType.(*typing.FuncType); ok {
+		// TODO
+		_ = ft
+	} else if tv, ok := rootType.(*typing.TypeVariable); ok {
+		// root type is unknown
+		// TODO
+		_ = tv
+	}
+
+	// not a valid type for a function call
+	w.logError(
+		fmt.Sprintf("unable to call type of `%s`", rootType.Repr()),
+		logging.LMKTyping,
+		rootPos,
+	)
 	return nil, false
+}
+
+// extractIdentifier attempts to treat an AST branch as really just an
+// identifier.  It returns the extracted identifier if this assertion is true
+// and a boolean flag.  It is used primarily for named arguments.
+func (w *Walker) extractIdentifier(branch *syntax.ASTBranch) (string, bool) {
+	if branch.Len() != 1 {
+		return "", false
+	}
+
+	if subbranch, ok := branch.Content[0].(*syntax.ASTBranch); ok {
+		return w.extractIdentifier(subbranch)
+	}
+
+	if leaf := branch.LeafAt(0); leaf.Kind == syntax.IDENTIFIER {
+		return leaf.Value, true
+	} else {
+		return "", false
+	}
 }
 
 // -----------------------------------------------------------------------------

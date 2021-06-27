@@ -105,6 +105,9 @@ type BuildProfile struct {
 	// DynamicLibraries is the list of the dynamic libraries that should be
 	// marked as dependencies for the final output.  These are relative paths.
 	DynamicLibraries []string
+
+	// LinkObjects is the list of objects to be linked in to the final binary
+	LinkObjects []string
 }
 
 // Available Output Formats

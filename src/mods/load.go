@@ -41,6 +41,7 @@ type tomlProfile struct {
 	Format        string     `toml:"format"`
 	DynamicLibs   []string   `toml:"dynamic-libs,omitempty"`
 	StaticLibs    []string   `toml:"static-libs,omitempty"`
+	LinkObjects   []string   `toml:"link-objects,omitempty"`
 	Primary       bool       `toml:"primary"` // of profiles matching build config, choose this profile
 	DefaultProf   bool       `toml:"default"` // in absence of build config, choose this profile
 	LastBuildTime *time.Time `toml:"last-build"`
@@ -255,16 +256,16 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ro
 	return nil
 }
 
-// OSNames maps TOML os name strings to enumerated OS values
+// OSNames lists the valid OS names
 var OSNames = map[string]struct{}{
-	"windows": struct{}{},
+	"windows": {},
 }
 
-// ArchNames maps TOML os name strings to enumerated arch values
+// ArchNames lists the valid arch names
 var ArchNames = map[string]struct{}{
-	"i386":  struct{}{},
-	"amd64": struct{}{},
-	"arm":   struct{}{},
+	"i386":  {},
+	"amd64": {},
+	"arm":   {},
 }
 
 // formatNames maps TOML os name strings to enumerated format values
@@ -321,6 +322,7 @@ func convertProfile(tprof *tomlProfile) (*BuildProfile, error) {
 	newProfile.Debug = tprof.Debug
 	newProfile.DynamicLibraries = tprof.DynamicLibs
 	newProfile.StaticLibraries = tprof.StaticLibs
+	newProfile.LinkObjects = tprof.LinkObjects
 	newProfile.OutputPath = tprof.OutputPath
 
 	return newProfile, nil
@@ -330,6 +332,7 @@ func convertProfile(tprof *tomlProfile) (*BuildProfile, error) {
 func updateProfile(rootProfile, subProfile *BuildProfile) {
 	rootProfile.DynamicLibraries = append(rootProfile.DynamicLibraries, subProfile.DynamicLibraries...)
 	rootProfile.StaticLibraries = append(rootProfile.StaticLibraries, subProfile.StaticLibraries...)
+	rootProfile.LinkObjects = append(rootProfile.LinkObjects, subProfile.LinkObjects...)
 }
 
 // fetchDependencies fetches any dependencies of a module that are not already

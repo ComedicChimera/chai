@@ -81,27 +81,19 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 		}
 
 		// validate the operator against the expected form for it
-		expectedArgsForm, expectedReturnForm := getOperatorForm(operCode, len(ft.Args) == 2)
-		overload, argsForm, returnForm := w.getOverloadFromSignature(ft)
-		overload.Public = symbolModifiers&sem.ModPublic != 0
-
-		if len(expectedArgsForm) != len(argsForm) {
-			if operCode == syntax.MINUS {
-				w.logError(
-					"the `-` operator may take either 1 or 2 arguments",
-					logging.LMKDef,
-					operBranch.Position(),
-				)
-			} else {
-				w.logError(
-					fmt.Sprintf("the `%s` operator takes %d arguments", operName, len(expectedArgsForm)),
-					logging.LMKDef,
-					operBranch.Position(),
-				)
-			}
+		expectedArgsForm, expectedReturnForm, err := getOperatorForm(operCode, len(ft.Args))
+		if err != nil {
+			w.logError(
+				fmt.Sprintf("the `%s` operator takes %s", operName, err.Error()),
+				logging.LMKDef,
+				operBranch.Position(),
+			)
 
 			return false
 		}
+
+		overload, argsForm, returnForm := w.getOverloadFromSignature(ft)
+		overload.Public = symbolModifiers&sem.ModPublic != 0
 
 		if !reflect.DeepEqual(argsForm, expectedArgsForm) || returnForm != expectedReturnForm {
 			b := strings.Builder{}
@@ -127,7 +119,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 		}
 
 		// define the operator overload; errors handled inside
-		if !w.defineOperator(operCode, operName, overload, operBranch.Position()) {
+		if !w.defineOperator(operCode, operName, overload, len(ft.Args), operBranch.Position()) {
 			return false
 		}
 
