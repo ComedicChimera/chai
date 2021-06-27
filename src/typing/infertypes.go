@@ -25,6 +25,9 @@ type TypeVariable struct {
 	// literals when no more specific type for them can be determined
 	DefaultType DataType
 
+	// EvalFailed indicates that this type variable failed to be deduced
+	EvalFailed bool
+
 	// HandleUndetermined is called whenever a type value cannot be determined
 	// for this type variable, but there was no other type error.
 	HandleUndetermined func()

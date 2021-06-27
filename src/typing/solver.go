@@ -89,28 +89,13 @@ func (s *Solver) Solve() bool {
 	// determine final values for all our unknown types
 	allEvaluated := true
 	for _, tvar := range s.vars {
-		if sub, ok := s.substitutions[tvar.ID]; ok {
-			if sub.equivTo != nil {
-				tvar.EvalType = sub.equivTo
-				continue
-			} else if SubTypeOf(sub.superTypeOf, sub.subTypeOf) {
-				// we always want to deduce the lowest possible type so if the
-				// super type bound satisfies the subtype bound, then, we can
-				// just place in the type variable.
-				tvar.EvalType = sub.superTypeOf
-				continue
-			}
+		// through deduction multiple type variables will evaluate at once and
+		// so we have to test to see whether or not the type has already been
+		// evaluated
+		if tvar.EvalType == nil && !tvar.EvalFailed {
+			allEvaluated = allEvaluated && s.deduce(tvar)
 		}
 
-		// if we reach here, then there was no substitution so we check for
-		// default types -- even in the case where we have an unresolved
-		// constraint set
-		if tvar.DefaultType != nil {
-			tvar.EvalType = tvar.DefaultType
-		} else {
-			tvar.HandleUndetermined()
-			allEvaluated = false
-		}
 	}
 
 	// if any of the types were indeterminate then solving fails
@@ -296,13 +281,88 @@ func (s *Solver) substitute(tvarID int, value DataType, consKind int, isLhs bool
 	return true
 }
 
+// deduce determines the final type for a type variable.  It will also infer
+// types for any other type variables used in the value of this type variable
+func (s *Solver) deduce(tv *TypeVariable) bool {
+	if sub, ok := s.substitutions[tv.ID]; ok {
+		// if the type has an equivalency substitution then determining the
+		// final type is as simple as simplifying the resultant type; we know
+		// constraint sets can't appear here
+		if sub.equivTo != nil {
+			if dt, ok := s.simplify(sub.equivTo); ok {
+				tv.EvalType = dt
+				return true
+			}
+
+			return false
+		}
+
+		if sub.subTypeOf != nil {
+			// if there is both a super type and a subtype, then we want to
+			// deduce the supertype if it is a subtype of the subtype; if it
+			// isn't, then no deduction is possible without a default type
+			if sub.superTypeOf != nil {
+				if SubTypeOf(sub.superTypeOf, sub.subTypeOf) {
+					if _, ok := sub.superTypeOf.(*ConstraintSet); !ok {
+						if dt, ok := s.simplify(sub.superTypeOf); ok {
+							tv.EvalType = dt
+							return true
+						}
+					}
+				} else if tv.DefaultType != nil {
+					// TODO: handle default types (somehow...)
+				} else {
+					return false
+				}
+			}
+
+			// assuming super type either isn't usable or has already been
+			// considered, we want to try and substitute the sub type;
+			// first, we have to check for constraint sets
+			if _, ok := sub.subTypeOf.(*ConstraintSet); !ok {
+				if dt, ok := s.simplify(sub.subTypeOf); ok {
+					tv.EvalType = dt
+					return true
+				}
+			}
+		} else if sub.superTypeOf != nil {
+			// if there is no sub type, then a type variable can accumulate to
+			// its super type if that super type is not a constraint set
+			if _, ok := sub.superTypeOf.(*ConstraintSet); !ok {
+				if dt, ok := s.simplify(sub.superTypeOf); ok {
+					tv.EvalType = dt
+					return true
+				}
+			}
+		}
+	}
+
+	// if we reach here, deduction has failed
+	if tv.DefaultType != nil {
+		tv.EvalType = tv.DefaultType
+		return true
+	} else /* no deduction occurred at all */ {
+		tv.HandleUndetermined()
+		tv.EvalFailed = true
+		return false
+	}
+}
+
 // simplify removes all nested types from the deduced type for a type parameter.
 // It also checks for types such as constraint sets that are not valid types on
-// their own.
+// their own.  This can cause other type variables to deduced
 func (s *Solver) simplify(dt DataType) (DataType, bool) {
-	// operators never appear here
 	switch v := dt.(type) {
 	case *TypeVariable:
+		if v.EvalFailed {
+			// we can't simplify the value of a type variable that has already
+			// failed to evaluate
+			return nil, false
+		} else if v.EvalType == nil && !s.deduce(v) {
+			// we also can't simplify if deduction fails
+			return nil, false
+		}
+
 		return s.simplify(v.EvalType)
 	case *FuncType:
 		newArgs := make([]*FuncArg, len(v.Args))
