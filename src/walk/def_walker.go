@@ -265,6 +265,7 @@ func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]
 				// is passed by reference
 				names := make(map[string]bool)
 
+				allowRequiredArguments := true
 				for _, elem := range itembranch.Content {
 					// all elements of `arg_decl` are branches
 					elembranch := elem.(*syntax.ASTBranch)
@@ -309,6 +310,8 @@ func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]
 							return nil, nil, false
 						}
 
+						allowRequiredArguments = false
+
 						for name, byRef := range names {
 							if byRef {
 								w.logError(
@@ -328,6 +331,16 @@ func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]
 				// use our shared FuncArg by simply duplicating it for each
 				// different name and update the fields that change.
 				for name, byRef := range names {
+					if !allowRequiredArguments && argInits[name] == nil {
+						w.logError(
+							"all required arguments must come before optional arguments",
+							logging.LMKArg,
+							itembranch.Position(),
+						)
+
+						return nil, nil, false
+					}
+
 					fa := arg
 					fa.Name = name
 					fa.ByReference = byRef
@@ -337,7 +350,7 @@ func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]
 			case "var_arg_decl":
 				if isOperator {
 					w.logError(
-						"operators cannot take indefinite arguments",
+						"operators cannot take variadic arguments",
 						logging.LMKArg,
 						itembranch.Position(),
 					)
@@ -361,9 +374,9 @@ func (w *Walker) walkFuncArgsDecl(branch *syntax.ASTBranch, isOperator bool) ([]
 					}
 
 					args = append(args, &typing.FuncArg{
-						Name:       name,
-						Type:       dt,
-						Indefinite: true,
+						Name:     name,
+						Type:     dt,
+						Variadic: true,
 					})
 				} else {
 					return nil, nil, false

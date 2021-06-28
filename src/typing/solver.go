@@ -145,7 +145,7 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 					return false
 				}
 
-				if arg.Indefinite != rarg.Indefinite || arg.Optional != rarg.Optional || arg.ByReference != rarg.ByReference {
+				if arg.Variadic != rarg.Variadic || arg.Optional != rarg.Optional || arg.ByReference != rarg.ByReference {
 					return false
 				}
 
@@ -156,6 +156,12 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 			}
 
 			return s.unify(v.ReturnType, rft.ReturnType, TCEquiv)
+		}
+	case *VectorType:
+		if rvt, ok := rhs.(*VectorType); ok {
+			return s.unify(v.ElemType, rvt.ElemType, TCEquiv) &&
+				v.IsRow == rvt.IsRow &&
+				(v.Size == rvt.Size || v.Size == -1 || rvt.Size == -1)
 		}
 	default:
 		switch consKind {
@@ -355,7 +361,7 @@ func (s *Solver) simplify(dt DataType) (DataType, bool) {
 					Name:        arg.Name,
 					ByReference: arg.ByReference,
 					Optional:    arg.Optional,
-					Indefinite:  arg.Indefinite,
+					Variadic:    arg.Variadic,
 				}
 			} else {
 				return nil, false

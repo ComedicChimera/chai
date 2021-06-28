@@ -4,6 +4,9 @@ pub of
     
     @intrinsic_op("add")
     oper + (a, b: u8) u8
+
+    @intrinsic_op("add")
+    oper + (a, b: rune) rune
     
     @intrinsic_op("sdiv")
     oper // (a, b: i32) i32

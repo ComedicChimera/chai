@@ -1,6 +1,7 @@
 package typing
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -115,7 +116,7 @@ func (ft *FuncType) Repr() string {
 	}
 
 	for i, arg := range ft.Args {
-		if arg.Indefinite {
+		if arg.Variadic {
 			sb.WriteString("...")
 		} else if arg.Optional {
 			sb.WriteRune('~')
@@ -137,18 +138,63 @@ func (ft *FuncType) Repr() string {
 
 // FuncArg represents an argument to a Chai function
 type FuncArg struct {
-	Name                 string
-	Type                 DataType
-	Optional, Indefinite bool
-	ByReference          bool
+	Name               string
+	Type               DataType
+	Optional, Variadic bool
+	ByReference        bool
 }
 
 func (fa *FuncArg) equals(ofa *FuncArg) bool {
 	return (fa.Name == "" || ofa.Name == "" || fa.Name == ofa.Name) &&
 		Equals(fa.Type, ofa.Type) &&
 		fa.Optional == ofa.Optional &&
-		fa.Indefinite == ofa.Indefinite &&
+		fa.Variadic == ofa.Variadic &&
 		fa.ByReference == ofa.ByReference
+}
+
+// -----------------------------------------------------------------------------
+
+// VectorType represents a fixed-size array of similarly-typed elements
+type VectorType struct {
+	// ElemType is the type of the elements to the vector
+	ElemType DataType
+
+	// Size is either the fixed size of the vector or `-1` if the vector's
+	// size is unknown at compile-time (ie. vector generic parameters)
+	Size int
+
+	// IsRow indicates whether or not this vector is a row vector
+	IsRow bool
+}
+
+func (vt *VectorType) equals(other DataType) bool {
+	if ovt, ok := other.(*VectorType); ok {
+		return vt.ElemType.equals(ovt.ElemType) &&
+			vt.IsRow == ovt.IsRow &&
+			(vt.Size == ovt.Size || vt.Size == -1 || ovt.Size == -1)
+	}
+
+	return false
+}
+
+func (vt *VectorType) Repr() string {
+	b := strings.Builder{}
+	if vt.IsRow {
+		b.WriteRune('R')
+	}
+
+	b.WriteString("Vec[")
+	b.WriteString(vt.ElemType.Repr())
+	b.WriteString("](")
+
+	if vt.Size == -1 {
+		b.WriteRune('_')
+	} else {
+		b.WriteString(strconv.Itoa(vt.Size))
+	}
+
+	b.WriteRune(')')
+	return b.String()
 }
 
 // -----------------------------------------------------------------------------

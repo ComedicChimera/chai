@@ -57,21 +57,43 @@ func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 // there are no arguments to the function
 func (w *Walker) walkFuncCall(root sem.HIRExpr, rootPos *logging.TextPosition, argsListBranch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	type positionedArg struct {
-		value      sem.HIRExpr
-		pos        *logging.TextPosition
-		indefinite bool
+		value  sem.HIRExpr
+		pos    *logging.TextPosition
+		spread bool
 	}
 
 	// walk the arguments
 	var posArgs []*positionedArg
 	namedArgs := make(map[string]*positionedArg)
+	receivedSpread := false
 	for _, item := range argsListBranch.Content {
 		// only branch is `arg`
 		if itembranch, ok := item.(*syntax.ASTBranch); ok {
+			// spread argument must be last argument in `args_list`
+			if receivedSpread {
+				w.logError(
+					"no argument can follow a spread argument",
+					logging.LMKArg,
+					itembranch.Position(),
+				)
+
+				return nil, false
+			}
+
 			// branch length always indicates the kind of argument:
 			// 1 => positioned, 2 => positioned spread, 3 => named
 			switch itembranch.Len() {
 			case 1:
+				if len(namedArgs) > 0 {
+					w.logError(
+						"positioned arguments must come before named arguments",
+						logging.LMKArg,
+						itembranch.Position(),
+					)
+
+					return nil, false
+				}
+
 				if argExpr, ok := w.walkExpr(itembranch.BranchAt(0), true); ok {
 					posArgs = append(posArgs, &positionedArg{
 						value: argExpr,
@@ -82,10 +104,13 @@ func (w *Walker) walkFuncCall(root sem.HIRExpr, rootPos *logging.TextPosition, a
 				}
 			case 2:
 				if argExpr, ok := w.walkExpr(itembranch.BranchAt(1), true); ok {
+					receivedSpread = true
+
 					// TODO: validate that `argExpr` can be spread
 					posArgs = append(posArgs, &positionedArg{
-						value: argExpr,
-						pos:   itembranch.Position(),
+						value:  argExpr,
+						pos:    itembranch.Position(),
+						spread: true,
 					})
 				} else {
 					return nil, false
@@ -124,15 +149,135 @@ func (w *Walker) walkFuncCall(root sem.HIRExpr, rootPos *logging.TextPosition, a
 	// check to see if the type of the root is known
 	rootType := typing.InnerType(root.Type())
 	if ft, ok := rootType.(*typing.FuncType); ok {
-		// TODO
-		_ = ft
+		// finalArgs will store the final positioned or named arguments to the
+		// function -- will go in HIRApply.Args
+		finalArgs := make(map[string]sem.HIRExpr)
+
+		// varArgs are variadic argument values passed directly to the function
+		var varArgs []sem.HIRExpr
+
+		// spreadArg is the spread argument value (if one exists)
+		var spreadArg sem.HIRExpr
+
+		for i, farg := range ft.Args {
+			// handle variadic arguments as they have completely different
+			// behavior for regular arguments (in terms of argument checking)
+			if farg.Variadic {
+				// variadic arguments can't be named
+				if namedArg, ok := namedArgs[farg.Name]; ok {
+					w.logError(
+						"cannot specified named value for variadic argument",
+						logging.LMKArg,
+						namedArg.pos,
+					)
+				}
+
+				// collect all the variadic argument elements; we know any
+				// spread values will come at the end so we can break as soon as
+				// we encounter a spread argument
+				var varArgElems []*positionedArg
+				for j := i; j < len(posArgs); j++ {
+					if posArgs[j].spread {
+						// TODO: check that the element types match
+
+						spreadArg = posArgs[j].value
+						break
+					}
+
+					varArgElems = append(varArgElems, posArgs[j])
+				}
+
+				// if there are varArgs, type check them and add them as
+				// variadic argument values
+				if len(varArgElems) > 0 {
+					// create a type variable to store the accumulated type of
+					// the variadic arguments; will never be undetermined
+					vatv := w.solver.CreateTypeVar(nil, func() {})
+
+					// constrain that type parameter to be exactly equal to the
+					// argument type -- all of the other argument values will be
+					// subtypes of this parameter.  we use the whole list of
+					// variadic arguments as the position for this constraint
+					w.solver.AddEqConstraint(farg.Type, vatv, &logging.TextPosition{
+						StartLn:  posArgs[i].pos.StartLn,
+						StartCol: posArgs[i].pos.StartCol,
+						EndLn:    posArgs[i+len(varArgElems)-1].pos.EndLn,
+						EndCol:   posArgs[i+len(varArgElems)-1].pos.EndCol,
+					})
+
+					varArgs = make([]sem.HIRExpr, len(varArgElems))
+					for i, elem := range varArgElems {
+						w.solver.AddSubConstraint(vatv, elem.value.Type(), elem.pos)
+						varArgs[i] = elem.value
+					}
+				}
+
+				continue
+			}
+
+			// consume positioned arguments first; we know they come before the
+			// named arguments
+			if i < len(posArgs) {
+				posArg := posArgs[i]
+				if posArg.spread {
+					w.logError(
+						"cannot pass spread value to non-variadic argument",
+						logging.LMKArg,
+						posArg.pos,
+					)
+				}
+
+				// argument values need only be subtypes of the argument type
+				w.solver.AddSubConstraint(farg.Type, posArg.value.Type(), posArg.pos)
+				finalArgs[farg.Name] = posArg.value
+
+				// check for duplicate named arguments
+				if namedArg, ok := namedArgs[farg.Name]; ok {
+					w.logError(
+						fmt.Sprintf("multiple values specified for argument: `%s`", farg.Name),
+						logging.LMKArg,
+						namedArg.pos,
+					)
+
+					return nil, false
+				}
+			} else if namedArg, ok := namedArgs[farg.Name]; ok {
+				// we don't need to check for duplicates here since positioned
+				// arguments already performed the check for named v. positioned
+				// clashes and earlier we checked for name v name clashes
+
+				// same logic as for positioned arguments
+				w.solver.AddSubConstraint(farg.Type, namedArg.value.Type(), namedArg.pos)
+				finalArgs[farg.Name] = namedArg.value
+			} else if !farg.Optional {
+				// catch uninitialized required arguments
+				w.logError(
+					fmt.Sprintf("missing value for required argument: `%s`", farg.Name),
+					logging.LMKArg,
+					rootPos,
+				)
+
+				return nil, false
+			}
+		}
+
+		return &sem.HIRApply{
+			ExprBase: sem.NewExprBase(
+				ft.ReturnType,
+				sem.RValue,
+				false,
+			),
+			Func:      root,
+			Args:      finalArgs,
+			VarArgs:   varArgs,
+			SpreadArg: spreadArg,
+		}, true
 	} else if tv, ok := rootType.(*typing.TypeVariable); ok {
 		// root type is unknown
 		// TODO
 		_ = tv
 	}
 
-	// not a valid type for a function call
 	w.logError(
 		fmt.Sprintf("unable to call type of `%s`", rootType.Repr()),
 		logging.LMKTyping,

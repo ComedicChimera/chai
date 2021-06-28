@@ -83,6 +83,22 @@ type HIRDoBlock struct {
 
 // -----------------------------------------------------------------------------
 
+// HIRApply represents a function application
+type HIRApply struct {
+	ExprBase
+
+	Func HIRExpr
+	Args map[string]HIRExpr
+
+	// VarArgs contains all of the non-spread variadic arguments to the function
+	VarArgs []HIRExpr
+
+	// SpreadArg is the argument used for variadic spread initialization
+	SpreadArg HIRExpr
+}
+
+// -----------------------------------------------------------------------------
+
 // HIRIdentifier represents an identifier
 type HIRIdentifier struct {
 	Sym *Symbol
