@@ -33,6 +33,11 @@ type TypeVariable struct {
 	HandleUndetermined func()
 }
 
+func (tv *TypeVariable) equals(other DataType) bool {
+	logging.LogFatal("`equals` called directly on unevaluated type variable")
+	return false
+}
+
 func (tv *TypeVariable) Repr() string {
 	if tv.EvalType != nil {
 		return tv.EvalType.Repr()
@@ -61,9 +66,9 @@ func (tv *TypeVariable) Repr() string {
 	return "_"
 }
 
-func (tv *TypeVariable) equals(other DataType) bool {
-	logging.LogFatal("`equals` called directly on unevaluated type variable")
-	return false
+func (tv *TypeVariable) Copy() DataType {
+	logging.LogFatal("Copy called on a type variable")
+	return nil
 }
 
 // -----------------------------------------------------------------------------

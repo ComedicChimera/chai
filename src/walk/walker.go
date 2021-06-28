@@ -1,6 +1,7 @@
 package walk
 
 import (
+	"chai/logging"
 	"chai/sem"
 	"chai/typing"
 )
@@ -10,11 +11,6 @@ import (
 type Walker struct {
 	// SrcFile is the file this walker is walking
 	SrcFile *sem.ChaiFile
-
-	// scopeStack is the stack of scopes containing local symbols.  These scopes
-	// are not preserved for the backend (because the generator is going to
-	// recreate this stack using LLVMValues) so a simple stack is sufficient
-	scopeStack []map[string]*sem.Symbol
 
 	// exprContextStack stores the contextual values and flags used for an
 	// expression.  The stack allows us to push and pop contexts at will as
@@ -49,6 +45,9 @@ type ExprContext struct {
 
 	// MatchContext indicates whether or not `fallthrough` is usable
 	MatchContext bool
+
+	// Scope contains all the symbols local to this expression
+	Scope map[string]*sem.Symbol
 }
 
 // currExprContext gets the current expression context
@@ -71,6 +70,7 @@ func (w *Walker) pushLoopContext() {
 		LoopContext:  true,
 		MatchContext: w.currExprContext().MatchContext,
 		FuncContext:  w.currExprContext().FuncContext,
+		Scope:        make(map[string]*sem.Symbol),
 	})
 }
 
@@ -83,10 +83,15 @@ func (w *Walker) pushMatchContext() {
 		LoopContext:  w.currExprContext().LoopContext,
 		MatchContext: true,
 		FuncContext:  w.currExprContext().FuncContext,
+		Scope:        make(map[string]*sem.Symbol),
 	})
 }
 
 // popExprContext pops the top element off the expr context stack
 func (w *Walker) popExprContext() {
+	if len(w.exprContextStack) == 0 {
+		logging.LogFatal("attempted to pop from empty expression context stack")
+	}
+
 	w.exprContextStack = w.exprContextStack[:len(w.exprContextStack)-1]
 }

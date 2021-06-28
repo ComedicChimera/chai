@@ -52,6 +52,16 @@ func (a *ASTBranch) Position() *logging.TextPosition {
 	return nil
 }
 
+// TextPositionOfSpan takes two nodes and returns a text position that spans them
+func TextPositionOfSpan(start, end ASTNode) *logging.TextPosition {
+	return &logging.TextPosition{
+		StartLn:  start.Position().StartLn,
+		StartCol: start.Position().StartCol,
+		EndLn:    end.Position().EndLn,
+		EndCol:   end.Position().EndCol,
+	}
+}
+
 // BranchAt gets and casts the specified element to an AST branch
 func (a *ASTBranch) BranchAt(ndx int) *ASTBranch {
 	return a.Content[ndx].(*ASTBranch)

@@ -5,6 +5,9 @@ type DataType interface {
 	// Repr returns a string representing the data type
 	Repr() string
 
+	// Copy returns a fresh copy of a data type
+	Copy() DataType
+
 	// equals takes in another DataType returns if the two data types are equal.
 	// This method should return exact/true equality with no considerations for
 	// other types (such as type parameters).  It is meant to only be called

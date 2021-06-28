@@ -146,3 +146,9 @@ func getOperatorForm(opCode int, argCount int) ([]int, int, error) {
 		}
 	}
 }
+
+// lookupOperator looks up an operator based on the opcode and arity
+func (w *Walker) lookupOperator(opCode int, arity int) (*sem.Operator, bool) {
+	// TODO
+	return nil, false
+}

@@ -97,6 +97,19 @@ type HIRApply struct {
 	SpreadArg HIRExpr
 }
 
+// HIROperApply represents an operator application
+type HIROperApply struct {
+	ExprBase
+
+	Oper     *Operator
+	Operands []HIRExpr
+
+	// OperFunc is just the signature of the operator overload; it does not
+	// contain flags indicating intrinsics or boxed status -- those have to be
+	// loaded from the overload after
+	OperFunc *typing.FuncType
+}
+
 // -----------------------------------------------------------------------------
 
 // HIRIdentifier represents an identifier

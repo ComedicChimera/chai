@@ -73,6 +73,10 @@ func (pt PrimType) Repr() string {
 	}
 }
 
+func (pt PrimType) Copy() DataType {
+	return pt
+}
+
 // -----------------------------------------------------------------------------
 
 // FuncType represents a Chai function (or operator variant) type
@@ -136,6 +140,21 @@ func (ft *FuncType) Repr() string {
 	return sb.String()
 }
 
+func (ft *FuncType) Copy() DataType {
+	newArgs := make([]*FuncArg, len(ft.Args))
+	for i, arg := range ft.Args {
+		newArgs[i] = arg.copy()
+	}
+
+	return &FuncType{
+		Args:          newArgs,
+		ReturnType:    ft.ReturnType.Copy(),
+		Async:         ft.Async,
+		IntrinsicName: ft.IntrinsicName,
+		Boxed:         ft.Boxed,
+	}
+}
+
 // FuncArg represents an argument to a Chai function
 type FuncArg struct {
 	Name               string
@@ -150,6 +169,16 @@ func (fa *FuncArg) equals(ofa *FuncArg) bool {
 		fa.Optional == ofa.Optional &&
 		fa.Variadic == ofa.Variadic &&
 		fa.ByReference == ofa.ByReference
+}
+
+func (fa *FuncArg) copy() *FuncArg {
+	return &FuncArg{
+		Name:        fa.Name,
+		Type:        fa.Type.Copy(),
+		Optional:    fa.Optional,
+		Variadic:    fa.Variadic,
+		ByReference: fa.ByReference,
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -197,6 +226,14 @@ func (vt *VectorType) Repr() string {
 	return b.String()
 }
 
+func (vt *VectorType) Copy() DataType {
+	return &VectorType{
+		ElemType: vt.ElemType.Copy(),
+		Size:     vt.Size,
+		IsRow:    vt.IsRow,
+	}
+}
+
 // -----------------------------------------------------------------------------
 
 // ConstraintSet is a polymorphic constraint set (ie. a user-defined
@@ -214,19 +251,6 @@ type ConstraintSet struct {
 	// Set is the list of possible types for this constraint set.  This cannot
 	// contain type variables.
 	Set []DataType
-}
-
-func (cs *ConstraintSet) Repr() string {
-	if cs.Name == "" {
-		reprs := make([]string, len(cs.Set))
-		for i, dt := range cs.Set {
-			reprs[i] = dt.Repr()
-		}
-
-		return "(" + strings.Join(reprs, " | ") + ")"
-	}
-
-	return cs.Name
 }
 
 func (cs *ConstraintSet) equals(other DataType) bool {
@@ -250,4 +274,30 @@ func (cs *ConstraintSet) contains(other DataType) bool {
 	}
 
 	return false
+}
+
+func (cs *ConstraintSet) Repr() string {
+	if cs.Name == "" {
+		reprs := make([]string, len(cs.Set))
+		for i, dt := range cs.Set {
+			reprs[i] = dt.Repr()
+		}
+
+		return "(" + strings.Join(reprs, " | ") + ")"
+	}
+
+	return cs.Name
+}
+
+func (cs *ConstraintSet) Copy() DataType {
+	newSet := make([]DataType, len(cs.Set))
+	for i, item := range cs.Set {
+		newSet[i] = item.Copy()
+	}
+
+	return &ConstraintSet{
+		Name:         cs.Name,
+		SrcPackageID: cs.SrcPackageID,
+		Set:          newSet,
+	}
 }

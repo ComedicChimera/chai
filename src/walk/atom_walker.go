@@ -16,12 +16,7 @@ func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 	if root, ok := w.walkAtom(atomBranch, yieldsValue); ok {
 		for _, trailer := range branch.Content[1:] {
 			// determine a position for the whole root
-			rootPos := &logging.TextPosition{
-				StartLn:  atomBranch.Position().StartLn,
-				EndLn:    trailer.Position().EndLn,
-				StartCol: atomBranch.Position().StartCol,
-				EndCol:   trailer.Position().EndCol,
-			}
+			rootPos := syntax.TextPositionOfSpan(atomBranch, trailer)
 
 			// walk the trailer branch
 			trailerBranch := trailer.(*syntax.ASTBranch)

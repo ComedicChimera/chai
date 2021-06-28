@@ -9,8 +9,8 @@ import (
 // lookup looks up a symbol and returns it if it exists.
 func (w *Walker) lookup(name string) (*sem.Symbol, bool) {
 	// iterate through local scopes backwards to facilitate shadowing
-	for i := len(w.scopeStack) - 1; i > -1; i-- {
-		if sym, ok := w.scopeStack[i][name]; ok {
+	for i := len(w.exprContextStack) - 1; i > -1; i-- {
+		if sym, ok := w.exprContextStack[i].Scope[name]; ok {
 			return sym, true
 		}
 	}
@@ -49,11 +49,11 @@ func (w *Walker) defineGlobal(sym *sem.Symbol) bool {
 
 // defineLocal defines a local symbol in the most local scope
 func (w *Walker) defineLocal(sym *sem.Symbol) bool {
-	if len(w.scopeStack) == 0 {
+	if len(w.exprContextStack) == 0 {
 		logging.LogFatal("attempted to declare local symbol with no local scope")
 	}
 
-	currScope := w.scopeStack[len(w.scopeStack)-1]
+	currScope := w.currExprContext().Scope
 	if _, ok := currScope[sym.Name]; ok {
 		w.logError(
 			fmt.Sprintf("symbol named `%s` already defined in immediate local scope", sym.Name),
@@ -66,18 +66,4 @@ func (w *Walker) defineLocal(sym *sem.Symbol) bool {
 
 	currScope[sym.Name] = sym
 	return true
-}
-
-// pushScope pushes a new local scope onto the scope stack
-func (w *Walker) pushScope() {
-	w.scopeStack = append(w.scopeStack, make(map[string]*sem.Symbol))
-}
-
-// popScope pops a local scope from the scope stack
-func (w *Walker) popScope() {
-	if len(w.scopeStack) == 0 {
-		logging.LogFatal("attempted to pop from empty scope stack")
-	}
-
-	w.scopeStack = w.scopeStack[:len(w.scopeStack)-1]
 }
