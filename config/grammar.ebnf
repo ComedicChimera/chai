@@ -188,7 +188,7 @@ list_contents = expr ({',' expr} | [comp_suffix]) ;
 dict_builder = '{' dict_contents '}' ;
 dict_contents = expr '->' expr ({',' expr ':' expr} | [comp_suffix]) ;
 vec_builder = '[' vec_contents ']' ;
-vec_contents = expr {(',' | ';') expr };
+vec_contents = expr {(',' | ';') expr } [';'] ;
 
 tupled_expr = '(' [expr_list] ')' ;
 
