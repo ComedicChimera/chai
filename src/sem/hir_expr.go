@@ -83,6 +83,26 @@ type HIRDoBlock struct {
 
 // -----------------------------------------------------------------------------
 
+// HIRVarDecl is a variable declaration expression
+type HIRVarDecl struct {
+	Variables    []*Symbol
+	Initializers map[string]HIRExpr
+}
+
+func (hvd *HIRVarDecl) Type() typing.DataType {
+	return typing.PrimType(typing.PrimKindNothing)
+}
+
+func (hvd *HIRVarDecl) Category() int {
+	return RValue
+}
+
+func (hvd *HIRVarDecl) Constant() bool {
+	return false
+}
+
+// -----------------------------------------------------------------------------
+
 // HIRApply represents a function application
 type HIRApply struct {
 	ExprBase

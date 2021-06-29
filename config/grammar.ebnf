@@ -132,8 +132,8 @@ fallthrough_stmt = 'fallthrough' ['to' 'match'] ;
 yield_stmt = 'yield' expr_list ;
 return_stmt = 'return' [ expr_list] ;
 
-variable_decl = 'let' ['vol'] ? (unpack_var (type_ext | var_initializer) | var {',' var} ) ? ;
-var = 'IDENTIFIER' [type_ext] [var_initializer];
+variable_decl = 'let' ['vol'] ? (var {',' var} | unpack_var var_initializer) ? ;
+var = identifier_list (type_ext [var_initializer] | var_initializer) ;
 unpack_var = '(' unpack_elem next_unpack_elem ')' ;
 next_unpack_elem = ',' (unpack_elem next_unpack_elem | '...') | '' ;
 unpack_elem = 'IDENTIFIER' | unpack_var ;
