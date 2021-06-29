@@ -138,6 +138,12 @@ func getOperatorForm(opCode int, argCount int) ([]int, int, error) {
 		} else {
 			return nil, -1, errors.New("1 argument")
 		}
+	case syntax.GT, syntax.LT, syntax.EQ, syntax.NEQ, syntax.GTEQ, syntax.LTEQ:
+		if argCount == 2 {
+			return []int{0, 0}, 1, nil
+		} else {
+			return nil, -1, errors.New("2 arguments")
+		}
 	default:
 		if argCount == 2 {
 			return []int{0, 0}, 0, nil

@@ -200,16 +200,149 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 	case "unary_expr":
 		return w.walkUnaryOperatorApp(branch, yieldsValue)
 	case "comp_expr":
-		// TODO: handle triple comparison expressions
-		return nil, false
-	default:
 		// if the branch is length 1, then there is no operator application
 		// being performed and we can just recur downward
 		if branch.Len() == 1 {
 			return w.walkBinOperatorApp(branch.BranchAt(0), yieldsValue)
 		}
 
-		// otherwise, we have an operator application
+		// comparisons in Chai work like those in Python: comparison operators
+		// will apply to create multiple relations to the same value.  For
+		// example, `a < b < c` is interpreted as one comparison: `b` is between
+		// `a` and `c` rather than as separate comparisons.  This leads to
+		// cleaner code that reads more like mathematical notation
+
+		// comparisons contains a list of all the comparisons performed broken
+		// down indivually: eg. `a < b < c` splits into `a < b` and `b < c`.
+		// These will all be anded together at the end
+		var comparisons []sem.HIRExpr
+
+		// op is the operator currently being applied
+		var op *sem.Operator
+
+		// lhs is the left operand of the current operator
+		var lhs sem.HIRExpr
+
+		for i, item := range branch.Content {
+			switch v := item.(type) {
+			case *syntax.ASTLeaf:
+				// only leaf is operator
+				var ok bool
+				op, ok = w.lookupOperator(v.Kind, 2)
+				if !ok {
+					w.logError(
+						fmt.Sprintf("operator `%s` has no binary overloads", v.Value),
+						logging.LMKOperApp,
+						v.Position(),
+					)
+
+					return nil, false
+				}
+			case *syntax.ASTBranch:
+				// only branch is sub node; operator applications imply that
+				// expression must yield a value (in order to be operated upon)
+
+				// if `lhs` is `nil`, then we are collecting the first operand
+				if lhs == nil {
+					if expr, ok := w.walkBinOperatorApp(branch, true); ok {
+						lhs = expr
+					} else {
+						return nil, false
+					}
+				} else /* we are collecting a right operand */ {
+					if expr, ok := w.walkBinOperatorApp(branch, true); ok {
+						// first, we build the operator application
+						opApp := w.makeOperatorApp(
+							op,
+							[]sem.HIRExpr{lhs, expr},
+							// we just want to highlight the current comparison
+							// since they don't associate like other binary
+							// expressions
+							syntax.TextPositionOfSpan(branch.Content[i-2], v),
+							[]*logging.TextPosition{
+								branch.Content[i-2].Position(),
+								v.Position(),
+							},
+						)
+
+						// then, add it to comparisons
+						comparisons = append(comparisons, opApp)
+
+						// now, the current expression (rhs) is going to become
+						// the lhs of the next expression; we will always read
+						// in operator first and then the following expression
+						// will be interpreted as the rhs
+						lhs = expr
+					} else {
+						return nil, false
+					}
+				}
+			}
+		}
+
+		// if there is only one comparison, that is what we return; no
+		// anding/combining required
+		if len(comparisons) == 1 {
+			return comparisons[0], true
+		}
+
+		// otherwise, we sequentially and all the expressions together and
+		// return the final result -- this accomplishes the desired behavior of
+		// `a < b < c` translating as `(&& (< a b) (< b c))`
+		var andChain sem.HIRExpr
+
+		// get the and operator as we will use it repeatedly here
+		andOp, ok := w.lookupOperator(syntax.AND, 2)
+		if !ok {
+			w.logError(
+				"operator `&&` has no binary overload to perform multi-comparisons",
+				logging.LMKOperApp,
+				branch.Position(),
+			)
+		}
+
+		for i, item := range comparisons {
+			// if there is no and chain set up yet, the first comparison becomes
+			// the root of the chain
+			if andChain == nil {
+				andChain = item
+			} else {
+				// otherwise, we just combine the two operators with an and and
+				// have that be the new root of the chain -- bubbling outward
+				andChain = w.makeOperatorApp(
+					andOp,
+					[]sem.HIRExpr{andChain, item},
+					// Position Formula Explanation:
+					// (< a b) (< b c) (< c d)
+					//    0       1       2
+					// => i = 1, 2
+					// a < b < c < d
+					//   ^ ^
+					// i +/- 1
+					// a < b < c < d
+					// ^   ^
+					//   ^   ^
+					// i * 2
+					// a < b < c < d
+					// ^       ^
+					//     ^       ^
+					syntax.TextPositionOfSpan(branch.Content[(i-1)*2], branch.Content[(i+1)*2]),
+					// using same logical formula as one above to get sub-expressions
+					[]*logging.TextPosition{
+						syntax.TextPositionOfSpan(branch.Content[(i-1)*2], branch.Content[i*2]),
+						syntax.TextPositionOfSpan(branch.Content[i*2], branch.Content[(i+1)*2]),
+					},
+				)
+			}
+		}
+
+		return andChain, true
+	default:
+		// if the branch is length 1, then there is no operator application
+		// being performed and we can just recur downward
+		if branch.Len() == 1 {
+			return w.walkBinOperatorApp(branch.BranchAt(0), yieldsValue)
+		}
 
 		// op is operator currently being applied
 		var op *sem.Operator
@@ -227,7 +360,7 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 				if !ok {
 					w.logError(
 						fmt.Sprintf("operator `%s` has no binary overloads", v.Value),
-						logging.LMKName,
+						logging.LMKOperApp,
 						v.Position(),
 					)
 
@@ -246,8 +379,12 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 						rootOperand = w.makeOperatorApp(
 							op,
 							[]sem.HIRExpr{rootOperand, expr},
+							// exprPos is all of the expression up to and
+							// include the current rhs
 							syntax.TextPositionOfSpan(branch, v),
 							[]*logging.TextPosition{
+								// left expression is from the root of the
+								// branch up until the current operator
 								syntax.TextPositionOfSpan(branch, branch.Content[i-2]),
 								v.Position(),
 							},
@@ -266,7 +403,66 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 
 // walkUnaryOperatorApp walks a unary operator application
 func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	return nil, false
+	// result will store the result expression of walking the unary operator
+	var result sem.HIRExpr
+
+	// prefixOp is the prefix operator being applied
+	var prefixOp *sem.Operator
+
+	// prefix operators take precedence over postfix operators so this loop
+	// works fine; we will wrap prefix applications in postfix applications
+	for _, item := range branch.Content {
+		switch v := item.(type) {
+		case *syntax.ASTLeaf:
+			// TODO: handle builtin operators
+
+			// only leaf is operator
+			op, ok := w.lookupOperator(v.Kind, 1)
+			if !ok {
+				w.logError(
+					fmt.Sprintf("operator `%s` has no unary overloads", v.Value),
+					logging.LMKOperApp,
+					v.Position(),
+				)
+
+				return nil, false
+			}
+
+			// if there is no result yet, this is a prefix operator
+			if result == nil {
+				prefixOp = op
+			} else /* postfix operator */ {
+				result = w.makeOperatorApp(
+					op,
+					[]sem.HIRExpr{result},
+					branch.Position(),
+					// len 2 => expr at position 0 (no prefix operator)
+					// len 3 => expr at position 1 (prefix operator)
+					[]*logging.TextPosition{branch.Content[(branch.Len()-1)/2].Position()},
+				)
+			}
+		case *syntax.ASTBranch:
+			// if the branch contains more than one element, there is an
+			// operator and the expression must yield a value
+			if atomExpr, ok := w.walkAtomExpr(v, yieldsValue || branch.Len() > 1); ok {
+				// if there is a prefix operator, we apply it here
+				if prefixOp != nil {
+					result = w.makeOperatorApp(
+						prefixOp,
+						[]sem.HIRExpr{atomExpr},
+						syntax.TextPositionOfSpan(branch, v),
+						[]*logging.TextPosition{v.Position()},
+					)
+				} else /* no prefix operator */ {
+					result = atomExpr
+				}
+			} else {
+				return nil, false
+			}
+		}
+	}
+
+	return result, true
 }
 
 // makeOperatorApp creates a new operator application
@@ -311,7 +507,7 @@ func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exp
 	for i, q := range qCons {
 		tvar := w.solver.CreateTypeVar(nil, func() {
 			w.logError(
-				fmt.Sprintf("unable to determine overload used for `%s` operator", oper.Name),
+				fmt.Sprintf("unable to determine matching overload for `%s` operator", oper.Name),
 				logging.LMKTyping,
 				exprPos,
 			)

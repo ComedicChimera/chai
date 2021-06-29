@@ -42,6 +42,7 @@ const (
 	LMKAnnot           // Error related to annotations
 	LMKProp            // Error related to a property access
 	LMKArg             // Error related to function argument
+	LMKOperApp         // Error related to operator application
 	// TODO: add more as needed
 )
 

@@ -13,6 +13,9 @@ pub of
     
     @intrinsic_op("srem")
     oper % (a, b: i32) i32
+
+    @intrinsic_op("land")
+    oper && (a, b: bool) bool
     
     @intrinsic
     def print_byte(b: u8) 
