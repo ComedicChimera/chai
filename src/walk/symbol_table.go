@@ -3,7 +3,6 @@ package walk
 import (
 	"chai/logging"
 	"chai/sem"
-	"fmt"
 )
 
 // lookup looks up a symbol and returns it if it exists.
@@ -32,12 +31,7 @@ func (w *Walker) lookup(name string) (*sem.Symbol, bool) {
 // returns false and throws an appropriate error if it can't
 func (w *Walker) defineGlobal(sym *sem.Symbol) bool {
 	if _, ok := w.lookup(sym.Name); ok {
-		w.logError(
-			fmt.Sprintf("symbol named `%s` already defined in the global scope", sym.Name),
-			logging.LMKName,
-			sym.Position,
-		)
-
+		w.logRepeatDef(sym.Name, sym.Position)
 		return false
 	}
 
@@ -55,12 +49,7 @@ func (w *Walker) defineLocal(sym *sem.Symbol) bool {
 
 	currScope := w.currExprContext().Scope
 	if _, ok := currScope[sym.Name]; ok {
-		w.logError(
-			fmt.Sprintf("symbol named `%s` already defined in immediate local scope", sym.Name),
-			logging.LMKName,
-			sym.Position,
-		)
-
+		w.logRepeatDef(sym.Name, sym.Position)
 		return false
 	}
 

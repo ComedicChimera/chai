@@ -57,7 +57,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 		// handle intrinsics
 		if intrinsicName == "" && body == nil {
 			w.logError(
-				"operator definition required a body",
+				"operator definition requires a body",
 				logging.LMKDef,
 				branch.LastBranch().Last().Position(), // error on the parenthesis
 			)
@@ -166,7 +166,7 @@ func (w *Walker) walkFuncDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 				})
 			} else if needsBody {
 				w.logError(
-					fmt.Sprintf("function `%s` must provide a body", sym.Name),
+					fmt.Sprintf("function `%s` requires a body", sym.Name),
 					logging.LMKDef,
 					branch.LastBranch().Last().Position(), // error on the parenthesis
 				)

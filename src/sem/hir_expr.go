@@ -9,7 +9,8 @@ import (
 // HIRExpr is the parent interface for all HIR (high-level intermediate
 // representation) expressions
 type HIRExpr interface {
-	// Type returns the data type yielded by an expression
+	// Type returns the data type yielded by an expression.  This field can be
+	// `nil` if the expression doesn't yield a type (eg. continue, return, etc)
 	Type() typing.DataType
 
 	// Category returns the value category of the expression.  It must be one of

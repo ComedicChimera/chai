@@ -29,7 +29,15 @@ func (w *Walker) logWarning(msg string, kind int, pos *logging.TextPosition) {
 
 func (w *Walker) logRepeatDef(name string, pos *logging.TextPosition) {
 	w.logError(
-		fmt.Sprintf("symbol `%s` declared multiple times in scope", name),
+		fmt.Sprintf("symbol `%s` declared multiple times in same scope", name),
+		logging.LMKName,
+		pos,
+	)
+}
+
+func (w *Walker) logUndefined(name string, pos *logging.TextPosition) {
+	w.logError(
+		fmt.Sprintf("undefined symbol: `%s`", name),
 		logging.LMKName,
 		pos,
 	)

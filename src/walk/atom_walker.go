@@ -161,7 +161,7 @@ func (w *Walker) walkFuncCall(root sem.HIRExpr, rootPos *logging.TextPosition, a
 				// variadic arguments can't be named
 				if namedArg, ok := namedArgs[farg.Name]; ok {
 					w.logError(
-						"cannot specified named value for variadic argument",
+						"cannot specify named value for variadic argument",
 						logging.LMKArg,
 						namedArg.pos,
 					)
@@ -337,12 +337,7 @@ func (w *Walker) walkAtom(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIREx
 					IdPos: branch.Position(),
 				}, true
 			} else {
-				w.logError(
-					fmt.Sprintf("undefined symbol: `%s`", v.Value),
-					logging.LMKName,
-					branch.Position(),
-				)
-
+				w.logUndefined(v.Value, branch.Position())
 				return nil, false
 			}
 		}
