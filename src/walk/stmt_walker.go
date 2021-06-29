@@ -77,6 +77,9 @@ func (w *Walker) walkVarDecl(branch *syntax.ASTBranch, global bool) (sem.HIRExpr
 					} else {
 						dt = initializer.Type()
 					}
+				} else {
+					// known `type_ext` => known type
+					// TODO: add nullable constraint
 				}
 
 				for name, pos := range names {
@@ -137,5 +140,113 @@ func (w *Walker) walkVarInitializer(branch *syntax.ASTBranch) (sem.HIRExpr, bool
 
 // walkExprStmt walks an `expr_stmt` node
 func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
+	var lhs, rhs []sem.HIRExpr
+
+	// assignKind should be one of the assignment kinds enumerated in `sem` or
+	// `-1` if this is not an assignment (its default value)
+	assignKind := -1
+
+	// op is the operator used assignment (if any -- this can be `nil`)
+	var op *sem.Operator
+
+	// we want to iterate through the branch backwards since we do not know
+	// whether or not this is a mutation or simply an expression statement (such
+	// as a function call)
+	for i := branch.Len() - 1; i >= 0; i++ {
+		switch v := branch.Content[i].(type) {
+		case *syntax.ASTBranch:
+			switch v.Name {
+			case "expr_list":
+				// `expr_list` only occurs on the rhs
+				if exprs, ok := w.walkExprList(v); ok {
+					rhs = exprs
+				} else {
+					return nil, false
+				}
+			case "assign_op":
+				// compound operator
+				if v.Len() == 2 {
+					assignKind = sem.AKCompound
+					if _op, ok := w.lookupOperator(v.LeafAt(0).Kind, 2); ok {
+						op = _op
+					} else {
+						w.logMissingOpOverload(v.LeafAt(0).Value, 2, v.Content[0].Position())
+						return nil, false
+					}
+				} else if v.LeafAt(0).Kind == syntax.BINDTO {
+					assignKind = sem.AKBind
+				} else {
+					assignKind = sem.AKEq
+				}
+			case "mut_expr":
+				if mutExpr, ok := w.walkMutExpr(v, len(rhs) > 0); ok {
+					// push front to preserve the ordering of the expressions
+					lhs = append([]sem.HIRExpr{mutExpr}, lhs...)
+				} else {
+					return nil, false
+				}
+			}
+		case *syntax.ASTLeaf:
+			switch v.Kind {
+			case syntax.INCREM:
+				if _op, ok := w.lookupOperator(syntax.PLUS, 2); ok {
+					op = _op
+					assignKind = sem.AKUnary
+				} else {
+					w.logMissingOpOverload("+", 2, v.Position())
+					return nil, false
+				}
+			case syntax.DECREM:
+				if _op, ok := w.lookupOperator(syntax.MINUS, 2); ok {
+					op = _op
+					assignKind = sem.AKUnary
+				} else {
+					w.logMissingOpOverload("-", 2, v.Position())
+					return nil, false
+				}
+			}
+		}
+	}
+
+	if len(rhs) == 0 {
+		// unary assignment
+		w.solver.AddSubConstraint(w.lookupNamedBuiltin("Numeric"), lhs[0].Type(), branch.Position())
+		return &sem.HIRAssignment{
+			// TODO: should unary assignment yield a value?
+			Lhs:        lhs,
+			AssignKind: assignKind,
+			Oper:       op,
+		}, true
+	} else if len(lhs) > 1 && len(rhs) == 1 {
+		// unpacking
+	} else if len(lhs) == len(rhs) {
+		// regular assignment
+	} else if len(lhs) > len(rhs) {
+		// not unpacking; mismatched value counts
+		w.logError(
+			"too many values on the left side",
+			logging.LMKPattern,
+			branch.Position(),
+		)
+
+		return nil, false
+	} else /* rhs > lhs */ {
+		// not unpacking; mismatched value counts
+		w.logError(
+			"too many values on the right side",
+			logging.LMKPattern,
+			branch.Position(),
+		)
+
+		return nil, false
+	}
+
+	// TODO: apply constraints, build final HIRExpr
+
+	return nil, false
+}
+
+// walkMutExpr walks a `mut_expr` node
+func (w *Walker) walkMutExpr(branch *syntax.ASTBranch, isMutated bool) (sem.HIRExpr, bool) {
 	return nil, false
 }

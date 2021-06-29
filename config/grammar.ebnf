@@ -139,7 +139,7 @@ next_unpack_elem = ',' (unpack_elem next_unpack_elem | '...') | '' ;
 unpack_elem = 'IDENTIFIER' | unpack_var ;
 var_initializer = '<-' expr | '=' expr ;
 
-expr_stmt = mut_expr {',' mut_expr} [assign_op expr_list | '++' | '--'] ;
+expr_stmt = mut_expr [{',' mut_expr} assign_op expr_list | '++' | '--'] ;
 mut_expr = ['await'] ['*'] 'IDENTIFIER' {trailer} ;
 assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | '&&' | '||'] '=' | '<-' ;
 

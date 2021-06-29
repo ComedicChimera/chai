@@ -43,6 +43,7 @@ const (
 	LMKProp            // Error related to a property access
 	LMKArg             // Error related to function argument
 	LMKOperApp         // Error related to operator application
+	LMKPattern         // Error related to pattern matching
 	// TODO: add more as needed
 )
 

@@ -120,6 +120,24 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	return hirExpr, true
 }
 
+// walkExprList walks an `expr_list` node.  It assumes that the expressions must
+// yield a value (only context in which `expr_list` is used)
+func (w *Walker) walkExprList(branch *syntax.ASTBranch) ([]sem.HIRExpr, bool) {
+	exprs := make([]sem.HIRExpr, branch.Len()/2+1)
+	for i, item := range branch.Content {
+		// only branch is `expr`
+		if itembranch, ok := item.(*syntax.ASTBranch); ok {
+			if expr, ok := w.walkExpr(itembranch, true); ok {
+				exprs[i/2] = expr
+			} else {
+				return nil, false
+			}
+		}
+	}
+
+	return exprs, true
+}
+
 // -----------------------------------------------------------------------------
 
 // walkExpr walks an expression node and returns a HIRExpr
@@ -230,12 +248,7 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 				var ok bool
 				op, ok = w.lookupOperator(v.Kind, 2)
 				if !ok {
-					w.logError(
-						fmt.Sprintf("operator `%s` has no binary overloads", v.Value),
-						logging.LMKOperApp,
-						v.Position(),
-					)
-
+					w.logMissingOpOverload(v.Value, 2, v.Position())
 					return nil, false
 				}
 			case *syntax.ASTBranch:
@@ -358,12 +371,7 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 				var ok bool
 				op, ok = w.lookupOperator(v.Kind, 2)
 				if !ok {
-					w.logError(
-						fmt.Sprintf("operator `%s` has no binary overloads", v.Value),
-						logging.LMKOperApp,
-						v.Position(),
-					)
-
+					w.logMissingOpOverload(v.Value, 2, v.Position())
 					return nil, false
 				}
 			case *syntax.ASTBranch:
@@ -419,12 +427,7 @@ func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool
 			// only leaf is operator
 			op, ok := w.lookupOperator(v.Kind, 1)
 			if !ok {
-				w.logError(
-					fmt.Sprintf("operator `%s` has no unary overloads", v.Value),
-					logging.LMKOperApp,
-					v.Position(),
-				)
-
+				w.logMissingOpOverload(v.Value, 1, v.Position())
 				return nil, false
 			}
 

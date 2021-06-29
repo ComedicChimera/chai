@@ -69,6 +69,7 @@ var compileMsgStrings = map[int]string{
 	LMKUsage:    "Usage",
 	LMKUser:     "User",
 	LMKOperApp:  "Operator",
+	LMKPattern:  "Pattern",
 }
 
 func (cm *CompileMessage) display() {

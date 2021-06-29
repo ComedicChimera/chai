@@ -84,23 +84,50 @@ type HIRDoBlock struct {
 
 // -----------------------------------------------------------------------------
 
+type stmtBase struct {
+}
+
+func (*stmtBase) Type() typing.DataType {
+	return typing.PrimType(typing.PrimKindNothing)
+}
+
+func (*stmtBase) Category() int {
+	return RValue
+}
+
+func (*stmtBase) Constant() bool {
+	return false
+}
+
 // HIRVarDecl is a variable declaration expression
 type HIRVarDecl struct {
+	stmtBase
 	Variables    []*Symbol
 	Initializers map[string]HIRExpr
 }
 
-func (hvd *HIRVarDecl) Type() typing.DataType {
-	return typing.PrimType(typing.PrimKindNothing)
+// HIRAssignment represents some form of assignment or mutation to a value
+type HIRAssignment struct {
+	stmtBase
+
+	// If Rhs contains only one value and Lhs contains multiple, then this is an
+	// unpacking assignment.  If this is a unary assignment, Rhs is empty
+	Lhs, Rhs []HIRExpr
+
+	// AssignKind is one of the enumerated assignment kinds below
+	AssignKind int
+
+	// Oper is the operator being used in any compound or unary assignments (eg.
+	// +=, *=, ++, etc.).  This field can be `nil` if no operator is used.
+	Oper *Operator
 }
 
-func (hvd *HIRVarDecl) Category() int {
-	return RValue
-}
-
-func (hvd *HIRVarDecl) Constant() bool {
-	return false
-}
+const (
+	AKEq       = iota // `=`
+	AKBind            // `<-`
+	AKCompound        // [oper]=
+	AKUnary           // `++` or `--`
+)
 
 // -----------------------------------------------------------------------------
 
