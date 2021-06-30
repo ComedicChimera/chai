@@ -108,7 +108,7 @@ func (w *Walker) walkVarDecl(branch *syntax.ASTBranch, global bool) (sem.HIRExpr
 			Type:       varData.dt,
 			DefKind:    sem.DefKindValueDef,
 			Modifiers:  symbolMods,
-			Mutability: sem.NeverMutated,
+			Immutable:  false,
 			Position:   varData.pos,
 		}
 
@@ -179,7 +179,7 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 					assignKind = sem.AKEq
 				}
 			case "mut_expr":
-				if mutExpr, ok := w.walkMutExpr(v, len(rhs) > 0); ok {
+				if mutExpr, ok := w.walkMutExpr(v); ok {
 					// push front to preserve the ordering of the expressions
 					lhs = append([]sem.HIRExpr{mutExpr}, lhs...)
 				} else {
@@ -219,8 +219,20 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		}, true
 	} else if len(lhs) > 1 && len(rhs) == 1 {
 		// unpacking
+		// TODO
+		return nil, false
 	} else if len(lhs) == len(rhs) {
 		// regular assignment
+		for i, v := range lhs {
+			w.solver.AddSubConstraint(v.Type(), rhs[i].Type(), branch.LastBranch().Content[i*2].Position())
+		}
+
+		return &sem.HIRAssignment{
+			Lhs:        lhs,
+			Rhs:        rhs,
+			AssignKind: assignKind,
+			Oper:       op,
+		}, true
 	} else if len(lhs) > len(rhs) {
 		// not unpacking; mismatched value counts
 		w.logError(
@@ -240,13 +252,61 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 
 		return nil, false
 	}
-
-	// TODO: apply constraints, build final HIRExpr
-
-	return nil, false
 }
 
 // walkMutExpr walks a `mut_expr` node
-func (w *Walker) walkMutExpr(branch *syntax.ASTBranch, isMutated bool) (sem.HIRExpr, bool) {
-	return nil, false
+func (w *Walker) walkMutExpr(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
+	var mutValue sem.HIRExpr
+
+	for _, item := range branch.Content {
+		switch v := item.(type) {
+		case *syntax.ASTBranch:
+			if v.Name == "expr" {
+				if expr, ok := w.walkExpr(v, true); ok {
+					mutValue = expr
+				} else {
+					return nil, false
+				}
+			} else /* trailer */ {
+				// TODO
+			}
+		case *syntax.ASTLeaf:
+			switch v.Kind {
+			case syntax.IDENTIFIER:
+				if sym, ok := w.lookup(v.Value); ok {
+					mutValue = &sem.HIRIdentifier{
+						Sym:   sym,
+						IdPos: v.Position(),
+					}
+				} else {
+					w.logUndefined(sym.Name, sym.Position)
+					return nil, false
+				}
+			case syntax.AWAIT:
+				// TODO
+			case syntax.STAR:
+				// TODO
+			}
+		}
+	}
+
+	if mutValue.Category() == sem.RValue {
+		w.logError(
+			"unable to mutate an R-value",
+			logging.LMKImmut,
+			branch.Position(),
+		)
+
+		return nil, false
+	} else if mutValue.Immutable() {
+		w.logError(
+			"value is immutable",
+			logging.LMKImmut,
+			branch.Position(),
+		)
+
+		return nil, false
+	}
+
+	return mutValue, true
 }

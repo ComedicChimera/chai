@@ -39,7 +39,7 @@ file = {import_stmt} (pub_block [top_level] | top_level) ;
 
 
 (* -- Imports -- *)
-import_stmt = 'import' ( package_path ['as' 'IDENTIFIER'] | ( identifier_list | '(' identifier_list ')' ) 'from' package_path ) 'NEWLINE' ;
+import_stmt = 'import' (package_path ['as' 'IDENTIFIER'] | (identifier_list | '(' identifier_list ')') 'from' package_path) 'NEWLINE' ;
 package_path = 'IDENTIFIER' { '.' 'IDENTIFIER' } ;
 
 
@@ -50,34 +50,35 @@ pub_definition = internal_annotated_def | variable_decl | def_core ;
 internal_annotated_def = annotation def_core ;
 
 (* -- Definitions -- *)
-top_level = definition { definition } ;
+top_level = definition {definition} ;
 definition = annotated_def | pub_def | def_core | variable_decl ;
 
-annotated_def = annotation (def_core | pub_def);
+annotated_def = annotation (def_core | pub_def) ;
 annotation = '@' (annot_single | '[' annot_single {',' annot_single} ']') 'NEWLINE' ;
 annot_single = 'IDENTIFIER' ['(' 'STRINGLIT' {',' 'STRINGLIT'} ')'] ;
 
-pub_def = 'pub' ( def_core | variable_decl ) ;
+pub_def = 'pub' (def_core | variable_decl) ;
 
 def_core = class_def | space_def | func_def | type_def | oper_def | cons_def ;
 
 class_def = 'class' 'IDENTIFIER' 'IDENTIFIER' [generic_tag] 'of' space_body ;
 space_def = 'space' 'for' type ['is' type {',' type}] 'of' space_body ;
-space_body = 'INDENT' space_member { space_member } 'DEDENT' ;
+space_body = 'INDENT' space_member {space_member} 'DEDENT' ;
 space_member = [annotation] ['priv'] func_def ;
 
-oper_def = 'oper' oper_value [generic_tag] signature ( '=' decl_func_body | 'NEWLINE' ) ;
+oper_def = 'oper' oper_value [generic_tag] signature ('=' decl_func_body | 'NEWLINE') ;
 oper_value = '+' | '-' | '*' | '/' | '//'
   | '**' | '%' | '>' | '>>' | '<' | '<<' | '<=' | '>=' 
   | '==' | '!' | '!=' | '&' | '&&' | '|' | '||' | '^' 
-  | '~' | '[' [':'] ']' ;
+  | '~' | '[' [':'] ']' 
+  ;
 
-func_def = ['async'] 'def' 'IDENTIFIER' [generic_tag] signature ( '=' decl_func_body | 'NEWLINE' ) ;
+func_def = ['async'] 'def' 'IDENTIFIER' [generic_tag] signature ('=' decl_func_body | 'NEWLINE') ;
 signature = args_decl [type] ;
 args_decl = '(' [arg_decl next_arg_decl | var_arg_decl] ')' ;
 next_arg_decl = ',' (arg_decl next_arg_decl | var_arg_decl) | '' ;
 arg_decl = arg_id_list type_ext [initializer] ;
-arg_id_list = ['&'] 'IDENTIFIER' {',' ['&'] 'IDENTIFIER'};
+arg_id_list = ['&'] 'IDENTIFIER' {',' ['&'] 'IDENTIFIER'} ;
 var_arg_decl = '...' 'IDENTIFIER' type_ext ;
 decl_func_body = block_expr 'NEWLINE' | simple_expr 'NEWLINE' | do_block | 'INDENT' expr 'DEDENT' ;
 
@@ -86,10 +87,10 @@ newtype = alg_suffix | 'INDENT' '|' alg_suffix 'DEDENT' | struct_suffix ;
 alg_suffix = alg_variant { '|' alg_variant} ;
 alg_variant = 'IDENTIFIER' [tupled_suffix] ;
 tupled_suffix = '(' type {',' type} ')' ;
-struct_suffix = '{' struct_member { struct_member } '}' ;
+struct_suffix = '{' struct_member {struct_member} '}' ;
 struct_member = ['priv'] ['vol'] identifier_list type_ext [initializer] 'NEWLINE' ;
 
-cons_def = 'cons' 'IDENTIFIER' [generic_tag] '=' ( cons_body | 'INDENT' '|' cons_body 'DEDENT' ) ;
+cons_def = 'cons' 'IDENTIFIER' [generic_tag] '=' (cons_body | 'INDENT' '|' cons_body 'DEDENT') ;
 cons_bdy = type {'|' type} ;
 
 
@@ -117,7 +118,7 @@ block_body = '->' ? expr ? | do_block ;
 
 (* ellipsis is used to designate a block that hasn't been filled in yet *)
 do_block = 'do' block_content ;
-block_content = 'INDENT' ( block_element {block_element} | '...') 'DEDENT' ;
+block_content = 'INDENT' (block_element {block_element} | '...') 'DEDENT' ;
 block_element = stmt 'NEWLINE' | expr_stmt 'NEWLINE' | block_expr ;
 
 
@@ -126,7 +127,7 @@ stmt = break_stmt | continue_stmt | fallthrough_stmt
   | yield_stmt | variable_decl | return_stmt ;
 
 break_stmt = 'break' ;
-continue_stmt = 'continue';
+continue_stmt = 'continue' ;
 fallthrough_stmt = 'fallthrough' ['to' 'match'] ;
 
 yield_stmt = 'yield' expr_list ;
@@ -140,7 +141,7 @@ unpack_elem = 'IDENTIFIER' | unpack_var ;
 var_initializer = '<-' expr | '=' expr ;
 
 expr_stmt = mut_expr [{',' mut_expr} assign_op expr_list | '++' | '--'] ;
-mut_expr = ['await'] ['*'] 'IDENTIFIER' {trailer} ;
+mut_expr = ['await'] ['*'] ('IDENTIFIER' | '(' expr ')') {trailer} ;
 assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | '&&' | '||'] '=' | '<-' ;
 
 
@@ -188,7 +189,7 @@ list_contents = expr ({',' expr} | [comp_suffix]) ;
 dict_builder = '{' dict_contents '}' ;
 dict_contents = expr '->' expr ({',' expr ':' expr} | [comp_suffix]) ;
 vec_builder = '[' vec_contents ']' ;
-vec_contents = expr {(',' | ';') expr } [';'] ;
+vec_contents = expr {(',' | ';') expr} [';'] ;
 
 tupled_expr = '(' [expr_list] ')' ;
 
@@ -200,7 +201,7 @@ partial_call = '|' expr args_list ')' ;
 (* -- Types -- *)
 type_list = type {',' type} ;
 type_ext = ':' type ;
-type_pattern_list = type_pattern {',' type_pattern};
+type_pattern_list = type_pattern {',' type_pattern} ;
 type_pattern = 'IDENTIFIER' ':' type | type ;
 
 type = named_type | value_type | ref_type ;
@@ -226,7 +227,7 @@ ref_type = '&' (value_type | named_type) ;
 
 (* generic constructions *)
 generic_tag = '[' generic_param {',' generic_param} ']' ;
-generic_param = 'IDENTIFIER' [':' type {'|' type}];
+generic_param = 'IDENTIFIER' [':' type {'|' type}] ;
 generic_spec = '[' type_list ']' ;
 
 

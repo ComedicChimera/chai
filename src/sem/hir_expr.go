@@ -17,8 +17,8 @@ type HIRExpr interface {
 	// the enumerated categories below.
 	Category() int
 
-	// Constant indicates whether or not the expression is mutable
-	Constant() bool
+	// Immutable indicates whether or not the expression is immutable
+	Immutable() bool
 }
 
 // Enumeration of value categories
@@ -29,16 +29,16 @@ const (
 
 // ExprBase is the base struct for all expressions
 type ExprBase struct {
-	dt       typing.DataType
-	cat      int
-	constant bool
+	dt    typing.DataType
+	cat   int
+	immut bool
 }
 
-func NewExprBase(dt typing.DataType, cat int, constant bool) ExprBase {
+func NewExprBase(dt typing.DataType, cat int, immut bool) ExprBase {
 	return ExprBase{
-		dt:       dt,
-		cat:      cat,
-		constant: constant,
+		dt:    dt,
+		cat:   cat,
+		immut: immut,
 	}
 }
 
@@ -50,8 +50,8 @@ func (eb *ExprBase) Category() int {
 	return eb.cat
 }
 
-func (eb *ExprBase) Constant() bool {
-	return eb.constant
+func (eb *ExprBase) Immutable() bool {
+	return eb.immut
 }
 
 func (eb *ExprBase) SetType(dt typing.DataType) {
@@ -69,7 +69,7 @@ func (hi *HIRIncomplete) Category() int {
 	return RValue
 }
 
-func (hi *HIRIncomplete) Constant() bool {
+func (hi *HIRIncomplete) Immutable() bool {
 	return false
 }
 
@@ -95,7 +95,7 @@ func (*stmtBase) Category() int {
 	return RValue
 }
 
-func (*stmtBase) Constant() bool {
+func (*stmtBase) Immutable() bool {
 	return false
 }
 
@@ -177,8 +177,8 @@ func (hi *HIRIdentifier) Category() int {
 	return LValue
 }
 
-func (hi *HIRIdentifier) Constant() bool {
-	return hi.Sym.Mutability == Immutable
+func (hi *HIRIdentifier) Immutable() bool {
+	return hi.Sym.Immutable
 }
 
 // HIRLiteral represents a literal

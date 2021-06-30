@@ -130,7 +130,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 				Type:       ft,
 				SrcPackage: w.SrcFile.Parent,
 				DefKind:    sem.DefKindFuncDef,
-				Mutability: sem.Immutable,
+				Immutable:  true,
 				Modifiers:  symbolModifiers,
 				Position:   operBranch.Position(),
 			}, annots),
@@ -196,7 +196,7 @@ func (w *Walker) walkFuncHeader(branch *syntax.ASTBranch, symbolModifiers int) (
 		Type:       ft,
 		Modifiers:  symbolModifiers,
 		SrcPackage: w.SrcFile.Parent,
-		Mutability: sem.Immutable,
+		Immutable:  true,
 	}
 	var argInits map[string]sem.HIRExpr
 

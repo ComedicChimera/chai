@@ -25,8 +25,8 @@ type Symbol struct {
 	// symbol.  The various bit field values are enumerated below.
 	Modifiers int
 
-	// Mutability indicates whether or not this symbol can and has been mutated
-	Mutability int
+	// Immutable indicates whether or not this symbol can be mutated
+	Immutable bool
 
 	// Position is the text position where this symbol is defined
 	Position *logging.TextPosition
@@ -49,13 +49,6 @@ const (
 const (
 	ModPublic   = 1
 	ModVolatile = 2
-)
-
-// Enumeration of mutabilities
-const (
-	Immutable    = iota // Cannot be mutated
-	NeverMutated        // Can be mutated, never has been
-	Mutable             // Can and has been mutated
 )
 
 // Annotation represents an annotation (name and value)
