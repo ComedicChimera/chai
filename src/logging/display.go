@@ -169,7 +169,7 @@ func (cm *CompileMessage) displayCodeSelection() {
 		if i == 0 {
 			fmt.Print(strings.Repeat(" ", cm.Position.StartCol-minWhitespace))
 
-			// if the selection is one line long then we don't print carrots to
+			// if the selection is one line long then we don't print carrets to
 			// the end of the line; if it isn't, then we print carrets to the
 			// end
 			if i == len(lines)-1 {

@@ -40,6 +40,11 @@ type ExprContext struct {
 	// facilitate parameter lookups, return type checkings, etc.
 	FuncContext *typing.FuncType
 
+	// FuncArgScope indicates whether or not the enclosing context scope is
+	// the scope in which the function parameters are defined -- support
+	// shadowing
+	FuncArgScope bool
+
 	// LoopContext indicates whether or not `break` and `continue` are usable
 	LoopContext bool
 
@@ -58,7 +63,7 @@ func (w *Walker) currExprContext() *ExprContext {
 // pushFuncContext pushes a function context to the expr context stack
 func (w *Walker) pushFuncContext(fn *typing.FuncType) {
 	// we don't propagate loop flags into sub-functions
-	w.exprContextStack = append(w.exprContextStack, &ExprContext{FuncContext: fn})
+	w.exprContextStack = append(w.exprContextStack, &ExprContext{FuncContext: fn, FuncArgScope: true})
 }
 
 // pushLoopContext pushes the context inside a loop

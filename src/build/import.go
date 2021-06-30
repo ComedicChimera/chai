@@ -34,7 +34,7 @@ func (c *Compiler) initDependencies(parentMod *mods.ChaiModule, pkg *sem.ChaiPac
 					// encounter, we exit, but also make sure to slice the
 					// imports off the AST so future components of the compiler
 					// won't have to worry with them
-					file.AST.Content = file.AST.Content[i+1:]
+					file.AST.Content = file.AST.Content[i:]
 					break
 				}
 			}

@@ -502,8 +502,8 @@ func (s *Scanner) readWord() *Token {
 	// the token builder (guaranteed by caller or previous loop cycle). we then
 	// use a look-ahead to check if the next token will be valid. If it is, we
 	// continue looping (and the logic outlined above holds). If not, we exit.
-	// Additionally, if at any point in the middle of the word, we encounter a
-	// digit or an underscore, we know we are not reading a keyword and set the
+	// Additionally, if at any point in the middle of the word, we encounter an
+	// underscore, we know we are not reading a keyword and set the
 	// corresponding flag.  This function is never called on words that begin
 	// with numbers so no need to check for first-character rules in it.
 	for {
@@ -511,9 +511,9 @@ func (s *Scanner) readWord() *Token {
 
 		if !more {
 			break
-		} else if IsDigit(c) || c == '_' {
+		} else if c == '_' {
 			keywordValid = false
-		} else if !IsLetter(c) {
+		} else if !IsLetter(c) && !IsDigit(c) {
 			break
 		}
 

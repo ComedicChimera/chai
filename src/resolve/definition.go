@@ -30,14 +30,15 @@ type Definition struct {
 // extractDefinition extracts `Definition` from a single definition node (ie.
 // the subnode of a `definition` or `pub_definition` node) and adds it to the
 // appropriate resolution list.
-func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBranch) bool {
+func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBranch, public bool) bool {
 	def := &Definition{
 		Annotations: make(map[string]*sem.Annotation),
 		SrcFile:     srcfile,
+		Public:      public,
 	}
 
 	// remove all the layers around the core definition itself
-	if branch.Name == "annotated_def" {
+	if branch.Name == "annotated_def" || branch.Name == "internal_annotated_def" {
 		if annots, ok := r.walkAnnotations(srcfile, branch.BranchAt(0)); ok {
 			branch = branch.BranchAt(1)
 			def.Annotations = annots
@@ -52,7 +53,7 @@ func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBr
 	}
 
 	if branch.Name == "def_core" {
-		branch = branch.BranchAt(1)
+		branch = branch.BranchAt(0)
 	}
 
 	def.AST = branch
@@ -101,7 +102,7 @@ func (r *Resolver) walkAnnotations(srcfile *sem.ChaiFile, branch *syntax.ASTBran
 						Name:    name,
 						NamePos: leaf.Position(),
 					}
-				} else if leaf.Kind == syntax.STRING {
+				} else if leaf.Kind == syntax.STRINGLIT {
 					annots[name].Values = append(annots[name].Values, leaf)
 				}
 			}

@@ -45,8 +45,8 @@ func (w *Walker) logUndefined(name string, pos *logging.TextPosition) {
 
 func (w *Walker) logMissingOpOverload(opName string, arity int, pos *logging.TextPosition) {
 	w.logError(
-		fmt.Sprintf("missing overload for `%s` operator that accepts `%d` operands", opName, arity),
-		logging.LMKName,
+		fmt.Sprintf("missing overload for `%s` operator that accepts %d operands", opName, arity),
+		logging.LMKOperApp,
 		pos,
 	)
 }

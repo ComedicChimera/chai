@@ -9,8 +9,29 @@ import (
 func (w *Walker) lookup(name string) (*sem.Symbol, bool) {
 	// iterate through local scopes backwards to facilitate shadowing
 	for i := len(w.exprContextStack) - 1; i > -1; i-- {
-		if sym, ok := w.exprContextStack[i].Scope[name]; ok {
+		item := w.exprContextStack[i]
+
+		if sym, ok := item.Scope[name]; ok {
 			return sym, true
+		}
+
+		// check for function parameters after local symbols so local symbols
+		// can effectively shadow those parameters; we also only want to check
+		// for parameters if we are in the enclosing scope of the function
+		// context -- this allows for shadowing to work correctly
+		if item.FuncArgScope {
+			for _, arg := range item.FuncContext.Args {
+				if arg.Name == name {
+					return &sem.Symbol{
+						Name:       name,
+						SrcPackage: w.SrcFile.Parent,
+						Type:       arg.Type,
+						DefKind:    sem.DefKindValueDef,
+						// we will never have errors involving this position :)
+						Position: nil,
+					}, true
+				}
+			}
 		}
 	}
 

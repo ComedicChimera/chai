@@ -24,7 +24,7 @@ func (w *Walker) walkTypeLabelCore(branch *syntax.ASTBranch) (typing.DataType, b
 		case "prim_type":
 			// the primitive kinds are enumerated identically to tokens -- we
 			// can just subtract the `syntax.U8` starting token
-			return typing.PrimType(branch.LeafAt(0).Kind - syntax.U8), true
+			return typing.PrimType(valueTypeBranch.LeafAt(0).Kind - syntax.U8), true
 		}
 	}
 

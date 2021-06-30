@@ -49,15 +49,18 @@ func (r *Resolver) ResolveAll() bool {
 			// extract all definitions (types, functions, etc.)
 			for _, item := range file.AST.Content {
 				branch := item.(*syntax.ASTBranch)
+				publicBlock := false
 
 				if branch.Name == "pub_block" {
-					branch = branch.BranchAt(3)
+					// this is at index 2 because whitespace gets pruned off
+					branch = branch.BranchAt(2)
+					publicBlock = true
 				}
 
 				for _, item := range branch.Content {
 					defNodeInner := item.(*syntax.ASTBranch).BranchAt(0)
 
-					if !r.extractDefinition(file, defNodeInner) {
+					if !r.extractDefinition(file, defNodeInner, publicBlock) {
 						return false
 					}
 				}

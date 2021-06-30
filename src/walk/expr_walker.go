@@ -37,16 +37,27 @@ func (w *Walker) WalkPredicates(root *sem.HIRRoot) {
 				}
 			}
 
+			bodyBranch := convertIncompleteToBranch(v.Body)
+
+			// skip external or intrinsic functions
+			if bodyBranch == nil {
+				continue
+			}
+
 			// validate the function body
-			if expr, ok := w.walkFuncBody(convertIncompleteToBranch(v.Body), ft); ok {
+			if expr, ok := w.walkFuncBody(bodyBranch, ft); ok {
 				v.Body = expr
 			}
 		case *sem.HIROperDef:
-			// validate the operator body
-			if expr, ok := w.walkFuncBody(
-				convertIncompleteToBranch(v.Body),
-				v.DefBase.Sym().Type.(*typing.FuncType)); ok {
+			bodyBranch := convertIncompleteToBranch(v.Body)
 
+			// skip intrinsic operators
+			if bodyBranch == nil {
+				continue
+			}
+
+			// validate the operator body
+			if expr, ok := w.walkFuncBody(bodyBranch, v.DefBase.Sym().Type.(*typing.FuncType)); ok {
 				v.Body = expr
 			}
 		}
