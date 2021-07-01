@@ -34,7 +34,10 @@ type TypeVariable struct {
 }
 
 func (tv *TypeVariable) equals(other DataType) bool {
-	logging.LogFatal("`equals` called directly on unevaluated type variable")
+	if otv, ok := other.(*TypeVariable); ok {
+		return tv.ID == otv.ID
+	}
+
 	return false
 }
 
@@ -49,14 +52,39 @@ func (tv *TypeVariable) Repr() string {
 		b := strings.Builder{}
 		b.WriteRune('{')
 
-		if sub.lowerBound != nil {
-			b.WriteString(sub.lowerBound.Repr() + " < ")
+		if len(sub.lowerBounds) == 1 {
+			b.WriteString(sub.lowerBounds[0].Repr() + " < ")
+		} else if len(sub.lowerBounds) > 1 {
+			b.WriteRune('(')
+			for i, bound := range sub.lowerBounds {
+				b.WriteString(bound.Repr())
+
+				if i < len(sub.lowerBounds)-1 {
+					b.WriteString(" | ")
+				}
+			}
+
+			b.WriteString(") < ")
 		}
 
 		b.WriteRune('_')
 
 		if sub.upperBound != nil {
 			b.WriteString(" < " + sub.upperBound.Repr())
+		}
+
+		b.WriteRune('}')
+		return b.String()
+	} else if overloadSet, ok := tv.s.overloads[tv.ID]; ok {
+		b := strings.Builder{}
+		b.WriteRune('{')
+
+		for i, overload := range overloadSet {
+			b.WriteString(overload.Repr())
+
+			if i < len(overloadSet)-1 {
+				b.WriteString(" | ")
+			}
 		}
 
 		b.WriteRune('}')
@@ -98,9 +126,18 @@ type TypeSubstitution struct {
 	// equivTo is the value that this substitution must be exactly equivalent to
 	equivTo DataType
 
-	// upperBound is the type that this substitution is a sub type of
+	// upperBound is the type that this substitution is a sub type of.  One
+	// bound here is sufficient because sub typing is transitive: a < b and b <
+	// c => a < c.  Therefore, any time we narrow the bounds on this field, we
+	// know that the previous upper bound is still valid
 	upperBound DataType
 
-	// lowerBound is the type that this substitution is a super type of
-	lowerBound DataType
+	// lowerBounds is the set of types that this substitution is a super type
+	// of. We need to store multiple bounds here since sub typing is only
+	// transitive upward.  For example, if we know a type is lower bounded by
+	// `rune` and we see that it is also lower bounded by `i32`, then it can't
+	// be either `rune` or `i32` but rather it must be a general type of both of
+	// them: eg. `Showable`.  We can only infer that general type, however,
+	// based on context: `Showable` is only one possible generalization
+	lowerBounds []DataType
 }

@@ -24,6 +24,11 @@ type Solver struct {
 	// variables.  This will contain the solver's final deductions for the types
 	// of type variables.
 	substitutions map[int]*TypeSubstitution
+
+	// overloads is the map of the set of values that each type variable can be
+	// unified to. Some type variables will have no overloads meaning they can
+	// be unified to any value
+	overloads map[int][]DataType
 }
 
 // NewSolver creates a new type solver in a given log context
@@ -31,6 +36,7 @@ func NewSolver(lctx *logging.LogContext) *Solver {
 	return &Solver{
 		lctx:          lctx,
 		substitutions: make(map[int]*TypeSubstitution),
+		overloads:     make(map[int][]DataType),
 	}
 }
 
@@ -66,6 +72,15 @@ func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) 
 		Kind: TCSubType,
 		Pos:  pos,
 	})
+}
+
+// AddOverload adds an overload to a given type variable
+func (s *Solver) AddOverload(tvar *TypeVariable, overloads ...DataType) {
+	if overloadSet, ok := s.overloads[tvar.ID]; ok {
+		s.overloads[tvar.ID] = append(overloadSet, overloads...)
+	} else {
+		s.overloads[tvar.ID] = overloads
+	}
 }
 
 // Solve runs the main solution algorithm on the given solution context. This
@@ -184,77 +199,36 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 // appropriate.  It returns a boolean indicating unification success.
 func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bool) bool {
 	// check if there are any previous substitutions applied to the type
-	// variable so the constraint can be checked against the current subsitution
+	// variable so the constraint can be checked against the current
+	// subsitution; if there are no substitutions, check to see if the type
+	// variable has any overloads. If it does, attempt to reduce the overloads
+	// accordingly.  We can check for overloads after substitutions since we
+	// know overloads will always be declared before substitutions (logically)
+	// but are less common in the general case.  We can to priotize
+	// substitutions but handle overloads first
 	if sub, ok := s.substitutions[tvarID]; ok {
 		// validate constraint and update substitutions as necessary
+		return s.updateSubstitution(sub, value, consKind, isLhs)
+	} else if overloadSet, ok := s.overloads[tvarID]; ok {
+		overloadSet = s.reduceOverloads(overloadSet, value, consKind, isLhs)
 
-		if consKind == TCEquiv {
-			// if the type variable already has an equivalency constraint, then
-			// the types must be equivalent; otherwise, the application is not
-			// valid
-			if sub.equivTo != nil {
-				// ordering doesn't matter for equivalency
-				return s.unify(sub.equivTo, value, TCEquiv)
-			}
-
-			// check that the value is in between the bounds of the type var
-			if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
-				return false
-			}
-
-			if sub.lowerBound != nil && !s.unify(value, sub.lowerBound, TCSubType) {
-				return false
-			}
-
-			// if we reach here, we know it is within bounds, so we replace the
-			// bounded substitution with an exact substitution
-			s.substitutions[tvarID].equivTo = value
-		} else if isLhs /* type var is super type of value */ {
-			// if the variable has a type that it is exactly equivalent to, then
-			// we check the passed value against that substituted value
-			if sub.equivTo != nil {
-				return s.unify(sub.equivTo, value, TCSubType)
-			}
-
-			// in order for this substitution to be possible, either the value
-			// has to be a sub type of the upper bound on the type substitution
-			// or there has to be no upper bound for the variable
-			if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
-				return false
-			}
-
-			// if we know that this substitution is valid, we only override if
-			// the lower bound of the type variable is a sub type of the passed
-			// in value -- narrowing the bounds
-			if sub.lowerBound == nil || s.unify(value, sub.lowerBound, TCSubType) {
-				s.substitutions[tvarID].lowerBound = value
-			}
-
-			// we know the substitution is legal whether or not we update it
-		} else /* type var is sub type of value */ {
-			// if the variable has a type that it is exactly equivalent to, then
-			// we check the passed value against that substituted value
-			if sub.equivTo != nil {
-				return s.unify(sub.equivTo, value, TCSubType)
-			}
-
-			// in order for this substitution to be possible, either the value
-			// has to be a super type of the lower bound of the type variable or
-			// there has to be no lower bound for the variable
-			if sub.lowerBound != nil && !s.unify(value, sub.lowerBound, TCSubType) {
-				return false
-			}
-
-			// if we know that this substitution is valid, we only override if
-			// the upper bound of the type variable is a super type of the
-			// passed in value -- narrowing the bounds
-			if sub.upperBound == nil || s.unify(sub.upperBound, value, TCSubType) {
-				s.substitutions[tvarID].upperBound = value
-				return true
-			}
-
-			// we know the substitution is legal whether or not we update it
+		switch len(overloadSet) {
+		case 0:
+			// constraint eliminated all possible overloads: fail
+			return false
+		case 1:
+			// only one overload remaining: it becomes the new equivalency
+			// substitution; we know that no substitutions have been applied to
+			// this type variable yet so we can just blindly override
+			s.substitutions[tvarID] = &TypeSubstitution{equivTo: overloadSet[0]}
+		default:
+			// pruned out some possible overloads.  we know that all remaining
+			// overloads will be valid by the known type constraints
+			s.overloads[tvarID] = overloadSet
 		}
+
+		// there were still valid overloads so unification succeeds
+		return true
 	} else /* if there was no substitution, add a new substitution */ {
 		if consKind == TCEquiv {
 			s.substitutions[tvarID] = &TypeSubstitution{
@@ -263,7 +237,7 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 		} else if isLhs {
 			// type var on lhs => super type
 			s.substitutions[tvarID] = &TypeSubstitution{
-				lowerBound: value,
+				lowerBounds: []DataType{value},
 			}
 		} else {
 			// type var on rhs => sub type
@@ -275,6 +249,116 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 
 	// any case that reaches here is a valid substitution
 	return true
+}
+
+// updateSubstitution checks a given value against a substitution according
+// to a given constraint and updates that substitution appropriately
+func (s *Solver) updateSubstitution(sub *TypeSubstitution, value DataType, consKind int, isLhs bool) bool {
+	if consKind == TCEquiv {
+		// if the type variable already has an equivalency constraint, then
+		// the types must be equivalent; otherwise, the application is not
+		// valid
+		if sub.equivTo != nil {
+			// ordering doesn't matter for equivalency
+			return s.unify(sub.equivTo, value, TCEquiv)
+		}
+
+		// check that the value is in between the bounds of the type var
+		if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
+			return false
+		}
+
+		if len(sub.lowerBounds) != 0 {
+			for _, bound := range sub.lowerBounds {
+				if !s.unify(value, bound, TCSubType) {
+					return false
+				}
+			}
+		}
+
+		// if we reach here, we know it is within bounds, so we replace the
+		// bounded substitution with an exact substitution
+		sub.equivTo = value
+	} else if isLhs /* type var is super type of value */ {
+		// if the variable has a type that it is exactly equivalent to, then
+		// we check the passed value against that substituted value
+		if sub.equivTo != nil {
+			return s.unify(sub.equivTo, value, TCSubType)
+		}
+
+		// in order for this substitution to be possible, either the value
+		// has to be a sub type of the upper bound on the type substitution
+		// or there has to be no upper bound for the variable
+		if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
+			return false
+		}
+
+		// if there is no current lower bound, then this type becomes the new
+		// lower bound
+		if len(sub.lowerBounds) == 0 {
+			sub.lowerBounds = []DataType{value}
+		} else {
+			// otherwise, we attempt to generalize the lower bound including
+			// the new type: if such a generalization is possible
+			for _, bound := range sub.lowerBounds {
+				if Equivalent(value, bound) {
+					return true
+				}
+			}
+
+			sub.lowerBounds = append(sub.lowerBounds, value)
+		}
+
+		// we know the substitution is legal if we reach here
+	} else /* type var is sub type of value */ {
+		// if the variable has a type that it is exactly equivalent to, then
+		// we check the passed value against that substituted value
+		if sub.equivTo != nil {
+			return s.unify(sub.equivTo, value, TCSubType)
+		}
+
+		// in order for this substitution to be possible, either the value
+		// has to be a super type of the lower bounds of the type variable or
+		// there has to be no lower bound for the variable
+		if len(sub.lowerBounds) > 0 {
+			// it is valid to unify here since the upper bound may inform the
+			// lower bounds: this is not a repeat test
+			for _, bound := range sub.lowerBounds {
+				if !s.unify(value, bound, TCSubType) {
+					return false
+				}
+			}
+		}
+
+		// if we know that this substitution is valid, we only override if
+		// the upper bound of the type variable is a super type of the
+		// passed in value -- narrowing the bounds
+		if sub.upperBound == nil || s.unify(sub.upperBound, value, TCSubType) {
+			sub.upperBound = value
+			return true
+		}
+
+		// we know the substitution is legal whether or not we update it
+	}
+
+	return true
+}
+
+// reduceOverloads checks the set of overloads for a given type variable against
+// a constraint.  It reduces the set of overloads, eliminating all overloads
+// that don't satisfy that constraint.
+func (s *Solver) reduceOverloads(overloadSet []DataType, value DataType, consKind int, isLhs bool) []DataType {
+	var newOverloads []DataType
+
+	for _, overload := range overloadSet {
+		if isLhs && s.unify(overload, value, consKind) {
+			newOverloads = append(newOverloads, overload)
+		} else if !isLhs && s.unify(value, overload, consKind) {
+			newOverloads = append(newOverloads, overload)
+		}
+	}
+
+	return newOverloads
 }
 
 // deduce determines the final type for a type variable.  It will also infer
@@ -293,31 +377,29 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 		}
 
 		if sub.upperBound != nil {
-			// if there is both an upper bound and a lower bound, then we want
-			// to deduce the lower bound if it is a subtype of the upper bound;
-			// if it isn't, then no deduction is possible without a default type
-			if sub.lowerBound != nil {
-				if SubTypeOf(sub.lowerBound, sub.upperBound) {
-					if dt, ok := s.simplify(sub.lowerBound); ok {
-						tv.EvalType = dt
-						return true
-					}
-				}
-			} else if dt, ok := s.simplify(sub.upperBound); ok {
+			// if there is an upper bound, then we know that it is correct by
+			// the lower bounds, and therefore we can always safely infer it.
+			// It is possible for the lower bounds to also contain a valid
+			// substitution but that is much less consistent and their
+			// generalization is less accurate
+			if dt, ok := s.simplify(sub.upperBound); ok {
 				// if there is no lower bound, then we can just evaluate to the
 				// simplified upper bound -- this is all the information we have
 				// to make a deduction and have to work with what we know
 				tv.EvalType = dt
 				return true
 			}
-		} else if sub.lowerBound != nil {
-			// if there is no upper bound, then a type variable can evaluate to
-			// its lower bound without any additional checks
-			if _, ok := sub.lowerBound.(*ConstraintSet); !ok {
-				if dt, ok := s.simplify(sub.lowerBound); ok {
-					tv.EvalType = dt
-					return true
-				}
+		}
+
+		// if we reach here, either the upper bound wasn't useful to perform
+		// deductions or it doesn't exist.  Therefore, we have to use the lower
+		// bound.  If there is not exactly one lower bound, then we know the
+		// lower bounds were not generalizable: we cannot use them to get the
+		// final deduction
+		if len(sub.lowerBounds) != 1 {
+			if dt, ok := s.simplify(sub.lowerBounds[0]); ok {
+				tv.EvalType = dt
+				return true
 			}
 		}
 	}
@@ -325,7 +407,7 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 	// if we reach here, the substitution was not usable to determine a final
 	// value for the type variable.  We can evaluate to the default type if it
 	// exists (assumes that the default type is valid by all the constraints
-	// applied to the type)
+	// applied to the type -- is this assumption correct?)
 	if tv.DefaultType != nil {
 		tv.EvalType = tv.DefaultType
 		return true
@@ -379,8 +461,6 @@ func (s *Solver) simplify(dt DataType) (DataType, bool) {
 		} else {
 			return nil, false
 		}
-	case *ConstraintSet:
-		return nil, false
 	}
 
 	return dt, true
@@ -393,7 +473,7 @@ func (s *Solver) logTypeError(lhs, rhs DataType, consKind int, pos *logging.Text
 	case TCEquiv:
 		msg = fmt.Sprintf("type mismatch: `%s` v. `%s`", lhs.Repr(), rhs.Repr())
 	case TCSubType:
-		msg = fmt.Sprintf("`%s` must be a subtype of `%s`", rhs.Repr(), lhs.Repr())
+		msg = fmt.Sprintf("`%s` is not a subtype of `%s`", rhs.Repr(), lhs.Repr())
 	}
 
 	logging.LogCompileError(

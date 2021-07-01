@@ -483,35 +483,18 @@ func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool
 func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exprPos *logging.TextPosition, opsPos []*logging.TextPosition) sem.HIRExpr {
 	// generalize the operator into a generic function; start by generating
 	// constraints representing the most general form of the operator
-	qCons := make([]typing.DataType, len(oper.Overloads[0].Quantifiers))
+	qCons := make([][]typing.DataType, len(oper.Overloads[0].Quantifiers))
 	for _, overload := range oper.Overloads {
 		// we can blindly merge quantifiers here since we know the merges are
 		// valid (by the fact that the overloads are defined at all)
 		for i, q := range overload.Quantifiers {
 			if qCons[i] == nil {
-				// copy constraint sets so append doesn't modify them
-				qCons[i] = q.QType.Copy()
+				// copy the quantifier so we don't mutate it
+				qCons[i] = make([]typing.DataType, len(q))
+				copy(qCons[i], q)
 			} else {
-				// merge constraint sets as necessary assuming the preexisting
-				// constraint set can be freely modified
-				qConsSet, okOld := qCons[i].(*typing.ConstraintSet)
-				newQConsSet, okNew := q.QType.(*typing.ConstraintSet)
-
-				if okOld && okNew {
-					qConsSet.Set = append(qConsSet.Set, newQConsSet.Set...)
-				} else if okOld {
-					qConsSet.Set = append(qConsSet.Set, q.QType)
-				} else if okNew {
-					qCons[i] = &typing.ConstraintSet{
-						SrcPackageID: w.SrcFile.Parent.ID,
-						Set:          append([]typing.DataType{qCons[i]}, newQConsSet.Set...),
-					}
-				} else {
-					qCons[i] = &typing.ConstraintSet{
-						SrcPackageID: w.SrcFile.Parent.ID,
-						Set:          []typing.DataType{qCons[i], q.QType},
-					}
-				}
+				// merge the quantifiers into one big constraint
+				qCons[i] = append(qCons[i], q...)
 			}
 		}
 	}
@@ -527,9 +510,7 @@ func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exp
 			)
 		})
 
-		// this constraint should never be errored upon since it comes first out
-		// of all constraints on this type variable
-		w.solver.AddSubConstraint(q, tvar, nil)
+		w.solver.AddOverload(tvar, q...)
 		tvars[i] = tvar
 	}
 

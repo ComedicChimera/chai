@@ -70,30 +70,31 @@ func (w *Walker) getOverloadFromSignature(signature *typing.FuncType) (*sem.Oper
 outerloop:
 	for i, arg := range signature.Args {
 		for j, q := range overload.Quantifiers {
-			if typing.Equivalent(q.QType, arg.Type) {
-				argsForm[i] = j
-				continue outerloop
+			for _, qType := range q {
+				if typing.Equivalent(qType, arg.Type) {
+					argsForm[i] = j
+					continue outerloop
+				}
 			}
+
 		}
 
 		argsForm[i] = len(overload.Quantifiers)
 
-		overload.Quantifiers = append(overload.Quantifiers, &sem.OperatorQuantifier{
-			QType: arg.Type,
-			// TODO: handle type parameters
-		})
+		// TODO: handle type parameters
+		overload.Quantifiers = append(overload.Quantifiers, []typing.DataType{arg.Type})
 	}
 
 	for j, q := range overload.Quantifiers {
-		if typing.Equivalent(q.QType, signature.ReturnType) {
-			return overload, argsForm, j
+		for _, qType := range q {
+			if typing.Equivalent(qType, signature.ReturnType) {
+				return overload, argsForm, j
+			}
 		}
 	}
 
-	overload.Quantifiers = append(overload.Quantifiers, &sem.OperatorQuantifier{
-		QType: signature.ReturnType,
-		// TODO: handle type parameters
-	})
+	// TODO: handle type parameters
+	overload.Quantifiers = append(overload.Quantifiers, []typing.DataType{signature.ReturnType})
 	return overload, argsForm, len(overload.Quantifiers) - 1
 }
 

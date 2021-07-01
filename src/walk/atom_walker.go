@@ -316,7 +316,7 @@ func (w *Walker) walkAtom(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIREx
 		case syntax.FLOATLIT:
 			// floatlits will never be undeducible because they have a default value
 			ftv := w.solver.CreateTypeVar(typing.PrimType(typing.PrimKindF32), func() {})
-			w.solver.AddSubConstraint(w.lookupNamedBuiltin("Floating"), ftv, branch.Position())
+			w.solver.AddOverload(ftv, w.getBuiltinOverloads("Floating")...)
 			return makeLiteral(ftv, v.Value), true
 		case syntax.INTLIT:
 			return w.makeIntLiteral(v.Value, branch.Position()), true
@@ -376,15 +376,11 @@ func (w *Walker) makeIntLiteral(value string, pos *logging.TextPosition) *sem.HI
 		value := value[:len(value)-1]
 
 		itv := w.solver.CreateTypeVar(typing.PrimType(typing.PrimKindI64), func() {})
-
-		longCons := &typing.ConstraintSet{
-			SrcPackageID: w.SrcFile.Parent.ID,
-			Set: []typing.DataType{
-				typing.PrimType(typing.PrimKindI64),
-				typing.PrimType(typing.PrimKindU64),
-			},
-		}
-		w.solver.AddSubConstraint(longCons, itv, pos)
+		w.solver.AddOverload(
+			itv,
+			typing.PrimType(typing.PrimKindI64),
+			typing.PrimType(typing.PrimKindU64),
+		)
 
 		return makeLiteral(itv, value)
 	} else if strings.HasSuffix(value, "u") {
@@ -392,22 +388,18 @@ func (w *Walker) makeIntLiteral(value string, pos *logging.TextPosition) *sem.HI
 		value = value[:len(value)-1]
 
 		itv := w.solver.CreateTypeVar(w.lookupNamedBuiltin("uint"), func() {})
-
-		unsCons := &typing.ConstraintSet{
-			SrcPackageID: w.SrcFile.Parent.ID,
-			Set: []typing.DataType{
-				typing.PrimType(typing.PrimKindU8),
-				typing.PrimType(typing.PrimKindU16),
-				typing.PrimType(typing.PrimKindU32),
-				typing.PrimType(typing.PrimKindU64),
-			},
-		}
-		w.solver.AddSubConstraint(unsCons, itv, pos)
+		w.solver.AddOverload(
+			itv,
+			typing.PrimType(typing.PrimKindU8),
+			typing.PrimType(typing.PrimKindU16),
+			typing.PrimType(typing.PrimKindU32),
+			typing.PrimType(typing.PrimKindU64),
+		)
 
 		return makeLiteral(itv, value)
 	} else {
 		itv := w.solver.CreateTypeVar(w.lookupNamedBuiltin("int"), func() {})
-		w.solver.AddSubConstraint(w.lookupNamedBuiltin("Numeric"), itv, pos)
+		w.solver.AddOverload(itv, w.getBuiltinOverloads("Numeric")...)
 		return makeLiteral(itv, value)
 	}
 }

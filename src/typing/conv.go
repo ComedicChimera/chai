@@ -24,23 +24,10 @@ func SubTypeOf(src, dest DataType) bool {
 	src = InnerType(src)
 	dest = InnerType(dest)
 
-	// check for constraints as the lower type
-	if srcCons, ok := src.(*ConstraintSet); ok {
-		for _, dt := range srcCons.Set {
-			if !SubTypeOf(dt, dest) {
-				return false
-			}
-		}
-
-		return true
-	}
-
 	// otherwise, handle upper bounds
 	switch v := dest.(type) {
 	case PrimType:
 		return v.coerce(src)
-	case *ConstraintSet:
-		return v.contains(src)
 	default:
 		// no known coercion
 		return false

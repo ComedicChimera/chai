@@ -1,6 +1,7 @@
 package walk
 
 import (
+	"chai/logging"
 	"chai/syntax"
 	"chai/typing"
 )
@@ -33,54 +34,54 @@ func (w *Walker) walkTypeLabelCore(branch *syntax.ASTBranch) (typing.DataType, b
 
 // -----------------------------------------------------------------------------
 
+// getBuiltinOverloads gets all the overloads based on a builtin name (eg.
+// `Numeric`)
+func (w *Walker) getBuiltinOverloads(name string) []typing.DataType {
+	switch name {
+	case "Integral":
+		return []typing.DataType{
+			typing.PrimType(typing.PrimKindI8),
+			typing.PrimType(typing.PrimKindI16),
+			typing.PrimType(typing.PrimKindI32),
+			typing.PrimType(typing.PrimKindI64),
+			typing.PrimType(typing.PrimKindU8),
+			typing.PrimType(typing.PrimKindU16),
+			typing.PrimType(typing.PrimKindU32),
+			typing.PrimType(typing.PrimKindU64),
+		}
+	case "Floating":
+		return []typing.DataType{
+			typing.PrimType(typing.PrimKindF32),
+			typing.PrimType(typing.PrimKindF64),
+		}
+	case "Numeric":
+		return []typing.DataType{
+			typing.PrimType(typing.PrimKindI8),
+			typing.PrimType(typing.PrimKindI16),
+			typing.PrimType(typing.PrimKindI32),
+			typing.PrimType(typing.PrimKindI64),
+			typing.PrimType(typing.PrimKindU8),
+			typing.PrimType(typing.PrimKindU16),
+			typing.PrimType(typing.PrimKindU32),
+			typing.PrimType(typing.PrimKindU64),
+			typing.PrimType(typing.PrimKindF32),
+			typing.PrimType(typing.PrimKindF64),
+		}
+	}
+
+	logging.LogFatal("unknown builtin overload set: " + name)
+	return nil
+}
+
 func (w *Walker) lookupNamedBuiltin(name string) typing.DataType {
 	// TODO: replace with actual look up logic
 	switch name {
-	case "Integral":
-		return &typing.ConstraintSet{
-			Name:         "Integral",
-			SrcPackageID: w.SrcFile.Parent.ID,
-			Set: []typing.DataType{
-				typing.PrimType(typing.PrimKindI8),
-				typing.PrimType(typing.PrimKindI16),
-				typing.PrimType(typing.PrimKindI32),
-				typing.PrimType(typing.PrimKindI64),
-				typing.PrimType(typing.PrimKindU8),
-				typing.PrimType(typing.PrimKindU16),
-				typing.PrimType(typing.PrimKindU32),
-				typing.PrimType(typing.PrimKindU64),
-			},
-		}
-	case "Floating":
-		return &typing.ConstraintSet{
-			Name:         "Floating",
-			SrcPackageID: w.SrcFile.Parent.ID,
-			Set: []typing.DataType{
-				typing.PrimType(typing.PrimKindF32),
-				typing.PrimType(typing.PrimKindF64),
-			},
-		}
-	case "Numeric":
-		return &typing.ConstraintSet{
-			Name:         "Integral",
-			SrcPackageID: w.SrcFile.Parent.ID,
-			Set: []typing.DataType{
-				typing.PrimType(typing.PrimKindI8),
-				typing.PrimType(typing.PrimKindI16),
-				typing.PrimType(typing.PrimKindI32),
-				typing.PrimType(typing.PrimKindI64),
-				typing.PrimType(typing.PrimKindU8),
-				typing.PrimType(typing.PrimKindU16),
-				typing.PrimType(typing.PrimKindU32),
-				typing.PrimType(typing.PrimKindU64),
-				typing.PrimType(typing.PrimKindF32),
-				typing.PrimType(typing.PrimKindF64),
-			},
-		}
 	case "int":
 		return typing.PrimType(typing.PrimKindI32)
 	case "uint":
 		return typing.PrimType(typing.PrimKindU32)
+	case "byte":
+		return typing.PrimType(typing.PrimKindU8)
 	}
 
 	return nil
