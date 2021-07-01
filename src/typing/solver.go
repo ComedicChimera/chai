@@ -198,11 +198,11 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 			}
 
 			// check that the value is in between the bounds of the type var
-			if sub.subTypeOf != nil && !s.unify(sub.subTypeOf, value, TCSubType) {
+			if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
 				return false
 			}
 
-			if sub.superTypeOf != nil && !s.unify(value, sub.superTypeOf, TCSubType) {
+			if sub.lowerBound != nil && !s.unify(value, sub.lowerBound, TCSubType) {
 				return false
 			}
 
@@ -217,18 +217,17 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 			}
 
 			// in order for this substitution to be possible, either the value
-			// has to be a sub type of the super type of the type variable or
-			// there has to be no super type for the variable
-			if sub.superTypeOf != nil && !s.unify(sub.superTypeOf, value, TCSubType) {
+			// has to be a sub type of the upper bound on the type substitution
+			// or there has to be no upper bound for the variable
+			if sub.upperBound != nil && !s.unify(sub.upperBound, value, TCSubType) {
 				return false
 			}
 
 			// if we know that this substitution is valid, we only override if
-			// the sub type of the type variable is a sub type of the passed in
-			// value -- narrowing the bounds
-			if sub.subTypeOf == nil || s.unify(value, sub.subTypeOf, TCSubType) {
-				s.substitutions[tvarID].subTypeOf = value
-				return true
+			// the lower bound of the type variable is a sub type of the passed
+			// in value -- narrowing the bounds
+			if sub.lowerBound == nil || s.unify(value, sub.lowerBound, TCSubType) {
+				s.substitutions[tvarID].lowerBound = value
 			}
 
 			// we know the substitution is legal whether or not we update it
@@ -240,17 +239,18 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 			}
 
 			// in order for this substitution to be possible, either the value
-			// has to be a super type of the sub type of the type substitution
-			// or there has to be no sub type for the variable
-			if sub.subTypeOf != nil && !s.unify(value, sub.subTypeOf, TCSubType) {
+			// has to be a super type of the lower bound of the type variable or
+			// there has to be no lower bound for the variable
+			if sub.lowerBound != nil && !s.unify(value, sub.lowerBound, TCSubType) {
 				return false
 			}
 
 			// if we know that this substitution is valid, we only override if
-			// the super type of the type variable is a super type of the passed
-			// in value -- narrowing the bounds
-			if sub.superTypeOf == nil || s.unify(sub.superTypeOf, value, TCSubType) {
-				s.substitutions[tvarID].superTypeOf = value
+			// the upper bound of the type variable is a super type of the
+			// passed in value -- narrowing the bounds
+			if sub.upperBound == nil || s.unify(sub.upperBound, value, TCSubType) {
+				s.substitutions[tvarID].upperBound = value
+				return true
 			}
 
 			// we know the substitution is legal whether or not we update it
@@ -263,12 +263,12 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 		} else if isLhs {
 			// type var on lhs => super type
 			s.substitutions[tvarID] = &TypeSubstitution{
-				superTypeOf: value,
+				lowerBound: value,
 			}
 		} else {
 			// type var on rhs => sub type
 			s.substitutions[tvarID] = &TypeSubstitution{
-				subTypeOf: value,
+				upperBound: value,
 			}
 		}
 	}
@@ -292,29 +292,29 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 			return false
 		}
 
-		if sub.subTypeOf != nil {
+		if sub.upperBound != nil {
 			// if there is both an upper bound and a lower bound, then we want
 			// to deduce the lower bound if it is a subtype of the upper bound;
 			// if it isn't, then no deduction is possible without a default type
-			if sub.superTypeOf != nil {
-				if SubTypeOf(sub.superTypeOf, sub.subTypeOf) {
-					if dt, ok := s.simplify(sub.superTypeOf); ok {
+			if sub.lowerBound != nil {
+				if SubTypeOf(sub.lowerBound, sub.upperBound) {
+					if dt, ok := s.simplify(sub.lowerBound); ok {
 						tv.EvalType = dt
 						return true
 					}
 				}
-			} else if dt, ok := s.simplify(sub.subTypeOf); ok {
+			} else if dt, ok := s.simplify(sub.upperBound); ok {
 				// if there is no lower bound, then we can just evaluate to the
 				// simplified upper bound -- this is all the information we have
 				// to make a deduction and have to work with what we know
 				tv.EvalType = dt
 				return true
 			}
-		} else if sub.superTypeOf != nil {
+		} else if sub.lowerBound != nil {
 			// if there is no upper bound, then a type variable can evaluate to
 			// its lower bound without any additional checks
-			if _, ok := sub.superTypeOf.(*ConstraintSet); !ok {
-				if dt, ok := s.simplify(sub.superTypeOf); ok {
+			if _, ok := sub.lowerBound.(*ConstraintSet); !ok {
+				if dt, ok := s.simplify(sub.lowerBound); ok {
 					tv.EvalType = dt
 					return true
 				}

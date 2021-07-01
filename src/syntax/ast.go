@@ -20,7 +20,14 @@ func (a *ASTLeaf) Position() *logging.TextPosition {
 
 // TextPositionOfToken takes in a token and returns its text position
 func TextPositionOfToken(tok *Token) *logging.TextPosition {
-	return &logging.TextPosition{StartLn: tok.Line, StartCol: tok.Col - len(tok.Value), EndLn: tok.Line, EndCol: tok.Col}
+	// strings and runes actually need an adjusted text position since they skip
+	// their first token (the opening quote)
+	startOffset := 0
+	if tok.Kind == RUNELIT || tok.Kind == STRINGLIT {
+		startOffset = 2
+	}
+
+	return &logging.TextPosition{StartLn: tok.Line, StartCol: tok.Col - len(tok.Value) - startOffset, EndLn: tok.Line, EndCol: tok.Col}
 }
 
 // ASTBranch is a named set of leaves and branches

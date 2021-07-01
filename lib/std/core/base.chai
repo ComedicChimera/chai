@@ -7,6 +7,9 @@ pub of
 
     @intrinsic_op("add")
     oper + (a, b: rune) rune
+
+    @intrinsic_op("smul")
+    oper * (a, b: i32) i32
     
     @intrinsic_op("sdiv")
     oper // (a, b: i32) i32
@@ -20,8 +23,9 @@ pub of
     @intrinsic
     def print_byte(b: u8) 
     
-    def print_digit(d: i32) = 
-        print_byte('0' + (d as u8))
+    def print_digit(d: i32) =
+        # TODO: add in type casts
+        print_byte('0' + d)
     
     def print_int(i: i32) = do
         let x = i

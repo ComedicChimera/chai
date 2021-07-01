@@ -473,6 +473,8 @@ func (s *Scanner) skipNext() bool {
 	if s.curr == '\n' {
 		s.line++
 		s.col = 0
+	} else {
+		s.col++
 	}
 
 	s.curr = r
@@ -784,13 +786,13 @@ func (s *Scanner) readStdStringLiteral() (*Token, bool) {
 			expectingEscape = true
 			s.readNext()
 		case '"':
-			// we don't want to read the closing quote, so we make
-			// our string token, skip it (so the column is right)
-			// and we return.  We know that this quote is valid since
-			// escape sequences are handled above this switch
-			tok := s.getToken(STRINGLIT)
+			// we don't want to read the closing quote, so we skip it (so that
+			// the end column of the string is accurate to to where it actually
+			// ends), make our string token, and return.  We know that this
+			// quote is valid since escape sequences are handled above this
+			// switch
 			s.skipNext()
-			return tok, false
+			return s.getToken(STRINGLIT), false
 		case '\n':
 			// catch newlines in strings
 			return nil, true
@@ -826,10 +828,9 @@ func (s *Scanner) readRuneLiteral() (*Token, bool) {
 	}
 
 	// assume it is properly formed and skip the closing single quote; skip
-	// after creating the token so the column is correct
-	tok := s.getToken(RUNELIT)
+	// before creating the token so the column is correct
 	s.skipNext()
-	return tok, false
+	return s.getToken(RUNELIT), false
 }
 
 // read and interpret an escape sequence inside a string or rune literal
@@ -878,11 +879,10 @@ func (s *Scanner) readRawStringLiteral() (*Token, bool) {
 		if next != '`' || escapeNext {
 			s.readNext()
 		} else {
-			// skip closing backtick; creating stringlit token before skipping
-			// to generate correct column position
-			tok := s.getToken(STRINGLIT)
+			// skip closing backtick; creating stringlit token after skipping to
+			// generate correct column position
 			s.skipNext()
-			return tok, false
+			return s.getToken(STRINGLIT), false
 		}
 
 		// check for escapes for backticks; update after we have handled the

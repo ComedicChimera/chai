@@ -31,6 +31,7 @@ func (op *Operator) AddOverload(newOverload *OperatorOverload) bool {
 		}
 	}
 
+	op.Overloads = append(op.Overloads, newOverload)
 	return true
 }
 

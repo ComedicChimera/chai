@@ -49,14 +49,14 @@ func (tv *TypeVariable) Repr() string {
 		b := strings.Builder{}
 		b.WriteRune('{')
 
-		if sub.superTypeOf != nil {
-			b.WriteString(sub.superTypeOf.Repr() + " < ")
+		if sub.lowerBound != nil {
+			b.WriteString(sub.lowerBound.Repr() + " < ")
 		}
 
 		b.WriteRune('_')
 
-		if sub.subTypeOf != nil {
-			b.WriteString(" < " + sub.subTypeOf.Repr())
+		if sub.upperBound != nil {
+			b.WriteString(" < " + sub.upperBound.Repr())
 		}
 
 		b.WriteRune('}')
@@ -98,9 +98,9 @@ type TypeSubstitution struct {
 	// equivTo is the value that this substitution must be exactly equivalent to
 	equivTo DataType
 
-	// subTypeOf is the type that this substitution is a sub type of (upper bound)
-	subTypeOf DataType
+	// upperBound is the type that this substitution is a sub type of
+	upperBound DataType
 
-	// superTypeOf is the type that this substitution is a super type of (lower bound)
-	superTypeOf DataType
+	// lowerBound is the type that this substitution is a super type of
+	lowerBound DataType
 }

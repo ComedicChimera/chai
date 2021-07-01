@@ -257,18 +257,27 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 // walkMutExpr walks a `mut_expr` node
 func (w *Walker) walkMutExpr(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	var mutValue sem.HIRExpr
+	var rootNode syntax.ASTNode
 
-	for _, item := range branch.Content {
+	for i, item := range branch.Content {
 		switch v := item.(type) {
 		case *syntax.ASTBranch:
 			if v.Name == "expr" {
 				if expr, ok := w.walkExpr(v, true); ok {
 					mutValue = expr
+					rootNode = v
 				} else {
 					return nil, false
 				}
 			} else /* trailer */ {
-				// TODO
+				switch v.LeafAt(0).Kind {
+				case syntax.LPAREN:
+					if call, ok := w.walkFuncCall(mutValue, syntax.TextPositionOfSpan(rootNode, branch.Content[i-1]), v.BranchAt(1)); ok {
+						mutValue = call
+					} else {
+						return nil, false
+					}
+				}
 			}
 		case *syntax.ASTLeaf:
 			switch v.Kind {
@@ -278,6 +287,7 @@ func (w *Walker) walkMutExpr(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 						Sym:   sym,
 						IdPos: v.Position(),
 					}
+					rootNode = v
 				} else {
 					w.logUndefined(sym.Name, sym.Position)
 					return nil, false

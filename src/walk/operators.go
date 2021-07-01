@@ -155,6 +155,22 @@ func getOperatorForm(opCode int, argCount int) ([]int, int, error) {
 
 // lookupOperator looks up an operator based on the opcode and arity
 func (w *Walker) lookupOperator(opCode int, arity int) (*sem.Operator, bool) {
-	// TODO
+	// we can look up operators in any order since they can not collide
+	if opSet, ok := w.SrcFile.ImportedOperators[opCode]; ok {
+		for _, op := range opSet {
+			if len(op.ArgsForm) == arity {
+				return op, true
+			}
+		}
+	}
+
+	if opSet, ok := w.SrcFile.Parent.GlobalOperators[opCode]; ok {
+		for _, op := range opSet {
+			if len(op.ArgsForm) == arity {
+				return op, true
+			}
+		}
+	}
+
 	return nil, false
 }
