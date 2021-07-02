@@ -44,7 +44,7 @@ func (tv *TypeVariable) equals(other DataType) bool {
 func (tv *TypeVariable) Repr() string {
 	if tv.EvalType != nil {
 		return tv.EvalType.Repr()
-	} else if sub, ok := tv.s.substitutions[tv.ID]; ok {
+	} else if sub, ok := tv.s.getSubstitution(tv.ID); ok {
 		if sub.equivTo != nil {
 			return sub.equivTo.Repr()
 		}
@@ -75,7 +75,7 @@ func (tv *TypeVariable) Repr() string {
 
 		b.WriteRune('}')
 		return b.String()
-	} else if overloadSet, ok := tv.s.overloads[tv.ID]; ok {
+	} else if overloadSet, ok := tv.s.getOverloadSet(tv.ID); ok {
 		b := strings.Builder{}
 		b.WriteRune('{')
 

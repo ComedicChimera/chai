@@ -20,24 +20,18 @@ type Solver struct {
 	// context.  These constraints are in no particular order.
 	constraints []*TypeConstraint
 
-	// substitutions is the map of global type substitutions applied to type
-	// variables.  This will contain the solver's final deductions for the types
-	// of type variables.
-	substitutions map[int]*TypeSubstitution
-
-	// overloads is the map of the set of values that each type variable can be
-	// unified to. Some type variables will have no overloads meaning they can
-	// be unified to any value
-	overloads map[int][]DataType
+	// stateStack is the stack of solution states for the solver.  This stack is
+	// pushed to and popped from the facilitate unification testing efficiently
+	stateStack []*SolutionState
 }
 
 // NewSolver creates a new type solver in a given log context
 func NewSolver(lctx *logging.LogContext) *Solver {
-	return &Solver{
-		lctx:          lctx,
-		substitutions: make(map[int]*TypeSubstitution),
-		overloads:     make(map[int][]DataType),
+	s := &Solver{
+		lctx: lctx,
 	}
+	s.pushState()
+	return s
 }
 
 // CreateTypeVar creates a new type variable with a given default type and a
@@ -76,10 +70,12 @@ func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) 
 
 // AddOverload adds an overload to a given type variable
 func (s *Solver) AddOverload(tvar *TypeVariable, overloads ...DataType) {
-	if overloadSet, ok := s.overloads[tvar.ID]; ok {
-		s.overloads[tvar.ID] = append(overloadSet, overloads...)
+	// we know this function will be called before `Solve` so state[0] is always
+	// the top state on the stack (initial state)
+	if overloadSet, ok := s.stateStack[0].overloads[tvar.ID]; ok {
+		s.stateStack[0].overloads[tvar.ID] = append(overloadSet, overloads...)
 	} else {
-		s.overloads[tvar.ID] = overloads
+		s.stateStack[0].overloads[tvar.ID] = overloads
 	}
 }
 
@@ -116,8 +112,78 @@ func (s *Solver) Solve() bool {
 	// clear the solution context for the next solve and return
 	s.vars = nil
 	s.constraints = nil
-	s.substitutions = make(map[int]*TypeSubstitution)
+	s.discardState()
+	s.pushState()
 	return allEvaluated
+}
+
+// -----------------------------------------------------------------------------
+
+// SolutionState stores the current state variables used for type deduction
+type SolutionState struct {
+	// substitutions is the map of type substitutions applied to type variables
+	substitutions map[int]*TypeSubstitution
+
+	// overloads is the map of the set of values that each type variable can be
+	// unified to.  Some type variables will have no overloads meaning they can
+	// be unified to any value
+	overloads map[int][]DataType
+}
+
+// pushState pushes a new solution state onto the state stack
+func (s *Solver) pushState() {
+	s.stateStack = append(s.stateStack, &SolutionState{
+		substitutions: make(map[int]*TypeSubstitution),
+		overloads:     make(map[int][]DataType),
+	})
+}
+
+// discardState pops the top state off the state stack and discards it
+func (s *Solver) discardState() {
+	s.stateStack = s.stateStack[:len(s.stateStack)-1]
+}
+
+// mergeState pops the top state off the state stack and merges it into the
+// state before it -- assuming correctness between the states
+func (s *Solver) mergeState() {
+	topState := s.topState()
+	s.stateStack = s.stateStack[:len(s.stateStack)-1]
+
+	for tvarID, sub := range topState.substitutions {
+		s.topState().substitutions[tvarID] = sub
+	}
+
+	for tvarID, overloadSet := range topState.overloads {
+		s.topState().overloads[tvarID] = overloadSet
+	}
+}
+
+// topState gets the state on top of the state stack
+func (s *Solver) topState() *SolutionState {
+	return s.stateStack[len(s.stateStack)-1]
+}
+
+// getSubstitution gets the top most substitution for a type variable
+func (s *Solver) getSubstitution(tvarID int) (*TypeSubstitution, bool) {
+	for i := len(s.stateStack) - 1; i > -1; i-- {
+		if sub, ok := s.stateStack[i].substitutions[tvarID]; ok {
+			return sub, true
+		}
+	}
+
+	return nil, false
+}
+
+// getOverloadSet gets the top most overloads for a type variable
+func (s *Solver) getOverloadSet(tvarID int) ([]DataType, bool) {
+	for i := len(s.stateStack) - 1; i > -1; i-- {
+		if overloadSet, ok := s.stateStack[i].overloads[tvarID]; ok {
+
+			return overloadSet, true
+		}
+	}
+
+	return nil, false
 }
 
 // -----------------------------------------------------------------------------
@@ -206,10 +272,28 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 	// know overloads will always be declared before substitutions (logically)
 	// but are less common in the general case.  We can to priotize
 	// substitutions but handle overloads first
-	if sub, ok := s.substitutions[tvarID]; ok {
+	if sub, ok := s.getSubstitution(tvarID); ok {
+		// if the substitution was not from the current state, we need to copy
+		// it and move it into the current state so that we can update it safely
+		if _, ok := s.topState().substitutions[tvarID]; !ok {
+			subCopy := &TypeSubstitution{}
+			*subCopy = *sub
+			s.topState().substitutions[tvarID] = subCopy
+			sub = subCopy
+		}
+
 		// validate constraint and update substitutions as necessary
 		return s.updateSubstitution(sub, value, consKind, isLhs)
-	} else if overloadSet, ok := s.overloads[tvarID]; ok {
+	} else if overloadSet, ok := s.getOverloadSet(tvarID); ok {
+		if _, ok := s.topState().overloads[tvarID]; !ok {
+			// if the overloads come from an outer state, copy the overloads so
+			// that append won't manipulate an overload set from the wrong state
+			newOverloadSet := make([]DataType, len(overloadSet))
+			copy(newOverloadSet, overloadSet)
+			overloadSet = newOverloadSet
+		}
+
+		// reduce the overloads
 		overloadSet = s.reduceOverloads(overloadSet, value, consKind, isLhs)
 
 		switch len(overloadSet) {
@@ -220,28 +304,28 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 			// only one overload remaining: it becomes the new equivalency
 			// substitution; we know that no substitutions have been applied to
 			// this type variable yet so we can just blindly override
-			s.substitutions[tvarID] = &TypeSubstitution{equivTo: overloadSet[0]}
+			s.topState().substitutions[tvarID] = &TypeSubstitution{equivTo: overloadSet[0]}
 		default:
 			// pruned out some possible overloads.  we know that all remaining
 			// overloads will be valid by the known type constraints
-			s.overloads[tvarID] = overloadSet
+			s.topState().overloads[tvarID] = overloadSet
 		}
 
 		// there were still valid overloads so unification succeeds
 		return true
 	} else /* if there was no substitution, add a new substitution */ {
 		if consKind == TCEquiv {
-			s.substitutions[tvarID] = &TypeSubstitution{
+			s.topState().substitutions[tvarID] = &TypeSubstitution{
 				equivTo: value,
 			}
 		} else if isLhs {
 			// type var on lhs => super type
-			s.substitutions[tvarID] = &TypeSubstitution{
+			s.topState().substitutions[tvarID] = &TypeSubstitution{
 				lowerBounds: []DataType{value},
 			}
 		} else {
 			// type var on rhs => sub type
-			s.substitutions[tvarID] = &TypeSubstitution{
+			s.topState().substitutions[tvarID] = &TypeSubstitution{
 				upperBound: value,
 			}
 		}
@@ -251,8 +335,9 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 	return true
 }
 
-// updateSubstitution checks a given value against a substitution according
-// to a given constraint and updates that substitution appropriately
+// updateSubstitution checks a given value against a substitution according to a
+// given constraint and updates that substitution appropriately. This function
+// does mutate the PASSED IN type substitution.
 func (s *Solver) updateSubstitution(sub *TypeSubstitution, value DataType, consKind int, isLhs bool) bool {
 	if consKind == TCEquiv {
 		// if the type variable already has an equivalency constraint, then
@@ -298,15 +383,24 @@ func (s *Solver) updateSubstitution(sub *TypeSubstitution, value DataType, consK
 		if len(sub.lowerBounds) == 0 {
 			sub.lowerBounds = []DataType{value}
 		} else {
-			// otherwise, we attempt to generalize the lower bound including
-			// the new type: if such a generalization is possible
+			// otherwise, we check to see if the type is already in the lower
+			// bound.  If it is, then we just return true because we know that
+			// the lower bound won't be affected by this unification
 			for _, bound := range sub.lowerBounds {
 				if Equivalent(value, bound) {
 					return true
 				}
 			}
 
+			// not in lower bounds => add it
 			sub.lowerBounds = append(sub.lowerBounds, value)
+
+			// we then attempt to generalize the lower bounds based on this new
+			// addition to them; if it can be generalized, we update the lower
+			// bounds.  If it can't, then we leave them as is
+			if generalType, ok := s.generalize(sub.lowerBounds); ok {
+				sub.lowerBounds = []DataType{generalType}
+			}
 		}
 
 		// we know the substitution is legal if we reach here
@@ -330,10 +424,11 @@ func (s *Solver) updateSubstitution(sub *TypeSubstitution, value DataType, consK
 			}
 		}
 
-		// if we know that this substitution is valid, we only override if
-		// the upper bound of the type variable is a super type of the
-		// passed in value -- narrowing the bounds
-		if sub.upperBound == nil || s.unify(sub.upperBound, value, TCSubType) {
+		// if we know that this substitution is valid, we only override if the
+		// upper bound of the type variable is a super type of the passed in
+		// value -- narrowing the bounds.  We use `testUnify` here since we
+		// conditionally decide to override the current state
+		if sub.upperBound == nil || s.testUnify(sub.upperBound, value, TCSubType) {
 			sub.upperBound = value
 			return true
 		}
@@ -361,10 +456,65 @@ func (s *Solver) reduceOverloads(overloadSet []DataType, value DataType, consKin
 	return newOverloads
 }
 
+// testUnify tests if a given constraint is unifiable.  This function will
+// only preserve its state changes if unification succeeds.
+func (s *Solver) testUnify(lhs, rhs DataType, consKind int) bool {
+	s.pushState()
+	if s.unify(lhs, rhs, consKind) {
+		s.mergeState()
+		return true
+	} else {
+		s.discardState()
+		return false
+	}
+}
+
+// generalize takes a list of data types and attempts to produce a most general
+// type from them.  For example, `generalize(i32, i64, i16) => i64`.  It does
+// have limits on what it can generalize: it will never generalize to a type
+// that wasn't in the original set of data types.  So `generalize(i33, rune) !=
+// any`.  This function will only preserve its state changes if generalization
+// succeeds.
+func (s *Solver) generalize(types []DataType) (DataType, bool) {
+	var generalType DataType
+
+	// create a new state so that any unification merges (for testUnify or
+	// unwrapped unify) do not affect the outer state
+	s.pushState()
+
+	for _, dt := range types {
+		if generalType == nil {
+			generalType = dt
+			continue
+		}
+
+		// we use test unify since we are testing to see if the new most general
+		// type could be the current type (current type is a super type of the
+		// general type).  Because sub typing is transitive, we can always
+		// override to a more general super type
+		if s.testUnify(dt, generalType, TCSubType) {
+			generalType = dt
+		} else if s.unify(generalType, dt, TCSubType) {
+			// we do not use `testUnify` above since this is a failure case: the
+			// current type is a subtype of the general type meaning the general
+			// type can't be determined for the current set of values.  Discard
+			// the generalization state and carry on
+			s.discardState()
+			return nil, false
+		}
+	}
+
+	s.mergeState()
+	return generalType, true
+}
+
+// -----------------------------------------------------------------------------
+
 // deduce determines the final type for a type variable.  It will also infer
 // types for any other type variables used in the value of this type variable
 func (s *Solver) deduce(tv *TypeVariable) bool {
-	if sub, ok := s.substitutions[tv.ID]; ok {
+	// only remaining state at the time of deduction is the top state
+	if sub, ok := s.stateStack[0].substitutions[tv.ID]; ok {
 		// if the type has an equivalency substitution then we evaluate to the
 		// simplified substitution type
 		if sub.equivTo != nil {
@@ -372,32 +522,19 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 				tv.EvalType = dt
 				return true
 			}
-
-			return false
-		}
-
-		if sub.upperBound != nil {
-			// if there is an upper bound, then we know that it is correct by
-			// the lower bounds, and therefore we can always safely infer it.
-			// It is possible for the lower bounds to also contain a valid
-			// substitution but that is much less consistent and their
-			// generalization is less accurate
-			if dt, ok := s.simplify(sub.upperBound); ok {
-				// if there is no lower bound, then we can just evaluate to the
-				// simplified upper bound -- this is all the information we have
-				// to make a deduction and have to work with what we know
+		} else if len(sub.lowerBounds) == 1 {
+			// if there is a lower bound containing one elements, then we know
+			// that this lower bound is the most specific possible deduction for
+			// this type that is still general enough to satisfy all constraints
+			// placed on it.  Thus, we can take that lower type to be our result
+			if dt, ok := s.simplify(sub.lowerBounds[0]); ok {
 				tv.EvalType = dt
 				return true
 			}
-		}
-
-		// if we reach here, either the upper bound wasn't useful to perform
-		// deductions or it doesn't exist.  Therefore, we have to use the lower
-		// bound.  If there is not exactly one lower bound, then we know the
-		// lower bounds were not generalizable: we cannot use them to get the
-		// final deduction
-		if len(sub.lowerBounds) != 1 {
-			if dt, ok := s.simplify(sub.lowerBounds[0]); ok {
+		} else if sub.upperBound != nil {
+			// if there is an upper bound, then we know that it is correct by
+			// the lower bounds, and therefore we can always safely infer it.
+			if dt, ok := s.simplify(sub.upperBound); ok {
 				tv.EvalType = dt
 				return true
 			}
@@ -419,8 +556,9 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 }
 
 // simplify removes all nested types from the deduced type for a type parameter.
-// It also checks for types such as constraint sets that are not valid types on
-// their own.  This can cause other type variables to deduced
+// This can cause other type variables to deduced.  If simplification fails then
+// deduction for the type variable whose value is being simplified as also
+// failed.
 func (s *Solver) simplify(dt DataType) (DataType, bool) {
 	switch v := dt.(type) {
 	case *TypeVariable:
