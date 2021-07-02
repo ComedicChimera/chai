@@ -12,9 +12,9 @@ type Solver struct {
 	// lctx is the log context of the parent walker to this solver
 	lctx *logging.LogContext
 
-	// vars contains all of the type variables defined in the solution context
+	// typeVars contains all of the type variables defined in the solution context
 	// where the ID of the type variable corresponds to its index.
-	vars []*TypeVariable
+	typeVars []*TypeVariable
 
 	// constraints contains all of the type constraints defined in the solution
 	// context.  These constraints are in no particular order.
@@ -38,14 +38,14 @@ func NewSolver(lctx *logging.LogContext) *Solver {
 // handler which is called when the type can't be inferred.  The default type
 // may be `nil` if there is none.
 func (s *Solver) CreateTypeVar(defaultType DataType, handler func()) *TypeVariable {
-	s.vars = append(s.vars, &TypeVariable{
+	s.typeVars = append(s.typeVars, &TypeVariable{
 		s:                  s,
-		ID:                 len(s.vars),
+		ID:                 len(s.typeVars),
 		DefaultType:        defaultType,
 		HandleUndetermined: handler,
 	})
 
-	return s.vars[len(s.vars)-1]
+	return s.typeVars[len(s.typeVars)-1]
 }
 
 // AddEqConstraint adds a new equality constraint to the solver
@@ -97,9 +97,31 @@ func (s *Solver) Solve() bool {
 
 	// TODO: apply all type assertions to the types
 
+	// fill in default types for all types that can't be determined if possible
+	// -- this way those default types can help with deduction
+	for _, tvar := range s.typeVars {
+		// we know that this function is only run at the top level so we can
+		// just treat the top most state as state[0]
+		if sub, ok := s.stateStack[0].substitutions[tvar.ID]; ok {
+			// if any of these cases are true, then we have a usable
+			// substitution: no need to infer default value
+			if sub.equivTo != nil || sub.upperBound != nil || len(sub.lowerBounds) == 1 {
+				continue
+			}
+		}
+
+		// no viable substitution: try to unify with default type if that
+		// unification is possible, use the default type as the inferred value
+		if tvar.DefaultType != nil {
+			// testUnify will overwrite the current substitutions if it succeeds
+			// so we don't need to test for success or failure
+			s.testUnify(tvar, tvar.DefaultType, TCEquiv)
+		}
+	}
+
 	// determine final values for all our unknown types
 	allEvaluated := true
-	for _, tvar := range s.vars {
+	for _, tvar := range s.typeVars {
 		// through deduction multiple type variables will evaluate at once and
 		// so we have to test to see whether or not the type has already been
 		// evaluated
@@ -110,7 +132,7 @@ func (s *Solver) Solve() bool {
 	}
 
 	// clear the solution context for the next solve and return
-	s.vars = nil
+	s.typeVars = nil
 	s.constraints = nil
 	s.discardState()
 	s.pushState()
@@ -541,18 +563,11 @@ func (s *Solver) deduce(tv *TypeVariable) bool {
 		}
 	}
 
-	// if we reach here, the substitution was not usable to determine a final
-	// value for the type variable.  We can evaluate to the default type if it
-	// exists (assumes that the default type is valid by all the constraints
-	// applied to the type -- is this assumption correct?)
-	if tv.DefaultType != nil {
-		tv.EvalType = tv.DefaultType
-		return true
-	} else /* deduction has completely failed */ {
-		tv.HandleUndetermined()
-		tv.EvalFailed = true
-		return false
-	}
+	// if we reach here, deduction (including default types) has completely
+	// failed for this type variable: handle undetermined appropriately
+	tv.HandleUndetermined()
+	tv.EvalFailed = true
+	return false
 }
 
 // simplify removes all nested types from the deduced type for a type parameter.
