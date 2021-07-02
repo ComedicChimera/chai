@@ -4,6 +4,7 @@ import (
 	"chai/logging"
 	"chai/syntax"
 	"chai/typing"
+	"fmt"
 )
 
 // walkTypeExt walks a `type_ext` label and produces the labeled type
@@ -84,5 +85,6 @@ func (w *Walker) lookupNamedBuiltin(name string) typing.DataType {
 		return typing.PrimType(typing.PrimKindU8)
 	}
 
+	logging.LogFatal(fmt.Sprintf("missing required builtin type: `%s`", name))
 	return nil
 }

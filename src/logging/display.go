@@ -198,8 +198,8 @@ Please open an issue on Github: github.com/ComedicChimera/chai`
 
 func displayFatalError(msg string) {
 	fmt.Print("\n\n")
-	ErrorStyleBG.Print("Fatal Error ")
-	ErrorColorFG.Println(msg)
+	ErrorStyleBG.Print("Fatal Error")
+	ErrorColorFG.Println(" " + msg)
 	InfoColorFG.Println(fatalErrorPostlude)
 }
 

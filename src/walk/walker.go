@@ -63,7 +63,11 @@ func (w *Walker) currExprContext() *ExprContext {
 // pushFuncContext pushes a function context to the expr context stack
 func (w *Walker) pushFuncContext(fn *typing.FuncType) {
 	// we don't propagate loop flags into sub-functions
-	w.exprContextStack = append(w.exprContextStack, &ExprContext{FuncContext: fn, FuncArgScope: true})
+	w.exprContextStack = append(w.exprContextStack, &ExprContext{
+		FuncContext:  fn,
+		FuncArgScope: true,
+		Scope:        make(map[string]*sem.Symbol),
+	})
 }
 
 // pushLoopContext pushes the context inside a loop

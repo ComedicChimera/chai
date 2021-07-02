@@ -158,6 +158,14 @@ type HIROperApply struct {
 	OperFunc *typing.FuncType
 }
 
+// HIRCast denotes an explicit type cast.  The destination type is stored in the
+// yield type of the expression
+type HIRCast struct {
+	ExprBase
+
+	Root HIRExpr
+}
+
 // -----------------------------------------------------------------------------
 
 // HIRIdentifier represents an identifier

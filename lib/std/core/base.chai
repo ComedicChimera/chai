@@ -24,8 +24,7 @@ pub of
     def print_byte(b: u8) 
     
     def print_digit(d: i32) =
-        # TODO: add in type casts
-        print_byte('0' + d)
+        print_byte('0' + (d as rune) as u8)
     
     def print_int(i: i32) = do
         let x = i

@@ -12,7 +12,7 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	stmt := branch.BranchAt(0)
 	switch stmt.Name {
 	case "variable_decl":
-		return w.walkVarDecl(branch, false)
+		return w.walkVarDecl(stmt, false)
 	}
 
 	return nil, false
@@ -152,7 +152,7 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	// we want to iterate through the branch backwards since we do not know
 	// whether or not this is a mutation or simply an expression statement (such
 	// as a function call)
-	for i := branch.Len() - 1; i >= 0; i++ {
+	for i := branch.Len() - 1; i >= 0; i-- {
 		switch v := branch.Content[i].(type) {
 		case *syntax.ASTBranch:
 			switch v.Name {
@@ -179,7 +179,7 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 					assignKind = sem.AKEq
 				}
 			case "mut_expr":
-				if mutExpr, ok := w.walkMutExpr(v); ok {
+				if mutExpr, ok := w.walkMutExpr(v, len(rhs) > 0); ok {
 					// push front to preserve the ordering of the expressions
 					lhs = append([]sem.HIRExpr{mutExpr}, lhs...)
 				} else {
@@ -209,14 +209,19 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	}
 
 	if len(rhs) == 0 {
-		// unary assignment
-		w.solver.AddSubConstraint(w.lookupNamedBuiltin("Numeric"), lhs[0].Type(), branch.Position())
-		return &sem.HIRAssignment{
-			// TODO: should unary assignment yield a value?
-			Lhs:        lhs,
-			AssignKind: assignKind,
-			Oper:       op,
-		}, true
+		if assignKind == sem.AKUnary {
+			// unary assignment
+			// TODO: add appropriate operator constraint
+			return &sem.HIRAssignment{
+				// TODO: should unary assignment yield a value?
+				Lhs:        lhs,
+				AssignKind: assignKind,
+				Oper:       op,
+			}, true
+		} else {
+			// simple expr stmt -- eg. a function call
+			return lhs[0], true
+		}
 	} else if len(lhs) > 1 && len(rhs) == 1 {
 		// unpacking
 		// TODO
@@ -255,7 +260,7 @@ func (w *Walker) walkExprStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 }
 
 // walkMutExpr walks a `mut_expr` node
-func (w *Walker) walkMutExpr(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
+func (w *Walker) walkMutExpr(branch *syntax.ASTBranch, isMutated bool) (sem.HIRExpr, bool) {
 	var mutValue sem.HIRExpr
 	var rootNode syntax.ASTNode
 
@@ -300,22 +305,24 @@ func (w *Walker) walkMutExpr(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		}
 	}
 
-	if mutValue.Category() == sem.RValue {
-		w.logError(
-			"unable to mutate an R-value",
-			logging.LMKImmut,
-			branch.Position(),
-		)
+	if isMutated {
+		if mutValue.Category() == sem.RValue {
+			w.logError(
+				"unable to mutate an R-value",
+				logging.LMKImmut,
+				branch.Position(),
+			)
 
-		return nil, false
-	} else if mutValue.Immutable() {
-		w.logError(
-			"value is immutable",
-			logging.LMKImmut,
-			branch.Position(),
-		)
+			return nil, false
+		} else if mutValue.Immutable() {
+			w.logError(
+				"value is immutable",
+				logging.LMKImmut,
+				branch.Position(),
+			)
 
-		return nil, false
+			return nil, false
+		}
 	}
 
 	return mutValue, true

@@ -23,6 +23,9 @@ type Solver struct {
 	// stateStack is the stack of solution states for the solver.  This stack is
 	// pushed to and popped from the facilitate unification testing efficiently
 	stateStack []*SolutionState
+
+	// castAssertions is the list of applied cast assertions
+	castAssertions []*CastAssertion
 }
 
 // NewSolver creates a new type solver in a given log context
@@ -68,6 +71,15 @@ func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) 
 	})
 }
 
+// AddCastAssertion adds a new cast assertion to the solver
+func (s *Solver) AddCastAssertion(lhs, rhs DataType, pos *logging.TextPosition) {
+	s.castAssertions = append(s.castAssertions, &CastAssertion{
+		Lhs: lhs,
+		Rhs: rhs,
+		Pos: pos,
+	})
+}
+
 // AddOverload adds an overload to a given type variable
 func (s *Solver) AddOverload(tvar *TypeVariable, overloads ...DataType) {
 	// we know this function will be called before `Solve` so state[0] is always
@@ -92,10 +104,7 @@ func (s *Solver) Solve() bool {
 			s.logTypeError(cons.Lhs, cons.Rhs, cons.Kind, cons.Pos)
 			return false
 		}
-
 	}
-
-	// TODO: apply all type assertions to the types
 
 	// fill in default types for all types that can't be determined if possible
 	// -- this way those default types can help with deduction
@@ -128,7 +137,21 @@ func (s *Solver) Solve() bool {
 		if tvar.EvalType == nil && !tvar.EvalFailed {
 			allEvaluated = allEvaluated && s.deduce(tvar)
 		}
+	}
 
+	// now, we can check as assertions after type deductions has already been
+	// performed: casts give no usable information about the underlying type
+	if allEvaluated {
+		for _, cast := range s.castAssertions {
+			if !CastTo(cast.Rhs, cast.Lhs) {
+				logging.LogCompileError(
+					s.lctx,
+					fmt.Sprintf("cannot cast `%s` to `%s`", cast.Rhs.Repr(), cast.Lhs.Repr()),
+					logging.LMKTyping,
+					cast.Pos,
+				)
+			}
+		}
 	}
 
 	// clear the solution context for the next solve and return

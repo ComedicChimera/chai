@@ -141,3 +141,15 @@ type TypeSubstitution struct {
 	// based on context: `Showable` is only one possible generalization
 	lowerBounds []DataType
 }
+
+// -----------------------------------------------------------------------------
+
+// CastAssertion is an assertion that claims that one type is castable to
+// another.  This kind of late-bound assertion is used primarily to facilitate
+// cast check for unknown types.  This should generally be run after type
+// deduction has been performed since it doesn't really give any accurate typing
+// information
+type CastAssertion struct {
+	Lhs, Rhs DataType
+	Pos      *logging.TextPosition
+}

@@ -210,8 +210,16 @@ func (w *Walker) walkCoreExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 						return nil, false
 					}
 				case syntax.AS:
-					// type cast
-					// TODO
+					if dt, ok := w.walkTypeLabel(itembranch.BranchAt(1)); ok {
+						w.solver.AddCastAssertion(dt, root.Type(), itembranch.Position())
+						root = &sem.HIRCast{
+							ExprBase: sem.NewExprBase(dt, root.Category(), root.Immutable()),
+							Root:     root,
+						}
+					} else {
+						return nil, false
+					}
+
 				}
 			}
 		} else {
