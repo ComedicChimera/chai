@@ -348,10 +348,9 @@ func (w *Walker) walkAtom(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIREx
 			// if length 2 => `()`
 			if v.Len() == 2 {
 				return makeLiteral(nothingType(), ""), true
-			} else {
-				exprList := v.BranchAt(1)
-				if exprList.Len() == 1 {
-					return w.walkExpr(exprList.BranchAt(0), yieldsValue)
+			} else if exprs, ok := w.walkExprList(v.BranchAt(1)); ok {
+				if len(exprs) == 1 {
+					return exprs[0], true
 				} else {
 					// TODO
 				}

@@ -9,8 +9,7 @@ import (
 // HIRExpr is the parent interface for all HIR (high-level intermediate
 // representation) expressions
 type HIRExpr interface {
-	// Type returns the data type yielded by an expression.  This field can be
-	// `nil` if the expression doesn't yield a type (eg. continue, return, etc)
+	// Type returns the data type yielded by an expression
 	Type() typing.DataType
 
 	// Category returns the value category of the expression.  It must be one of
@@ -19,6 +18,12 @@ type HIRExpr interface {
 
 	// Immutable indicates whether or not the expression is immutable
 	Immutable() bool
+
+	// Control returns the effect this expression has on control flow.  This
+	// method will only return a control flow effect if that effect is
+	// unconditional: eg. an if statement that only returns on some branches
+	// will have a control flow kind of CFNone not CFReturn
+	Control() int
 }
 
 // Enumeration of value categories
@@ -27,18 +32,29 @@ const (
 	RValue
 )
 
+// Enumeration of control flow types
+const (
+	CFNone   = iota // No change to control flow
+	CFReturn        // Returns from function
+	CFYield         // Yield from a block
+	CFJump          // Jump to another part of the block
+	CFPanic         // Panic and exit block
+)
+
 // ExprBase is the base struct for all expressions
 type ExprBase struct {
-	dt    typing.DataType
-	cat   int
-	immut bool
+	dt      typing.DataType
+	cat     int
+	immut   bool
+	control int
 }
 
 func NewExprBase(dt typing.DataType, cat int, immut bool) ExprBase {
 	return ExprBase{
-		dt:    dt,
-		cat:   cat,
-		immut: immut,
+		dt:      dt,
+		cat:     cat,
+		immut:   immut,
+		control: CFNone,
 	}
 }
 
@@ -54,9 +70,19 @@ func (eb *ExprBase) Immutable() bool {
 	return eb.immut
 }
 
+func (eb *ExprBase) Control() int {
+	return eb.control
+}
+
 func (eb *ExprBase) SetType(dt typing.DataType) {
 	eb.dt = dt
 }
+
+func (eb *ExprBase) SetControl(control int) {
+	eb.control = control
+}
+
+// -----------------------------------------------------------------------------
 
 // HIRIncomplete represents an AST branch that hasn't been evaluated yet
 type HIRIncomplete syntax.ASTBranch
@@ -73,6 +99,10 @@ func (hi *HIRIncomplete) Immutable() bool {
 	return false
 }
 
+func (hi *HIRIncomplete) Control() int {
+	return CFNone
+}
+
 // -----------------------------------------------------------------------------
 
 // HIRDoBlock represents a do block expression
@@ -85,6 +115,8 @@ type HIRDoBlock struct {
 // -----------------------------------------------------------------------------
 
 type stmtBase struct {
+	// control default to zero (CFNone)
+	control int
 }
 
 func (*stmtBase) Type() typing.DataType {
@@ -97,6 +129,10 @@ func (*stmtBase) Category() int {
 
 func (*stmtBase) Immutable() bool {
 	return false
+}
+
+func (sb *stmtBase) Control() int {
+	return sb.control
 }
 
 // HIRVarDecl is a variable declaration expression
@@ -128,6 +164,70 @@ const (
 	AKCompound        // [oper]=
 	AKUnary           // `++` or `--`
 )
+
+// HIRControlStmt is a control flow statement (break, continue, etc)
+type HIRControlStmt struct {
+	stmtBase
+
+	// Kind indicates the kind of control statement: must be one of the control
+	// kinds enumerated below
+	Kind int
+}
+
+// NewControlStmt returns a new control flow statement based on the control flow
+// statement kind passed in
+func NewControlStmt(kind int) *HIRControlStmt {
+	if kind == CSUnimplemented {
+		return &HIRControlStmt{
+			Kind:     kind,
+			stmtBase: stmtBase{control: CFPanic},
+		}
+	}
+
+	return &HIRControlStmt{
+		Kind:     kind,
+		stmtBase: stmtBase{control: CFJump},
+	}
+}
+
+// Enumeration of control statement kinds
+const (
+	CSBreak         = iota // `break`
+	CSContinue             // `continue`
+	CSFallthrough          // `fallthrough`
+	CSFallMatch            // `fallthrough to match`
+	CSUnimplemented        // `...`
+)
+
+// HIRReturnStmt is a statement that returns a value from a function
+type HIRReturnStmt struct {
+	stmtBase
+
+	Value HIRExpr
+}
+
+func (hrs *HIRReturnStmt) Control() int {
+	return CFReturn
+}
+
+func (hrs *HIRReturnStmt) Type() typing.DataType {
+	return hrs.Value.Type()
+}
+
+// HIRYieldStmt is a statement that yields a value from a block
+type HIRYieldStmt struct {
+	stmtBase
+
+	Value HIRExpr
+}
+
+func (hys *HIRYieldStmt) Control() int {
+	return CFYield
+}
+
+func (hys *HIRYieldStmt) Type() typing.DataType {
+	return hys.Value.Type()
+}
 
 // -----------------------------------------------------------------------------
 
@@ -187,6 +287,10 @@ func (hi *HIRIdentifier) Category() int {
 
 func (hi *HIRIdentifier) Immutable() bool {
 	return hi.Sym.Immutable
+}
+
+func (hi *HIRIdentifier) Control() int {
+	return CFNone
 }
 
 // HIRLiteral represents a literal

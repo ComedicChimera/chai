@@ -21,6 +21,7 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 			false,
 		),
 	}
+
 	updateBlockType := func(i int, sdt typing.DataType, pos *logging.TextPosition) {
 		// the value is only yielded if it is the last element inside the
 		// `block_content`, and the enclosing block is supposed to yield a
@@ -31,19 +32,34 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 		}
 	}
 
+	// branchControlIndex is the index where the first control flow statement
+	// was encountered -- used to flag deadcode
+	branchControlIndex := -1
 	for i, item := range branch.Content {
+		switch v := item.(type) {
 		// only `block_element` can be a branch inside `block_content`
-		if itembranch, ok := item.(*syntax.ASTBranch); ok {
+		case *syntax.ASTBranch:
 			// access the inner node
-			blockElem := itembranch.BranchAt(0)
+			blockElem := v.BranchAt(0)
 
 			switch blockElem.Name {
 			case "stmt":
 				if stmt, ok := w.walkStmt(blockElem); ok {
-					updateBlockType(i, stmt.Type(), blockElem.Position())
 					block.Statements = append(block.Statements, stmt)
 
-					// TODO: handle yield statements
+					switch stmt.Control() {
+					case sem.CFYield:
+						// TODO: handle yield statements
+					case sem.CFNone:
+						updateBlockType(i, stmt.Type(), blockElem.Position())
+					default:
+						// make sure not to override other control flow stmts
+						if block.Control() == sem.CFNone {
+							// other control flow that exits block
+							block.SetControl(stmt.Control())
+							branchControlIndex = i
+						}
+					}
 				} else {
 					return nil, false
 				}
@@ -57,13 +73,33 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 			case "block_expr":
 				// the same logic used in `updateBlockType` for yielding values
 				if expr, ok := w.walkBlockExpr(blockElem, yieldsValue && i == branch.Len()-1); ok {
-					updateBlockType(i, expr.Type(), blockElem.Position())
+					if expr.Control() == sem.CFNone {
+						updateBlockType(i, expr.Type(), blockElem.Position())
+					} else {
+						branchControlIndex = i
+						block.SetControl(expr.Control())
+					}
+
 					block.Statements = append(block.Statements, expr)
 				} else {
 					return nil, false
 				}
 			}
+		case *syntax.ASTLeaf:
+			if v.Kind == syntax.ELLIPSIS {
+				// panic on unimplemented block
+				block.SetControl(sem.CFPanic)
+			}
 		}
+	}
+
+	// unreachable statements; -2 so we don't count indentation
+	if branchControlIndex != -1 && branchControlIndex < len(branch.Content)-2 {
+		w.logWarning(
+			"unreachable code",
+			logging.LMKDeadcode,
+			syntax.TextPositionOfSpan(branch.Content[branchControlIndex+1], branch),
+		)
 	}
 
 	// if the block type was never set (somehow), then we simply yield nothing

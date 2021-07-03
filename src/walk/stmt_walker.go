@@ -13,6 +13,92 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	switch stmt.Name {
 	case "variable_decl":
 		return w.walkVarDecl(stmt, false)
+	case "break_stmt":
+		if w.currExprContext().LoopContext {
+			return sem.NewControlStmt(sem.CSBreak), true
+		}
+
+		w.logError(
+			"unable to use `break` outside of loop",
+			logging.LMKUsage,
+			stmt.Position(),
+		)
+	case "continue_stmt":
+		if w.currExprContext().LoopContext {
+			return sem.NewControlStmt(sem.CSContinue), true
+		}
+
+		w.logError(
+			"unable to use `continue` outside of loop",
+			logging.LMKUsage,
+			stmt.Position(),
+		)
+	case "fallthrough_stmt":
+		if w.currExprContext().MatchContext {
+			if stmt.Len() == 3 {
+				// fallthrough to match
+				return sem.NewControlStmt(sem.CSFallMatch), true
+			}
+
+			// fallthrough
+			return sem.NewControlStmt(sem.CSFallthrough), true
+		}
+
+		w.logError(
+			"unable to use `fallthrough` outside of match expression",
+			logging.LMKUsage,
+			stmt.Position(),
+		)
+	case "return_stmt":
+		if len(w.exprContextStack) == 0 {
+			w.logError(
+				"return used outside of function",
+				logging.LMKUsage,
+				stmt.Position(),
+			)
+
+			return nil, false
+		}
+
+		fc := w.currExprContext().FuncContext
+
+		if stmt.Len() == 1 {
+			// no return values
+			n := makeLiteral(nothingType(), "")
+			w.solver.AddEqConstraint(fc.ReturnType, n.Type(), stmt.Position())
+
+			return &sem.HIRReturnStmt{
+				Value: n,
+			}, true
+		} else if exprs, ok := w.walkExprList(stmt.BranchAt(1)); ok {
+			if len(exprs) > 1 {
+				// TODO
+			} else {
+				e := exprs[0]
+				w.solver.AddSubConstraint(fc.ReturnType, e.Type(), stmt.Content[0].Position())
+
+				return &sem.HIRReturnStmt{
+					Value: e,
+				}, true
+			}
+		}
+	case "yield_stmt":
+		if stmt.Len() == 1 {
+			// no yield values
+			n := makeLiteral(nothingType(), "")
+
+			return &sem.HIRYieldStmt{
+				Value: n,
+			}, true
+		} else if exprs, ok := w.walkExprList(stmt.BranchAt(1)); ok {
+			if len(exprs) > 1 {
+				// TODO
+			} else {
+				return &sem.HIRYieldStmt{
+					Value: exprs[0],
+				}, true
+			}
+		}
 	}
 
 	return nil, false

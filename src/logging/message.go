@@ -44,6 +44,7 @@ const (
 	LMKArg             // Error related to function argument
 	LMKOperApp         // Error related to operator application
 	LMKPattern         // Error related to pattern matching
+	LMKDeadcode        // Warning relates to dead/unreachable code
 	// TODO: add more as needed
 )
 

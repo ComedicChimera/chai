@@ -130,8 +130,8 @@ break_stmt = 'break' ;
 continue_stmt = 'continue' ;
 fallthrough_stmt = 'fallthrough' ['to' 'match'] ;
 
-yield_stmt = 'yield' expr_list ;
-return_stmt = 'return' [ expr_list] ;
+yield_stmt = 'yield' [expr_list] ;
+return_stmt = 'return' [expr_list] ;
 
 variable_decl = 'let' ['vol'] ? (var {',' var} | unpack_var var_initializer) ? ;
 var = identifier_list (type_ext [var_initializer] | var_initializer) ;

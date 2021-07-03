@@ -118,7 +118,8 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	}
 
 	// constraint the return type of the block if the function yields a value
-	if yieldsValue {
+	// and it the body does not have any unconditional control flow
+	if hirExpr.Control() == sem.CFNone && yieldsValue {
 		w.solver.AddSubConstraint(fn.ReturnType, hirExpr.Type(), branch.Position())
 	}
 
@@ -132,7 +133,8 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 }
 
 // walkExprList walks an `expr_list` node.  It assumes that the expressions must
-// yield a value (only context in which `expr_list` is used)
+// yield a value and cannot cause control flow changes (only context in which
+// `expr_list` is used)
 func (w *Walker) walkExprList(branch *syntax.ASTBranch) ([]sem.HIRExpr, bool) {
 	exprs := make([]sem.HIRExpr, branch.Len()/2+1)
 	for i, item := range branch.Content {
