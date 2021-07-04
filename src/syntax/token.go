@@ -124,7 +124,7 @@ const (
 	BINDTO // <-
 
 	// monadic accumulations
-	ACC
+	ACC // ?
 
 	// dots
 	DOT

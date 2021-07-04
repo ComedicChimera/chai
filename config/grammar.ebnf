@@ -156,7 +156,8 @@ core_expr = ['await'] or_expr [core_expr_suffix] ;
 core_expr_suffix = '..' or_expr
   | 'as' type {'as' type}
   | 'is' (type_pattern | '!' type)
-  | ':' ':' type ;
+  | ':' ':' type 
+  ;
 
 or_expr = xor_expr {('||' | '|') xor_expr} ;
 xor_expr = and_expr {'^' and_expr} ;
@@ -167,13 +168,14 @@ shift_expr = arith_expr {('>>' | '<<') arith_expr} ;
 arith_expr = term {('+' | '-') term} ;
 term = factor {('*' | '/' | '//' | '%') factor} ;
 factor = unary_expr {'**' unary_expr} ;
-unary_expr = ['&' | '*' | '-' | '~'] atom_expr ['?'] ;
+unary_expr = ['&' | '*' | '-' | '~'] atom_expr ;
 
 atom_expr = atom {trailer} ;
 trailer = '.' ( 'IDENTIFIER' | 'INTLIT' | generic_spec )
   | '[' sub_slice ']'
   | '{' [init_list] '}' 
   | '(' [args_list] ')'
+  | '?'
   ;
 sub_slice = expr [':' [expr]] | ':' expr ;
 init_list = '...' expr {',' init_member_expr} | init_member_expr {',' init_member_expr} ;
