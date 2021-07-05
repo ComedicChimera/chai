@@ -35,9 +35,10 @@ const (
 // Enumeration of control flow types
 const (
 	CFNone   = iota // No change to control flow
-	CFReturn        // Returns from function
+	CFReturn        // Return from function
 	CFYield         // Yield from a block
-	CFJump          // Jump to another part of the block
+	CFLoop          // Change the control flow of a loop
+	CFMatch         // Changes the control flow of a match
 	CFPanic         // Panic and exit block
 )
 
@@ -104,6 +105,29 @@ func (hi *HIRIncomplete) Control() int {
 }
 
 // -----------------------------------------------------------------------------
+
+// HIRWhileLoop represents a while loop/expressions
+type HIRWhileLoop struct {
+	ExprBase
+
+	// HeaderDecl is a variable declaration that occurs in the loop header. This
+	// field can be `nil` if there was no header variable declaration
+	HeaderDecl *HIRVarDecl
+
+	// HeaderCond is the condition expression for the while loop
+	HeaderCond HIRExpr
+
+	// HeaderUpdate is the update statement to be run at the end of each loop.
+	// This field can be `nil` if there was no update statement
+	HeaderUpdate HIRExpr
+
+	// LoopBody is the body of the while loop
+	LoopBody HIRExpr
+
+	// NoBreakClause is the body of the `nobreak` following a loop.  This field
+	// can be `nil` if there was no `nobreak`
+	NoBreakClause HIRExpr
+}
 
 // HIRDoBlock represents a do block expression
 type HIRDoBlock struct {
@@ -177,16 +201,22 @@ type HIRControlStmt struct {
 // NewControlStmt returns a new control flow statement based on the control flow
 // statement kind passed in
 func NewControlStmt(kind int) *HIRControlStmt {
-	if kind == CSUnimplemented {
+	switch kind {
+	case CSUnimplemented:
 		return &HIRControlStmt{
 			Kind:     kind,
 			stmtBase: stmtBase{control: CFPanic},
 		}
-	}
-
-	return &HIRControlStmt{
-		Kind:     kind,
-		stmtBase: stmtBase{control: CFJump},
+	case CSBreak, CSContinue:
+		return &HIRControlStmt{
+			Kind:     kind,
+			stmtBase: stmtBase{control: CFLoop},
+		}
+	default /* fallthrough variants */ :
+		return &HIRControlStmt{
+			Kind:     kind,
+			stmtBase: stmtBase{control: CFMatch},
+		}
 	}
 }
 

@@ -7,13 +7,140 @@ import (
 	"chai/typing"
 )
 
-// walkDoBlock walks a `do_block` node and returns a HIRExpr
-func (w *Walker) walkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	return w.walkBlockContents(branch.BranchAt(1), yieldsValue)
+// walkBlockExpr walks a block expression (`block_expr`)
+func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	blockExpr := branch.BranchAt(0)
+
+	switch blockExpr.Name {
+	case "while_loop":
+		return w.walkWhileLoop(branch, yieldsValue)
+	}
+
+	// unreachable
+	return nil, false
 }
 
-// walkBlockContents walks a `block_content` node and returns a HIRExpr
-func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+// walkWhileLoop walks a `while_loop` branch
+func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	loop := &sem.HIRWhileLoop{
+		ExprBase: sem.NewExprBase(nothingType(), sem.RValue, false),
+	}
+
+	// create a new loop expr context
+	w.pushLoopContext()
+	defer w.popExprContext()
+
+	// walk through the loop content
+	for _, item := range branch.Content {
+		if itembranch, ok := item.(*syntax.ASTBranch); ok {
+			switch itembranch.Name {
+			case "variable_decl":
+				// header variable declaration
+				if varDecl, ok := w.walkVarDecl(branch, false); ok {
+					loop.HeaderDecl = varDecl.(*sem.HIRVarDecl)
+				} else {
+					return nil, false
+				}
+			case "expr":
+				// header loop condition
+				if loopCond, ok := w.walkExpr(branch, true); ok {
+					w.solver.AddEqConstraint(loopCond.Type(), boolType(), itembranch.Position())
+					loop.HeaderCond = loopCond
+				} else {
+					return nil, false
+				}
+			case "expr_stmt":
+				// header update statement
+				if updateStmt, ok := w.walkExprStmt(branch); ok {
+					loop.HeaderUpdate = updateStmt
+				} else {
+					return nil, false
+				}
+			case "loop_body":
+				if loopBody, noBreakClause, ok := w.walkLoopBody(branch, yieldsValue); ok {
+					loop.LoopBody = loopBody
+					loop.NoBreakClause = noBreakClause
+				} else {
+					return nil, false
+				}
+			}
+		}
+	}
+
+	// handle control flow in loop body
+	switch loop.LoopBody.Control() {
+	case sem.CFPanic, sem.CFReturn, sem.CFMatch:
+		// break and continue are contained to loop: don't affect control flow
+		// outside of it
+		loop.SetControl(loop.LoopBody.Control())
+	}
+
+	// update loop return type if the loop yields a value
+	if yieldsValue {
+		// TODO: Seq[loopBody.Type()]
+	}
+
+	return loop, true
+}
+
+// -----------------------------------------------------------------------------
+
+// walkLoopBody walks a `loop_body` node.  It returns both the loop body itself
+// and the `nobreak` body if one exists
+func (w *Walker) walkLoopBody(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, sem.HIRExpr, bool) {
+	var loopBody, noBreakClause sem.HIRExpr
+
+	for _, item := range branch.Content {
+		itembranch := item.(*syntax.ASTBranch)
+
+		if itembranch.Name == "block_body" {
+			if blockBody, ok := w.walkBlockBody(itembranch, yieldsValue); ok {
+				loopBody = blockBody
+			} else {
+				return nil, nil, false
+			}
+		} else /* `nobreak_clause` */ {
+			noBreakBody := itembranch.BranchAt(1)
+			if noBreakBody.Name == "block_body" {
+				if blockBody, ok := w.walkBlockBody(noBreakBody, yieldsValue); ok {
+					noBreakClause = blockBody
+				} else {
+					return nil, nil, false
+				}
+			} else /* `block_content` */ {
+				if blockBody, ok := w.walkBlockContent(noBreakBody, yieldsValue); ok {
+					noBreakClause = blockBody
+				} else {
+					return nil, nil, false
+				}
+			}
+		}
+	}
+
+	return loopBody, noBreakClause, true
+}
+
+// walkBlockBody walks a `block_body` node
+func (w *Walker) walkBlockBody(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	// len / 2 => always maps to correct branch
+	bodyBranch := branch.BranchAt(branch.Len() / 2)
+
+	if bodyBranch.Name == "do_block" {
+		return w.walkDoBlock(bodyBranch, yieldsValue)
+	} else /* `expr` */ {
+		return w.walkExpr(bodyBranch, yieldsValue)
+	}
+}
+
+// -----------------------------------------------------------------------------
+
+// walkDoBlock walks a `do_block` node and returns a HIRExpr
+func (w *Walker) walkDoBlock(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	return w.walkBlockContent(branch.BranchAt(1), yieldsValue)
+}
+
+// walkBlockContent walks a `block_content` node and returns a HIRExpr
+func (w *Walker) walkBlockContent(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
 	block := &sem.HIRDoBlock{
 		ExprBase: sem.NewExprBase(
 			w.solver.CreateTypeVar(nothingType(), func() {}),
@@ -49,7 +176,11 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 
 					switch stmt.Control() {
 					case sem.CFYield:
-						// TODO: handle yield statements
+						// yield statements don't affect control flow outside of
+						// the loop so we don't need to update the loop control
+						// here
+						w.solver.AddSubConstraint(block.Type(), stmt.Type(), blockElem.Position())
+						branchControlIndex = i
 					case sem.CFNone:
 						updateBlockType(i, stmt.Type(), blockElem.Position())
 					default:
@@ -108,9 +239,4 @@ func (w *Walker) walkBlockContents(branch *syntax.ASTBranch, yieldsValue bool) (
 	}
 
 	return block, true
-}
-
-// walkBlockExpr walks a block expression (`block_expr`)
-func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	return nil, false
 }

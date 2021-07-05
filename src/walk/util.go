@@ -40,6 +40,11 @@ func nothingType() typing.DataType {
 	return typing.PrimType(typing.PrimKindNothing)
 }
 
+// boolType returns a new boolean type
+func boolType() typing.DataType {
+	return typing.PrimType(typing.PrimKindBool)
+}
+
 // convertIncompleteToBranch converts a HIRExpr to an AST Branch assuming the
 // HIRExpr is a HIRIncomplete
 func convertIncompleteToBranch(expr sem.HIRExpr) *syntax.ASTBranch {

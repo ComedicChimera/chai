@@ -100,7 +100,7 @@ block_expr = async_for_loop | for_loop | while_loop | if_chain | match_block ;
 
 async_for_loop = 'async' for_loop ;
 for_loop = 'for' iterator loop_body ;
-while_loop = 'while' expr loop_body ;
+while_loop = 'while' [variable_decl ';'] expr [';' expr_stmt] loop_body ;
 loop_body = block_body [nobreak_clause] ;
 nobreak_clause = 'nobreak' (block_body | block_content) ;
 
