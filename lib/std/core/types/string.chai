@@ -1,3 +1,5 @@
+!! nocompile
+
 import Buffer, Resource, RawPtr from core.runtime
 
 pub of

@@ -1,0 +1,24 @@
+pub of
+    @intrinsic_op("add")
+    oper + (a, b: i32) i32
+    
+    @intrinsic_op("add")
+    oper + (a, b: u8) u8
+
+    @intrinsic_op("add")
+    oper + (a, b: rune) rune
+
+    @intrinsic_op("smul")
+    oper * (a, b: i32) i32
+    
+    @intrinsic_op("sdiv")
+    oper // (a, b: i32) i32
+    
+    @intrinsic_op("srem")
+    oper % (a, b: i32) i32
+
+    @intrinsic_op("land")
+    oper && (a, b: bool) bool
+
+    @intrinsic_op("not")
+    oper ! (a: bool) bool

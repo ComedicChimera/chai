@@ -1,28 +1,6 @@
-pub of 
-    @intrinsic_op("add")
-    oper + (a, b: i32) i32
-    
-    @intrinsic_op("add")
-    oper + (a, b: u8) u8
+import print_byte from core.sys
 
-    @intrinsic_op("add")
-    oper + (a, b: rune) rune
-
-    @intrinsic_op("smul")
-    oper * (a, b: i32) i32
-    
-    @intrinsic_op("sdiv")
-    oper // (a, b: i32) i32
-    
-    @intrinsic_op("srem")
-    oper % (a, b: i32) i32
-
-    @intrinsic_op("land")
-    oper && (a, b: bool) bool
-    
-    @intrinsic
-    def print_byte(b: u8) 
-    
+pub of     
     def print_digit(d: i32) =
         print_byte('0' + (d as rune) as u8)
     

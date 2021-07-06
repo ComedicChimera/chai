@@ -1,0 +1,42 @@
+!! os = "windows"
+
+let STD_OUTPUT_HANDLE = -11
+
+type HANDLE = &u8
+
+@dllimport
+def GetStdHandle(nStdHandle: i32) HANDLE
+
+@dllimport
+def AllocConsole() bool
+
+@dllimport
+def WriteConsole(
+    hConsoleInput: HANDLE,
+    lpBuffer: &u8,
+    nNumberOfCharsToWrite: i32,
+    lpNumberOfCharsWritten: &i32,
+    lpReserved: &u8
+)
+
+@dllimport
+def ExitProcess(uExitCode: u32)
+
+# -----------------------------------------------------------------------------
+
+let stdout: HANDLE
+
+pub def print_byte(b: u8) = do
+    let chars_written: i32
+    if !WriteConsole(stdout, &b, 1, &chars_written, null) do
+        exit(1)
+
+@linkname("__exit")
+pub def exit(code: u32) = ExitProcess(code)
+
+def init() = do
+    if !AllocConsole() do
+        exit(1)
+
+    stdout = GetStdHandle(STD_OUTPUT_HANDLE)
+
