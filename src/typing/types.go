@@ -259,6 +259,37 @@ func (rt *RefType) Copy() DataType {
 	}
 }
 
+// -----------------------------------------------------------------------------
+
+// AliasType represents a named alias to another type
+type AliasType struct {
+	Name         string
+	SrcPackageID uint
+	Type         DataType
+}
+
+func (at *AliasType) equals(other DataType) bool {
+	if oat, ok := other.(*AliasType); ok {
+		return at.Name == oat.Name && at.SrcPackageID == oat.SrcPackageID
+	}
+
+	return false
+}
+
+func (at *AliasType) Repr() string {
+	return at.Name
+}
+
+func (at *AliasType) Copy() DataType {
+	return &AliasType{
+		Name:         at.Name,
+		SrcPackageID: at.SrcPackageID,
+		Type:         at.Type.Copy(),
+	}
+}
+
+// -----------------------------------------------------------------------------
+
 // // ConstraintSet is a polymorphic constraint set (ie. a user-defined
 // // constraint). These are primarily used in generics to facilitate situations
 // // where multiple type parameter values are legal, but there is no logical type

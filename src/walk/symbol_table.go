@@ -35,6 +35,14 @@ func (w *Walker) lookup(name string) (*sem.Symbol, bool) {
 		}
 	}
 
+	// now, check global scopes
+	return w.lookupGlobal(name)
+}
+
+// -----------------------------------------------------------------------------
+
+// lookupGlobal looks up a symbol in the global scope of the package
+func (w *Walker) lookupGlobal(name string) (*sem.Symbol, bool) {
 	// import table and global table can't have conflicts so we can just look up
 	// the two in either order -- next in priority after imported symbols
 	if sym, ok := w.SrcFile.Parent.GlobalTable[name]; ok {

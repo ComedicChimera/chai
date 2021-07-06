@@ -16,7 +16,7 @@ func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool 
 	// scan metadata
 	if metadata, ok := c.parseMetadata(sc); ok {
 		// check for compilation conditions
-		if _, ok := metadata["nocompile"]; ok {
+		if _, ok := metadata["no_compile"]; ok {
 			return false
 		}
 

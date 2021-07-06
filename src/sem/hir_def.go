@@ -33,6 +33,8 @@ func (db *DefBase) Annotations() map[string]*Annotation {
 	return db.annots
 }
 
+// -----------------------------------------------------------------------------
+
 // HIRFuncDef represents a function definition
 type HIRFuncDef struct {
 	DefBase
@@ -55,4 +57,13 @@ type HIROperDef struct {
 
 	// Body is the body of the function
 	Body HIRExpr
+}
+
+// HIRTypeDef is a type definition
+type HIRTypeDef struct {
+	DefBase
+
+	// FieldInititializers stores the HIR expressions initializing any fields
+	// any struct type definitions
+	FieldInitializers map[string]HIRExpr
 }

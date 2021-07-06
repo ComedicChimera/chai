@@ -144,12 +144,26 @@ type TypeSubstitution struct {
 
 // -----------------------------------------------------------------------------
 
-// CastAssertion is an assertion that claims that one type is castable to
-// another.  This kind of late-bound assertion is used primarily to facilitate
-// cast check for unknown types.  This should generally be run after type
-// deduction has been performed since it doesn't really give any accurate typing
-// information
-type CastAssertion struct {
-	Lhs, Rhs DataType
-	Pos      *logging.TextPosition
+// TypeAssertion is an assertion that makes a claim about the types the solver
+// deduces.  These assertions are applied after types are deduced because they
+// don't really communicate any usable information about the types during
+// deduction.
+type TypeAssertion struct {
+	// AssertKind is one of the enumerated assertion kinds below
+	AssertKind int
+
+	// Operand is the type the assertion is applied to
+	Operand DataType
+
+	// Data is any additional data needed to check the assertion
+	Data interface{}
+
+	// Pos is the position used for error reporting if the assertion fails
+	Pos *logging.TextPosition
 }
+
+// Enumeration of assertion kinds
+const (
+	AssertCast   = iota // Assert that the operand is castable to another type
+	AssertNonRef        // Assert that the operand is not a reference
+)

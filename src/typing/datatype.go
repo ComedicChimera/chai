@@ -27,7 +27,17 @@ func Equals(a, b DataType) bool {
 
 // Equivalent checks if two types are effectively/logically equivalent
 func Equivalent(a, b DataType) bool {
-	return InnerType(a).equals(InnerType(b))
+	a = InnerType(a)
+	b = InnerType(b)
+
+	// handle alias-based equivalency
+	if at, ok := a.(*AliasType); ok {
+		return Equivalent(at.Type, b)
+	} else if bt, ok := b.(*AliasType); ok {
+		return Equivalent(a, bt.Type)
+	}
+
+	return a.equals(b)
 }
 
 // InnerType returns the type "stored" by another data type (such as the value

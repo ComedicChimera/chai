@@ -24,6 +24,9 @@ type Resolver struct {
 	// symbols such as functions and variables (which don't resolve other
 	// symbols)
 	dependents []*Definition
+
+	// walkers is the list of walkers for each file
+	walkers map[*sem.ChaiFile]*walk.Walker
 }
 
 func NewResolver(mod *mods.ChaiModule, depg map[uint]*mods.ChaiModule) *Resolver {
@@ -70,23 +73,38 @@ func (r *Resolver) ResolveAll() bool {
 
 	// NOTE: the global imported symbol references will CHANGE
 
-	walkers := make(map[*sem.ChaiFile]*walk.Walker)
+	// initialize the walkers
+	r.walkers = make(map[*sem.ChaiFile]*walk.Walker)
 
-	// TODO: resolve all independent definitions
+	// resolve all independent definitions
+	// TODO: implement an actually dependency resolution algorithm
+	for _, def := range r.independents {
+		if !r.walkDef(def) {
+			return false
+		}
+	}
 
 	// resolve all dependent definitions
 	for _, def := range r.dependents {
-		var modifiers int
-		if def.Public {
-			modifiers = sem.ModPublic
-		}
-
-		if w, ok := walkers[def.SrcFile]; ok {
-			w.WalkDef(def.AST, modifiers, def.Annotations)
-		} else {
-			walkers[def.SrcFile] = walk.NewWalker(def.SrcFile)
-			walkers[def.SrcFile].WalkDef(def.AST, modifiers, def.Annotations)
+		if !r.walkDef(def) {
+			return false
 		}
 	}
+
 	return true
+}
+
+// walkDef walks a definition
+func (r *Resolver) walkDef(def *Definition) bool {
+	var modifiers int
+	if def.Public {
+		modifiers = sem.ModPublic
+	}
+
+	if w, ok := r.walkers[def.SrcFile]; ok {
+		return w.WalkDef(def.AST, modifiers, def.Annotations)
+	} else {
+		r.walkers[def.SrcFile] = walk.NewWalker(def.SrcFile)
+		return r.walkers[def.SrcFile].WalkDef(def.AST, modifiers, def.Annotations)
+	}
 }

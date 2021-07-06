@@ -24,8 +24,8 @@ type Solver struct {
 	// pushed to and popped from the facilitate unification testing efficiently
 	stateStack []*SolutionState
 
-	// castAssertions is the list of applied cast assertions
-	castAssertions []*CastAssertion
+	// assertions is the list of applied type assertions
+	assertions []*TypeAssertion
 }
 
 // NewSolver creates a new type solver in a given log context
@@ -71,12 +71,13 @@ func (s *Solver) AddSubConstraint(lhs, rhs DataType, pos *logging.TextPosition) 
 	})
 }
 
-// AddCastAssertion adds a new cast assertion to the solver
-func (s *Solver) AddCastAssertion(lhs, rhs DataType, pos *logging.TextPosition) {
-	s.castAssertions = append(s.castAssertions, &CastAssertion{
-		Lhs: lhs,
-		Rhs: rhs,
-		Pos: pos,
+// AddTypeAssertion adds a new type assertion to the solver
+func (s *Solver) AddTypeAssertion(kind int, operand DataType, data interface{}, pos *logging.TextPosition) {
+	s.assertions = append(s.assertions, &TypeAssertion{
+		Operand:    operand,
+		AssertKind: kind,
+		Data:       data,
+		Pos:        pos,
 	})
 }
 
@@ -129,27 +130,44 @@ func (s *Solver) Solve() bool {
 	}
 
 	// determine final values for all our unknown types
-	allEvaluated := true
+	solvingSucceeded := true
 	for _, tvar := range s.typeVars {
 		// through deduction multiple type variables will evaluate at once and
 		// so we have to test to see whether or not the type has already been
 		// evaluated
 		if tvar.EvalType == nil && !tvar.EvalFailed {
-			allEvaluated = allEvaluated && s.deduce(tvar)
+			solvingSucceeded = solvingSucceeded && s.deduce(tvar)
 		}
 	}
 
-	// now, we can check as assertions after type deductions has already been
-	// performed: casts give no usable information about the underlying type
-	if allEvaluated {
-		for _, cast := range s.castAssertions {
-			if !CastTo(cast.Rhs, cast.Lhs) {
-				logging.LogCompileError(
-					s.lctx,
-					fmt.Sprintf("cannot cast `%s` to `%s`", cast.Rhs.Repr(), cast.Lhs.Repr()),
-					logging.LMKTyping,
-					cast.Pos,
-				)
+	// now, we can check assertions after type deductions has already been
+	// performed: they give no usable information about the underlying type
+	if solvingSucceeded {
+		for _, assert := range s.assertions {
+			switch assert.AssertKind {
+			case AssertCast:
+				destType := assert.Data.(DataType)
+
+				if !CastTo(assert.Operand, destType) {
+					logging.LogCompileError(
+						s.lctx,
+						fmt.Sprintf("cannot cast `%s` to `%s`", assert.Operand.Repr(), destType.Repr()),
+						logging.LMKTyping,
+						assert.Pos,
+					)
+
+					solvingSucceeded = false
+				}
+			case AssertNonRef:
+				if _, ok := InnerType(assert.Operand).(*RefType); ok {
+					logging.LogCompileError(
+						s.lctx,
+						"unable to create a double reference",
+						logging.LMKTyping,
+						assert.Pos,
+					)
+					solvingSucceeded = false
+				}
 			}
 		}
 	}
@@ -159,7 +177,7 @@ func (s *Solver) Solve() bool {
 	s.constraints = nil
 	s.discardState()
 	s.pushState()
-	return allEvaluated
+	return solvingSucceeded
 }
 
 // -----------------------------------------------------------------------------
@@ -293,6 +311,7 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 		if rrt, ok := rhs.(*RefType); ok {
 			return s.unify(v.ElemType, rrt.ElemType, TCEquiv)
 		}
+	// TODO: alias unification :)
 	default:
 		switch consKind {
 		case TCEquiv:

@@ -61,7 +61,7 @@ func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBr
 	switch branch.Name {
 	case "type_def", "class_def", "cons_def":
 		// these definitions are all independent and have their names as their
-		// second element
+		// second element -- TODO: handle closed type definitions
 		def.Name = branch.LeafAt(1).Value
 		def.NamePos = branch.LeafAt(1).Position()
 		r.independents = append(r.independents, def)

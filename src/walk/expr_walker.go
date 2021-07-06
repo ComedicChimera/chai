@@ -212,8 +212,9 @@ func (w *Walker) walkCoreExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 						return nil, false
 					}
 				case syntax.AS:
+					// type cast
 					if dt, ok := w.walkTypeLabel(itembranch.BranchAt(1)); ok {
-						w.solver.AddCastAssertion(dt, root.Type(), itembranch.Position())
+						w.solver.AddTypeAssertion(typing.AssertCast, root.Type(), dt, itembranch.Position())
 						root = &sem.HIRCast{
 							ExprBase: sem.NewExprBase(dt, root.Category(), root.Immutable()),
 							Root:     root,
@@ -443,7 +444,36 @@ func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool
 	for _, item := range branch.Content {
 		switch v := item.(type) {
 		case *syntax.ASTLeaf:
-			// TODO: handle builtin operators
+			// handle reference operators
+			switch v.Kind {
+			case syntax.AMP:
+				// assert that the root type is not a reference
+				w.solver.AddTypeAssertion(
+					typing.AssertNonRef,
+					result.Type(),
+					nil,
+					syntax.TextPositionOfSpan(branch, item),
+				)
+
+				// return the HIRIndirect
+				return &sem.HIRIndirect{
+					ExprBase: sem.NewExprBase(&typing.RefType{ElemType: result.Type()}, sem.RValue, false),
+					Root:     result,
+				}, true
+			case syntax.STAR:
+				// create a type variable to house the element type of the root
+				elemType := w.solver.CreateTypeVar(nil, func() {})
+
+				// constraint the root type to be equal to a reference to the
+				// element type variable: `root == &{_}`
+				w.solver.AddEqConstraint(result.Type(), &typing.RefType{ElemType: elemType}, branch.Position())
+
+				// return the HIRDeref; note that it is an LValue not an RValue
+				return &sem.HIRDereference{
+					ExprBase: sem.NewExprBase(elemType, sem.LValue, false),
+					Root:     result,
+				}, true
+			}
 
 			// only leaf is operator
 			op, ok := w.lookupOperator(v.Kind, 1)

@@ -296,6 +296,20 @@ type HIRCast struct {
 	Root HIRExpr
 }
 
+// HIRIndirect creates a reference to a value
+type HIRIndirect struct {
+	ExprBase
+
+	Root HIRExpr
+}
+
+// HIRDereference dereferences a reference and yields its value
+type HIRDereference struct {
+	ExprBase
+
+	Root HIRExpr
+}
+
 // -----------------------------------------------------------------------------
 
 // HIRIdentifier represents an identifier

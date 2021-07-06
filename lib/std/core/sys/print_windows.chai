@@ -1,18 +1,18 @@
-!! os = "windows"
+!! os = "windows", no_util
 
 let STD_OUTPUT_HANDLE = -11
 
-type HANDLE = &u8
+type Handle = &u8
 
 @dllimport
-def GetStdHandle(nStdHandle: i32) HANDLE
+def GetStdHandle(nStdHandle: i32) Handle
 
 @dllimport
 def AllocConsole() bool
 
 @dllimport
 def WriteConsole(
-    hConsoleInput: HANDLE,
+    hConsoleInput: Handle,
     lpBuffer: &u8,
     nNumberOfCharsToWrite: i32,
     lpNumberOfCharsWritten: &i32,
@@ -24,7 +24,7 @@ def ExitProcess(uExitCode: u32)
 
 # -----------------------------------------------------------------------------
 
-let stdout: HANDLE
+let stdout: Handle
 
 pub def print_byte(b: u8) = do
     let chars_written: i32

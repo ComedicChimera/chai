@@ -1,4 +1,4 @@
-!! nocompile
+!! no_compile
 
 import Buffer, Resource, RawPtr from core.runtime
 

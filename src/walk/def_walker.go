@@ -36,8 +36,63 @@ func (w *Walker) WalkDef(branch *syntax.ASTBranch, symbolModifiers int, annots m
 
 // walkTypeDef walks a type definition
 func (w *Walker) walkTypeDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
-	// TODO
-	return false
+	sym := &sem.Symbol{
+		DefKind:    sem.DefKindTypeDef,
+		Modifiers:  symbolModifiers,
+		Immutable:  true,
+		SrcPackage: w.SrcFile.Parent,
+	}
+	// fieldInits := make(map[string]sem.HIRExpr)
+	// closed := false
+	// expectingInherit := false
+	// var inheritPos *logging.TextPosition
+
+	// TODO: declare self types
+
+	for _, item := range branch.Content {
+		switch v := item.(type) {
+		case *syntax.ASTBranch:
+			switch v.Name {
+			case "generic_tag":
+				// TODO
+			case "type":
+				// TODO: handle inherits
+
+				if dt, ok := w.walkTypeLabel(v); ok {
+					sym.Type = &typing.AliasType{
+						Name:         sym.Name,
+						SrcPackageID: sym.SrcPackage.ID,
+						Type:         dt,
+					}
+				} else {
+					return false
+				}
+			case "newtype":
+				// TODO
+			}
+		case *syntax.ASTLeaf:
+			switch v.Kind {
+			case syntax.IDENTIFIER:
+				sym.Name = v.Value
+				sym.Position = v.Position()
+			case syntax.OF:
+				// TODO
+			case syntax.CLOSED:
+				// TODO
+			}
+		}
+	}
+
+	// define the symbol and add the definition node
+	if !w.defineGlobal(sym) {
+		return false
+	}
+
+	w.SrcFile.AddDefNode(&sem.HIRTypeDef{
+		DefBase: sem.NewDefBase(sym, annots),
+		// FieldInitializers: fieldInits,
+	})
+	return true
 }
 
 // -----------------------------------------------------------------------------

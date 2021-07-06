@@ -2,6 +2,7 @@ package walk
 
 import (
 	"chai/logging"
+	"chai/sem"
 	"chai/syntax"
 	"chai/typing"
 	"fmt"
@@ -28,15 +29,107 @@ func (w *Walker) walkTypeLabelCore(branch *syntax.ASTBranch) (typing.DataType, b
 			// can just subtract the `syntax.U8` starting token
 			return typing.PrimType(valueTypeBranch.LeafAt(0).Kind - syntax.U8), true
 		}
+
+		// TODO: the remaining value types
 	case "ref_type":
 		if elemType, ok := w.walkTypeLabelCore(branch.BranchAt(1)); ok {
 			return &typing.RefType{
 				ElemType: elemType,
 			}, true
 		}
+	case "named_type":
+		return w.walkNamedType(branch)
 	}
 
+	// unreachable
 	return nil, false
+}
+
+// walkNamedType walks a `named_type` branch
+func (w *Walker) walkNamedType(branch *syntax.ASTBranch) (typing.DataType, bool) {
+	// TODO: check for cyclic types
+
+	var rootName, accessedName string
+	var rootPos, accessedPos *logging.TextPosition
+	for _, item := range branch.Content {
+		switch v := item.(type) {
+		case *syntax.ASTBranch:
+			switch v.Name {
+			case "generic_spec":
+				// TODO
+			case "size_spec":
+				// TODO
+			}
+		case *syntax.ASTLeaf:
+			if v.Kind == syntax.IDENTIFIER {
+				if rootName == "" {
+					rootName = v.Value
+					rootPos = v.Position()
+				} else {
+					accessedName = v.Value
+					accessedPos = v.Position()
+				}
+			}
+		}
+	}
+
+	// look the symbol up in the global scope
+	var typeSym *sem.Symbol
+	if accessedName == "" {
+		if sym, ok := w.lookupGlobal(rootName); ok {
+			typeSym = sym
+		} else {
+			w.logUndefined(rootName, rootPos)
+			return nil, false
+		}
+	} else /* package lookup */ {
+		if pkg, ok := w.SrcFile.VisiblePackages[rootName]; ok {
+			if sym, ok := pkg.ImportSymbol(accessedName); ok {
+				typeSym = sym
+			} else {
+				w.logError(
+					fmt.Sprintf("package `%s` contains no public symbol named `%s`", rootName, accessedName),
+					logging.LMKName,
+					accessedPos,
+				)
+
+				return nil, false
+			}
+		} else {
+			w.logError(
+				fmt.Sprintf("no package visible by name `%s`", pkg.Name),
+				logging.LMKName,
+				rootPos,
+			)
+
+			return nil, false
+		}
+	}
+
+	// check to make sure symbol is a valid type definition
+	if typeSym.DefKind != sem.DefKindTypeDef {
+		// TODO: handle constraint sets
+
+		// determine the position of the name component of the named type
+		var namePos *logging.TextPosition
+		if accessedName == "" {
+			namePos = rootPos
+		} else {
+			namePos = syntax.TextPositionOfSpan(branch.Content[0], branch.Content[2])
+		}
+
+		w.logError(
+			fmt.Sprintf("`%s` is not a type", typeSym.Name),
+			logging.LMKUsage,
+			namePos,
+		)
+
+		return nil, false
+	}
+
+	// TODO: handle generics and size generics
+
+	return typeSym.Type, true
 }
 
 // -----------------------------------------------------------------------------
