@@ -14,10 +14,10 @@ func (w *Walker) validateFuncAnnotations(annots map[string]*sem.Annotation) (boo
 
 	for _, annot := range annots {
 		switch annot.Name {
-		case "dllimport":
+		case "linkname":
 			if len(annot.Values) != 1 {
 				w.logError(
-					"annotation @dllimport requires the name of symbol to import as an argument",
+					"annotation @linkname requires the link name of the symbol as an argument",
 					logging.LMKAnnot,
 					annot.NamePos,
 				)
@@ -26,7 +26,7 @@ func (w *Walker) validateFuncAnnotations(annots map[string]*sem.Annotation) (boo
 			}
 
 			needsBody = false
-		case "extern", "intrinsic":
+		case "extern", "intrinsic", "dllimport":
 			needsBody = false
 			fallthrough
 		case "inline", "unsafe", "tailrec", "constexpr", "introspect":

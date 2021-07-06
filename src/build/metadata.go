@@ -14,7 +14,7 @@ import (
 // second argument (so that it can read metadata easily)
 func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool {
 	// scan metadata
-	if metadata, ok := c.scanMetadata(sc); ok {
+	if metadata, ok := c.parseMetadata(sc); ok {
 		// check for compilation conditions
 		if _, ok := metadata["nocompile"]; ok {
 			return false
@@ -43,10 +43,10 @@ func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool 
 	return false
 }
 
-// scanMetadata uses a file's scanner to extract any metadata at the top of the
+// parseMetadata uses a file's scanner to extract any metadata at the top of the
 // file.  It returns a map of metadata arguments to be processed by the compiler
 // and a boolean indicating whether or not metadata was scanned successfully.
-func (c *Compiler) scanMetadata(sc *syntax.Scanner) (map[string]string, bool) {
+func (c *Compiler) parseMetadata(sc *syntax.Scanner) (map[string]string, bool) {
 	logUnexpectedTokenError := func(tok *syntax.Token) {
 		logging.LogCompileError(
 			sc.Context(),

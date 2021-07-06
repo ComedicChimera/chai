@@ -36,8 +36,8 @@ func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 			switch itembranch.Name {
 			case "variable_decl":
 				// header variable declaration
-				if varDecl, ok := w.walkVarDecl(branch, false); ok {
-					loop.HeaderDecl = varDecl.(*sem.HIRVarDecl)
+				if varDecl, ok := w.walkVarDecl(branch, false, sem.ModNone); ok {
+					loop.HeaderDecl = varDecl
 				} else {
 					return nil, false
 				}

@@ -236,6 +236,29 @@ func (vt *VectorType) Copy() DataType {
 
 // -----------------------------------------------------------------------------
 
+// RefType represents a reference type
+type RefType struct {
+	ElemType DataType
+}
+
+func (rt *RefType) equals(other DataType) bool {
+	if ort, ok := other.(*RefType); ok {
+		return rt.ElemType.equals(ort.ElemType)
+	}
+
+	return false
+}
+
+func (rt *RefType) Repr() string {
+	return "&" + rt.ElemType.Repr()
+}
+
+func (rt *RefType) Copy() DataType {
+	return &RefType{
+		ElemType: rt.ElemType.Copy(),
+	}
+}
+
 // // ConstraintSet is a polymorphic constraint set (ie. a user-defined
 // // constraint). These are primarily used in generics to facilitate situations
 // // where multiple type parameter values are legal, but there is no logical type

@@ -47,6 +47,7 @@ const (
 
 // Enumeration of symbol modifiers.  These are used as bitfield values
 const (
+	ModNone     = 0
 	ModPublic   = 1
 	ModVolatile = 2
 )

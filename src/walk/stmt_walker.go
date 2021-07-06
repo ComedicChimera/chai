@@ -12,7 +12,7 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 	stmt := branch.BranchAt(0)
 	switch stmt.Name {
 	case "variable_decl":
-		return w.walkVarDecl(stmt, false)
+		return w.walkVarDecl(stmt, false, sem.ModNone)
 	case "break_stmt":
 		if w.currExprContext().LoopContext {
 			return sem.NewControlStmt(sem.CSBreak), true
@@ -107,7 +107,7 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 // -----------------------------------------------------------------------------
 
 // walkVarDecl walks a `variable_decl` node
-func (w *Walker) walkVarDecl(branch *syntax.ASTBranch, global bool) (sem.HIRExpr, bool) {
+func (w *Walker) walkVarDecl(branch *syntax.ASTBranch, global bool, modifiers int) (*sem.HIRVarDecl, bool) {
 	type variable struct {
 		dt          typing.DataType
 		initializer sem.HIRExpr

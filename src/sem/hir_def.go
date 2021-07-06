@@ -2,7 +2,8 @@ package sem
 
 // HIRRoot is the high-level intermediate representation node for a file
 type HIRRoot struct {
-	Defs []HIRDef
+	Defs    []HIRDef
+	Globals []*HIRVarDecl
 }
 
 // HIRDef is the parent interface for all definition HIR Nodes

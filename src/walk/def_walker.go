@@ -18,10 +18,25 @@ func (w *Walker) WalkDef(branch *syntax.ASTBranch, symbolModifiers int, annots m
 		return w.walkFuncDef(branch, symbolModifiers, annots)
 	case "oper_def":
 		return w.walkOperDef(branch, symbolModifiers, annots)
+	case "type_def":
+		return w.walkTypeDef(branch, symbolModifiers, annots)
+	case "variable_decl":
+		if varDecl, ok := w.walkVarDecl(branch, true, symbolModifiers); ok {
+			w.SrcFile.Root.Globals = append(w.SrcFile.Root.Globals, varDecl)
+			return true
+		}
 	}
 
 	// TODO: handle generics
 
+	return false
+}
+
+// -----------------------------------------------------------------------------
+
+// walkTypeDef walks a type definition
+func (w *Walker) walkTypeDef(branch *syntax.ASTBranch, symbolModifiers int, annots map[string]*sem.Annotation) bool {
+	// TODO
 	return false
 }
 

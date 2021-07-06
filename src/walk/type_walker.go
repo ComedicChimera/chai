@@ -28,6 +28,12 @@ func (w *Walker) walkTypeLabelCore(branch *syntax.ASTBranch) (typing.DataType, b
 			// can just subtract the `syntax.U8` starting token
 			return typing.PrimType(valueTypeBranch.LeafAt(0).Kind - syntax.U8), true
 		}
+	case "ref_type":
+		if elemType, ok := w.walkTypeLabelCore(branch.BranchAt(1)); ok {
+			return &typing.RefType{
+				ElemType: elemType,
+			}, true
+		}
 	}
 
 	return nil, false

@@ -289,6 +289,10 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 				v.IsRow == rvt.IsRow &&
 				(v.Size == rvt.Size || v.Size == -1 || rvt.Size == -1)
 		}
+	case *RefType:
+		if rrt, ok := rhs.(*RefType); ok {
+			return s.unify(v.ElemType, rrt.ElemType, TCEquiv)
+		}
 	default:
 		switch consKind {
 		case TCEquiv:
