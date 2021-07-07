@@ -37,7 +37,6 @@ const (
 
 	// function terminators
 	RETURN
-	YIELD
 
 	// function definitions
 	DEF
@@ -173,7 +172,6 @@ var keywordPatterns = map[string]int{
 	"do":          DO,
 	"of":          OF,
 	"return":      RETURN,
-	"yield":       YIELD,
 	"vol":         VOL,
 	"def":         DEF,
 	"async":       ASYNC,

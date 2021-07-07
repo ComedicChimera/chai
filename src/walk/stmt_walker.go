@@ -82,23 +82,6 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 				}, true
 			}
 		}
-	case "yield_stmt":
-		if stmt.Len() == 1 {
-			// no yield values
-			n := makeLiteral(nothingType(), "")
-
-			return &sem.HIRYieldStmt{
-				Value: n,
-			}, true
-		} else if exprs, ok := w.walkExprList(stmt.BranchAt(1)); ok {
-			if len(exprs) > 1 {
-				// TODO
-			} else {
-				return &sem.HIRYieldStmt{
-					Value: exprs[0],
-				}, true
-			}
-		}
 	}
 
 	return nil, false

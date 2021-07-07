@@ -12,6 +12,8 @@ func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 	blockExpr := branch.BranchAt(0)
 
 	switch blockExpr.Name {
+	case "if_chain":
+		return w.walkIfChain(branch, yieldsValue)
 	case "while_loop":
 		return w.walkWhileLoop(branch, yieldsValue)
 	}
@@ -19,6 +21,58 @@ func (w *Walker) walkBlockExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 	// unreachable
 	return nil, false
 }
+
+// walkIfChain walks an `if_chain` branch
+func (w *Walker) walkIfChain(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
+	ifChain := &sem.HIRIfChain{
+		ExprBase: sem.NewExprBase(nothingType(), sem.RValue, false),
+	}
+
+	for _, item := range branch.Content {
+		// only items are subbranches
+		itembranch := item.(*syntax.ASTBranch)
+
+		switch itembranch.Name {
+		case "if_block":
+		case "elif_block":
+		case "else_block":
+		}
+	}
+
+	// TODO: fix this broken control flow logic
+
+	// determine the resultant type of the if chain if it yields a value, and
+	// the control flow effect of the block
+	if yieldsValue {
+		// TODO
+	} else /* only need to find control flow */ {
+		control := ifChain.IfBranch.BranchBody.Control()
+
+		// never going to have a control flow effect unless the first branch
+		// actually causes a change in control flow
+		if control != sem.CFNone {
+			for _, elifBranch := range ifChain.ElifBranches {
+				if elifBranch.BranchBody.Control() == sem.CFNone {
+					control = sem.CFNone
+					break
+				} else {
+
+				}
+			}
+
+			if ifChain.ElseBranch != nil && control != sem.CFNone {
+				control = ifChain.ElseBranch.Control()
+			}
+		}
+
+		ifChain.SetControl(control)
+	}
+
+	// return the final constructed if chain
+	return ifChain, true
+}
+
+// -----------------------------------------------------------------------------
 
 // walkWhileLoop walks a `while_loop` branch
 func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
@@ -65,14 +119,6 @@ func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 				}
 			}
 		}
-	}
-
-	// handle control flow in loop body
-	switch loop.LoopBody.Control() {
-	case sem.CFPanic, sem.CFReturn, sem.CFMatch:
-		// break and continue are contained to loop: don't affect control flow
-		// outside of it
-		loop.SetControl(loop.LoopBody.Control())
 	}
 
 	// update loop return type if the loop yields a value
@@ -175,12 +221,6 @@ func (w *Walker) walkBlockContent(branch *syntax.ASTBranch, yieldsValue bool) (s
 					block.Statements = append(block.Statements, stmt)
 
 					switch stmt.Control() {
-					case sem.CFYield:
-						// yield statements don't affect control flow outside of
-						// the loop so we don't need to update the loop control
-						// here
-						w.solver.AddSubConstraint(block.Type(), stmt.Type(), blockElem.Position())
-						branchControlIndex = i
 					case sem.CFNone:
 						updateBlockType(i, stmt.Type(), blockElem.Position())
 					default:

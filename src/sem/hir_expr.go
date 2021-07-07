@@ -36,7 +36,6 @@ const (
 const (
 	CFNone   = iota // No change to control flow
 	CFReturn        // Return from function
-	CFYield         // Yield from a block
 	CFLoop          // Change the control flow of a loop
 	CFMatch         // Changes the control flow of a match
 	CFPanic         // Panic and exit block
@@ -127,6 +126,34 @@ type HIRWhileLoop struct {
 	// NoBreakClause is the body of the `nobreak` following a loop.  This field
 	// can be `nil` if there was no `nobreak`
 	NoBreakClause HIRExpr
+}
+
+// HIRIfChain is an if chain containing one or more conditional branches
+type HIRIfChain struct {
+	ExprBase
+
+	// IfBranch is the primary conditional branch of the if chain
+	IfBranch *HIRCondBranch
+
+	// ElifBranches is the list of secondary conditional branches
+	ElifBranches []*HIRCondBranch
+
+	// ElseBranch is the final, unconditional else branch of the chain. This
+	// field can be `nil` if there is no `else`
+	ElseBranch HIRExpr
+}
+
+// HIRCondBranch represents a single branch of an if chain (`if` or `elif`)
+type HIRCondBranch struct {
+	// HeaderDecl is the variable declared as part of branch.  This can be `nil`
+	// if no variable is declared by the chain
+	HeaderDecl *HIRVarDecl
+
+	// HeaderCond is the condition expression for the branch
+	HeaderCond HIRExpr
+
+	// BranchBody is the body of the conditional branch
+	BranchBody HIRExpr
 }
 
 // HIRDoBlock represents a do block expression
@@ -242,21 +269,6 @@ func (hrs *HIRReturnStmt) Control() int {
 
 func (hrs *HIRReturnStmt) Type() typing.DataType {
 	return hrs.Value.Type()
-}
-
-// HIRYieldStmt is a statement that yields a value from a block
-type HIRYieldStmt struct {
-	stmtBase
-
-	Value HIRExpr
-}
-
-func (hys *HIRYieldStmt) Control() int {
-	return CFYield
-}
-
-func (hys *HIRYieldStmt) Type() typing.DataType {
-	return hys.Value.Type()
 }
 
 // -----------------------------------------------------------------------------
