@@ -521,56 +521,76 @@ func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool
 
 // makeOperatorApp creates a new operator application
 func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exprPos *logging.TextPosition, opsPos []*logging.TextPosition) sem.HIRExpr {
-	// generalize the operator into a generic function; start by generating
-	// constraints representing the most general form of the operator
-	qCons := make([][]typing.DataType, len(oper.Overloads[0].Quantifiers))
-	for _, overload := range oper.Overloads {
-		// we can blindly merge quantifiers here since we know the merges are
-		// valid (by the fact that the overloads are defined at all)
-		for i, q := range overload.Quantifiers {
-			if qCons[i] == nil {
-				// copy the quantifier so we don't mutate it
-				qCons[i] = make([]typing.DataType, len(q))
-				copy(qCons[i], q)
-			} else {
-				// merge the quantifiers into one big constraint
-				qCons[i] = append(qCons[i], q...)
-			}
-		}
-	}
-
-	// create our type variables based on those constraint sets
-	tvars := make([]*typing.TypeVariable, len(qCons))
-	for i, q := range qCons {
-		tvar := w.solver.CreateTypeVar(nil, func() {
+	// generalize the operator into a generic function; start by generating type
+	// variables representing the unknown arguments and return type of the
+	// operator
+	tvars := make([]*typing.TypeVariable, oper.Arity+1)
+	for i := range tvars {
+		tvars[i] = w.solver.CreateTypeVar(nil, func() {
 			w.logError(
 				fmt.Sprintf("unable to determine matching overload for `%s` operator", oper.Name),
 				logging.LMKTyping,
 				exprPos,
 			)
 		})
-
-		w.solver.AddOverload(tvar, q...)
-		tvars[i] = tvar
 	}
 
-	// constrain the argument types appropriately
-	for i, n := range oper.ArgsForm {
-		w.solver.AddSubConstraint(tvars[n], operands[i].Type(), opsPos[i])
+	// then create the overloads for each of those type variables
+	overloadValues := make(map[int][]typing.DataType)
+	for _, overload := range oper.Overloads {
+		switch v := overload.Signature.(type) {
+		case *typing.FuncType:
+			for i, arg := range v.Args {
+				tvarID := tvars[i].ID
+
+				if vals, ok := overloadValues[tvarID]; ok {
+					overloadValues[tvarID] = append(vals, arg.Type)
+				} else {
+					overloadValues[tvarID] = []typing.DataType{arg.Type}
+				}
+			}
+
+			lastTvarID := tvars[len(tvars)-1].ID
+			if vals, ok := overloadValues[lastTvarID]; ok {
+				overloadValues[lastTvarID] = append(vals, v.ReturnType)
+			} else {
+				overloadValues[lastTvarID] = []typing.DataType{v.ReturnType}
+			}
+
+			// TODO: handle generic types
+		}
+	}
+
+	// generate all the type constraints and overloads
+	for i, tvar := range tvars {
+		// apply our overload to the type variable
+		w.solver.AddOverload(tvar, overloadValues[tvar.ID]...)
+
+		// constrain any corresponding argument types appropriately
+		if i < len(opsPos) {
+			w.solver.AddSubConstraint(tvar, operands[i].Type(), opsPos[i])
+		}
+
+		// add all the overload correspondences
+		for _, item := range tvars {
+			if item.ID != tvar.ID {
+				w.solver.AddOverloadCorrespondence(tvar.ID, item.ID)
+			}
+		}
 	}
 
 	// create the function type that will be used for the operator
 	fargs := make([]*typing.FuncArg, len(operands))
-	for i, n := range oper.ArgsForm {
+	for i := range fargs {
 		// don't need to handle by-reference here
-		fargs[i] = &typing.FuncArg{Type: tvars[n]}
+		fargs[i] = &typing.FuncArg{Type: tvars[i]}
 	}
 
 	// intrinsic name and boxed don't need to be set here; they can't be because
 	// we don't know what overload we are dealing with yet
 	ft := &typing.FuncType{
 		Args:       fargs,
-		ReturnType: tvars[oper.ReturnForm],
+		ReturnType: tvars[len(tvars)-1],
 	}
 
 	return &sem.HIROperApply{

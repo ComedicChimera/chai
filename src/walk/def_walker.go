@@ -6,9 +6,6 @@ import (
 	"chai/syntax"
 	"chai/typing"
 	"fmt"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 // WalkDef walks a core definition node (eg. `type_def` or `variable_decl`)
@@ -150,9 +147,8 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 			operName += item.(*syntax.ASTLeaf).Value
 		}
 
-		// validate the operator against the expected form for it
-		expectedArgsForm, expectedReturnForm, err := getOperatorForm(operCode, len(ft.Args))
-		if err != nil {
+		// check that the operator has a valid arity
+		if err := checkOperatorArity(operCode, len(ft.Args)); err != nil {
 			w.logError(
 				fmt.Sprintf("the `%s` operator takes %s", operName, err.Error()),
 				logging.LMKDef,
@@ -162,30 +158,16 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 			return false
 		}
 
-		overload, argsForm, returnForm := w.getOverloadFromSignature(ft)
-		overload.Public = symbolModifiers&sem.ModPublic != 0
-
-		if !reflect.DeepEqual(argsForm, expectedArgsForm) || returnForm != expectedReturnForm {
-			b := strings.Builder{}
-			b.WriteRune('(')
-
-			for i, n := range expectedArgsForm {
-				b.WriteRune('T')
-				b.WriteString(strconv.Itoa(n))
-
-				if i != len(expectedArgsForm)-1 {
-					b.WriteString(", ")
-				}
-			}
-
-			b.WriteString(") -> T")
-			b.WriteString(strconv.Itoa(expectedReturnForm))
-
-			w.logError(
-				fmt.Sprintf("signature for operator `%s` must be of form `%s`", operName, b.String()),
-				logging.LMKDef,
-				operBranch.Position(),
-			)
+		// create a new overload based on that arity and indicate whether or not
+		// this is the inplace form by storing that flag inside the
+		// `InplaceForm` field -- note that this field indicates whether there
+		// is an inplace form not whether this overload is an inplace form
+		_, isInplace := annots["inplace"]
+		overload := &sem.OperatorOverload{
+			SrcPackage:  w.SrcFile.Parent,
+			Signature:   ft,
+			Public:      symbolModifiers&sem.ModPublic != 0,
+			InplaceForm: isInplace,
 		}
 
 		// define the operator overload; errors handled inside

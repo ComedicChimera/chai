@@ -199,23 +199,21 @@ func (cf *ChaiFile) ImportOperators(importedPackage *ChaiPackage) error {
 				// we only want to import the public overloads
 				if overload.Public {
 					// check if a matching operator form exists; if it doesn't, add it to the table
-					if localOperator, ok := GetOperatorFromTable(cf.ImportedOperators, opCode, len(operator.ArgsForm)); ok {
+					if localOperator, ok := GetOperatorFromTable(cf.ImportedOperators, opCode, operator.Arity); ok {
 						if !localOperator.AddOverload(overload) {
 							return errors.New(localOperator.Name)
 						}
 					} else if localOperatorSet, ok := cf.ImportedOperators[opCode]; ok {
 						cf.ImportedOperators[opCode] = append(localOperatorSet, &Operator{
-							Name:       operator.Name,
-							Overloads:  []*OperatorOverload{overload},
-							ArgsForm:   operator.ArgsForm,
-							ReturnForm: operator.ReturnForm,
+							Name:      operator.Name,
+							Overloads: []*OperatorOverload{overload},
+							Arity:     operator.Arity,
 						})
 					} else {
 						cf.ImportedOperators[opCode] = []*Operator{{
-							Name:       operator.Name,
-							Overloads:  []*OperatorOverload{overload},
-							ArgsForm:   operator.ArgsForm,
-							ReturnForm: operator.ReturnForm,
+							Name:      operator.Name,
+							Overloads: []*OperatorOverload{overload},
+							Arity:     operator.Arity,
 						}}
 					}
 				}
