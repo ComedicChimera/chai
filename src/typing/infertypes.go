@@ -28,6 +28,12 @@ type TypeVariable struct {
 	// EvalFailed indicates that this type variable failed to be deduced
 	EvalFailed bool
 
+	// Required indicates whether or not this type variable's value must be
+	// determined in order to deduction to succeed.  This is used for
+	// conditional type variables such as those used in generic operator
+	// overloading
+	Required bool
+
 	// HandleUndetermined is called whenever a type value cannot be determined
 	// for this type variable, but there was no other type error.
 	HandleUndetermined func()
@@ -75,14 +81,14 @@ func (tv *TypeVariable) Repr() string {
 
 		b.WriteRune('}')
 		return b.String()
-	} else if overloadSet, ok := tv.s.getOverloadSet(tv.ID); ok {
+	} else if overload, ok := tv.s.getOverload(tv.ID); ok {
 		b := strings.Builder{}
 		b.WriteRune('{')
 
-		for i, overload := range overloadSet {
-			b.WriteString(overload.Repr())
+		for i, val := range overload.Values {
+			b.WriteString(val.Repr())
 
-			if i < len(overloadSet)-1 {
+			if i < len(overload.Values)-1 {
 				b.WriteString(" | ")
 			}
 		}
@@ -140,6 +146,31 @@ type TypeSubstitution struct {
 	// them: eg. `Showable`.  We can only infer that general type, however,
 	// based on context: `Showable` is only one possible generalization
 	lowerBounds []DataType
+}
+
+// TypeOverload represents the various overloads for a type variable
+type TypeOverload struct {
+	// Values are all the data types that the variable could be unified to: the
+	// actual overloads themselves
+	Values []DataType
+
+	// Corresponds is the list of all the other type overloads that must be
+	// reduced in tandem with this one -- the value is the ID of the type
+	// variable influenced.  This is used to facilitate things like operator
+	// overloading where different type variables generalize to related by not
+	// identical values
+	Corresponds []int
+}
+
+// copy creates a new copy of this type overload for an inner unification state
+func (to *TypeOverload) copy() *TypeOverload {
+	nto := &TypeOverload{
+		Values:      make([]DataType, len(to.Values)),
+		Corresponds: to.Corresponds,
+	}
+
+	copy(nto.Values, to.Values)
+	return nto
 }
 
 // -----------------------------------------------------------------------------
