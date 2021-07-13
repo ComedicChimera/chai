@@ -48,9 +48,10 @@ type ChaiPackage struct {
 
 // NewPackage creates a new Chai package based on the given absolute, root path
 // (does NOT perform file initialization)
-func NewPackage(rootPath string) *ChaiPackage {
+func NewPackage(parentID uint, rootPath string) *ChaiPackage {
 	return &ChaiPackage{
 		ID:              common.GenerateIDFromPath(rootPath),
+		ParentID:        parentID,
 		Name:            filepath.Base(rootPath),
 		RootPath:        rootPath,
 		GlobalTable:     make(map[string]*Symbol),

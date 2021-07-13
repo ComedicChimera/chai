@@ -167,7 +167,7 @@ shift_expr = arith_expr {('>>' | '<<') arith_expr} ;
 arith_expr = term {('+' | '-') term} ;
 term = factor {('*' | '/' | '//' | '%') factor} ;
 factor = unary_expr {'**' unary_expr} ;
-unary_expr = ['&' | '*' | '-' | '~'] atom_expr ;
+unary_expr = ['&' | '*' | '-' | '~' | '!'] atom_expr ;
 
 atom_expr = atom {trailer} ;
 trailer = '.' ( 'IDENTIFIER' | 'INTLIT' | generic_spec )

@@ -126,13 +126,15 @@ func (c *Compiler) parseMetadata(sc *syntax.Scanner) (map[string]string, bool) {
 								state = 3
 							} else if nextTok.Kind == syntax.COMMA {
 								state = 1
+							} else if nextTok.Kind == closer {
+								return metadata, true
 							} else {
 								logUnexpectedTokenError(nextTok)
 								return nil, false
 							}
 						// expecting value
 						case 3:
-							if nextTok.Kind == syntax.STRING {
+							if nextTok.Kind == syntax.STRINGLIT {
 								metadata[recentKey] = nextTok.Value
 								state = 4
 							} else {

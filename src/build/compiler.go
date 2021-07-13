@@ -82,6 +82,7 @@ func (c *Compiler) Analyze() bool {
 		logging.LogConfigError("Module", "error loading core module: "+err.Error())
 		return false
 	}
+	c.depGraph[c.coreMod.ID] = c.coreMod
 
 	// log begin phase 1
 	logging.LogBeginPhase("Parsing")

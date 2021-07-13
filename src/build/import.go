@@ -66,6 +66,9 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 					logging.LogConfigError("Import", err.Error())
 					return false
 				}
+
+				importedPkgName = importedPkg.Name
+				importedPkgPathPos = v.Position()
 			} else /* `identifier_list` */ {
 				_, importedSymbols, err = walk.WalkIdentifierList(v)
 				if err != nil {
@@ -77,8 +80,6 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 					)
 					return false
 				}
-
-				importedPkgName = importedPkg.Name
 			}
 		case *syntax.ASTLeaf:
 			// only `IDENTIFIER` => rename
@@ -92,10 +93,10 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 	}
 
 	// check to make sure the package isn't importing itself
-	if file.Parent != importedPkg {
+	if file.Parent == importedPkg {
 		logging.LogCompileError(
 			file.LogContext,
-			fmt.Sprintf("package `%s` cannot import itself", parentMod.BuildPackagePathString(importedPkg)),
+			fmt.Sprintf("package `%s` cannot import itself", importedMod.BuildPackagePathString(importedPkg)),
 			logging.LMKImport,
 			importedPkgPathPos,
 		)
@@ -106,7 +107,7 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 	// add the imported module as a dependency of the parent module if it hasn't
 	// already been added and is not equivalent to the parent module (ie.
 	// importing another package within the same module)
-	if parentMod != importedMod {
+	if parentMod.ID != importedMod.ID {
 		if _, ok := parentMod.DependsOn[importedMod.Name]; !ok {
 			// if the imported package is uninitialized, then there must be an
 			// import cycle since it must still be processing its imports
@@ -213,6 +214,12 @@ func (c *Compiler) importPackage(parentMod *mods.ChaiModule, pkgPathBranch *synt
 // on its module name. The `parentMod` provides the search context for finding
 // the module (eg. local import directories)
 func (c *Compiler) findModule(parentMod *mods.ChaiModule, modName string) (*mods.ChaiModule, error) {
+	// modules importing themselves
+	if parentMod.Name == modName {
+		return parentMod, nil
+	}
+
+	// importing a dependency of the module
 	if subMod, ok := parentMod.DependsOn[modName]; ok {
 		return subMod, nil
 	}

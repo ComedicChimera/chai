@@ -31,7 +31,7 @@ func (c *Compiler) initPackage(parentMod *mods.ChaiModule, abspath string) (*sem
 	}
 
 	// create a new package
-	newpkg := sem.NewPackage(abspath)
+	newpkg := sem.NewPackage(parentMod.ID, abspath)
 
 	// load and parse package files concurrently
 	finfos, err := ioutil.ReadDir(abspath)
