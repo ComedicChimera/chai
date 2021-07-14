@@ -64,5 +64,16 @@ type OperatorOverload struct {
 // CollidesWith checks whether or not two operator overloads collide
 func (oo *OperatorOverload) CollidesWith(other *OperatorOverload) bool {
 	// TODO: handle generic collision
-	return typing.Equivalent(oo.Signature, other.Signature)
+	if ft, ok := oo.Signature.(*typing.FuncType); ok {
+		if oft, ok := other.Signature.(*typing.FuncType); ok {
+			// we know that the number of arguments is the same
+			for i, arg := range ft.Args {
+				if !typing.Equivalent(arg.Type, oft.Args[i].Type) {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
 }

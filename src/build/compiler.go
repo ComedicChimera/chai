@@ -7,6 +7,7 @@ import (
 	"chai/resolve"
 	"chai/syntax"
 	"chai/walk"
+	"fmt"
 	"path/filepath"
 	"sync"
 )
@@ -120,11 +121,28 @@ func (c *Compiler) Analyze() bool {
 				r := resolve.NewResolver(mod, c.depGraph)
 
 				if r.ResolveAll() {
-					// if we can resolve all symbols, we can then validate
-					// predicates -- note that this does not validate generic
-					// instances (that will happen after this)
+					// if we can resolve all symbols, then we know all operators
+					// can be imported and all predicates can be walked
 					for _, pkg := range mod.Packages() {
 						for _, file := range pkg.Files {
+							// import public operators -- do this after resolution since
+							// only then will all the operators actually be defined
+							for ipkg, pathPos := range file.ImportedPackages {
+								if err := file.ImportOperators(ipkg); err != nil {
+									logging.LogCompileError(
+										file.LogContext,
+										fmt.Sprintf("multiple conflicting overloads for `%s` operator", err.Error()),
+										logging.LMKImport,
+										pathPos,
+									)
+								}
+
+								// we can actually continue walking here since
+								// operator conflicts generally don't cause a
+								// cascade of errors
+							}
+
+							// walk all predicates
 							w := walk.NewWalker(file)
 							w.WalkPredicates(file.Root)
 						}

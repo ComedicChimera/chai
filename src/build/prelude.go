@@ -8,7 +8,7 @@ import (
 
 // preludeImports is a table of each prelude package and what to import from it
 var preludeImports = map[string][]string{
-	".":     {"print_int"},
+	".":     {"min"},
 	"types": {},
 	// TODO
 }

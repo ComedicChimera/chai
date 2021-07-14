@@ -1,14 +1,5 @@
-import print_byte from core.sys
-
-pub of     
-    def print_digit(d: i32) =
-        print_byte('0' + (d as rune) as u8)
-    
-    def print_int(i: i32) = do
-        let x = i
-        let p = 10
-    
-        while p < i do
-            print_digit(x % 10)
-            x //= 10
-            p *= 10
+pub of   
+    # Just a temporary function for now
+    def min(a, b: i32) i32 =
+        if a < b -> a
+        else -> b    

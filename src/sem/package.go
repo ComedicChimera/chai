@@ -91,6 +91,10 @@ type ChaiFile struct {
 	// Metadata is the map of metadata flags and arguments set for this file
 	Metadata map[string]string
 
+	// ImportedPackages stores the packages this file individually depends on
+	// along with the position of their first import statement
+	ImportedPackages map[*ChaiPackage]*logging.TextPosition
+
 	// ImportedSymbols stores all the symbols this file imports
 	ImportedSymbols map[string]*Symbol
 
@@ -109,6 +113,7 @@ func NewFile(parent *ChaiPackage, fabspath string) *ChaiFile {
 		Parent:            parent,
 		FilePath:          fabspath,
 		LogContext:        &logging.LogContext{PackageID: parent.ID, FilePath: fabspath},
+		ImportedPackages:  make(map[*ChaiPackage]*logging.TextPosition),
 		ImportedSymbols:   make(map[string]*Symbol),
 		VisiblePackages:   make(map[string]*ChaiPackage),
 		ImportedOperators: make(map[int][]*Operator),
@@ -162,6 +167,7 @@ func (cf *ChaiFile) AddSymbolImports(importedPkg *ChaiPackage, importedSymbols m
 	if _, ok := cf.Parent.ImportTable[importedPkg.ID]; !ok {
 		cf.Parent.ImportTable[importedPkg.ID] = importedPkg
 	}
+
 	return true
 }
 
