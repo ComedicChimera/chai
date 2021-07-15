@@ -125,6 +125,9 @@ const (
 	// monadic accumulations
 	ACC // ?
 
+	// type proposition
+	TYPEPROP // ::
+
 	// dots
 	DOT
 	RANGETO
@@ -251,6 +254,7 @@ var symbolPatterns = map[string]int{
 	",":   COMMA,
 	";":   SEMICOLON,
 	":":   COLON,
+	"::":  TYPEPROP,
 	"->":  ARROW,
 	"<-":  BINDTO,
 	"/":   DIVIDE,

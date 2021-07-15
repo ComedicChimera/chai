@@ -120,7 +120,7 @@ block_body = '->' ? expr ? | do_block ;
 (* ellipsis is used to designate a block that hasn't been filled in yet *)
 do_block = 'do' block_content ;
 block_content = 'INDENT' (block_element {block_element} | '...') 'DEDENT' ;
-block_element = stmt 'NEWLINE' | expr_stmt 'NEWLINE' | block_expr ;
+block_element = (stmt | expr_stmt | block_expr) 'NEWLINE' ;
 
 
 (* -- Statements -- *)
@@ -155,7 +155,7 @@ core_expr = ['await'] or_expr [core_expr_suffix] ;
 core_expr_suffix = '..' or_expr
   | 'as' type {'as' type}
   | 'is' (type_pattern | '!' type)
-  | ':' ':' type 
+  | '::' type 
   ;
 
 or_expr = xor_expr {('||' | '|') xor_expr} ;
@@ -188,15 +188,15 @@ atom = 'INTLIT' | 'STRINGLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT' | 'IDENTIFIER
 list_builder = '{' list_contents '}' ;
 list_contents = expr ({',' expr} | [comp_suffix]) ;
 dict_builder = '{' dict_contents '}' ;
-dict_contents = expr '->' expr ({',' expr ':' expr} | [comp_suffix]) ;
+dict_contents = expr '->' expr ({',' expr '->' expr} | [comp_suffix]) ;
 vec_builder = '[' vec_contents ']' ;
-vec_contents = expr {(',' | ';') expr} [';'] ;
+vec_contents = expr {(',' | ';') expr} ;
 
 tupled_expr = '(' [expr_list] ')' ;
 
 super_access = 'super' '(' [type] ')' ;
 
-partial_call = '|' expr args_list ')' ;
+partial_call = '|' expr ':' args_list ')' ;
 
 
 (* -- Types -- *)
