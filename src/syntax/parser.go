@@ -223,11 +223,6 @@ func (p *Parser) shift(state int) bool {
 func (p *Parser) consume() bool {
 	tok, ok := p.sc.ReadToken()
 
-	fmt.Println(tok.Kind)
-	if tok.Kind == NEWLINE {
-		fmt.Println("debug")
-	}
-
 	if ok {
 		p.lookahead = tok
 		return true
