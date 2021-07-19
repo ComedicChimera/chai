@@ -18,12 +18,6 @@ type HIRExpr interface {
 
 	// Immutable indicates whether or not the expression is immutable
 	Immutable() bool
-
-	// Control returns the effect this expression has on control flow.  This
-	// method will only return a control flow effect if that effect is
-	// unconditional: eg. an if statement that only returns on some branches
-	// will have a control flow kind of CFNone not CFReturn
-	Control() int
 }
 
 // Enumeration of value categories
@@ -32,29 +26,18 @@ const (
 	RValue
 )
 
-// Enumeration of control flow types
-const (
-	CFNone   = iota // No change to control flow
-	CFReturn        // Return from function
-	CFLoop          // Change the control flow of a loop
-	CFMatch         // Changes the control flow of a match
-	CFPanic         // Panic and exit block
-)
-
 // ExprBase is the base struct for all expressions
 type ExprBase struct {
-	dt      typing.DataType
-	cat     int
-	immut   bool
-	control int
+	dt    typing.DataType
+	cat   int
+	immut bool
 }
 
 func NewExprBase(dt typing.DataType, cat int, immut bool) ExprBase {
 	return ExprBase{
-		dt:      dt,
-		cat:     cat,
-		immut:   immut,
-		control: CFNone,
+		dt:    dt,
+		cat:   cat,
+		immut: immut,
 	}
 }
 
@@ -70,16 +53,8 @@ func (eb *ExprBase) Immutable() bool {
 	return eb.immut
 }
 
-func (eb *ExprBase) Control() int {
-	return eb.control
-}
-
 func (eb *ExprBase) SetType(dt typing.DataType) {
 	eb.dt = dt
-}
-
-func (eb *ExprBase) SetControl(control int) {
-	eb.control = control
 }
 
 // -----------------------------------------------------------------------------
@@ -97,10 +72,6 @@ func (hi *HIRIncomplete) Category() int {
 
 func (hi *HIRIncomplete) Immutable() bool {
 	return false
-}
-
-func (hi *HIRIncomplete) Control() int {
-	return CFNone
 }
 
 // -----------------------------------------------------------------------------
@@ -228,23 +199,7 @@ type HIRControlStmt struct {
 // NewControlStmt returns a new control flow statement based on the control flow
 // statement kind passed in
 func NewControlStmt(kind int) *HIRControlStmt {
-	switch kind {
-	case CSUnimplemented:
-		return &HIRControlStmt{
-			Kind:     kind,
-			stmtBase: stmtBase{control: CFPanic},
-		}
-	case CSBreak, CSContinue:
-		return &HIRControlStmt{
-			Kind:     kind,
-			stmtBase: stmtBase{control: CFLoop},
-		}
-	default /* fallthrough variants */ :
-		return &HIRControlStmt{
-			Kind:     kind,
-			stmtBase: stmtBase{control: CFMatch},
-		}
-	}
+	return &HIRControlStmt{Kind: kind}
 }
 
 // Enumeration of control statement kinds
@@ -261,10 +216,6 @@ type HIRReturnStmt struct {
 	stmtBase
 
 	Value HIRExpr
-}
-
-func (hrs *HIRReturnStmt) Control() int {
-	return CFReturn
 }
 
 func (hrs *HIRReturnStmt) Type() typing.DataType {
@@ -343,10 +294,6 @@ func (hi *HIRIdentifier) Category() int {
 
 func (hi *HIRIdentifier) Immutable() bool {
 	return hi.Sym.Immutable
-}
-
-func (hi *HIRIdentifier) Control() int {
-	return CFNone
 }
 
 // HIRLiteral represents a literal

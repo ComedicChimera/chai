@@ -127,7 +127,9 @@ func (cm *CompileMessage) displayCodeSelection() {
 	lines := make([]string, cm.Position.EndLn-cm.Position.StartLn+1)
 	for lineNumber := 1; sc.Scan(); lineNumber++ {
 		if lineNumber >= cm.Position.StartLn && lineNumber <= cm.Position.EndLn {
-			lines[lineNumber-cm.Position.StartLn] = sc.Text()
+			// replace all tabs with spaces so we can easily determine how much
+			// whitespace to print and how many carrets to add
+			lines[lineNumber-cm.Position.StartLn] = strings.ReplaceAll(sc.Text(), "\t", "    ")
 		}
 	}
 
@@ -138,16 +140,12 @@ func (cm *CompileMessage) displayCodeSelection() {
 		for _, c := range line {
 			if c == ' ' {
 				leadingWhitespace++
-			} else if c == '\t' {
-				leadingWhitespace += 4
 			} else {
 				break
 			}
 		}
 
-		if minWhitespace == -1 {
-			minWhitespace = leadingWhitespace
-		} else if minWhitespace > leadingWhitespace {
+		if minWhitespace == -1 || minWhitespace > leadingWhitespace {
 			minWhitespace = leadingWhitespace
 		}
 	}
@@ -162,7 +160,7 @@ func (cm *CompileMessage) displayCodeSelection() {
 		// print the line number and the line itself (trimmed)
 		InfoColorFG.Print(fmt.Sprintf(lineNumberFmtStr, i+cm.Position.StartLn))
 		fmt.Print("|  ")
-		fmt.Println(strings.ReplaceAll(line, "\t", "    ")[minWhitespace:])
+		fmt.Println(line[minWhitespace:])
 
 		// print the carrets
 		fmt.Print(strings.Repeat(" ", maxLineNumberWidth), "|  ")
@@ -176,7 +174,7 @@ func (cm *CompileMessage) displayCodeSelection() {
 				ErrorColorFG.Print(strings.Repeat("^", cm.Position.EndCol-cm.Position.StartCol))
 				fmt.Println()
 			} else {
-				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol-minWhitespace))
+				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol))
 			}
 		} else if i == len(lines)-1 {
 			// if we are at the last line, we print carrets until the end column

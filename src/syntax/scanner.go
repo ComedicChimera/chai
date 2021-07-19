@@ -258,9 +258,9 @@ func (s *Scanner) readNext() bool {
 	s.curr = r
 
 	if r == '\t' {
-		// Whirlwind makes the executive decision to count tabs as four spaces
-		// (this is only really meaningful for display purposes -- Whirlwind
-		// highlights the error)
+		// Chai makes the executive decision to count tabs as four spaces (this
+		// is only really meaningful for display purposes -- Chai highlights the
+		// error)
 		s.col += 4
 	} else {
 		s.col++

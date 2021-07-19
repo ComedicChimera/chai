@@ -15,6 +15,7 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		return w.walkVarDecl(stmt, false, sem.ModNone)
 	case "break_stmt":
 		if w.currExprContext().LoopContext {
+			w.updateControl(CFLoop)
 			return sem.NewControlStmt(sem.CSBreak), true
 		}
 
@@ -25,6 +26,7 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		)
 	case "continue_stmt":
 		if w.currExprContext().LoopContext {
+			w.updateControl(CFLoop)
 			return sem.NewControlStmt(sem.CSContinue), true
 		}
 
@@ -35,6 +37,8 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		)
 	case "fallthrough_stmt":
 		if w.currExprContext().MatchContext {
+			w.updateControl(CFMatch)
+
 			if stmt.Len() == 3 {
 				// fallthrough to match
 				return sem.NewControlStmt(sem.CSFallMatch), true
@@ -59,6 +63,8 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 
 			return nil, false
 		}
+
+		w.updateControl(CFReturn)
 
 		fc := w.currExprContext().FuncContext
 

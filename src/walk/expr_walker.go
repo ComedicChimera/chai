@@ -78,6 +78,10 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	w.pushFuncContext(fn)
 	defer w.popExprContext()
 
+	// handle control frame management
+	w.pushControlFrame(FKFunc)
+	defer w.popControlFrame()
+
 	// a function that returns nothing effectively yields no meaningful value
 	yieldsValue := true
 	if pt, ok := fn.ReturnType.(typing.PrimType); ok && pt == typing.PrimKindNothing {
@@ -88,7 +92,7 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	if hirExpr, ok := w.walkExpr(branch, yieldsValue); ok {
 		// constraint the return type of the block if the function yields a
 		// value and it the body does not have any unconditional control flow
-		if hirExpr.Control() == sem.CFNone && yieldsValue {
+		if yieldsValue && w.hasNoControlEffect() {
 			w.solver.AddSubConstraint(fn.ReturnType, hirExpr.Type(), branch.Position())
 		}
 
