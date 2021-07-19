@@ -21,19 +21,15 @@ func (c *Compiler) processMetadata(file *sem.ChaiFile, sc *syntax.Scanner) bool 
 		}
 
 		if osName, ok := metadata["os"]; ok {
-			if _, ok := mods.OSNames[osName]; ok && osName == c.buildProfile.TargetOS {
-				return true
+			if _, ok := mods.OSNames[osName]; !ok || osName != c.buildProfile.TargetOS {
+				return false
 			}
-
-			return false
 		}
 
 		if archName, ok := metadata["arch"]; ok {
-			if _, ok := mods.ArchNames[archName]; ok && archName == c.buildProfile.TargetArch {
-				return true
+			if _, ok := mods.ArchNames[archName]; !ok || archName != c.buildProfile.TargetArch {
+				return false
 			}
-
-			return false
 		}
 
 		file.Metadata = metadata
@@ -97,6 +93,7 @@ func (c *Compiler) parseMetadata(sc *syntax.Scanner) (map[string]string, bool) {
 									)
 								}
 
+								metadata[recentKey] = ""
 								state = 2
 							case closer:
 								return metadata, true
@@ -115,6 +112,7 @@ func (c *Compiler) parseMetadata(sc *syntax.Scanner) (map[string]string, bool) {
 									)
 								}
 
+								metadata[recentKey] = ""
 								state = 2
 							} else {
 								logUnexpectedTokenError(nextTok)

@@ -1,10 +1,12 @@
 package resolve
 
 import (
+	"chai/logging"
 	"chai/mods"
 	"chai/sem"
 	"chai/syntax"
 	"chai/walk"
+	"fmt"
 )
 
 // Resolver is main data structure used to facilitate symbol resolution within a
@@ -24,6 +26,10 @@ type Resolver struct {
 	// symbols such as functions and variables (which don't resolve other
 	// symbols)
 	dependents []*Definition
+
+	// globalVars lists the global variables of the program.  These will be
+	// defined after all functions are defined
+	globalVars []*Definition
 
 	// walkers is the list of walkers for each file
 	walkers map[*sem.ChaiFile]*walk.Walker
@@ -86,6 +92,37 @@ func (r *Resolver) ResolveAll() bool {
 
 	// resolve all dependent definitions
 	for _, def := range r.dependents {
+		if !r.walkDef(def) {
+			return false
+		}
+	}
+
+	// import public operators -- do this after independent and dependent
+	// resolution since only then will all the operators actually be defined,
+	// but before variable declaration resolution so that they can be defined
+	// for variable expressions
+	for _, pkg := range r.mod.Packages() {
+		for _, file := range pkg.Files {
+			for ipkg, pathPos := range file.ImportedPackages {
+				if err := file.ImportOperators(ipkg); err != nil {
+					logging.LogCompileError(
+						file.LogContext,
+						fmt.Sprintf("multiple conflicting overloads for `%s` operator", err.Error()),
+						logging.LMKImport,
+						pathPos,
+					)
+
+					// we return here since operator conflicts tend to cause a
+					// bit of a cascade of errors
+					return false
+				}
+			}
+
+		}
+	}
+
+	// resolve all global variables
+	for _, def := range r.globalVars {
 		if !r.walkDef(def) {
 			return false
 		}

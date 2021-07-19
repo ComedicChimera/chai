@@ -66,6 +66,14 @@ func (c *Compiler) attachPrelude(parentMod *mods.ChaiModule, pkg *sem.ChaiPackag
 func (c *Compiler) attachPreludePackage(file *sem.ChaiFile, preludePkg *sem.ChaiPackage, preludeImport []string) bool {
 	// obviously, we don't want to attach a prelude package to itself
 	if file.Parent != preludePkg {
+		// add in the prelude package import
+		if _, ok := file.ImportedPackages[preludePkg]; !ok {
+			file.ImportedPackages[preludePkg] = nil
+		}
+
+		// we still want to perform symbol imports here since the package may
+		// have been imported directly (`eg. import core.types`) or without all
+		// the necessary symbols
 		preludeImportedSymbols := make(map[string]*logging.TextPosition)
 		for _, name := range preludeImport {
 			preludeImportedSymbols[name] = nil

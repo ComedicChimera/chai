@@ -542,8 +542,11 @@ func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exp
 		if i < len(opsPos) {
 			w.solver.AddSubConstraint(tvar, operands[i].Type(), opsPos[i])
 		}
+	}
 
-		// add all the overload correspondences
+	// add all the overload correspondences; do this after all overloads have
+	// been added -- can't have correspondences between non-existent overloads
+	for _, tvar := range tvars {
 		for _, item := range tvars {
 			if item.ID != tvar.ID {
 				w.solver.AddOverloadCorrespondence(tvar.ID, item.ID)

@@ -7,7 +7,6 @@ import (
 	"chai/resolve"
 	"chai/syntax"
 	"chai/walk"
-	"fmt"
 	"path/filepath"
 	"sync"
 )
@@ -126,23 +125,6 @@ func (c *Compiler) Analyze() bool {
 					// can be imported and all predicates can be walked
 					for _, pkg := range mod.Packages() {
 						for _, file := range pkg.Files {
-							// import public operators -- do this after resolution since
-							// only then will all the operators actually be defined
-							for ipkg, pathPos := range file.ImportedPackages {
-								if err := file.ImportOperators(ipkg); err != nil {
-									logging.LogCompileError(
-										file.LogContext,
-										fmt.Sprintf("multiple conflicting overloads for `%s` operator", err.Error()),
-										logging.LMKImport,
-										pathPos,
-									)
-								}
-
-								// we can actually continue walking here since
-								// operator conflicts generally don't cause a
-								// cascade of errors
-							}
-
 							// walk all predicates
 							w := walk.NewWalker(file)
 							w.WalkPredicates(file.Root)
@@ -177,12 +159,10 @@ func (c *Compiler) Analyze() bool {
 // can be resolved concurrently.  The batches at the front should be evaluated
 // first.  The root module is the module to start created batches from.
 func (c *Compiler) createResolutionBatches(rootMod *mods.ChaiModule) [][]*mods.ChaiModule {
-	var currentBatch []*mods.ChaiModule
+	currentBatch := []*mods.ChaiModule{rootMod}
 	var nextBatches [][]*mods.ChaiModule
 
 	for _, mod := range rootMod.DependsOn {
-		currentBatch = append(currentBatch, mod)
-
 		for i, batch := range c.createResolutionBatches(mod) {
 			if i < len(nextBatches) {
 				nextBatches[i] = append(nextBatches[i], batch...)

@@ -190,6 +190,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 			Body:     (*sem.HIRIncomplete)(body),
 		})
 
+		return true
 	}
 
 	return false

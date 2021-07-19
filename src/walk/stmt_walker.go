@@ -181,7 +181,11 @@ func (w *Walker) walkVarDecl(branch *syntax.ASTBranch, global bool, modifiers in
 			Position:   varData.pos,
 		}
 
-		if !w.defineLocal(sym) {
+		if global {
+			if !w.defineGlobal(sym) {
+				return nil, false
+			}
+		} else if !w.defineLocal(sym) {
 			return nil, false
 		}
 

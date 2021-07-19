@@ -65,6 +65,8 @@ func (r *Resolver) extractDefinition(srcfile *sem.ChaiFile, branch *syntax.ASTBr
 		def.Name = branch.LeafAt(1).Value
 		def.NamePos = branch.LeafAt(1).Position()
 		r.independents = append(r.independents, def)
+	case "variable_decl":
+		r.globalVars = append(r.globalVars, def)
 	default:
 		// all other definitions kinds are dependent
 		r.dependents = append(r.dependents, def)

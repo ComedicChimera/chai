@@ -130,6 +130,11 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 		}
 	}
 
+	// add the imported package entry
+	if _, ok := file.ImportedPackages[importedPkg]; !ok {
+		file.ImportedPackages[importedPkg] = importedPkgPathPos
+	}
+
 	// add imported symbols to file if they exist
 	if len(importedSymbols) > 0 {
 		return file.AddSymbolImports(importedPkg, importedSymbols)
@@ -141,11 +146,6 @@ func (c *Compiler) processImport(parentMod *mods.ChaiModule, file *sem.ChaiFile,
 			importedSymbols[err.Error()],
 		)
 		return false
-	}
-
-	// add the imported package entry
-	if _, ok := file.ImportedPackages[importedPkg]; !ok {
-		file.ImportedPackages[importedPkg] = importedPkgPathPos
 	}
 
 	return true
