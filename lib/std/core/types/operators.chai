@@ -1,3 +1,5 @@
+!! no_util
+
 pub of
     @intrinsic_op("add")
     oper + (a, b: i32) i32
@@ -22,3 +24,4 @@ pub of
 
     @intrinsic_op("not")
     oper ! (a: bool) bool
+end

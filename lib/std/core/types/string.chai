@@ -24,23 +24,27 @@ pub of
             s.const = const
 
             return s
+        end
 
         def get_elem(s: &String, ndx: int) rune = do
             ...
+        end 
 
         def iter(s: &String) Iter[rune] = do
             ...
+        end
 
         priv def copy(s: &String) &String = s
 
         priv def move(s: &String) &String = s
 
         priv def destroy(s: &String) =
-            if s.const -> s.bbuff.free()
+            if s.const -> s.bbuff.free() end
 
         def bytes(s: &String) List[byte] = s.bbuff.to_list()
 
         def runes(s: &String) List[rune] = do
             ...
+        end
 
         def byte_at(s: &String, ndx: int) byte = s.bbuff[ndx]

@@ -114,7 +114,7 @@ func (w *Walker) walkOperDef(branch *syntax.ASTBranch, symbolModifiers int, anno
 				} else {
 					return false
 				}
-			case "decl_func_body":
+			case "expr":
 				body = itembranch
 			}
 		}

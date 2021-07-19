@@ -308,10 +308,6 @@ func (gl *gramLoader) readTerminal() (int, error) {
 				switch terminal {
 				case "IDENTIFIER":
 					kind = IDENTIFIER
-				case "INDENT":
-					kind = INDENT
-				case "DEDENT":
-					kind = DEDENT
 				case "NEWLINE":
 					kind = NEWLINE
 				case "STRINGLIT":

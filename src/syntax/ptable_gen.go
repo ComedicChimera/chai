@@ -497,7 +497,7 @@ func (ptb *PTableBuilder) buildTableFromSets() error {
 						if action.Kind == AKShift {
 							// fmt.Printf("Shift/Reduce Conflict Resolved Between `%s` and `%d`. \nRule: ", bnfRule.ProdName, lookahead)
 							// ptb.printLR0Item(item)
-							// fmt.Println("\nOriginal State Shift Is:")
+							// fmt.Println("\nOriginal Shifted State Is:")
 							// ptb.printItems(ptb.ItemSets[action.Operand].Items)
 
 							// fmt.Print("\n\n")

@@ -11,9 +11,12 @@ def print_int(i: i32) = do
         print_digit(x % 10)
         x //= 10
         p *= 10
+    end
+end
 
 def square(x: i32) i32 = x * x
 
 def main() = do
     let s = square(12)
     print_int(s)
+end

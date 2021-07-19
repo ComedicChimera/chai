@@ -72,15 +72,11 @@ func (w *Walker) WalkPredicates(root *sem.HIRRoot) {
 // can yield multiple different, ununifiable types on different branches because
 // their value is not used.
 
-// walkFuncBody walks a function body (`decl_func_body`)
+// walkFuncBody walks a function body (`expr`)
 func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (sem.HIRExpr, bool) {
 	// handle function context management
 	w.pushFuncContext(fn)
 	defer w.popExprContext()
-
-	// maps branch of len 1 and 2 to 0, maps branch of len 3 to 1 -- always
-	// giving us the correct branch for the expression
-	exprBranch := branch.BranchAt(branch.Len() / 2)
 
 	// a function that returns nothing effectively yields no meaningful value
 	yieldsValue := true
@@ -89,47 +85,23 @@ func (w *Walker) walkFuncBody(branch *syntax.ASTBranch, fn *typing.FuncType) (se
 	}
 
 	// walk the function body
-	var hirExpr sem.HIRExpr
-	switch exprBranch.Name {
-	case "block_expr":
-		if e, ok := w.walkBlockExpr(exprBranch, yieldsValue); ok {
-			hirExpr = e
-		} else {
-			return nil, false
+	if hirExpr, ok := w.walkExpr(branch, yieldsValue); ok {
+		// constraint the return type of the block if the function yields a
+		// value and it the body does not have any unconditional control flow
+		if hirExpr.Control() == sem.CFNone && yieldsValue {
+			w.solver.AddSubConstraint(fn.ReturnType, hirExpr.Type(), branch.Position())
 		}
-	case "simple_expr":
-		if e, ok := w.walkSimpleExpr(exprBranch, yieldsValue); ok {
-			hirExpr = e
-		} else {
-			return nil, false
-		}
-	case "do_block":
-		if e, ok := w.walkDoBlock(exprBranch, yieldsValue); ok {
-			hirExpr = e
-		} else {
-			return nil, false
-		}
-	case "expr":
-		if e, ok := w.walkExpr(exprBranch, yieldsValue); ok {
-			hirExpr = e
-		} else {
-			return nil, false
-		}
-	}
 
-	// constraint the return type of the block if the function yields a value
-	// and it the body does not have any unconditional control flow
-	if hirExpr.Control() == sem.CFNone && yieldsValue {
-		w.solver.AddSubConstraint(fn.ReturnType, hirExpr.Type(), branch.Position())
-	}
+		// run the solver at the end of the function body
+		if !w.solver.Solve() {
+			return nil, false
+		}
 
-	// run the solver at the end of the function body
-	if !w.solver.Solve() {
+		// if we reach here, then the body was walked successfully
+		return hirExpr, true
+	} else {
 		return nil, false
 	}
-
-	// if we reach here, then the body was walked successfully
-	return hirExpr, true
 }
 
 // walkExprList walks an `expr_list` node.  It assumes that the expressions must

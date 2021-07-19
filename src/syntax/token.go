@@ -34,6 +34,8 @@ const (
 	OF
 	MATCH
 	TO
+	CASE
+	END
 
 	// function terminators
 	RETURN
@@ -68,8 +70,6 @@ const (
 
 	// whitespace
 	NEWLINE
-	INDENT
-	DEDENT
 
 	// type keywords
 	U8
@@ -173,6 +173,7 @@ var keywordPatterns = map[string]int{
 	"fallthrough": FALLTHROUGH,
 	"with":        WITH,
 	"do":          DO,
+	"end":         END,
 	"of":          OF,
 	"return":      RETURN,
 	"vol":         VOL,
@@ -195,6 +196,7 @@ var keywordPatterns = map[string]int{
 	"as":          AS,
 	"match":       MATCH,
 	"to":          TO,
+	"case":        CASE,
 	"in":          IN,
 	"fn":          FN,
 	"then":        THEN,

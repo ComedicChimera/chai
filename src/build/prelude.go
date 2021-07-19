@@ -4,6 +4,7 @@ import (
 	"chai/logging"
 	"chai/mods"
 	"chai/sem"
+	"path/filepath"
 )
 
 // preludeImports is a table of each prelude package and what to import from it
@@ -27,33 +28,46 @@ func (c *Compiler) attachPrelude(parentMod *mods.ChaiModule, pkg *sem.ChaiPackag
 
 	// go through each file in the package and perform all necessary attachments
 	for _, file := range pkg.Files {
-		// don't attach the util package (core root package) if the file
-		// requests it not be attached (via. `!! no_util`)
-		if _, ok := file.Metadata["no_util"]; !ok && !c.attachPreludePackage(file, c.coreMod.RootPackage) {
-			return false
-		}
+		// go through an attach each of the prelude imports
+		for pkgName, preludeImport := range preludeImports {
+			if pkgName == "." {
+				// don't attach the util package (core root package) if the file
+				// requests it not be attached (via. `!! no_util`)
+				if _, ok := file.Metadata["no_util"]; ok {
+					continue
+				}
 
-		// TODO: attach other critical prelude packages
+				if !c.attachPreludePackage(file, c.coreMod.RootPackage, preludeImport) {
+					return false
+				}
+			} else if _, ok := c.coreMod.SubPackages[pkgName]; ok {
+				// if the package has already been initialized, attach it
+				if !c.attachPreludePackage(file, c.coreMod.SubPackages[pkgName], preludeImport) {
+					return false
+				}
+			} else if preludePkg, ok := c.initPackage(c.coreMod, filepath.Join(c.coreMod.ModuleRoot, pkgName)); ok {
+				// if the package has not been initialized, initialize it and
+				// then attach it
+				if !c.attachPreludePackage(file, preludePkg, preludeImport) {
+					return false
+				}
+			} else {
+				logging.LogFatal("failed to initialize required prelude package")
+				return false
+			}
+		}
 	}
 
 	return true
 }
 
-// attachPreludePackage attaches a single package to a prelude file
-func (c *Compiler) attachPreludePackage(file *sem.ChaiFile, preludePkg *sem.ChaiPackage) bool {
+// attachPreludePackage attaches a single package to a prelude file.  The final
+// argument is the list of symbol names to import from the package
+func (c *Compiler) attachPreludePackage(file *sem.ChaiFile, preludePkg *sem.ChaiPackage, preludeImport []string) bool {
 	// obviously, we don't want to attach a prelude package to itself
 	if file.Parent != preludePkg {
-		var preludeImportedSymbolNames []string
-
-		// check if root package
-		if preludePkg == c.coreMod.RootPackage {
-			preludeImportedSymbolNames = preludeImports["."]
-		} else {
-			preludeImportedSymbolNames = preludeImports[preludePkg.Name]
-		}
-
 		preludeImportedSymbols := make(map[string]*logging.TextPosition)
-		for _, name := range preludeImportedSymbolNames {
+		for _, name := range preludeImport {
 			preludeImportedSymbols[name] = nil
 		}
 

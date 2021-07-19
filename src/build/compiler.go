@@ -88,6 +88,7 @@ func (c *Compiler) Analyze() bool {
 	// log begin phase 1
 	logging.LogBeginPhase("Parsing")
 
+	// initialize the core module
 	if _, ok := c.initPackage(c.coreMod, c.coreMod.ModuleRoot); !ok {
 		return false
 	}
