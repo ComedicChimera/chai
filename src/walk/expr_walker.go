@@ -576,8 +576,12 @@ func (w *Walker) makeOperatorApp(oper *sem.Operator, operands []sem.HIRExpr, exp
 
 	// add all the overload correspondences; do this after all overloads have
 	// been added -- can't have correspondences between non-existent overloads
-	for _, tvar := range tvars {
-		for _, item := range tvars {
+	for i, tvar := range tvars {
+		// we slice off so we are only adding correspondences to the type vars
+		// we haven't already iterated over.  This prevents us from adding a
+		// bunch of duplicate correspondences (since adding a correspondence
+		// adds an entry to both lists)
+		for _, item := range tvars[i:] {
 			if item.ID != tvar.ID {
 				w.solver.AddOverloadCorrespondence(tvar.ID, item.ID)
 			}
