@@ -415,92 +415,110 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 
 // walkUnaryOperatorApp walks a unary operator application
 func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	// result will store the result expression of walking the unary operator
+	// prefixOpTok and postfixOpTok will store the tokens used for the operators
+	var prefixOpTok, postfixOpTok *syntax.ASTLeaf
+
+	// result stores the result of the unary operator application at each stage.
+	// initially, this is just the root expr
 	var result sem.HIRExpr
 
-	// prefixOp is the prefix operator being applied
-	var prefixOp *sem.Operator
+	// operandPos stores the position of the operand
+	var operandPos *logging.TextPosition
 
-	// prefix operators take precedence over postfix operators so this loop
-	// works fine; we will wrap prefix applications in postfix applications
+	// iterate over the items and used this flag to indicate which operator
+	// token is being collected
+	collectingPrefix := true
 	for _, item := range branch.Content {
 		switch v := item.(type) {
 		case *syntax.ASTLeaf:
+			if collectingPrefix {
+				prefixOpTok = v
+			} else {
+				postfixOpTok = v
+			}
 			// TODO: fix these to only run after result has been acquired
-
-			// handle reference operators
-			switch v.Kind {
-			case syntax.AMP:
-				// assert that the root type is not a reference
-				w.solver.AddTypeAssertion(
-					typing.AssertNonRef,
-					result.Type(),
-					nil,
-					syntax.TextPositionOfSpan(branch, item),
-				)
-
-				// return the HIRIndirect
-				return &sem.HIRIndirect{
-					ExprBase: sem.NewExprBase(&typing.RefType{ElemType: result.Type()}, sem.RValue, false),
-					Root:     result,
-				}, true
-			case syntax.STAR:
-				// create a type variable to house the element type of the root
-				elemType := w.solver.CreateTypeVar(nil, func() {})
-
-				// constraint the root type to be equal to a reference to the
-				// element type variable: `root == &{_}`
-				w.solver.AddEqConstraint(result.Type(), &typing.RefType{ElemType: elemType}, branch.Position())
-
-				// return the HIRDeref; note that it is an LValue not an RValue
-				return &sem.HIRDereference{
-					ExprBase: sem.NewExprBase(elemType, sem.LValue, false),
-					Root:     result,
-				}, true
-			}
-
-			// only leaf is operator
-			op, ok := w.lookupOperator(v.Kind, 1)
-			if !ok {
-				w.logMissingOpOverload(v.Value, 1, v.Position())
-				return nil, false
-			}
-
-			// if there is no result yet, this is a prefix operator
-			if result == nil {
-				prefixOp = op
-			} else /* postfix operator */ {
-				result = w.makeOperatorApp(
-					op,
-					[]sem.HIRExpr{result},
-					branch.Position(),
-					// len 2 => expr at position 0 (no prefix operator)
-					// len 3 => expr at position 1 (prefix operator)
-					[]*logging.TextPosition{branch.Content[(branch.Len()-1)/2].Position()},
-				)
-			}
 		case *syntax.ASTBranch:
 			// if the branch contains more than one element, there is an
 			// operator and the expression must yield a value
 			if atomExpr, ok := w.walkAtomExpr(v, yieldsValue || branch.Len() > 1); ok {
-				// if there is a prefix operator, we apply it here
-				if prefixOp != nil {
-					result = w.makeOperatorApp(
-						prefixOp,
-						[]sem.HIRExpr{atomExpr},
-						syntax.TextPositionOfSpan(branch, v),
-						[]*logging.TextPosition{v.Position()},
-					)
-				} else /* no prefix operator */ {
-					result = atomExpr
-				}
+				result = atomExpr
+				operandPos = v.Position()
 			} else {
 				return nil, false
 			}
 		}
 	}
 
+	// prefix takes precedence over postfix
+	if prefixOpTok != nil {
+		// calculate the position of the whole prefix expression
+		nextOperandPos := syntax.TextPositionOfSpan(prefixOpTok, branch.Content[1])
+		if opApp, ok := w.applyUnaryOp(result, operandPos, prefixOpTok, nextOperandPos); ok {
+			result = opApp
+
+			// the new operand is the internal prefix expression
+			operandPos = nextOperandPos
+		}
+	}
+
+	// then apply the postfix operator
+	if postfixOpTok != nil {
+		// since postfix operators are always handled last, we know that their
+		// `exprPos` is that of the whole branch (the prefix operator is part of
+		// the operand expression)
+		if opApp, ok := w.applyUnaryOp(result, operandPos, postfixOpTok, branch.Position()); ok {
+			result = opApp
+		}
+	}
+
 	return result, true
+}
+
+// applyUnaryOp applies a unary operator to an expression
+func (w *Walker) applyUnaryOp(operand sem.HIRExpr, operandPos *logging.TextPosition, opToken *syntax.ASTLeaf, exprPos *logging.TextPosition) (sem.HIRExpr, bool) {
+	switch opToken.Kind {
+	case syntax.AMP:
+		// assert that the root type is not a reference
+		w.solver.AddTypeAssertion(
+			typing.AssertNonRef,
+			operand.Type(),
+			nil,
+			exprPos,
+		)
+
+		// return the HIRIndirect
+		return &sem.HIRIndirect{
+			ExprBase: sem.NewExprBase(&typing.RefType{ElemType: operand.Type()}, sem.RValue, false),
+			Root:     operand,
+		}, true
+	case syntax.STAR:
+		// create a type variable to house the element type of the root
+		elemType := w.solver.CreateTypeVar(nil, func() {})
+
+		// constraint the root type to be equal to a reference to the
+		// element type variable: `root == &{_}`
+		w.solver.AddEqConstraint(operand.Type(), &typing.RefType{ElemType: elemType}, operandPos)
+
+		// return the HIRDeref; note that it is an LValue not an RValue
+		return &sem.HIRDereference{
+			ExprBase: sem.NewExprBase(elemType, sem.LValue, false),
+			Root:     operand,
+		}, true
+	default:
+		// only leaf is operator
+		op, ok := w.lookupOperator(opToken.Kind, 1)
+		if !ok {
+			w.logMissingOpOverload(opToken.Value, 1, opToken.Position())
+			return nil, false
+		}
+
+		return w.makeOperatorApp(
+			op,
+			[]sem.HIRExpr{operand},
+			exprPos,
+			[]*logging.TextPosition{operandPos},
+		), true
+	}
 }
 
 // makeOperatorApp creates a new operator application

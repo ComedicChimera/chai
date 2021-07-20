@@ -17,7 +17,7 @@ def WriteConsole(
     nNumberOfCharsToWrite: i32,
     lpNumberOfCharsWritten: &i32,
     lpReserved: &u8
-)
+) bool
 
 @dllimport
 def ExitProcess(uExitCode: u32)

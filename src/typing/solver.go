@@ -116,6 +116,9 @@ func (s *Solver) AddOverloadCorrespondence(aID, bID int) {
 // context will be cleared after Solve has completed.  It returns a boolean
 // indicating whether solution succeeded.
 func (s *Solver) Solve() bool {
+	// always clear the solution context for the next solve after we exit
+	defer s.reset()
+
 	// attempt initial unification of the type constraints
 	for _, cons := range s.constraints {
 		if !s.unify(cons.Lhs, cons.Rhs, cons.Kind) {
@@ -192,11 +195,6 @@ func (s *Solver) Solve() bool {
 		}
 	}
 
-	// clear the solution context for the next solve and return
-	s.typeVars = nil
-	s.constraints = nil
-	s.discardState()
-	s.pushState()
 	return solvingSucceeded
 }
 
@@ -231,12 +229,16 @@ func (s *Solver) discardState() {
 func (s *Solver) mergeState() {
 	topState := s.topState()
 	s.stateStack = s.stateStack[:len(s.stateStack)-1]
+	s.mergeFrom(topState)
+}
 
-	for tvarID, sub := range topState.substitutions {
+// mergeFrom merges the the current top state with another state
+func (s *Solver) mergeFrom(state *SolutionState) {
+	for tvarID, sub := range state.substitutions {
 		s.topState().substitutions[tvarID] = sub
 	}
 
-	for tvarID, overloadSet := range topState.overloads {
+	for tvarID, overloadSet := range state.overloads {
 		s.topState().overloads[tvarID] = overloadSet
 	}
 }
@@ -268,6 +270,15 @@ func (s *Solver) getOverload(tvarID int) (*TypeOverload, bool) {
 	return nil, false
 }
 
+// reset resets the solution context of the solver
+func (s *Solver) reset() {
+	s.typeVars = nil
+	s.constraints = nil
+	s.assertions = nil
+	s.discardState()
+	s.pushState()
+}
+
 // -----------------------------------------------------------------------------
 
 // unify takes two types and a constraint relating them and attempts to find a
@@ -276,6 +287,13 @@ func (s *Solver) getOverload(tvarID int) (*TypeOverload, bool) {
 func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 	// check for type variables on the right before switching of the left
 	if rhTypeVar, ok := rhs.(*TypeVariable); ok {
+		// check to see if the type variable has already been evaluated (type
+		// variable from a different solution context: eg. global variables or
+		// argument exprs)
+		if rhTypeVar.EvalType != nil {
+			return s.unify(lhs, rhTypeVar.EvalType, consKind)
+		}
+
 		// check to see if both arguments are type variables, and return true if
 		// they correspond to the same type variable
 		if lhTypeVar, ok := lhs.(*TypeVariable); ok && lhTypeVar.ID == rhTypeVar.ID {
@@ -288,6 +306,12 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 
 	switch v := lhs.(type) {
 	case *TypeVariable:
+		// check to see if the left hand variable has already been evaluated:
+		// ie. from another solution context
+		if v.EvalType != nil {
+			return s.unify(v.EvalType, rhs, consKind)
+		}
+
 		// since we know rhs is not a type variable, we can safely perform type
 		// variable unification on the left side
 		return s.unifyTypeVar(v.ID, rhs, consKind, true)
@@ -544,7 +568,7 @@ func (s *Solver) reduceOverloads(tvarID int, overload *TypeOverload, value DataT
 	case 1:
 		// only one valid overload remains: we want to merge the single valid
 		// state and then update it with the new substitution information
-		*s.topState() = *state
+		s.mergeFrom(state)
 
 		// get the first and only overload remaining
 		var i int
@@ -559,8 +583,10 @@ func (s *Solver) reduceOverloads(tvarID int, overload *TypeOverload, value DataT
 
 		// then, substitute in all the corresponding overloads
 		for _, corrID := range s.getCorresponds(tvarID, make(map[int]struct{})) {
+			// should always succeed
+			corrOverload, _ := s.getOverload(corrID)
 			s.topState().substitutions[corrID] = &TypeSubstitution{
-				equivTo: s.topState().overloads[corrID].Values[i],
+				equivTo: corrOverload.Values[i],
 			}
 		}
 	default:
@@ -601,8 +627,11 @@ func (s *Solver) reduceOverloads(tvarID int, overload *TypeOverload, value DataT
 func (s *Solver) getCorresponds(tvarID int, alreadyFound map[int]struct{}) []int {
 	alreadyFound[tvarID] = struct{}{}
 
+	// should always succeed
+	overload, _ := s.getOverload(tvarID)
+
 	var corresponds []int
-	for _, corrID := range s.topState().overloads[tvarID].Corresponds {
+	for _, corrID := range overload.Corresponds {
 		if _, ok := alreadyFound[corrID]; !ok {
 			corresponds = append(corresponds, corrID)
 

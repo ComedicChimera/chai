@@ -20,7 +20,7 @@ func (w *Walker) WalkDef(branch *syntax.ASTBranch, symbolModifiers int, annots m
 	case "variable_decl":
 		if varDecl, ok := w.walkVarDecl(branch, true, symbolModifiers); ok {
 			w.SrcFile.Root.Globals = append(w.SrcFile.Root.Globals, varDecl)
-			return true
+			return w.solver.Solve() // solve all the local expressions
 		}
 	}
 

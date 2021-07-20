@@ -24,7 +24,9 @@ func (w *Walker) walkAtomExpr(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 			case syntax.LPAREN: // function call
 				// function takes no arguments
 				if trailerBranch.Len() == 2 {
-					if call, ok := w.walkFuncCall(root, rootPos, nil); ok {
+					// we can just use the whole trailerBranch as the empty args
+					// list branch (since no such empty branch exists)
+					if call, ok := w.walkFuncCall(root, rootPos, trailerBranch); ok {
 						root = call
 					} else {
 						return nil, false
