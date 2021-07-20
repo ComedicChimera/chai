@@ -240,52 +240,58 @@ func (w *Walker) walkBinOperatorApp(branch *syntax.ASTBranch, yieldsValue bool) 
 		var lhs sem.HIRExpr
 
 		for i, item := range branch.Content {
-			switch v := item.(type) {
-			case *syntax.ASTLeaf:
-				// only leaf is operator
-				var ok bool
-				op, ok = w.lookupOperator(v.Kind, 2)
-				if !ok {
-					w.logMissingOpOverload(v.Value, 2, v.Position())
-					return nil, false
-				}
-			case *syntax.ASTBranch:
-				// only branch is sub node; operator applications imply that
-				// expression must yield a value (in order to be operated upon)
-
-				// if `lhs` is `nil`, then we are collecting the first operand
-				if lhs == nil {
-					if expr, ok := w.walkBinOperatorApp(branch, true); ok {
-						lhs = expr
-					} else {
+			// only items are branches
+			if itembranch, ok := item.(*syntax.ASTBranch); ok {
+				switch itembranch.Name {
+				case "comp_op":
+					// comparison operator
+					opLeaf := itembranch.LeafAt(0)
+					var ok bool
+					op, ok = w.lookupOperator(opLeaf.Kind, 2)
+					if !ok {
+						w.logMissingOpOverload(opLeaf.Value, 2, opLeaf.Position())
 						return nil, false
 					}
-				} else /* we are collecting a right operand */ {
-					if expr, ok := w.walkBinOperatorApp(branch, true); ok {
-						// first, we build the operator application
-						opApp := w.makeOperatorApp(
-							op,
-							[]sem.HIRExpr{lhs, expr},
-							// we just want to highlight the current comparison
-							// since they don't associate like other binary
-							// expressions
-							syntax.TextPositionOfSpan(branch.Content[i-2], v),
-							[]*logging.TextPosition{
-								branch.Content[i-2].Position(),
-								v.Position(),
-							},
-						)
+				case "shift_expr":
+					// `shift_expr` is the sub-expression of `comp_expr;
+					// operator applications imply that expression must yield a
+					// value (in order to be operated upon)
 
-						// then, add it to comparisons
-						comparisons = append(comparisons, opApp)
+					// if `lhs` is `nil`, then we are collecting the first operand
+					if lhs == nil {
+						if expr, ok := w.walkBinOperatorApp(itembranch, true); ok {
+							lhs = expr
+						} else {
+							return nil, false
+						}
+					} else /* we are collecting a right operand */ {
+						if expr, ok := w.walkBinOperatorApp(itembranch, true); ok {
+							// first, we build the operator application
+							opApp := w.makeOperatorApp(
+								op,
+								[]sem.HIRExpr{lhs, expr},
+								// we just want to highlight the current
+								// comparison since they don't associate like
+								// other binary expressions
+								syntax.TextPositionOfSpan(branch.Content[i-2], itembranch),
+								[]*logging.TextPosition{
+									branch.Content[i-2].Position(),
+									itembranch.Position(),
+								},
+							)
 
-						// now, the current expression (rhs) is going to become
-						// the lhs of the next expression; we will always read
-						// in operator first and then the following expression
-						// will be interpreted as the rhs
-						lhs = expr
-					} else {
-						return nil, false
+							// then, add it to comparisons
+							comparisons = append(comparisons, opApp)
+
+							// now, the current expression (rhs) is going to
+							// become the lhs of the next expression; we will
+							// always read in operator first and then the
+							// following expression will be interpreted as the
+							// rhs
+							lhs = expr
+						} else {
+							return nil, false
+						}
 					}
 				}
 			}
@@ -420,6 +426,8 @@ func (w *Walker) walkUnaryOperatorApp(branch *syntax.ASTBranch, yieldsValue bool
 	for _, item := range branch.Content {
 		switch v := item.(type) {
 		case *syntax.ASTLeaf:
+			// TODO: fix these to only run after result has been acquired
+
 			// handle reference operators
 			switch v.Kind {
 			case syntax.AMP:
