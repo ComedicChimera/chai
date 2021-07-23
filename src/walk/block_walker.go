@@ -162,14 +162,14 @@ func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 			switch itembranch.Name {
 			case "variable_decl":
 				// header variable declaration
-				if varDecl, ok := w.walkVarDecl(branch, false, sem.ModNone); ok {
+				if varDecl, ok := w.walkVarDecl(itembranch, false, sem.ModNone); ok {
 					loop.HeaderDecl = varDecl
 				} else {
 					return nil, false
 				}
 			case "expr":
 				// header loop condition
-				if loopCond, ok := w.walkExpr(branch, true); ok {
+				if loopCond, ok := w.walkExpr(itembranch, true); ok {
 					w.solver.AddEqConstraint(loopCond.Type(), boolType(), itembranch.Position())
 					loop.HeaderCond = loopCond
 				} else {
@@ -177,13 +177,13 @@ func (w *Walker) walkWhileLoop(branch *syntax.ASTBranch, yieldsValue bool) (sem.
 				}
 			case "expr_stmt":
 				// header update statement
-				if updateStmt, ok := w.walkExprStmt(branch); ok {
+				if updateStmt, ok := w.walkExprStmt(itembranch); ok {
 					loop.HeaderUpdate = updateStmt
 				} else {
 					return nil, false
 				}
 			case "loop_body":
-				if loopBody, noBreakClause, ok := w.walkLoopBody(branch, yieldsValue); ok {
+				if loopBody, noBreakClause, ok := w.walkLoopBody(itembranch, yieldsValue); ok {
 					loop.LoopBody = loopBody
 					loop.NoBreakClause = noBreakClause
 				} else {

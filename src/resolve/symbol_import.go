@@ -27,6 +27,7 @@ func (r *Resolver) resolveSymbolImport(file *sem.ChaiFile, sym *sem.Symbol) bool
 	if importedSym, ok := sym.SrcPackage.ImportSymbol(sym.Name); ok {
 		// update the sym in the local file's import table
 		file.ImportedSymbols[sym.Name] = importedSym
+		return true
 	}
 
 	logging.LogCompileError(

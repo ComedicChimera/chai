@@ -136,15 +136,19 @@ func (s *Solver) Solve() bool {
 		// we know that this function is only run at the top level so we can
 		// just treat the top most state as state[0]
 		if sub, ok := s.stateStack[0].substitutions[tvar.ID]; ok {
-			// if any of these cases are true, then we have a usable
-			// substitution: no need to infer default value
-			if sub.equivTo != nil || sub.upperBound != nil || len(sub.lowerBounds) == 1 {
+			// if the type has an equivalency substitution, then the default
+			// type is not necessary for deduction
+			if sub.equivTo != nil {
 				continue
 			}
 		}
 
-		// no viable substitution: try to unify with default type if that
-		// unification is possible, use the default type as the inferred value
+		// no equivalency substitution: try to unify with default type if that
+		// unification is possible, use the default type as the inferred value.
+		// although other components of the substitution may be useful in making
+		// a final deduction, they don't provide enough "concrete" information
+		// about the type in most cases to warrant the discarding of the default
+		// type
 		if tvar.DefaultType != nil {
 			// testUnify will overwrite the current substitutions if it succeeds
 			// so we don't need to test for success or failure
