@@ -207,7 +207,8 @@ type SolutionState struct {
 
 	// overloads is the map of the set of values that each type variable can be
 	// unified to.  Some type variables will have no overloads meaning they can
-	// be unified to any value
+	// be unified to any value.  Some entries in this map will be `nil` denoting
+	// that the overload has been fully reduced and is no longer used.
 	overloads map[int]*TypeOverload
 }
 
@@ -263,6 +264,11 @@ func (s *Solver) getSubstitution(tvarID int) (*TypeSubstitution, bool) {
 func (s *Solver) getOverload(tvarID int) (*TypeOverload, bool) {
 	for i := len(s.stateStack) - 1; i > -1; i-- {
 		if overload, ok := s.stateStack[i].overloads[tvarID]; ok {
+			if overload == nil {
+				// overload has been reduced
+				return nil, false
+			}
+
 			return overload, true
 		}
 	}
@@ -375,14 +381,23 @@ func (s *Solver) unify(lhs, rhs DataType, consKind int) bool {
 // substitution for the type variable and updates that substitution if
 // appropriate.  It returns a boolean indicating unification success.
 func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bool) bool {
-	// check if there are any previous substitutions applied to the type
-	// variable so the constraint can be checked against the current
-	// subsitution; if there are no substitutions, check to see if the type
-	// variable has any overloads. If it does, attempt to reduce the overloads
-	// accordingly.  We can check for overloads after substitutions since we
-	// know overloads will always be declared before substitutions (logically)
-	// but are less common in the general case.  We can to priotize
-	// substitutions but handle overloads first
+	// first check to see if the type variable has overloads; if it does attempt
+	// to reduce them based on the constraint
+	if overload, ok := s.getOverload(tvarID); ok {
+		if _, ok := s.topState().overloads[tvarID]; !ok {
+			// if the overloads come from an outer state, copy the overloads so
+			// that append won't manipulate an overload set from the wrong state
+			overload = overload.copy()
+		}
+
+		// attempt to reduce the overloads
+		if !s.reduceOverloads(tvarID, overload, value, consKind, isLhs) {
+			return false
+		}
+	}
+
+	// then check for and apply substitutions as necessary (to ensure
+	// relationships between type variables are preserved outside of overloads)
 	if sub, ok := s.getSubstitution(tvarID); ok {
 		// if the substitution was not from the current state, we need to copy
 		// it and move it into the current state so that we can update it safely
@@ -395,15 +410,6 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 
 		// validate constraint and update substitutions as necessary
 		return s.updateSubstitution(sub, value, consKind, isLhs)
-	} else if overload, ok := s.getOverload(tvarID); ok {
-		if _, ok := s.topState().overloads[tvarID]; !ok {
-			// if the overloads come from an outer state, copy the overloads so
-			// that append won't manipulate an overload set from the wrong state
-			overload = overload.copy()
-		}
-
-		// reduce the overloads
-		return s.reduceOverloads(tvarID, overload, value, consKind, isLhs)
 	} else /* if there was no substitution, add a new substitution */ {
 		if consKind == TCEquiv {
 			s.topState().substitutions[tvarID] = &TypeSubstitution{
@@ -422,7 +428,7 @@ func (s *Solver) unifyTypeVar(tvarID int, value DataType, consKind int, isLhs bo
 		}
 	}
 
-	// any case that reaches here is a valid substitution
+	// any case that reaches here is a valid unification
 	return true
 }
 
@@ -578,17 +584,25 @@ func (s *Solver) reduceOverloads(tvarID int, overload *TypeOverload, value DataT
 			overVal = v
 		}
 
-		// perform the initial substitution
-		s.topState().substitutions[tvarID] = &TypeSubstitution{equivTo: overVal}
-
-		// then, substitute in all the corresponding overloads
+		// start by substituting in values for all the correspondences and
+		// removing their overloads.  we want to do this first since we are
+		// going to reset the initial overload before we perform its
+		// substitution.  see comment for the initial overload for explanation
+		// of how we perform substitution for overloads
 		for _, corrID := range s.getCorresponds(tvarID, make(map[int]struct{})) {
 			// should always succeed
 			corrOverload, _ := s.getOverload(corrID)
-			s.topState().substitutions[corrID] = &TypeSubstitution{
-				equivTo: corrOverload.Values[i],
-			}
+			s.topState().overloads[corrID] = nil
+			s.unify(s.typeVars[corrID], corrOverload.Values[i], TCEquiv)
+
 		}
+
+		// then, remove the overload as it has been fully reduced and then use
+		// unify to perform the final substitution (this allows for other types
+		// to depend on the result of this overloaded type's deduction). we want
+		// to remove the overload first to prevent it from recurring forever
+		s.topState().overloads[tvarID] = nil
+		s.unify(s.typeVars[tvarID], overVal, TCEquiv)
 	default:
 		// multiple overloads remain: reduce the current overload to only
 		// include the remaining valid overloads
