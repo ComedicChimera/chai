@@ -175,6 +175,30 @@ func (e *Expander) expandGroup(group []GrammaticalElement) []BNFElement {
 			e.epsilonRule(anonName)
 
 			ruleContents[i] = ntRef
+		// suite groups can split into two rules: one where the group is wrapped
+		// in a suite and one where it isn't.  The group itself is lowered into
+		// anonymous production unless it is length 1 (for efficiency).  Either
+		// way, a new anonymous production is created for the suite group and a
+		// nonterminal reference is inserted in its place in the given rule.
+		case GKindSuite:
+			subGroup := item.(*GroupingElement).elements
+			var subGroupRef BNFElement
+
+			if len(subGroup) == 1 && subGroup[0].Kind() != GKindAlternator {
+				subGroupRef = e.expandGroup(subGroup)[0]
+			} else {
+				anonName := e.getAnonName()
+				e.expandProduction(anonName, subGroup)
+				subGroupRef = BNFNonterminal(anonName)
+			}
+
+			suiteAnonName := e.getAnonName()
+			e.addRule(suiteAnonName, []BNFElement{subGroupRef})
+			e.addRule(suiteAnonName, []BNFElement{
+				BNFTerminal(INDENT), subGroupRef, BNFTerminal(DEDENT),
+			})
+
+			ruleContents[i] = BNFNonterminal(suiteAnonName)
 		}
 		// all other kinds should not occur here (alternator handled above, flags are unused rn)
 	}

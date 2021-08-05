@@ -52,7 +52,7 @@ func (c *Compiler) Compile() {
 	)
 
 	if c.Analyze() {
-		// TODO
+
 	} else {
 		// close unfinished working phase
 		logging.LogEndPhase()

@@ -28,10 +28,9 @@ let stdout: Handle
 
 pub def print_byte(b: u8) = do
     let chars_written: i32
+    
     if !WriteConsole(stdout, &b, 1, &chars_written, null) do
         exit(1)
-    end
-end
 
 @linkname("__exit")
 pub def exit(code: u32) = ExitProcess(code)
@@ -39,8 +38,6 @@ pub def exit(code: u32) = ExitProcess(code)
 def init() = do
     if !AllocConsole() do
         exit(1)
-    end
 
     stdout = GetStdHandle(STD_OUTPUT_HANDLE)
-end
 

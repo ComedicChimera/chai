@@ -35,7 +35,6 @@ const (
 	MATCH
 	TO
 	CASE
-	END
 
 	// function terminators
 	RETURN
@@ -50,7 +49,7 @@ const (
 	CLASS
 	SPACE
 	CLOSED
-	CONS
+	UNION
 
 	// package keywords
 	IMPORT
@@ -70,6 +69,8 @@ const (
 
 	// whitespace
 	NEWLINE
+	INDENT
+	DEDENT
 
 	// type keywords
 	U8
@@ -173,7 +174,6 @@ var keywordPatterns = map[string]int{
 	"fallthrough": FALLTHROUGH,
 	"with":        WITH,
 	"do":          DO,
-	"end":         END,
 	"of":          OF,
 	"return":      RETURN,
 	"vol":         VOL,
@@ -184,7 +184,7 @@ var keywordPatterns = map[string]int{
 	"closed":      CLOSED,
 	"class":       CLASS,
 	"space":       SPACE,
-	"cons":        CONS,
+	"union":       UNION,
 	"import":      IMPORT,
 	"pub":         PUB,
 	"priv":        PRIV,

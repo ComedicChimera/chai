@@ -30,4 +30,3 @@ pub of
 
     @intrinsic_op("lt")
     oper < (a, b: i32) bool
-end

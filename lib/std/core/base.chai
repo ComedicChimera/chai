@@ -2,5 +2,4 @@ pub of
     # Just a temporary function for now
     def min(a, b: i32) i32 =
         if a < b -> a
-        else -> b end
-end 
+        else -> b

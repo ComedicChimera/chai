@@ -320,6 +320,10 @@ func (gl *gramLoader) readTerminal() (int, error) {
 					kind = FLOATLIT
 				case "RUNELIT":
 					kind = RUNELIT
+				case "INDENT":
+					kind = INDENT
+				case "DEDENT":
+					kind = DEDENT
 				default:
 					// unknown terminal kind => undefined (0 is
 					// meaningless/arbitrary - not token kind)

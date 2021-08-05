@@ -16,3 +16,16 @@ In this context, it is impossible to tell.  Chai currently resolves this as `x`
 is an identifier and `T` is the type.  However, since this is practically a
 non-existent use case for `is` and for slicing, there is really no reason to
 apply any major adjustments to the syntax to "handle" this conflict.
+
+## Nobreak
+
+By virtue of the way loops are constructed in Chai, the associativity of the
+`nobreak` statement can occasionally appear ambiguous.  For example,
+
+    for x in s -> for y in x -> some_expr nobreak -> "eg"
+
+Which loop does the `nobreak` associate with?  Grammatically, the compiler
+doesn't know.  However, since we auto-resolve this conflict in favor of shift,
+it ends up being the innermost loop (which makes logical sense).
+
+
