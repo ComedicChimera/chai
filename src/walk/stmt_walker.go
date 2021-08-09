@@ -39,11 +39,6 @@ func (w *Walker) walkStmt(branch *syntax.ASTBranch) (sem.HIRExpr, bool) {
 		if w.currExprContext().MatchContext {
 			w.updateControl(CFMatch)
 
-			if stmt.Len() == 3 {
-				// fallthrough to match
-				return sem.NewControlStmt(sem.CSFallMatch), true
-			}
-
 			// fallthrough
 			return sem.NewControlStmt(sem.CSFallthrough), true
 		}

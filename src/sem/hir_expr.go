@@ -207,7 +207,6 @@ const (
 	CSBreak         = iota // `break`
 	CSContinue             // `continue`
 	CSFallthrough          // `fallthrough`
-	CSFallMatch            // `fallthrough to match`
 	CSUnimplemented        // `...`
 )
 

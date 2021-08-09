@@ -240,7 +240,7 @@ func (w *Walker) walkLoopBody(branch *syntax.ASTBranch, yieldsValue bool) (sem.H
 
 // walkBlockBody walks a `block_body` node
 func (w *Walker) walkBlockBody(branch *syntax.ASTBranch, yieldsValue bool) (sem.HIRExpr, bool) {
-	bodyBranch := branch.BranchAt(1)
+	bodyBranch := branch.LastBranch()
 
 	if bodyBranch.Name == "block_content" {
 		return w.walkBlockContent(bodyBranch, yieldsValue)

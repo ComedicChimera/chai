@@ -33,7 +33,8 @@ const (
 	DO
 	OF
 	MATCH
-	TO
+	CASE
+	END
 
 	// function terminators
 	RETURN
@@ -54,7 +55,6 @@ const (
 	IMPORT
 	PUB
 	FROM
-	PRIV
 
 	// expression utils
 	SUPER
@@ -68,8 +68,6 @@ const (
 
 	// whitespace
 	NEWLINE
-	INDENT
-	DEDENT
 
 	// type keywords
 	U8
@@ -188,7 +186,6 @@ var keywordPatterns = map[string]int{
 	"union":       UNION,
 	"import":      IMPORT,
 	"pub":         PUB,
-	"priv":        PRIV,
 	"from":        FROM,
 	"super":       SUPER,
 	"null":        NULL,
@@ -196,10 +193,11 @@ var keywordPatterns = map[string]int{
 	"await":       AWAIT,
 	"as":          AS,
 	"match":       MATCH,
-	"to":          TO,
+	"end":         END,
 	"in":          IN,
 	"fn":          FN,
 	"then":        THEN,
+	"case":        CASE,
 	"i8":          I8,
 	"i16":         I16,
 	"i32":         I32,

@@ -5,42 +5,49 @@ import Buffer, Resource, RawPtr from core.runtime
 pub of
     type __stdstring = &String
 
-    type String = {
-        priv bbuff: Buffer[byte]
-        priv length: int
-        priv const: bool
+    type String {
+        bbuff: Buffer[byte]
+        length: int
+        const: bool
     }
 
     space for String is Seq[rune], Collection[rune, int], Resource of
-        def new(ptr: RawPtr[byte], len, num_bytes: int, const: bool) &String = do
+        pub def new(ptr: RawPtr[byte], len, num_bytes: int, const: bool) &String = do
             let s = &String{}
 
-            if ptr == null do
+            if ptr == null
                 s.bbuff = Buffer.[byte].new_empty(num_bytes)
             else
                 s.bbuff = Buffer.new(ptr, num_bytes)
+            end
                 
             s.length = len
             s.const = const
 
-            return s
+            s
+        end
 
-        def get_elem(s: &String, ndx: int) rune = do
+        pub def get_elem(s: &String, ndx: int) rune = do
             ...
+        end
 
-        def iter(s: &String) Iter[rune] = do
+        pub def iter(s: &String) Iter[rune]
             ...
+        end
 
-        priv def copy(s: &String) &String = s
+        def copy(s: &String) &String = s
 
-        priv def move(s: &String) &String = s
+        def move(s: &String) &String = s
 
-        priv def destroy(s: &String) =
-            if s.const -> s.bbuff.free()
+        def destroy(s: &String) =
+            if s.const -> s.bbuff.free() end
 
-        def bytes(s: &String) List[byte] = s.bbuff.to_list()
+        pub def bytes(s: &String) List[byte] = s.bbuff.to_list()
 
-        def runes(s: &String) List[rune] = do
+        pub def runes(s: &String) List[rune] = do
             ...
+        end
 
-        def byte_at(s: &String, ndx: int) byte = s.bbuff[ndx]
+        pub def byte_at(s: &String, ndx: int) byte = s.bbuff[ndx]
+    end
+end
