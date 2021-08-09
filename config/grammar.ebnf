@@ -18,14 +18,8 @@ The Formal Chai Language Grammar
 - Because the parser ignores unexpected newlines, there is no need to specify
   NEWLINE before every INDENT because a NEWLINE must be there in order for an
   INDENT to be registered.
-- The parser counts a dedentation as being equivalent to a NEWLINE AFTER it has
-  occured, meaning that the newlines after block statements are only required if
-  there is no indentation.
 - The `? ... ?` syntax marks a group that can be optionally wrapped in an
-  indentation suite.  In the current version of the grammar, this feature is
-  basically never used (due to indentation framing), but it was used more in an
-  older version of the grammar so I saw no need to remove it as it is
-  occasionally conventient.
+  indentation suite
 - Some constructs such as lists do not include any reference to indentation even
   though Chai allows indentation inside those constructs.  This is due to a rule
   that allows indentation suites to be created freely within grouping symbols.
@@ -72,7 +66,7 @@ oper_def = 'oper' oper_value [generic_tag] signature ['=' ? expr ?] 'NEWLINE' ;
 oper_value = '+' | '-' | '*' | '/' | '//'
   | '**' | '%' | '>' | '>>' | '<' | '<<' | '<=' | '>=' 
   | '==' | '!' | '!=' | '&' | '&&' | '|' | '||' | '^' 
-  | '~' | '[' [':'] ']' 
+  | '~' | '[' [':'] ']' | '>>='
   ;
 
 func_def = ['async'] 'def' 'IDENTIFIER' [generic_tag] signature ['=' ? expr ?] 'NEWLINE' ;
@@ -146,12 +140,13 @@ var_initializer = '<-' expr | '=' expr ;
 
 expr_stmt = mut_expr [{',' mut_expr} assign_op expr_list | '++' | '--'] ;
 mut_expr = ['await'] ['*'] ('IDENTIFIER' | '(' expr ')') {trailer} ;
-assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '>>' | '<<' | '&' | '|' | '^' | '&&' | '||'] '=' | '<-' ;
+assign_op = ['+' | '-' | '*' | '/' | '%' | '//' | '**' | '(' ('>>' | '<<') ')' | '&' | '|' | '^' | '&&' | '||'] '=' | '<-' ;
 
 
 (* -- Simple Expressions -- *)
-simple_expr = core_expr [then_suffix] | lambda ;
+simple_expr = core_expr [then_suffix | bind_suffix] | lambda ;
 then_suffix = 'then' expr ;
+bind_suffix = '>>=' expr ;
 lambda = ('async' | 'fn') lambda_args_decl block_body ;
 lambda_args = lambda_arg {',' lambda_arg} ;
 lambda_arg = 'IDENTIFIER' [type_ext] ;
@@ -214,7 +209,7 @@ named_type = 'IDENTIFIER' ['.' 'IDENTIFIER'] [generic_spec [size_spec]] ;
 size_spec = '(' size_val {',' size_val} ')' ;
 size_val = 'INTLIT' | 'IDENTIFIER' ;
 
-value_type = prim_type | func_type | tup_type | union_type ;
+value_type = prim_type | func_type | tup_type | subspace_type ;
 
 prim_type = 'i8' | 'i16' | 'i32' | 'i64' | 'u8' | 'u16' | 'u32' | 'u64' 
   | 'f32' | 'f64' | 'nothing' | 'string' | 'rune' | 'bool' | 'any' ;
@@ -229,7 +224,7 @@ tup_type = '(' type ',' type {',' type} ')' ;
 
 ref_type = '&' (value_type | named_type) ; 
 
-union_type = 'union' 'of' type ;
+subspace_type = 'sub' type ;
 
 (* generic constructions *)
 generic_tag = '[' generic_param {',' generic_param} ']' ;

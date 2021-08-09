@@ -34,7 +34,6 @@ const (
 	OF
 	MATCH
 	TO
-	CASE
 
 	// function terminators
 	RETURN
@@ -88,6 +87,7 @@ const (
 	STRING
 	ANY
 	NOTHING
+	SUB
 
 	// arithmetic/function operators
 	PLUS
@@ -123,8 +123,9 @@ const (
 	ASSIGN // =
 	BINDTO // <-
 
-	// monadic accumulations
-	ACC // ?
+	// monadic operators
+	ACC  // ?
+	BIND // >>=
 
 	// type proposition
 	TYPEPROP // ::
@@ -196,7 +197,6 @@ var keywordPatterns = map[string]int{
 	"as":          AS,
 	"match":       MATCH,
 	"to":          TO,
-	"case":        CASE,
 	"in":          IN,
 	"fn":          FN,
 	"then":        THEN,
@@ -215,6 +215,7 @@ var keywordPatterns = map[string]int{
 	"rune":        RUNE,
 	"any":         ANY,
 	"nothing":     NOTHING,
+	"sub":         SUB,
 }
 
 // token patterns for symbolic items - longest match wins
@@ -261,4 +262,5 @@ var symbolPatterns = map[string]int{
 	"<-":  BINDTO,
 	"/":   DIVIDE,
 	"?":   ACC,
+	">>=": BIND,
 }

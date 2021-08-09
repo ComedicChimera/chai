@@ -27,10 +27,6 @@ type Parser struct {
 	// whole program.  This frame is indentation aware with an entry level of -1
 	// (meaning it will never close => total enclosing frame).
 	indentFrames []*IndentFrame
-
-	// encounteredDedent is a flag that is set whenever the parser shifts a
-	// dedent token.  It is used to generate fictious newlines as necessary.
-	encounteredDedent bool
 }
 
 // IndentFrame represents an indentation context frame.  An indentation context
@@ -74,8 +70,6 @@ func NewParser(ptable *ParsingTable, sc *Scanner) *Parser {
 
 // Parse runs the main parsing algorithm on the given scanner
 func (p *Parser) Parse() (ASTNode, bool) {
-	// TODO: handle fictious newlines after DEDENT
-
 	// initialize the lookahead
 	if !p.consume() {
 		return nil, false
@@ -177,10 +171,7 @@ func (p *Parser) shift(state int) bool {
 
 	switch p.lookahead.Kind {
 	// handle indentation
-	case DEDENT:
-		p.encounteredDedent = true
-		fallthrough
-	case INDENT:
+	case INDENT, DEDENT:
 		// implement frame control rules for indentation-aware frames
 		if p.lookahead.Kind == INDENT && topFrame.Mode > -1 {
 			p.pushIndentFrame(-1, p.sc.indentLevel-1)
