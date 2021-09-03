@@ -2,11 +2,13 @@ package build
 
 import (
 	"chai/common"
+	"chai/generate"
 	"chai/logging"
 	"chai/mods"
 	"chai/resolve"
 	"chai/syntax"
 	"chai/walk"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -43,6 +45,9 @@ func NewCompiler(rootMod *mods.ChaiModule, buildProfile *mods.BuildProfile) *Com
 	}
 }
 
+// MAX_BATCH_SIZE is the maximum size for a concurrent batch of tasks
+const MAX_BATCH_SIZE int = 32
+
 // Compile runs the full compilation algorithm on the root module and build
 // profile. It handles all compilation errors appropriately.
 func (c *Compiler) Compile() {
@@ -52,7 +57,54 @@ func (c *Compiler) Compile() {
 	)
 
 	if c.Analyze() {
+		// log the beginning of the generation phase
+		logging.LogBeginPhase("Generating")
 
+		// generate llvm modules in batches of MAX_BATCH_SIZE -- avoid opening
+		// too many file handles and creating too many goroutines
+		currentBatch := 0
+		wg := &sync.WaitGroup{}
+
+		for _, mod := range c.depGraph {
+			for _, pkg := range mod.Packages() {
+				if currentBatch == MAX_BATCH_SIZE {
+					wg.Wait()
+				}
+
+				wg.Add(1)
+
+				// create a generator
+				g := generate.NewGenerator(pkg)
+				go func() {
+					// generate the IR
+					if tempPath, ok := g.Generate(c.buildProfile.TargetOS, c.buildProfile.TargetArch); ok {
+						// TODO: turn the temp file into assembly
+						// TODO: turn the assembly into an object file in `.chai` directory
+
+						// clear out the temp file -- we are no longer using it
+						os.Remove(tempPath)
+					}
+				}()
+			}
+		}
+
+		// finished off any remaining compilation tasks
+		wg.Wait()
+
+		// end the generation phase
+		logging.LogEndPhase()
+
+		// check to see if we can proceed
+		if logging.ShouldProceed() {
+			// log the beginning of the linking phase
+			logging.LogBeginPhase("Linking")
+
+			// TODO: link all the generated object files (and other link
+			// objects: static libs, user-specified object files, etc)
+
+			// log the end of the linking phase
+			logging.LogEndPhase()
+		}
 	} else {
 		// close unfinished working phase
 		logging.LogEndPhase()
