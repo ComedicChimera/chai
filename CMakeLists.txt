@@ -8,7 +8,10 @@ project(chai)
 
 # Sources
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(SRCS "main.cpp")
+set(SRCS 
+    "main.cpp"
+    "syntax/scanner.cpp"
+    )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 add_executable(${PROJECT_NAME} ${SRCS})
 
