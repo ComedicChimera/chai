@@ -32,7 +32,7 @@ The compiler is written in C++ and requires several dependencies:
 - [CMake v3.20.0 or later](https://cmake.org/)
 - [zlib v1.2.11](https://zlib.net/)
 - [libxml2](http://xmlsoft.org/)
-- A C++ compiler and toolchain
+- C++ 20
 
 To build the repository, first, navigate to the source directory and call the
 CMake script like so:
@@ -58,7 +58,7 @@ ships with the latter, incorrect, name.
 
 Once you have run CMake, you will get a either a Makefile or Visual Studio
 solution depending if you are on Windows.  This should be trivial to build --
-the CMake file takes care of all configuration for you.
+the CMake file takes care of all configuration for you. 
 
 ## <a name="development"> Development
 

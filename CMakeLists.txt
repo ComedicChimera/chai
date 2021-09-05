@@ -5,6 +5,7 @@ cmake_minimum_required(
 # Main project configuration
 # --------------------------
 project(chai)
+set(CMAKE_CXX_STANDARD 20)
 
 # Sources
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
