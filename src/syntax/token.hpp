@@ -12,6 +12,7 @@ namespace chai {
         NumLiteral,
         RuneLiteral,
         BoolLiteral,
+        StringLiteral,
 
         // Whitespace
         Newline,

@@ -12,14 +12,22 @@ namespace chai {
     // works as a state machine: when called it produces a single new token
     // until there are no tokens remaining.
     class Scanner {
+        const std::string& fpath;
         std::ifstream file;
         int line, col;
 
         std::string tokBuff;
 
         void skipComment();
+        Token scanRuneLit();
+        void readEscapeSequence();
+        void readUnicodeSequence(int);
+        Token scanNumberLit(char);
+        Token scanStdStringLit();
+        Token scanRawStringLit();
 
         Token makeToken(TokenKind);
+        void throwScanError(const std::string&);
 
         std::optional<char> readChar();
         bool skipChar();
