@@ -1,6 +1,0 @@
-
-[module]
-  allow-profile-elision = true
-  caching = false
-  chai-version = "0.1.0"
-  name = "core"

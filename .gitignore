@@ -1,4 +1,2 @@
-bin/
-.vscode/
-src/__debug_bin
-config/grammar.ptable
+out/
+vendor/lib
