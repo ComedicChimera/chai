@@ -27,12 +27,39 @@ namespace chai {
         Elif,
         Else,
         While,
+        NoBreak,
         Do,
+        Continue,
+        Break,
+        Return,
         End,
 
         Def,
         Type,
-        // TODO
+        Oper,
+        Of,
+
+        Pub,
+        Vol,
+
+        Import,
+        From,
+
+        As,
+
+        I8,
+        I16,
+        I32,
+        I64,
+        U8,
+        U16,
+        U32,
+        U64,
+        F32,
+        F64,
+        Rune,
+        Bool,
+        Nothing,
 
         // Operators
         Plus,
@@ -42,9 +69,44 @@ namespace chai {
         FloorDiv,
         Mod,
         Power,
+
+        Amp,
+        Pipe,
+        Carret,
+        LShift,
+        RShift,
+        Complement,
+
+        And,
+        Or,
+        Not,
+
+        Lt,
+        Gt,
+        LtEq,
+        GtEq,
+        Eq,
+        NEq,
+
+        Dot,
+        RangeTo,
+        Ellipsis,
+
+        TypeProp,
         
         Assign,
-        // TODO
+
+        // Punctuation
+        LParen,
+        RParen,
+        LBracket,
+        RBracket,
+        LBrace,
+        RBrace,
+        Comma,
+        Colon,
+        Arrow,
+        Semicolon
     };
 
     struct Token {

@@ -26,4 +26,4 @@ let math_time = (1-2 * 42) + 563 % 12
 
 let binary_time = 0b101 << 2
 
-let monads = Some(x + y) >>= |a| -> Some(a * 2)
+let monads = Some(x + y)
