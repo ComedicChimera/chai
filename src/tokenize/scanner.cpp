@@ -5,6 +5,7 @@
 #include <locale>
 #include <codecvt>
 
+#include "patterns.hpp"
 #include "logging/chai_error.hpp"
 
 namespace chai {
@@ -71,14 +72,31 @@ namespace chai {
                             readChar();
                         } while ((oc = peekChar()) && iscsym(oc.value()));
 
-                        // TODO: check to see if the identifier matches a keyword
+                        // check if the identifier matches a known keyword and
+                        // return an appropriate token if so
+                        if (auto kind = matchKeyword(tokBuff))
+                            return makeToken(kind.value());
 
                         // if not, return it as an identifier
                         return makeToken(TokenKind::Identifier);
                     }
                     // operator or punctuation
                     else {
-                        // TODO
+                        TokenKind kind = TokenKind::EndOfFile;
+                        std::optional<TokenKind> okind;
+                        while ((oc = peekChar()) && (okind = matchSymbol(tokBuff + oc.value()))) {
+                            readChar();
+                            kind = okind.value();
+                        }                           
+
+                        // kind == EOF => first token didn't match a symbol
+                        if (kind == TokenKind::EndOfFile) {
+                            readChar();
+                            throwScanError("unexpected character");
+                        }
+                        
+                        // otherwise it is a valid token :)
+                        return makeToken(kind);
                     }
                     break;
             }
@@ -208,7 +226,7 @@ namespace chai {
         std::string unicodeStr;
         for (int i = 0; i < count; i++) {
             if (auto ahead = peekChar()) {
-                if (isdigit(ahead.value()) || '@' < ahead && ahead < 'G' || '`' < ahead && ahead < 'g') {
+                if (isdigit(ahead.value()) || 'A' <= ahead && ahead < 'G' || 'a' <= ahead && ahead < 'g') {
                     unicodeStr.push_back(ahead.value());
                     skipChar();
                 }
@@ -236,7 +254,7 @@ namespace chai {
 
         int base = 10;
 
-        // first, check for variable bases -- note, we do include the leading
+        // first, check for alternative bases -- note, we do include the leading
         // zero even in the case of a variable base so that backend knows what
         // kind of number literal to output to LLVM
         if (c == '0') {
@@ -279,10 +297,119 @@ namespace chai {
         // these flags determine what kind of number literal is generated and
         // are used to maintain the state regardingly that literal as it is
         // being read in by the scanner.
-        bool isFloating = false, encounteredExp = false;
+        bool isFloating = false, encounteredExp = false, expectingNeg = false;
         bool isUnsigned = false, isLong = false;
 
-        // TODO: main number reading loop
+        while (auto ahead = readChar()) {
+            // suffixes can only occur once per and at the end
+            if (isUnsigned && isLong)
+                break;
+            else if (isUnsigned) {
+                if (ahead == 'l') {
+                    readChar();
+                    isLong = true;
+                }
+                    
+                continue;
+            } else if (isLong) {
+                if (ahead == 'u') {
+                    readChar();
+                    isUnsigned = true;
+                }
+                
+                continue;
+            }
+
+            switch (base) {
+                // binary literals
+                case 2:
+                    if (ahead == '0' || ahead == '1')
+                        readChar();
+                    break;
+                // octal literals
+                case 8:
+                    if ('0' <= ahead && ahead < '8')
+                        readChar();
+                    break;
+                // hex literals
+                case 16:
+                    if (isdigit(ahead.value()) || 'a' <= ahead && ahead <= 'f' || 'A' <= ahead && ahead <= 'F')
+                        readChar();
+                    break;
+                // base 10 literals are the only literals that can also be
+                // floating point numbers
+                case 10:
+                    if (isdigit(ahead.value()))
+                        readChar();
+                    else {
+                        switch (ahead.value()) {
+                            case 'e':
+                            case 'E':
+                                readChar();
+
+                                if (encounteredExp) 
+                                    throwScanError("floating literal cannot contain multiple exponents");
+
+                                encounteredExp = true;
+                                isFloating = true;
+                                expectingNeg = true;
+                                continue;
+                            case '.':
+                                readChar();
+
+                                // if it is floating then either the decimal is misplaced after the exponent
+                                // or multiple decimals occur in the literal: this is invalid in either case
+                                if (isFloating)
+                                    throwScanError("unexpected decimal point in float literal");
+
+                                isFloating = true;
+                                break;
+                            case 'l':
+                                readChar();
+
+                                if (isFloating)
+                                    throwScanError("float literal cannot be marked long");
+
+                                isLong = true;
+                                break;
+                            case 'u':
+                                readChar();
+
+                                if (isFloating)
+                                    throwScanError("float literal cannot be marked unsigned");
+
+                                isUnsigned = true;   
+                                break;
+                            case '-':
+                                // an unexpected negative is not necessarily an
+                                // exit condition: eg. `5-2` is a valid Chai
+                                // expression; erroring here would cause such an
+                                // expression to be rejected
+                                if (expectingNeg) {
+                                    readChar();
+                                    expectingNeg = false;
+                                    continue;
+                                }
+
+                                // because using the same keyword to exit switch
+                                // cases and loops was an *AMAZING* structured
+                                // programming innovation /s
+                                goto loopexit;                               
+                        }
+                    }
+
+                    // clear expecting negative if we reach here
+                    expectingNeg = false;
+            }
+
+        loopexit:
+            if (isFloating)
+                return makeToken(TokenKind::FloatLiteral);
+            else if (isUnsigned || isLong || base != 10)
+                return makeToken(TokenKind::IntLiteral);
+            else
+                return makeToken(TokenKind::NumLiteral);
+        }
     }
 
     // scanStdStringLit scans in a standard (double quoted) string literal

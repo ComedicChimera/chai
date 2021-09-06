@@ -18,7 +18,33 @@ namespace chai {
         Newline,
 
         // Special
-        EndOfFile
+        EndOfFile,
+
+        // Keywords
+        Let,
+
+        If,
+        Elif,
+        Else,
+        While,
+        Do,
+        End,
+
+        Def,
+        Type,
+        // TODO
+
+        // Operators
+        Plus,
+        Minus,
+        Star,
+        Div,
+        FloorDiv,
+        Mod,
+        Power,
+        
+        Assign,
+        // TODO
     };
 
     struct Token {

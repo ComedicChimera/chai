@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "syntax/scanner.hpp"
+#include "tokenize/scanner.hpp"
 
 int main() {
     try {
