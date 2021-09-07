@@ -22,7 +22,11 @@ add_executable(${PROJECT_NAME} ${SRCS})
 # Include/lib configuration
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 
-# LLVM Configuration
+# Vendor library directories
+set(VENDOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
+
+
+# LLVM configuration
 # ------------------
 if (NOT DEFINED LLVM_DIR)
     set(LLVM_DIR "D:/DevTools/llvm/out")
@@ -47,7 +51,7 @@ exec_program(${LLVM_CONFIG_PATH}
 )
 separate_arguments(LLVM_LIBS)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LLVM_LIBS})
-target_link_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib")
+target_link_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/lib")
 
 # get the required system link libraries (eg. psapi.lib)
 exec_program(${LLVM_CONFIG_PATH}
@@ -68,3 +72,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${LLVM_INCLUDE_PATH})
 target_include_directories(${PROJECT_NAME} PRIVATE "${LLVM_DIR}/include")
 
 
+# Other libraries
+# ---------------
+
+# TOML++
+target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlplusplus/include")
