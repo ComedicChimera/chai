@@ -27,17 +27,16 @@ namespace chai {
         Elif,
         Else,
         While,
-        NoBreak,
         Do,
         Continue,
         Break,
+        After,
         Return,
         End,
 
         Def,
         Type,
         Oper,
-        Of,
 
         Pub,
         Vol,
@@ -95,6 +94,8 @@ namespace chai {
         TypeProp,
         
         Assign,
+        Increm,
+        Decrem,
 
         // Punctuation
         LParen,

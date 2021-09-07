@@ -10,17 +10,16 @@ namespace chai {
         { "elif", TokenKind::Elif },
         { "else", TokenKind::Else },
         { "while", TokenKind::While },
-        { "nobreak", TokenKind::NoBreak },
         { "do", TokenKind::Do },
         { "continue", TokenKind::Continue },
         { "break", TokenKind::Break },
+        { "after", TokenKind::After },
         { "return", TokenKind::Return },
         { "end", TokenKind::End },
 
         { "def", TokenKind::Def },
         { "type", TokenKind::Type },
         { "oper", TokenKind::Oper },
-        { "of", TokenKind::Of },
 
         { "pub", TokenKind::Pub },
         { "vol", TokenKind::Vol },
@@ -86,6 +85,8 @@ namespace chai {
         { "::", TokenKind::TypeProp },
 
         { "=", TokenKind::Assign },
+        { "++", TokenKind::Increm },
+        { "--", TokenKind::Decrem },
 
         { "(", TokenKind::LParen },
         { ")", TokenKind::RParen },
