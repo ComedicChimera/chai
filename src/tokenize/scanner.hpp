@@ -15,6 +15,7 @@ namespace chai {
         const std::string& fpath;
         std::ifstream file;
         int line, col;
+        int tokStartLine, tokStartCol;
 
         std::string tokBuff;
 

@@ -11,7 +11,7 @@
 namespace chai {
     Scanner::Scanner(const std::string& fpath) 
         : line(1)
-        , col(0)
+        , col(1)
         , fpath(fpath)
     {
         file.open(fpath);
@@ -49,6 +49,8 @@ namespace chai {
                             throwScanError("expecting newline after split join");
                         }
                     }
+
+                    break;
                 // handle rune literals
                 case '\'':
                     readChar();
@@ -145,7 +147,9 @@ namespace chai {
                 skipChar();
 
                 readEscapeSequence();
-            } else readChar();
+            } else if (ahead == '\'')
+                throwScanError("empty rune literal");
+            else readChar();
 
             if ((ahead = peekChar()) && ahead == '\'') {
                 readChar();
@@ -313,16 +317,18 @@ namespace chai {
                 if (ahead == 'l') {
                     readChar();
                     isLong = true;
+                    continue;
                 }
                     
-                continue;
+                break;
             } else if (isLong) {
                 if (ahead == 'u') {
                     readChar();
                     isUnsigned = true;
+                    continue;
                 }
                 
-                continue;
+                break;
             }
 
             switch (base) {
@@ -467,7 +473,7 @@ namespace chai {
 
     // throwScanError throws a new error regarding the current token being scanned
     void Scanner::throwScanError(const std::string& msg) {
-        throw ChaiCompileError(msg, {.startLine=line, .startCol=col-(int)tokBuff.length(), .endLine=line, .endCol=col}, fpath);
+        throw ChaiCompileError(msg, {.startLine=tokStartLine, .startCol=tokStartCol, .endLine=line, .endCol=col}, fpath);
     }
 
     // -------------------------------------------------------------------------- //
@@ -511,16 +517,23 @@ namespace chai {
     // updatePosition updates the position of the scanner based on a char that
     // was just read in.
     void Scanner::updatePosition(char c) {
+        // whenever the token buffer is of length zero and a character is
+        // written to it, the start position is reset
+        if (tokBuff.length() == 0) {
+            tokStartLine = line;
+            tokStartCol = col;
+        }
+
         switch (c) {
             case '\n':
                 line++;
-                col = 0;
+                col = 1;
                 break;
             case '\t':
                 col += 4;
                 break;
             default:
-                col += 1;
+                col++;
                 break;
         }
     }
