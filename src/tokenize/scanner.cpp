@@ -6,7 +6,7 @@
 #include <codecvt>
 
 #include "patterns.hpp"
-#include "logging/chai_error.hpp"
+#include "report/chai_error.hpp"
 
 namespace chai {
     Scanner::Scanner(const std::string& fpath) 
@@ -16,7 +16,7 @@ namespace chai {
     {
         file.open(fpath);
         if (!file)
-            throw std::runtime_error("unable to open file");        
+            throw std::runtime_error(std::format("unable to open file at {}", fpath));        
     }
 
     Token Scanner::scanNext() {
@@ -130,7 +130,7 @@ namespace chai {
             }
             // single-line comment 
             else {
-                while ((ahead == peekChar()) && ahead != '\n') {
+                while ((ahead = peekChar()) && ahead != '\n') {
                     skipChar();
                 }         
             }
@@ -230,21 +230,26 @@ namespace chai {
                     unicodeStr.push_back(ahead.value());
                     skipChar();
                 }
-
-                throwScanError(std::format("expected a hexadecimal character (0-9, a-f, or A-F) not %c", ahead.value()));
+                else
+                    throwScanError(std::format("expected a hexadecimal character (0-9, a-f, or A-F) not {}", ahead.value()));
             } else
                 throwScanError("unexpected end of unicode escape sequence");
         }
 
         // convert the unicode string to an 32-bit unicode point
-        char32_t codePoint = std::stoul(unicodeStr, nullptr, 0);
+        char32_t codePoint = std::stoul(unicodeStr, nullptr, 16);
 
         // convert the unicode point to utf-8 bytes
         std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-        std::string u8bytes = converter.to_bytes(codePoint);
 
-        // write the bytes to the token buffer
-        tokBuff += u8bytes;
+        try {
+            std::string u8bytes = converter.to_bytes(codePoint);
+
+            // write the bytes to the token buffer
+            tokBuff += u8bytes;
+        } catch (std::exception) {
+            throwScanError(std::format("{} is not a valid unicode character", unicodeStr));
+        }      
     }
 
     // scanNumberLit scans in a numeric literal.
@@ -265,15 +270,15 @@ namespace chai {
                     switch (ahead.value()) {
                         // handle the three base codes
                         case 'b':
-                            skipChar();
+                            readChar();
                             base = 2;
                             break;
                         case 'o':
-                            skipChar();
+                            readChar();
                             base = 8;
                             break;
                         case 'x':
-                            skipChar();
+                            readChar();
                             base = 16;
                             break;
                         // handle all non-digit, but valid components of numeric
@@ -287,7 +292,7 @@ namespace chai {
                             readChar();
 
                             // throw an error indicating that the base code is unknown
-                            throwScanError(std::format("unknown interger base code: %c", ahead.value()));
+                            throwScanError(std::format("unknown interger base code: {}", ahead.value()));
                             break;
                     }
                 }
@@ -300,7 +305,7 @@ namespace chai {
         bool isFloating = false, encounteredExp = false, expectingNeg = false;
         bool isUnsigned = false, isLong = false;
 
-        while (auto ahead = readChar()) {
+        while (auto ahead = peekChar()) {
             // suffixes can only occur once per and at the end
             if (isUnsigned && isLong)
                 break;
@@ -325,16 +330,22 @@ namespace chai {
                 case 2:
                     if (ahead == '0' || ahead == '1')
                         readChar();
+                    else
+                        goto loopexit;
                     break;
                 // octal literals
                 case 8:
                     if ('0' <= ahead && ahead < '8')
                         readChar();
+                    else
+                        goto loopexit;
                     break;
                 // hex literals
                 case 16:
                     if (isdigit(ahead.value()) || 'a' <= ahead && ahead <= 'f' || 'A' <= ahead && ahead <= 'F')
                         readChar();
+                    else
+                        goto loopexit;
                     break;
                 // base 10 literals are the only literals that can also be
                 // floating point numbers
@@ -394,22 +405,24 @@ namespace chai {
                                 // because using the same keyword to exit switch
                                 // cases and loops was an *AMAZING* structured
                                 // programming innovation /s
-                                goto loopexit;                               
+                                goto loopexit;  
+                            default:
+                                goto loopexit;                             
                         }
                     }
 
                     // clear expecting negative if we reach here
                     expectingNeg = false;
             }
-
-        loopexit:
-            if (isFloating)
-                return makeToken(TokenKind::FloatLiteral);
-            else if (isUnsigned || isLong || base != 10)
-                return makeToken(TokenKind::IntLiteral);
-            else
-                return makeToken(TokenKind::NumLiteral);
         }
+
+    loopexit:
+        if (isFloating)
+            return makeToken(TokenKind::FloatLiteral);
+        else if (isUnsigned || isLong || base != 10)
+            return makeToken(TokenKind::IntLiteral);
+        else
+            return makeToken(TokenKind::NumLiteral);
     }
 
     // scanStdStringLit scans in a standard (double quoted) string literal

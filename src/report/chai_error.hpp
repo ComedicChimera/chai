@@ -29,8 +29,6 @@ namespace chai {
 
         void display(); 
     };
-
-
 }
 
 #endif
