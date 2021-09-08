@@ -1,0 +1,11 @@
+import print_int from core
+
+def fib(n, a, b: int) int =
+    if n == 0 -> a
+    else -> fib(n-1, b, a+b)
+    end
+
+def main()
+    let result = fib(10, 1, 1)
+    print_int(result)
+end

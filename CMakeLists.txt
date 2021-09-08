@@ -15,6 +15,7 @@ set(SRCS
     "tokenize/scanner.cpp"
     "tokenize/patterns.cpp"
     "report/display.cpp"
+    "depm/loader.cpp"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 add_executable(${PROJECT_NAME} ${SRCS})
