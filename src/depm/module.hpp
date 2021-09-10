@@ -15,6 +15,9 @@ namespace chai {
 
     // BuildProfile represents a specific build configuration
     struct BuildProfile {
+        // name is the user-defined name of this profile
+        std::string name;
+
         // targetOS is the name of the target operating system.  It must be one
         // of the supported operating system names.
         std::string targetOS;
@@ -50,8 +53,8 @@ namespace chai {
         // id is the unique identifier of the module
         unsigned int id;
 
-        // moduleName is the name of imported module
-        std::string moduleName;
+        // name is the name of module
+        std::string name;
 
         // rootDir is the directory of the module
         std::string rootDir;
@@ -66,6 +69,10 @@ namespace chai {
         // shouldCache indicates whether or not compilation caching should be
         // performed for this module
         bool shouldCache;
+
+        // cacheDirectory is the directory where the module should store its
+        // cached version.  Defaults to `.chai/cache`
+        std::string cacheDirectory;
 
         // TODO: rootPackage, subPackages, lastBuildTime
     };
