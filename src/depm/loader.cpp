@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 namespace chai {
     ModuleLoader::ModuleLoader(const std::string& modDir, const BuildProfile& globalProfile) 
     : modFilePath((fs::path(modDir) / fs::path(MODULE_FILENAME)).string())
-    , mod{.rootDir = modDir}
+    , mod{.id=getID(), .rootDir = modDir}
     , globalProfile(globalProfile)
     {}
 

@@ -1,0 +1,17 @@
+#ifndef UTIL_H_INCLUDED
+#define UTIL_H_INCLUDED
+
+#include <cstdint>
+
+namespace chai {
+    using u32 = std::uint32_t;
+    using i32 = std::int32_t;
+
+    // getID generates a new ID for use by a given module or package
+    u32 getID() {
+        static u32 idCounter = 0;
+        return idCounter++;
+    }
+}
+
+#endif 

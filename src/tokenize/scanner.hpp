@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "token.hpp"
+#include "util.hpp"
 
 namespace chai {
     // Scanner is responsible for reading in and tokenizing user files.   It
@@ -14,8 +15,8 @@ namespace chai {
     class Scanner {
         const std::string& fpath;
         std::ifstream file;
-        int line, col;
-        int tokStartLine, tokStartCol;
+        u32 line, col;
+        u32 tokStartLine, tokStartCol;
 
         std::string tokBuff;
 

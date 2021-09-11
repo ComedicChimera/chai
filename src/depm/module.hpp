@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "util.hpp"
+#include "package.hpp"
+
 namespace chai {
     // BuildFormat represents the kind of output the compiler can produce
     enum class BuildFormat {
@@ -47,7 +50,7 @@ namespace chai {
     // Module represents a Chai module after it processed by the module loader
     struct Module {
         // id is the unique identifier of the module
-        unsigned int id;
+        u32 id;
 
         // name is the name of module
         std::string name;
@@ -70,7 +73,16 @@ namespace chai {
         // cached version.  Defaults to `.chai/cache`
         std::string cacheDirectory;
 
-        // TODO: rootPackage, subPackages, lastBuildTime
+        // rootPackage is the package at the root of the module directory
+        Package rootPackage;
+
+        // subPackages is a list of all the packages contained in subdirectories
+        // of this module; ie. they are subordinate to this module.  They are
+        // organized by their subpath which is of the form `mod/pkg` (with any
+        // extra slashes for lower levels of depth)
+        std::unordered_map<std::string, Package> subPackages;
+
+        // TODO: lastBuildTime
     };
 
     // loadModule takes in a module path, loads it, selects an appropriate build

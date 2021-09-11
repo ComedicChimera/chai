@@ -4,12 +4,14 @@
 #include <stdexcept>
 #include <string>
 
+#include "util.hpp"
+
 namespace chai {
     // TextPosition is used to indicate where in a given source file an error
     // occurred for the purposes of error reporting.
     struct TextPosition {
-        int startLine, startCol;
-        int endLine, endCol;
+        u32 startLine, startCol;
+        u32 endLine, endCol;
     };
 
     // ChaiCompileError is an error that occurred during the compilation of a

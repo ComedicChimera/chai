@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "util.hpp"
+
 namespace chai {
     enum class TokenKind {
         // Values
@@ -113,7 +115,7 @@ namespace chai {
     struct Token {
         TokenKind kind;  
         std::string value;
-        int line, col;
+        u32 line, col;
     };
 }
 
