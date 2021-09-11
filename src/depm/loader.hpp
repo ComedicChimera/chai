@@ -6,9 +6,12 @@
 #include "toml++/toml.h"
 
 #include "module.hpp"
+#include "report/reporter.hpp"
 
 namespace chai {
     class ModuleLoader {
+        Reporter& reporter;
+
         Module mod;
         const std::string& modFilePath;
         const BuildProfile& globalProfile;
@@ -26,7 +29,7 @@ namespace chai {
     public:
         // ModuleLoader is constructed with the name of the module's root
         // directory and a global build profile
-        ModuleLoader(const std::string&, const BuildProfile&);
+        ModuleLoader(Reporter&, const std::string&, const BuildProfile&);
 
         // load takes in an optional selected profile and attempts to load a
         // module from a configuration file in the root directory.  It also

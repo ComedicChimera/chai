@@ -4,17 +4,17 @@
 #include <stdexcept>
 
 #include "constants.hpp"
-#include "report/warn.hpp"
 
 #define MODULE_FILENAME "chai-mod.toml"
 
 namespace fs = std::filesystem;
 
 namespace chai {
-    ModuleLoader::ModuleLoader(const std::string& modDir, const BuildProfile& globalProfile) 
+    ModuleLoader::ModuleLoader(Reporter& re, const std::string& modDir, const BuildProfile& globalProfile) 
     : modFilePath((fs::path(modDir) / fs::path(MODULE_FILENAME)).string())
     , mod{.id=getID(), .rootDir = modDir}
     , globalProfile(globalProfile)
+    , reporter(re)
     {}
 
     void ModuleLoader::throwModuleError(const std::string& message) {
@@ -75,7 +75,7 @@ namespace chai {
             throwModuleError("chai version number must be of the following form: `{int}.{int}.{int}`");
 
         if (modChaiVersionMajor != CHAI_VERSION_MAJOR || modChaiVersionMinor != CHAI_VERSION_MINOR || modChaiVersionBuild != CHAI_VERSION_BUILD) {
-            reportWarningMessage(std::format(
+            reporter.reportWarningMessage(std::format(
                 "chai version of `v{}.{}.{}` doesn't match module chai version of `v{}`", 
                 CHAI_VERSION_MAJOR, 
                 CHAI_VERSION_MINOR,

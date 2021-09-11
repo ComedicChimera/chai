@@ -9,7 +9,7 @@
 namespace chai {
     // Package represents a collection of Chai files that share a common
     // namespace.
-    class Package {
+    struct Package {
         // id is the unique ID of the package
         u32 id;
 

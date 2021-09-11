@@ -2,9 +2,11 @@
 #include <stdexcept>
 
 #include "tokenize/scanner.hpp"
-#include "report/chai_error.hpp"
+#include "report/reporter.hpp"
 
 int main() {
+    chai::Reporter reporter;
+
     try {
         chai::Scanner sc("tests/scan_test.chai");
         
@@ -12,8 +14,8 @@ int main() {
         while ((tok = sc.scanNext()).kind != chai::TokenKind::EndOfFile) {
             std::cout << "(" << (int)tok.kind << ", " << tok.value << ")" << '\n';
         }
-    } catch (chai::ChaiCompileError& ce) {
-        ce.display();
+    } catch (chai::CompileMessage& cm) {
+        reporter.reportCompileError(cm);
     } catch (std::exception& e) {
         std::cout << e.what() << '\n';
     }

@@ -7,6 +7,7 @@
 
 #include "util.hpp"
 #include "depm/module.hpp"
+#include "report/reporter.hpp"
 
 namespace chai {
     // Compiler holds the high-level state and acts as the main controller for
@@ -21,6 +22,11 @@ namespace chai {
 
         // rootMod is the root/main module for whole project
         std::shared_ptr<Module> rootMod;
+
+        // reporter is the global reporter used for all of compilation
+        Reporter reporter;
+
+        bool initPkg(std::shared_ptr<Module>, const std::string&);
 
     public:
         // compile takes a build directory and runs the main compilation

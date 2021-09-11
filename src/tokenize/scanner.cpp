@@ -6,7 +6,7 @@
 #include <codecvt>
 
 #include "patterns.hpp"
-#include "report/chai_error.hpp"
+#include "report/message.hpp"
 
 namespace chai {
     Scanner::Scanner(const std::string& fpath) 
@@ -473,7 +473,7 @@ namespace chai {
 
     // throwScanError throws a new error regarding the current token being scanned
     void Scanner::throwScanError(const std::string& msg) {
-        throw ChaiCompileError(msg, {.startLine=tokStartLine, .startCol=tokStartCol, .endLine=line, .endCol=col}, fpath);
+        throw CompileMessage(msg, {.startLine=tokStartLine, .startCol=tokStartCol, .endLine=line, .endCol=col}, fpath);
     }
 
     // -------------------------------------------------------------------------- //

@@ -5,4 +5,6 @@
 #define CHAI_VERSION_MINOR 1
 #define CHAI_VERSION_BUILD 0
 
+#define CHAI_FILE_EXT ".chai"
+
 #endif
