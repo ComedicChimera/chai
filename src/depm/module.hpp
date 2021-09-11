@@ -39,10 +39,6 @@ namespace chai {
         // the final build output.  These are absolute paths.
         std::vector<std::string> staticLibraries;
 
-        // dynamicLibraries is the list of dynamic libraries that should be
-        // marked as dependencies for the final output
-        std::vector<std::string> dynamicLibraries;
-
         // linkObjects is the list of additional objects to be linked into the
         // final output
         std::vector<std::string> linkObjects;

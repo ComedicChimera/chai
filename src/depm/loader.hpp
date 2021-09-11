@@ -16,9 +16,12 @@ namespace chai {
         void throwModuleError(const std::string&);
 
         template<typename T> 
-        T getRequiredField(toml::table&, const std::string&);
+        T getRequiredField(toml::table*, const std::string&);
 
         BuildProfile selectBuildProfile(toml::array*, std::optional<const std::string&>);
+        BuildProfile loadProfile(toml::table*);
+
+        BuildFormat convertBuildFormat(const std::string&);
 
     public:
         // ModuleLoader is constructed with the name of the module's root
