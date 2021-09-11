@@ -8,7 +8,7 @@ namespace chai {
         ModuleLoader loader(reporter, buildDir, buildProfile);
         auto result = loader.load({});
 
-        rootMod = std::make_shared<Module>();
+        rootMod = new Module;
         *rootMod = result.first;
         depGraph[rootMod->id] = rootMod;
         

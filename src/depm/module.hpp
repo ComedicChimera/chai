@@ -83,6 +83,10 @@ namespace chai {
         std::unordered_map<std::string, Package> subPackages;
 
         // TODO: lastBuildTime
+
+        // getErrorPath converts an absolute path to a file into a relative path
+        // with respect to its parent module that can be used for error messages
+        std::string getErrorPath(const std::string&);
     };
 
     // loadModule takes in a module path, loads it, selects an appropriate build

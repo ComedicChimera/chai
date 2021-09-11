@@ -18,6 +18,8 @@ set(SRCS
     "depm/loader.cpp"
     "compile/compiler.cpp"
     "compile/initpkg.cpp"
+    "parse/parser.cpp"
+    "depm/modpath.cpp"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 add_executable(${PROJECT_NAME} ${SRCS})

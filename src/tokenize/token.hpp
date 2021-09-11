@@ -4,6 +4,7 @@
 #include <string>
 
 #include "util.hpp"
+#include "report/position.hpp"
 
 namespace chai {
     enum class TokenKind {
@@ -115,7 +116,7 @@ namespace chai {
     struct Token {
         TokenKind kind;  
         std::string value;
-        u32 line, col;
+        TextPosition position;
     };
 }
 

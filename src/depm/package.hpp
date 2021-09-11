@@ -13,6 +13,9 @@ namespace chai {
         // id is the unique ID of the package
         u32 id;
 
+        // name is the name of the package based on its directory
+        std::string name;
+
         // rootDir is the root directory of the package
         std::string rootDir;
 

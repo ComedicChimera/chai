@@ -41,6 +41,9 @@ namespace chai {
 
         // scanNext reads a new token from the scanner
         Token scanNext();
+
+        // getFilePath returns the file path of the scanner
+        inline const std::string& getFilePath() const { return fpath; }
     };
 }
 

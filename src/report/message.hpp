@@ -5,16 +5,9 @@
 #include <string>
 
 #include "util.hpp"
+#include "position.hpp"
 
 namespace chai {
-
-    // TextPosition is used to indicate where in a given source file an error
-    // occurred for the purposes of error reporting.
-    struct TextPosition {
-        u32 startLine, startCol;
-        u32 endLine, endCol;
-    };
-
     // CompileMessage is a warning or error that occurred during the compilation
     // of a program -- it points to a specific, problematic location in user
     // source text.
