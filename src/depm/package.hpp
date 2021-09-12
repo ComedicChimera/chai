@@ -5,6 +5,7 @@
 
 #include "util.hpp"
 #include "srcfile.hpp"
+#include "module.hpp"
 
 namespace chai {
     // Package represents a collection of Chai files that share a common
@@ -12,6 +13,9 @@ namespace chai {
     struct Package {
         // id is the unique ID of the package
         u32 id;
+
+        // parent is the parent module of this package
+        Module* parent;
 
         // name is the name of the package based on its directory
         std::string name;

@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 namespace chai {
     bool Compiler::initPkg(Module* parentMod, const std::string& pkgAbsPath) {
-        Package pkg = {.id = getID(), .rootDir = pkgAbsPath};
+        Package pkg = {.id = getID(), .parent=parentMod, .rootDir = pkgAbsPath};
 
         // iterate over each file in the directory
         for (const auto& entry : fs::directory_iterator(pkgAbsPath)) {
@@ -26,7 +26,7 @@ namespace chai {
                     Scanner sc(file.filePath);
 
                     // parse the file and store it iff parsing succeeds
-                    Parser p(parentMod, buildProfile, sc);
+                    Parser p(file, buildProfile, sc);
                     
                     if (auto result = p.parse()) {
                         file.ast = result.value();

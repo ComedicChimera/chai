@@ -2,6 +2,7 @@
 #define SRCFILE_H_INCLUDED
 
 #include <string>
+#include <unordered_map>
 
 #include "parse/ast.hpp"
 
@@ -17,6 +18,9 @@ namespace chai {
 
         // ast is the root AST node for the file
         ASTRoot* ast;
+
+        // metadata is a dictionary of all the metadata for this file
+        std::unordered_map<std::string, std::string> metadata;
     };
 }
 
