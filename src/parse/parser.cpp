@@ -11,6 +11,16 @@ namespace chai {
     , globalProfile(profile)
     {}
 
+    Token Parser::next() {
+        if (lookahead) {
+            auto l = lookahead;
+            lookahead = {};
+            return l.value();
+        }
+
+        return sc.scanNext();
+    }
+
     Token Parser::expect(TokenKind kind) {
         auto tok = next();
 
@@ -31,6 +41,15 @@ namespace chai {
 
         throw CompileMessage(std::format("unexpected token: `{}`", tok.value), tok.position, file.parent.parent->getErrorPath(sc.getFilePath()));
     }
+
+    Token Parser::peek() {
+        if (!lookahead)
+            lookahead = sc.scanNext();
+
+        return lookahead.value();
+    }
+
+    // -------------------------------------------------------------------------- //
 
     std::optional<ASTRoot*> Parser::parse() {
         ASTRoot* root = new ASTRoot;
@@ -192,4 +211,81 @@ namespace chai {
         }
     }
 
+    // parseImport parses an import statement assuming the leading `import` has
+    // been read.
+    void Parser::parseImport() {
+        auto firstIdent = expect(TokenKind::Identifier);
+        
+        // parsing data collected from the import statement
+        std::vector<Token> importedSymbols;
+        std::string packagePath;
+        TextPosition packagePathPos;
+        std::string packageRename;
+        TextPosition packageRenamePos;
+
+        while (true) {
+            auto punct = next();
+
+            switch (punct.kind) {
+                // list of symbol imports (`import id {, id} ...`)
+                case TokenKind::Comma:
+                    importedSymbols = { firstIdent };
+                    concatVec(importedSymbols, parseIdentList(TokenKind::Comma));
+                    expect(TokenKind::From);
+                    // fallthrough to case after `from`
+                // single symbol import (`import id {, id} from id {. id}`)
+                case TokenKind::From:
+                    {
+                        auto packagePathToks = parseIdentList(TokenKind::Dot);
+                        packagePathPos = positionOfSpan(packagePathToks[0].position, packagePathToks.back().position);
+                        expect(TokenKind::Newline);
+
+                        int i = 0;
+                        for (auto& item : packagePathToks) {
+                            packagePath += item.value;
+
+                            if (i++ < packagePathToks.size())
+                                packagePath.push_back('/');
+                        }
+
+                        goto loopexit;
+                    }
+                // import path (`import id {. id} ...`)
+                case TokenKind::Dot:
+                    packagePath = firstIdent.value;
+                    for (auto& pkgName : parseIdentList(TokenKind::Dot)) {
+                        packagePath.push_back('/');
+                        packagePath += pkgName.value;
+                    }
+                    
+                    {
+                        auto closingPunct = next();
+
+                        if (closingPunct.kind == TokenKind::Newline)
+                            goto loopexit;
+                        else if (closingPunct.kind != TokenKind::As)
+                            reject(closingPunct);
+
+                        // fallthrough to `as` case
+                    }
+                // as named import (`import id {. id} as id`)
+                case TokenKind::As:
+                    {
+                        auto ident = expect(TokenKind::Newline);
+                        packageRename = ident.value;
+                        packageRenamePos = ident.position;
+                        goto loopexit;
+                    }
+                // end of import statement
+                case TokenKind::Newline:
+                    goto loopexit;
+                default:
+                    reject(punct);
+                    break;
+            }
+        }        
+
+        loopexit:
+            // TODO
+    }
 }

@@ -12,6 +12,12 @@ namespace chai {
         static u32 idCounter = 0;
         return idCounter++;
     }
+
+    // concatVec concatenates one vector `b` onto the end of another vector `a`
+    template<typename T>
+    void concatVec(std::vector<T>& a, const std::vector<T>& b) {
+        a.insert(a.end(), b.begin(), b.end());
+    }
 }
 
 #endif 

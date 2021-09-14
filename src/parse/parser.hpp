@@ -2,6 +2,7 @@
 #define PARSER_H_INCLUDED
 
 #include <optional>
+#include <vector>
 
 #include "tokenize/scanner.hpp"
 #include "ast.hpp"
@@ -13,9 +14,10 @@ namespace chai {
         SrcFile& file;
         Scanner& sc;
         BuildProfile& globalProfile;
+        std::optional<Token> lookahead;
 
         // next gets the next token from the input stream
-        inline Token next() { return sc.scanNext(); }
+        Token next();
 
         // expect asserts that a given token occurs next in the token stream. It
         // throws an error if this assertion fails.  It returns the token it
@@ -25,8 +27,13 @@ namespace chai {
         // reject throws an unexpected token error for a given token
         void reject(const Token&);
 
+        // peek looks ahead one token without moving the parser's state forward
+        Token peek();
+
         // Parsing functions
         bool parseMetadata();
+        void parseImport();
+        std::vector<Token> parseIdentList(TokenKind);
 
     public:
         Parser(SrcFile&, BuildProfile&, Scanner&);
