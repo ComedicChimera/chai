@@ -7,14 +7,14 @@
 #include "util.hpp"
 #include "depm/module.hpp"
 #include "report/reporter.hpp"
+#include "depm/depgraph.hpp"
 
 namespace chai {
     // Compiler holds the high-level state and acts as the main controller for
     // the compilation process
     class Compiler {
-        // depGraph represents the dependency graph of the compiler.  It stores
-        // all the modules (and therefore packages, files, etc.) being compiled.
-        std::unordered_map<u32, Module*> depGraph;
+        // depGraph is the compiler's modular dependency graph
+        DepGraph depGraph;
 
         // buildProfile is the global build configuration used in module loading
         BuildProfile buildProfile;
@@ -28,13 +28,6 @@ namespace chai {
         bool initPkg(Module*, const std::string&);
 
     public:
-        ~Compiler() {
-            delete rootMod;
-
-            for (auto pair : depGraph)
-                delete pair.second;
-        }
-
         // compile takes a build directory and runs the main compilation
         // algorithm taking it to be the root
         void compile(const std::string&);        

@@ -50,7 +50,7 @@ namespace chai {
     // Module represents a Chai module after it processed by the module loader
     struct Module {
         // id is the unique identifier of the module
-        u32 id;
+        u64 id;
 
         // name is the name of module
         std::string name;

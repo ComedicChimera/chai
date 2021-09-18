@@ -5,10 +5,11 @@
 #include "report/message.hpp"
 
 namespace chai {
-    Parser::Parser(SrcFile& file, BuildProfile& profile, Scanner& sc)
+    Parser::Parser(SrcFile& file, Scanner& sc, BuildProfile& profile, DepGraph& depg)
     : sc(sc)
     , file(file)
     , globalProfile(profile)
+    , depGraph(depg)
     {}
 
     Token Parser::next() {
@@ -218,6 +219,7 @@ namespace chai {
         
         // parsing data collected from the import statement
         std::vector<Token> importedSymbols;
+        std::string moduleName;
         std::string packagePath;
         TextPosition packagePathPos;
         std::string packageRename;
@@ -240,25 +242,28 @@ namespace chai {
                         packagePathPos = positionOfSpan(packagePathToks[0].position, packagePathToks.back().position);
                         expect(TokenKind::Newline);
 
-                        int i = 0;
-                        for (auto& item : packagePathToks) {
-                            packagePath += item.value;
+                        moduleName = packagePathToks[0].value;
+                        packagePathToks.erase(packagePathToks.begin());
 
-                            if (i++ < packagePathToks.size())
-                                packagePath.push_back('/');
+                        for (auto& item : packagePathToks) {
+                            packagePath.push_back('/');
+                            packagePath += item.value;                     
                         }
 
                         goto loopexit;
                     }
                 // import path (`import id {. id} ...`)
-                case TokenKind::Dot:
-                    packagePath = firstIdent.value;
-                    for (auto& pkgName : parseIdentList(TokenKind::Dot)) {
-                        packagePath.push_back('/');
-                        packagePath += pkgName.value;
-                    }
-                    
+                case TokenKind::Dot:             
                     {
+                        moduleName = firstIdent.value;
+                        auto subPathToks = parseIdentList(TokenKind::Dot);
+                        for (auto& pkgName : subPathToks) {
+                            packagePath.push_back('/');
+                            packagePath += pkgName.value;
+                        }
+
+                        packagePathPos = positionOfSpan(firstIdent.position, subPathToks.back().position);
+
                         auto closingPunct = next();
 
                         if (closingPunct.kind == TokenKind::Newline)

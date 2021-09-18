@@ -8,12 +8,14 @@
 #include "ast.hpp"
 #include "depm/module.hpp"
 #include "depm/srcfile.hpp"
+#include "depm/depgraph.hpp"
 
 namespace chai {
     class Parser {
         SrcFile& file;
         Scanner& sc;
         BuildProfile& globalProfile;
+        DepGraph& depGraph;
         std::optional<Token> lookahead;
 
         // next gets the next token from the input stream
@@ -36,7 +38,7 @@ namespace chai {
         std::vector<Token> parseIdentList(TokenKind);
 
     public:
-        Parser(SrcFile&, BuildProfile&, Scanner&);
+        Parser(SrcFile&, Scanner&, BuildProfile&, DepGraph&);
 
         // parse returns an ASTNode if the file should be used (ie. not marked
         // no-compile by metadata)

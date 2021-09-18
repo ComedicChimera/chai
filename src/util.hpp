@@ -4,14 +4,9 @@
 #include <cstdint>
 
 namespace chai {
+    using u64 = std::uint64_t;
     using u32 = std::uint32_t;
     using i32 = std::int32_t;
-
-    // getID generates a new ID for use by a given module or package
-    u32 getID() {
-        static u32 idCounter = 0;
-        return idCounter++;
-    }
 
     // concatVec concatenates one vector `b` onto the end of another vector `a`
     template<typename T>

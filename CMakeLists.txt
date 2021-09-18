@@ -19,7 +19,8 @@ set(SRCS
     "compile/compiler.cpp"
     "compile/initpkg.cpp"
     "parse/parser.cpp"
-    "depm/modpath.cpp"
+    "depm/modutil.cpp"
+    "depm/import.cpp"
     "parse/parse_common.cpp"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")

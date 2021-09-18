@@ -13,6 +13,10 @@ namespace chai {
                 break;
         }
 
+        // there must be at least one identifier in the list
+        if (idents.size() == 0)
+            reject(next());
+
         return idents;
     }
 }

@@ -10,12 +10,14 @@
 namespace fs = std::filesystem;
 
 namespace chai {
-    ModuleLoader::ModuleLoader(Reporter& re, const std::string& modDir, const BuildProfile& globalProfile) 
+    ModuleLoader::ModuleLoader(DepGraph& depg, Reporter& re, const std::string& modDir, const BuildProfile& globalProfile) 
     : modFilePath((fs::path(modDir) / fs::path(MODULE_FILENAME)).string())
-    , mod{.id=getID(), .rootDir = modDir}
+    , depg(depg)
     , globalProfile(globalProfile)
     , reporter(re)
-    {}
+    {
+        mod = new Module {.id=depg.getModuleID(modDir), .rootDir = modDir};
+    }
 
     void ModuleLoader::throwModuleError(const std::string& message) {
         throw std::logic_error(std::format("[module error]\n{}: {}", modFilePath, message));
@@ -28,7 +30,7 @@ namespace chai {
             throwModuleError(std::format("missing or malformed required field: `{}` for table at {}:{}", fieldName, tbl.source().begin().line, tbl.source().begin().column));
     }
 
-    std::pair<Module, BuildProfile> ModuleLoader::load(std::optional<const std::string&> selectedProfileName) {
+    std::pair<Module*, BuildProfile> ModuleLoader::load(std::optional<const std::string&> selectedProfileName) {
         // load the full module file table
         toml::table tbl;
         try {  
@@ -50,16 +52,16 @@ namespace chai {
         auto tomlMod = optTomlMod.value();
 
         // load all the high level module data
-        mod.name = getRequiredField<std::string>(&tomlMod, "name");
-        mod.shouldCache = tomlMod.value_or(false);
-        mod.cacheDirectory = tomlMod.value_or(".chai/cache");
+        mod->name = getRequiredField<std::string>(&tomlMod, "name");
+        mod->shouldCache = tomlMod.value_or(false);
+        mod->cacheDirectory = tomlMod.value_or(".chai/cache");
         
         if (tomlMod.contains("local-import-dirs")) {
             auto tomlLocalImportDirs = tomlMod["local-import-dirs"];
             if (auto* tomlLocalImportDirs = tomlMod["local-import-dirs"].as_array()) {
                 for (auto& elem : *tomlLocalImportDirs) {
                     if (elem.is_string())
-                        mod.localImportDirs.push_back(elem.value<std::string>().value());
+                        mod->localImportDirs.push_back(elem.value<std::string>().value());
                     else
                         throwModuleError("elements of `local-import-dirs` must be strings");
                 }
@@ -94,6 +96,7 @@ namespace chai {
             if (globalProfile.name == "")
                 throwModuleError("main module must specify build profiles");
 
+            depg.addModule(mod);
             return std::make_pair(mod, globalProfile);
         }
         
@@ -101,6 +104,7 @@ namespace chai {
             auto profile = selectBuildProfile(tomlProfiles, selectedProfileName);
 
             // return the built module and profile
+            depg.addModule(mod);
             return std::make_pair(mod, profile); 
         } else
             throwModuleError("field `profiles` must be an array");   

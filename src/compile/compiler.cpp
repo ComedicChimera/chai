@@ -5,14 +5,13 @@
 namespace chai {
     void Compiler::compile(const std::string& buildDir) {
         // load the root module
-        ModuleLoader loader(reporter, buildDir, buildProfile);
+        ModuleLoader loader(depGraph, reporter, buildDir, buildProfile);
         auto result = loader.load({});
 
-        rootMod = new Module;
-        *rootMod = result.first;
-        depGraph[rootMod->id] = rootMod;
+        rootMod = result.first;
         
         buildProfile = result.second;
         
+        // TODO: ...
     }
 }

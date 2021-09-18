@@ -12,7 +12,7 @@ namespace chai {
     // namespace.
     struct Package {
         // id is the unique ID of the package
-        u32 id;
+        u32 id = getPkgID();
 
         // parent is the parent module of this package
         Module* parent;
@@ -25,6 +25,13 @@ namespace chai {
 
         // files contains all the source files in the package
         std::vector<SrcFile> files;
+
+    private:
+        // getPkgID generates a new ID for use by a given package
+        static u32 getPkgID() {
+            static u32 idCounter = 0;
+            return idCounter++;
+        }
     };
 }
 
