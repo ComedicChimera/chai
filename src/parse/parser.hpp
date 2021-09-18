@@ -13,9 +13,10 @@
 namespace chai {
     class Parser {
         SrcFile& file;
-        Scanner& sc;
         BuildProfile& globalProfile;
         DepGraph& depGraph;
+
+        Scanner& sc;
         std::optional<Token> lookahead;
 
         // next gets the next token from the input stream

@@ -14,6 +14,8 @@ namespace chai {
         { "continue", TokenKind::Continue },
         { "break", TokenKind::Break },
         { "after", TokenKind::After },
+        { "match", TokenKind::Match },
+        { "case", TokenKind::Case },
         { "return", TokenKind::Return },
         { "end", TokenKind::End },
 

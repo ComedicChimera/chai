@@ -55,15 +55,12 @@ namespace chai {
         // name is the name of module
         std::string name;
 
-        // rootDir is the directory of the module
+        // rootDir is the absolute directory of the module
         std::string rootDir;
 
         // localImportDirs is a list of directories the compiler should check
         // for modules only in this specific module
         std::vector<std::string> localImportDirs;
-
-        // pathReplacements is used to map one module lookup path to another
-        std::unordered_map<std::string, std::string> pathReplacements;
 
         // shouldCache indicates whether or not compilation caching should be
         // performed for this module
@@ -78,7 +75,7 @@ namespace chai {
 
         // subPackages is a list of all the packages contained in subdirectories
         // of this module; ie. they are subordinate to this module.  They are
-        // organized by their subpath which is of the form `mod/pkg` (with any
+        // organized by their subpath which is of the form `/pkg1/pkg2` (with any
         // extra slashes for lower levels of depth)
         std::unordered_map<std::string, Package> subPackages;
 

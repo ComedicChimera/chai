@@ -34,6 +34,8 @@ namespace chai {
         Continue,
         Break,
         After,
+        Match,
+        Case,
         Return,
         End,
 

@@ -16,7 +16,7 @@ namespace chai {
     , globalProfile(globalProfile)
     , reporter(re)
     {
-        mod = new Module {.id=depg.getModuleID(modDir), .rootDir = modDir};
+        mod = new Module {.id=depg.getModuleID(modDir), .rootDir = fs::absolute(modDir).string()};
     }
 
     void ModuleLoader::throwModuleError(const std::string& message) {
