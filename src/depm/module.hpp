@@ -71,24 +71,28 @@ namespace chai {
         std::string cacheDirectory;
 
         // rootPackage is the package at the root of the module directory
-        Package rootPackage;
+        Package* rootPackage = NULL;
 
         // subPackages is a list of all the packages contained in subdirectories
         // of this module; ie. they are subordinate to this module.  They are
         // organized by their subpath which is of the form `/pkg1/pkg2` (with any
         // extra slashes for lower levels of depth)
-        std::unordered_map<std::string, Package> subPackages;
+        std::unordered_map<std::string, Package*> subPackages;
 
         // TODO: lastBuildTime
 
         // getErrorPath converts an absolute path to a file into a relative path
         // with respect to its parent module that can be used for error messages
         std::string getErrorPath(const std::string&);
-    };
 
-    // loadModule takes in a module path, loads it, selects an appropriate build
-    // profile, and returns the module and build profile.
-    std::pair<Module, BuildProfile> loadModule(const std::string&);
+        ~Module() {
+            delete rootPackage;
+
+            for (auto& pair : subPackages) {
+                delete pair.second;
+            }
+        }
+    };
 }
 
 #endif 

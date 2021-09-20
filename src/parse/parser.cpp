@@ -5,11 +5,10 @@
 #include "report/message.hpp"
 
 namespace chai {
-    Parser::Parser(SrcFile& file, Scanner& sc, BuildProfile& profile, DepGraph& depg)
+    Parser::Parser(Compiler* c, SrcFile& file, Scanner& sc)
     : sc(sc)
     , file(file)
-    , globalProfile(profile)
-    , depGraph(depg)
+    , compiler(c)
     {}
 
     Token Parser::next() {
@@ -169,9 +168,9 @@ namespace chai {
                     currentValue.erase(0);
                     currentValue.pop_back();
 
-                    if (currentKey == "os" && globalProfile.targetOS != currentValue)
+                    if (currentKey == "os" && compiler->getProfile().targetOS != currentValue)
                         return false;
-                    else if (currentKey == "arch" && globalProfile.targetArch != currentValue)
+                    else if (currentKey == "arch" && compiler->getProfile().targetArch != currentValue)
                         return false;
 
                     file.metadata[currentKey] = currentValue;

@@ -15,19 +15,25 @@ namespace chai {
         std::unordered_map<u64, Module*> modMap;
         std::string chaiPath;
 
-        std::optional<std::string> findModule(Module*, const std::string&);
-
+        // genModuleID returns a module ID based on a module's root directory
+        inline u64 genModuleID(const std::string& modDir) const { return h(modDir); };
     public:
-        // getModuleID returns a module ID based on a module's root directory
-        inline u64 getModuleID(const std::string& modDir) const { return h(modDir); };
+        DepGraph();
 
-        // importPackage attempts to import package and add its relevant modules
-        // to the dependency graph.  It accepts a parent module, a module name,
-        // and a package path as input
-        std::optional<Package*> importPackage(Module*, const std::string&, const std::string&);
+        // findModule attempts to determine the path to a module based on a
+        // parent module (the module that is importing it) and a module name
+        std::optional<std::string> findModule(Module*, const std::string&);
 
         // addModule adds a new module to the dependency graph
         void addModule(Module*);
+
+        // getModuleByID gets a module by its ID if it exists
+        std::optional<Module*> getModuleByID(u64);
+
+        // getModuleByPath gets a module by its module root path
+        inline std::optional<Module*> getModuleByPath(const std::string& modPath) { 
+            return getModuleByID(genModuleID(modPath));
+        };
 
         ~DepGraph() {
             for (auto pair : modMap)

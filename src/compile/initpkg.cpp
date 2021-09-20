@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <format>
+#include <stdexcept>
 
 #include "depm/package.hpp"
 #include "util.hpp"
@@ -12,8 +13,31 @@
 namespace fs = std::filesystem;
 
 namespace chai {
-    bool Compiler::initPkg(Module* parentMod, const std::string& pkgAbsPath) {
-        Package pkg = Package{.parent=parentMod, .rootDir = pkgAbsPath};
+    // initPkg initializes a package based on a package path
+    Package* Compiler::initPkg(Module* parentMod, const std::string& pkgAbsPath) {
+        if (!fs::exists(pkgAbsPath))
+            throw new std::logic_error(std::format("path does not exist: `{}`", pkgAbsPath));
+
+        Package *pkg = new Package{.parent=parentMod, .rootDir = pkgAbsPath};
+
+        // add the package to the module before parsing (to make sure it isn't
+        // imported multiple times/recursively).
+
+        // check to see if this is the root package for the module
+        if (fs::equivalent(parentMod->rootDir, pkgAbsPath)) {
+            // set its name equal to the module name
+            pkg->name = parentMod->name;
+
+            // add it as the root package
+            parentMod->rootPackage = pkg;
+        } else {
+            // otherwise, add it as a subpackage
+            auto subPath = fs::relative(pkgAbsPath, parentMod->rootDir);
+            parentMod->subPackages[subPath.string()] = pkg;
+
+            // sets its name equal to the last component of its path
+            pkg->name = subPath.filename().string();
+        }
 
         // iterate over each file in the directory
         for (const auto& entry : fs::directory_iterator(pkgAbsPath)) {
@@ -26,11 +50,11 @@ namespace chai {
                     Scanner sc(file.filePath);
 
                     // parse the file and store it iff parsing succeeds
-                    Parser p(file, sc, buildProfile, depGraph);
+                    Parser p(this, file, sc);
                     
                     if (auto result = p.parse()) {
                         file.ast = result.value();
-                        pkg.files.push_back(file);
+                        pkg->files.push_back(file);
                     }
                 } catch (CompileMessage& e) {
                     reporter.reportCompileError(e);
@@ -39,23 +63,9 @@ namespace chai {
         }
 
         // check for empty packages
-        if (pkg.files.size() == 0)
-            throw std::logic_error(std::format("package `{}` contains no source files", pkg.name));
+        if (pkg->files.size() == 0)
+            throw std::logic_error(std::format("package `{}` contains no source files", pkg->name));
 
-        // check to see if this is the root package for the module
-        if (fs::equivalent(parentMod->rootDir, pkgAbsPath)) {
-            // set its name equal to the module name
-            pkg.name = parentMod->name;
-
-            // add it as the root package
-            parentMod->rootPackage = pkg;
-        } else {
-            // otherwise, add it as a subpackage
-            auto subPath = fs::relative(pkgAbsPath, parentMod->rootDir);
-            parentMod->subPackages[subPath.string()] = pkg;
-
-            // sets its name equal to the last component of its path
-            pkg.name = subPath.filename().string();
-        }
+        return pkg;
     }
 }

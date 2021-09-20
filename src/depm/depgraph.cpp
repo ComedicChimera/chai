@@ -1,6 +1,8 @@
 #include "depgraph.hpp"
 
 #include <filesystem>
+#include <cstdlib>
+#include <stdexcept>
 
 #define STD_LIB_PATH "modules/std/"
 #define PUB_LIB_PATH "modules/pub/"
@@ -8,28 +10,14 @@
 namespace fs = std::filesystem;
 
 namespace chai {
-    std::optional<Package*> DepGraph::importPackage(Module* parentMod, const std::string& modName, const std::string& pkgPath) {
-        auto opModPath = findModule(parentMod, modName);
-        if (opModPath) {
-            auto modPath = opModPath.value();
+    DepGraph::DepGraph() {
+        auto chaiPathEnvVal = std::getenv("CHAI_PATH");
+        if (chaiPathEnvVal == NULL)
+            throw std::logic_error("missing environment variable: `CHAI_PATH`");
 
-            // retrieve the module itself
-            Module* mod;
-            auto modID = getModuleID(modPath);
-            if (modMap.contains(modID)) {
-                mod = modMap[modID];
-            } else {
-                // TODO: loadModule, handle build profiles
-            }
-
-
-        }
-
-        return {};
+        chaiPath = chaiPathEnvVal;
     }
 
-    // findModule searches for the absolute path to a module based on a parent
-    // module and a module name
     std::optional<std::string> DepGraph::findModule(Module* parentMod, const std::string& modName) {
         // first check to see if we are importing the current module
         if (parentMod->name == modName)
@@ -57,6 +45,14 @@ namespace chai {
     }
 
     void DepGraph::addModule(Module* mod) {
-        modMap[getModuleID(mod->rootDir)] = mod;
+        mod->id = genModuleID(mod->rootDir);
+        modMap[mod->id] = mod;
+    }
+
+    std::optional<Module*> DepGraph::getModuleByID(u64 id) {
+        if (modMap.contains(id))
+            return modMap[id];
+
+        return {};
     }
 }

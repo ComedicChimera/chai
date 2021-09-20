@@ -10,13 +10,12 @@
 namespace fs = std::filesystem;
 
 namespace chai {
-    ModuleLoader::ModuleLoader(DepGraph& depg, Reporter& re, const std::string& modDir, const BuildProfile& globalProfile) 
+    ModuleLoader::ModuleLoader(Reporter& re, const std::string& modDir, const BuildProfile& globalProfile) 
     : modFilePath((fs::path(modDir) / fs::path(MODULE_FILENAME)).string())
-    , depg(depg)
     , globalProfile(globalProfile)
     , reporter(re)
     {
-        mod = new Module {.id=depg.getModuleID(modDir), .rootDir = fs::absolute(modDir).string()};
+        mod = new Module {.rootDir = fs::absolute(modDir).string()};
     }
 
     void ModuleLoader::throwModuleError(const std::string& message) {
@@ -30,7 +29,7 @@ namespace chai {
             throwModuleError(std::format("missing or malformed required field: `{}` for table at {}:{}", fieldName, tbl.source().begin().line, tbl.source().begin().column));
     }
 
-    std::pair<Module*, BuildProfile> ModuleLoader::load(std::optional<const std::string&> selectedProfileName) {
+    std::pair<Module*, BuildProfile> ModuleLoader::load(const std::string& selectedProfileName) {
         // load the full module file table
         toml::table tbl;
         try {  
@@ -96,7 +95,6 @@ namespace chai {
             if (globalProfile.name == "")
                 throwModuleError("main module must specify build profiles");
 
-            depg.addModule(mod);
             return std::make_pair(mod, globalProfile);
         }
         
@@ -104,7 +102,6 @@ namespace chai {
             auto profile = selectBuildProfile(tomlProfiles, selectedProfileName);
 
             // return the built module and profile
-            depg.addModule(mod);
             return std::make_pair(mod, profile); 
         } else
             throwModuleError("field `profiles` must be an array");   
@@ -113,9 +110,9 @@ namespace chai {
     // selectBuildProfile takes the list of TOML build profiles as well as a
     // possible profile name and walks through each profile and attempts to
     // select the one that best matches the current configuration.
-    BuildProfile ModuleLoader::selectBuildProfile(toml::array* tomlProfiles, std::optional<const std::string&> selectedProfileName) {
+    BuildProfile ModuleLoader::selectBuildProfile(toml::array* tomlProfiles, const std::string& selectedProfileName) {
         // user specified a profile
-        if (selectedProfileName) {
+        if (selectedProfileName != "") {
             for (auto& item : *tomlProfiles) {
                 if (auto tomlProfile = item.as_table()) {
                     auto name = getRequiredField<std::string>(tomlProfile, "name");
@@ -126,7 +123,7 @@ namespace chai {
                     throwModuleError("profile must be a table");          
             }
 
-            throwModuleError(std::format("no profile by name: {}", selectedProfileName.value()));
+            throwModuleError(std::format("no profile by name: {}", selectedProfileName));
         } 
         // these is no global/overriding profile
         else if (globalProfile.name == "") {

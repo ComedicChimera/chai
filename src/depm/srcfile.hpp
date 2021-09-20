@@ -11,7 +11,7 @@ namespace chai {
     // the AST for that source file
     struct SrcFile {
         // parent is the parent package to the file
-        Package& parent;
+        Package* parent;
 
         // filePath is the absolute path to the file
         std::string filePath;
