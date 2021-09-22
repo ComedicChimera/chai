@@ -17,6 +17,9 @@ namespace chai {
             else
                 mod = loadModule(modPath);
 
+            // mark the parent mod as depending on this module
+            parentMod->dependsOn[mod->id] = mod;
+
             // check if the package already exists; return the preloaded version
             // if it does or return a newly initialize version if it does not
             if (pkgPath == "" && mod->rootPackage != NULL)

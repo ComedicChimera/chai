@@ -6,13 +6,14 @@
 #include "util.hpp"
 #include "srcfile.hpp"
 #include "module.hpp"
+#include "symbols/symbol_table.hpp"
 
 namespace chai {
     // Package represents a collection of Chai files that share a common
     // namespace.
     struct Package {
         // id is the unique ID of the package
-        u32 id = getPkgID();
+        u64 id = getPkgID();
 
         // parent is the parent module of this package
         Module* parent;
@@ -26,10 +27,16 @@ namespace chai {
         // files contains all the source files in the package
         std::vector<SrcFile> files;
 
+        // globalTable is the global symbol table for this package
+        SymbolTable globalTable;
+
+        // importedPackages is the map of packages this one depends on
+        std::unordered_map<u64, Package*> importedPackages;
+
     private:
         // getPkgID generates a new ID for use by a given package
-        static u32 getPkgID() {
-            static u32 idCounter = 0;
+        static u64 getPkgID() {
+            static u64 idCounter = 0;
             return idCounter++;
         }
     };

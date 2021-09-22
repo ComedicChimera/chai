@@ -70,6 +70,9 @@ namespace chai {
         // cached version.  Defaults to `.chai/cache`
         std::string cacheDirectory;
 
+        // dependsOn enumerates the other modules that this module depends on
+        std::unordered_map<u64, Module*> dependsOn;
+
         // rootPackage is the package at the root of the module directory
         Package* rootPackage = NULL;
 

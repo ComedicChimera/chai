@@ -23,6 +23,7 @@ set(SRCS
     "compile/import.cpp"
     "parse/parse_common.cpp"
     "depm/depgraph.cpp"
+    "symbols/symbol_table.cpp"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 add_executable(${PROJECT_NAME} ${SRCS})

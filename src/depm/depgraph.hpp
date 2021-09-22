@@ -9,7 +9,8 @@
 #include "util.hpp"
 
 namespace chai {
-    // DepGraph represents the modular dependency graph for Chai
+    // DepGraph represents the modular dependency graph for Chai.  It is also
+    // the owner of all modules and is a singleton.
     class DepGraph {
         std::hash<std::string> h;
         std::unordered_map<u64, Module*> modMap;

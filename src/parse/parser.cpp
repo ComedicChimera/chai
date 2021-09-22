@@ -37,9 +37,9 @@ namespace chai {
 
     void Parser::reject(const Token& tok) {
         if (tok.kind == TokenKind::EndOfFile)
-            throw CompileMessage("unexpected end of file", tok.position, file.parent.parent->getErrorPath(sc.getFilePath()));
+            throw CompileMessage("unexpected end of file", tok.position, file.parent->parent->getErrorPath(sc.getFilePath()));
 
-        throw CompileMessage(std::format("unexpected token: `{}`", tok.value), tok.position, file.parent.parent->getErrorPath(sc.getFilePath()));
+        throw CompileMessage(std::format("unexpected token: `{}`", tok.value), tok.position, file.parent->parent->getErrorPath(sc.getFilePath()));
     }
 
     Token Parser::peek() {
@@ -289,7 +289,17 @@ namespace chai {
             }
         }        
 
-        loopexit:
-            // TODO
+    loopexit:
+        // start by attempting to import that package
+        auto opkg = compiler->importPackage(file.parent->parent, moduleName, packagePath);
+
+        // throw an appropriate error if the package was unable to be imported
+        if (!opkg) {
+            // TODO: throw a semantic error
+        }
+
+        // add that package to the parent package
+        auto pkg = opkg.value();       
+        file.parent->importedPackages[pkg->id] = pkg;
     }
 }
