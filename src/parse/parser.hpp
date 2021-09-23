@@ -35,7 +35,17 @@ namespace chai {
         // Parsing functions
         bool parseMetadata();
         void parseImport();
+
         std::vector<Token> parseIdentList(TokenKind);
+
+        // Symbol management functions
+        bool globalCollides(const std::string&) const;
+
+        // Error functions
+        template<typename ...T>
+        void throwError(const TextPosition&, const std::string&, T...);
+
+        void throwSymbolAlreadyDefined(const TextPosition&, const std::string&);
 
     public:
         Parser(Compiler*, SrcFile&, Scanner&);

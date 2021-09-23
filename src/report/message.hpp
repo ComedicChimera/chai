@@ -16,7 +16,7 @@ namespace chai {
         TextPosition position;
         std::string filePath; 
 
-        CompileMessage(const std::string& msg, const TextPosition& pos, const std::string& fpath)
+        CompileMessage(const TextPosition& pos, const std::string& msg, const std::string& fpath)
         : message(msg)
         , position(pos)
         , filePath(fpath)

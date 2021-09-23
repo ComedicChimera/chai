@@ -1,7 +1,7 @@
 #include "symbol_table.hpp"
 
 namespace chai {
-    std::optional<Symbol*> SymbolTable::lookup(const std::string& name, DefKind kind, Mutability m) {
+    std::optional<Symbol*> SymbolTable::lookup(const std::string& name, const TextPosition& pos, DefKind kind, Mutability m) {
         if (symbols.contains(name)) {
             auto matchingSymbol = symbols[name];
 
@@ -26,7 +26,7 @@ namespace chai {
             .defKind = kind
         };
         symbols.emplace(name, newSymbol);
-        unresolved.insert(name);
+        unresolved.emplace(name, pos);
         return newSymbol;
     }
 
@@ -45,16 +45,6 @@ namespace chai {
 
         symbols.emplace(sym->name, sym);
         return sym;
-    }
-
-    std::vector<Symbol*> SymbolTable::getUnresolved() {
-        std::vector<Symbol*> unresSymbols;
-
-        for (auto& name : unresolved) {
-            unresSymbols.push_back(symbols[name]);
-        }
-
-        return unresSymbols;
     }
 
     SymbolTable::~SymbolTable() {

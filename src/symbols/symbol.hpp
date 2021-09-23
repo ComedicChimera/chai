@@ -46,7 +46,7 @@ namespace chai {
 
         // position is the text position of this symbol's definition (eg. the
         // `func` in `def func()`)
-        TextPosition* position;
+        TextPosition position;
     };
 }
 

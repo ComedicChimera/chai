@@ -78,8 +78,8 @@ namespace chai {
 
         // subPackages is a list of all the packages contained in subdirectories
         // of this module; ie. they are subordinate to this module.  They are
-        // organized by their subpath which is of the form `/pkg1/pkg2` (with any
-        // extra slashes for lower levels of depth)
+        // organized by their subpath which is of the form `.pkg1.pkg2` (with
+        // any extra dots for lower levels of depth)
         std::unordered_map<std::string, Package*> subPackages;
 
         // TODO: lastBuildTime

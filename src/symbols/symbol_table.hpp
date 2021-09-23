@@ -5,7 +5,6 @@
 #include <string>
 #include <optional>
 #include <vector>
-#include <unordered_set>
 
 #include "symbol.hpp"
 #include "util.hpp"
@@ -19,8 +18,9 @@ namespace chai {
         // symbols is the map symbols organized by name
         std::unordered_map<std::string, Symbol*> symbols;
 
-        // unresolved is the set of all unresolved symbol names
-        std::unordered_set<std::string> unresolved;
+        // unresolved is the set of all unresolved symbol names paired with
+        // position of their first usage
+        std::unordered_map<std::string, TextPosition> unresolved;
 
     public:
         // lookup attempts to find a symbol in the list of symbols.  If it
@@ -29,7 +29,7 @@ namespace chai {
         // global table and returns it.  It also takes an expected definition
         // kind for the symbol and, optionally, a mutability.  If the defined
         // symbol does not match these constraints, then nothing is returned.
-        std::optional<Symbol*> lookup(const std::string&, DefKind, Mutability = Mutability::NeverMutated);
+        std::optional<Symbol*> lookup(const std::string&, const TextPosition&, DefKind, Mutability = Mutability::NeverMutated);
 
         // define takes a symbol and attempts to define it in the global
         // namespace. If it the symbol is unresolved, this action will resolve
@@ -39,10 +39,13 @@ namespace chai {
         // be deleted if it is used to update a preexisting symbol entry.
         std::optional<Symbol*> define(Symbol*);
 
-        // getUnresolved gets a vector of the unresolved symbols.  This should
-        // be called at the end of error resolution for the purposes of error
-        // reporting.
-        std::vector<Symbol*> getUnresolved();
+        // collidesWith tests if a given symbol name collides with an already defined symbol
+        inline bool collidesWith(const std::string& name) const { return symbols.contains(name); }
+
+        // getUnresolved gets a map of the unresolved symbol names with their
+        // first usage position.  This should be called at the end of error
+        // resolution for the purposes of error reporting.
+        inline const std::unordered_map<std::string, TextPosition>& getUnresolved() const { return unresolved; };
 
         ~SymbolTable();
     };

@@ -22,6 +22,8 @@ set(SRCS
     "depm/modutil.cpp"
     "compile/import.cpp"
     "parse/parse_common.cpp"
+    "parse/parse_prelude.cpp"
+    "parse/errors.cpp"
     "depm/depgraph.cpp"
     "symbols/symbol_table.cpp"
     )
