@@ -18,7 +18,7 @@ namespace chai {
         if (!fs::exists(pkgAbsPath))
             throw new std::logic_error(std::format("path does not exist: `{}`", pkgAbsPath));
 
-        Package *pkg = new Package{.parent=parentMod, .rootDir = pkgAbsPath};
+        Package *pkg = new Package{.parentID=parentMod->id, .rootDir = pkgAbsPath};
 
         // add the package to the module before parsing (to make sure it isn't
         // imported multiple times/recursively).

@@ -14,12 +14,10 @@ namespace chai {
     struct CompileMessage : public std::exception {
         std::string message;
         TextPosition position;
-        std::string filePath; 
 
-        CompileMessage(const TextPosition& pos, const std::string& msg, const std::string& fpath)
+        CompileMessage(const TextPosition& pos, const std::string& msg)
         : message(msg)
         , position(pos)
-        , filePath(fpath)
         {}
     };
 }

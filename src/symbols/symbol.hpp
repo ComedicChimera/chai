@@ -20,6 +20,7 @@ namespace chai {
         Function,
         Variable,
         TypeDef,
+        Unknown
     };
 
     // Symbol represents a defined/declared symbol in Chai

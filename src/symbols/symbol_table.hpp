@@ -22,6 +22,8 @@ namespace chai {
         // position of their first usage
         std::unordered_map<std::string, TextPosition> unresolved;
 
+        bool symbolsMatch(Symbol*, Symbol*);
+
     public:
         // lookup attempts to find a symbol in the list of symbols.  If it
         // succeeds, it returns the matched symbol. If not, it adds the symbol
@@ -29,7 +31,7 @@ namespace chai {
         // global table and returns it.  It also takes an expected definition
         // kind for the symbol and, optionally, a mutability.  If the defined
         // symbol does not match these constraints, then nothing is returned.
-        std::optional<Symbol*> lookup(const std::string&, const TextPosition&, DefKind, Mutability = Mutability::NeverMutated);
+        std::optional<Symbol*> lookup(const std::string&, const TextPosition&, DefKind, bool = false, Mutability = Mutability::NeverMutated);
 
         // define takes a symbol and attempts to define it in the global
         // namespace. If it the symbol is unresolved, this action will resolve

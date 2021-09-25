@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 
-#include "package.hpp"
+#include "module.hpp"
 #include "util.hpp"
 
 namespace chai {

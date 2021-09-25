@@ -5,7 +5,6 @@
 
 #include "util.hpp"
 #include "srcfile.hpp"
-#include "module.hpp"
 #include "symbols/symbol_table.hpp"
 
 namespace chai {
@@ -15,8 +14,8 @@ namespace chai {
         // id is the unique ID of the package
         u64 id = getPkgID();
 
-        // parent is the parent module of this package
-        Module* parent;
+        // parentID is the parent module ID of this package
+        u64 parentID;
 
         // name is the name of the package based on its directory
         std::string name;

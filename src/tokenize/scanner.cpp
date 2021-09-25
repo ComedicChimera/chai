@@ -473,7 +473,7 @@ namespace chai {
 
     // throwScanError throws a new error regarding the current token being scanned
     void Scanner::throwScanError(const std::string& msg) {
-        throw CompileMessage(msg, {.startLine=tokStartLine, .startCol=tokStartCol, .endLine=line, .endCol=col}, fpath);
+        throw CompileMessage(msg, {.filePath=fpath, .startLine=tokStartLine, .startCol=tokStartCol, .endLine=line, .endCol=col});
     }
 
     // -------------------------------------------------------------------------- //

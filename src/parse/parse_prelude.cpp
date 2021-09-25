@@ -127,7 +127,7 @@ namespace chai {
         auto firstIdent = expect(TokenKind::Identifier);
         
         // parsing data collected from the import statement
-        std::vector<Token> importedSymbols;
+        std::vector<Token> importedSymbolToks;
         std::string moduleName;
         std::string packagePath;
         TextPosition packagePathPos;
@@ -140,8 +140,8 @@ namespace chai {
             switch (punct.kind) {
                 // list of symbol imports (`import id {, id} ...`)
                 case TokenKind::Comma:
-                    importedSymbols = { firstIdent };
-                    concatVec(importedSymbols, parseIdentList(TokenKind::Comma));
+                    importedSymbolToks = { firstIdent };
+                    concatVec(importedSymbolToks, parseIdentList(TokenKind::Comma));
                     expect(TokenKind::From);
                     // fallthrough to case after `from`
                 // single symbol import (`import id {, id} from id {. id}`)
@@ -223,7 +223,7 @@ namespace chai {
         file.parent->importedPackages[pkg->id] = pkg;
 
         // no imported symbols => package imported by name
-        if (importedSymbols.size() == 0) {
+        if (importedSymbolToks.size() == 0) {
             // check for name collisions
             if (globalCollides(packageName))
                 throwSymbolAlreadyDefined(packageNamePos, packageName);
@@ -231,7 +231,17 @@ namespace chai {
             // add it as a visible package
             file.visiblePackages[packageName] = pkg;
         } else {
-            // TODO: add all symbols, check for name collisions
+            for (auto& tok : importedSymbolToks) {
+                // check for name collisions
+                if (globalCollides(tok.value))
+                    throwSymbolAlreadyDefined(tok.position, tok.value);
+
+                // perform a look up in the package we are importing from for
+                // the symbol, specifying that the symbol must be public
+                auto oimportedSymbol = pkg->globalTable.lookup(tok.value, tok.position, DefKind::Unknown, true);
+                if (!oimportedSymbol)
+                    throwError(tok.position, "symbol by name `{}` is not publically visible in package", tok.value);
+            }
         }
     }
 }
