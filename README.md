@@ -26,15 +26,36 @@ Check out the official website to install, learn, use Chai: chai-lang.dev
 
 ## <a name="building"> Building the Compiler
 
-The compiler is written in C++ and requires several dependencies:
+The compiler is written in Haskell and C++ and requires several dependencies:
 
 - [LLVM v12.0.1](https://llvm.org/)
 - [CMake v3.20.0 or later](https://cmake.org/)
 - [zlib v1.2.11](https://zlib.net/)
 - [libxml2](http://xmlsoft.org/)
 - C++ 20
+- [Haskell 2010](https://www.haskell.org/)
+- [cabal](https://www.haskell.org/cabal/)
 
-To build the repository, first, navigate to the source directory and call the
+The whole compiler can be built all at once and outputted to the `bin` directory
+using the `build.py` script.  To build components individually, see below.
+
+### Building the Frontend
+
+Navigate to the `frontend` directory.  Start by running:
+
+    cabal update
+    cabal install
+
+to install all Haskell dependencies.  Then, run:
+
+    cabal build
+
+This will produce a binary in a folder call `dist_newstyle` that is the
+standalone binary for the compiler frontend.
+
+### Building the Backend
+
+To build the backend, first, navigate to the `backend` directory and call the
 CMake script like so:
 
     cmake -S . -B out -DLLVM_DIR=path_to_llvm_build -DLLVM_BIN_DIR_SUFFIX=relative_path_to_bin
@@ -57,8 +78,9 @@ expects it which that name -- I have no idea why at the normal version of `zlib`
 ships with the latter, incorrect, name.
 
 Once you have run CMake, you will get a either a Makefile or Visual Studio
-solution depending if you are on Windows.  This should be trivial to build --
-the CMake file takes care of all configuration for you. 
+solution depending if you are on Windows -- these will be outputted in the `out`
+directory.  This should be trivial to build from there: the CMake file takes
+care of all configuration for you. 
 
 ## <a name="development"> Development
 
@@ -116,14 +138,22 @@ This is all especially salient considering as I never really considered Golang a
 "great" language to write a compiler in.  I picked it because it was a language
 I knew, that I could work reasonably fast in, that had decent tooling, and most
 importantly, had working LLVM bindings (or so I thought).  I was more than happy
-to work in another language.  I wanted to use Haskell, but the `llvm-hs` package
-at the time of writing this only supports LLVM 9 which is obviously
-dissatisfactory (and reeks of possible tech debt).  In conclusion, I pivoted to
-the native language of LLVM, C++, and confirmed before beginning my brave new
-enterprise, that I could get the library to build on Windows which, after some
-trial and error, it eventually did.  Plus, C++ is a well-tested, well-tooled,
-relatively modern and powerful language that is, above all, performant: a
-not-half-bad choice to write a compiler in.
+to work in another language.  
+
+After this, I briefly explored writing the whole compiler in C++ (which is the
+native language of LLVM).  However, I determined that doing so would be far too
+painful, time consuming, and error-ridden to justify.  So I ultimately scrapped
+the pure C++ implementation in favor of polylingual implmentation.  Although I
+had originally decided against this, after trying my hand at the pure C++
+approach, I realized that trying to write a frontend in either C++ or Go was
+truly untenable.  So I went with a language practically designed for compiler
+frontend: Haskell.  Haskell provided all the tools I needed to work quickly and
+effectively while producing a code I could actually maintain.  Moreover, Haskell
+does have a set of LLVM bindings, they are just outdated at the time of writing
+this.  So, unless the bindings are updated, I plan to write the backend in C++
+and connect it to the frontend either via Haskell FFI or via protobuff,
+whichever seems like the best option.  It is not a perfect solution, but it is a
+working solution.
 
 ### <a name="whirlwind"> Whirlwind
 
