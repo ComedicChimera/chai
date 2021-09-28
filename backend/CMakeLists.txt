@@ -11,21 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Sources
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(SRCS 
-    "main.cpp"
-    "tokenize/scanner.cpp"
-    "tokenize/patterns.cpp"
-    "report/display.cpp"
-    "depm/loader.cpp"
-    "compile/compiler.cpp"
-    "compile/initpkg.cpp"
-    "parse/parser.cpp"
-    "depm/modutil.cpp"
-    "compile/import.cpp"
-    "parse/parse_common.cpp"
-    "parse/parse_prelude.cpp"
-    "parse/errors.cpp"
-    "depm/depgraph.cpp"
-    "symbols/symbol_table.cpp"
+    "fibdemo.cpp"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 add_executable(${PROJECT_NAME} ${SRCS})

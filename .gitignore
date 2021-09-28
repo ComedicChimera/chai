@@ -1,4 +1,4 @@
-backend/out/
+backend/out
 backend/vendor/lib
 frontend/dist-newstyle
 .vscode/
