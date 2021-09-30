@@ -1,5 +1,7 @@
 module Chai.Lexer where
 
+import Control.Monad
+
 import Text.Parsec
 import Text.Parsec.String (Parser)
 import Text.Parsec.Language (emptyDef)
@@ -22,21 +24,29 @@ lexer = Tok.makeTokenParser style
             Tok.caseSensitive = True
         }
 
--- Handling some Chai specific lexeme semantics
+
+-- lexemeEOL works exactly like Chai's `lexeme` but it does not skip newlines.
+-- It is useful for language elements after which a newline might be significant
+lexemeEOL :: Parser a -> Parser a
+lexemeEOL p = do
+    x <- p
+    sensitiveWhiteSpace
+    splitJoin
+    return x
+
+-- lexeme is Chai's "overload" of Parsec's lexeme to handle split-joins
 lexeme :: Parser a -> Parser a
 lexeme p = do 
     x <- Tok.lexeme lexer p 
     splitJoin
     return x
 
--- Split-join handling (optionally reads in a split-join)
+-- sensitiveWhiteSpace skips all standard whitespace except for newlines
+sensitiveWhiteSpace :: Parser ()
+sensitiveWhiteSpace = void $ many $ oneOf [' ', '\t', '\v', '\f', '\r']
+
 splitJoin :: Parser ()
 splitJoin = optional $ string "\\\n"
 
--- Keyword handling
-keyword :: String -> Parser String
-keyword k = Tok.lexeme lexer $ string k
-
--- Multiline/raw string literals
 multilineStringLit :: Parser String
 multilineStringLit = char '`' *> many (noneOf ['`']) <* char '`'
