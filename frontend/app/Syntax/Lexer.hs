@@ -1,4 +1,4 @@
-module Chai.Lexer where
+module Syntax.Lexer where
 
 import Control.Monad
 

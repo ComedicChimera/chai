@@ -26,12 +26,15 @@ executable chai-frontend
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Chai.Lexer
+        Syntax.Lexer
+        Syntax.Parser
+        Syntax.AST
+        Report.Message
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    
-        base ^>=4.15.0.0
+        base ^>=4.15.0.0,
         parsec ^>=3.1.14.0
 
     hs-source-dirs:   app
