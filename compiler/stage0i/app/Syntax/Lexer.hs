@@ -1,6 +1,7 @@
 module Syntax.Lexer where
 
 import Data.Functor
+import Data.Maybe
 
 import Text.Parsec
 import Text.Parsec.String (Parser)
@@ -8,8 +9,9 @@ import Text.Parsec.Language (emptyDef)
 import qualified Text.Parsec.Token as Tok 
 
 import Syntax.Internal
+import qualified Syntax.AST as AST
 
-import Report.Message
+import Semantic.Types
 
 lexer :: Tok.TokenParser ()
 lexer = Tok.makeTokenParser style
@@ -28,10 +30,20 @@ lexer = Tok.makeTokenParser style
             Tok.caseSensitive = True
         }
 
-
+-- isNext returns whether or not a given token string occurred next.  The token
+-- is read if so.  It is useful for cases where the token value is insignificant
+-- but its presence is determinant.
+isNext :: String -> Parser Bool
+isNext tokValue = do
+    maybe <- optionMaybe $ string tokValue
+    return $ isJust maybe
+       
 -- identifier reads in a new identifier
-identifier :: Parser (String, TextPosition)
-identifier = positionOf $ Tok.identifier lexer
+identifier :: Parser AST.Identifier
+identifier = do 
+    (name, pos) <- positionOf $ Tok.identifier lexer
+    sensitiveWhitespace
+    return $ AST.Identifier { AST.idName = name, AST.idPos = pos, AST.idType = Undetermined}
 
 -- keyword matches a keyword of the given value
 keyword :: String -> Parser String
@@ -50,8 +62,15 @@ lexeme p = do
 sensitiveWhitespace :: Parser ()
 sensitiveWhitespace = many (oneOf ['\r', ' ', '\t', '\f', '\v']) $> ()
 
+-- el runs a parser and accepts any kind of whitespace after it (including
+-- newlines).  It is basically a wrapper around `Tok.lexeme`
+el :: Parser a -> Parser a
+el = Tok.lexeme lexer
+
+-- splitJoin parses a split join parser
 splitJoin :: Parser ()
 splitJoin = optional $ string "\\\n"
 
+-- multilineStringLit parses a multiline/raw string literal
 multilineStringLit :: Parser String
 multilineStringLit = char '`' *> many (noneOf ['`']) <* char '`'

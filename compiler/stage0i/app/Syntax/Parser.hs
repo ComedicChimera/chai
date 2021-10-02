@@ -21,8 +21,8 @@ parseFile fpath = do
     return $ case result of
         Right defs -> Right defs
         Left err -> Left CompileMessage { 
-            -- TODO: figure out how to get the message content from the parse error
-            msgContent = "",
+            -- TODO: figure out how to get the message content from the parse error (better than show)
+            msgContent = show err,
             msgPos = let pos = errorPos err in TextPosition { 
                 textPosStartLine = sourceLine pos,
                 textPosStartCol = sourceColumn pos,
@@ -33,29 +33,41 @@ parseFile fpath = do
             msgRelPath = id
         }
 
+---------------------------------------------------------------------
+
 -- file is start symbol for the Chai grammar
 file :: Parser [AST.Definition]
 file = Tok.whiteSpace Lex.lexer *> many topDef
 
 -- topDef is a top level definition
 topDef :: Parser AST.Definition
-topDef = funcDef
+topDef = Lex.el funcDef
 
 -- funcDef is a function definition
 funcDef :: Parser AST.Definition
 funcDef = do
     Lex.keyword "def"
-    (name, pos) <- Lex.identifier
-    args <- between (Lex.lexeme $ char '(') (Lex.lexeme $ char ')') funcArg
-    return AST.Func {}
+    ident <- Lex.identifier
+    argsGrouped <- between (Lex.el $ char '(') (Lex.lexeme $ char ')') (many funcArg)
+    let args = concat argsGrouped
+    returnType <- option (Primitive NothingType) (try typeLabel)
+    char '\n'
+    return AST.Func {AST.funcName = ident, AST.funcArgs = args, AST.funcReturnType = returnType }
 
 -- funcArg is a function argument
-funcArg :: Parser AST.FuncArg
-funcArg = pure AST.FuncArg {}
+funcArg :: Parser [AST.FuncArg]
+funcArg = do
+    hasByRef <- Lex.isNext "&"
+    idList <- Lex.el identifierList
+    Lex.el $ char ':'
+    argType <- Lex.el typeLabel
+    pure [AST.FuncArg {AST.argName=argName, AST.argType=argType, AST.argFlags = [AST.IsByRef | hasByRef]} | argName <- idList]
+
+---------------------------------------------------------------------
 
 -- typeLabel represents a Chai type label
 typeLabel :: Parser Type
-typeLabel = pure Undetermined
+typeLabel = Primitive <$> primTypeLabel
 
 -- primTypeLabel represents a primitive type label
 primTypeLabel :: Parser PrimType
@@ -72,4 +84,9 @@ primTypeLabel = try (Lex.keyword "u8" $> U8)
     <||> (Lex.keyword "nothing" $> NothingType)
     <||> (Lex.keyword "bool" $> Bool)
     <|> (Lex.keyword "rune" $> Rune)
+
+---------------------------------------------------------------------
+
+identifierList :: Parser [AST.Identifier]
+identifierList = sepBy Lex.identifier (Lex.lexeme $ char ',') 
     

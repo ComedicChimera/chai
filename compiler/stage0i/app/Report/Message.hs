@@ -26,3 +26,6 @@ data CompileMessage = CompileMessage {
     -- msgPos is the text position of the message within the given source file
     msgPos :: TextPosition
 }
+
+instance Show CompileMessage where
+    show = msgContent

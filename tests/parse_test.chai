@@ -1,0 +1,15 @@
+def test()
+
+def fib(n, a, b: i32) i32
+
+def print(s: f32)
+
+def nroot(f: f32, r: i32) f32
+
+def roon_time(r: rune, a, b: rune)
+
+def bold_of_you(s, a: nothing, dir: u8) u64
+
+def by_ref_bash(&x: i32) i16
+
+def by_ref_even_more(&y: rune, &z: i32) i32
