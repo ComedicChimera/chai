@@ -1,4 +1,4 @@
-compiler/backend/out
-compiler/backend/vendor/lib
+compiler/legacy/out
+compiler/legacy/vendor
 compiler/stage0i/dist-newstyle
 .vscode/

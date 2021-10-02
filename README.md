@@ -20,12 +20,16 @@ Check out the official website to install, learn, use Chai: chai-lang.dev
 - [Building the Compiler](#building)
   * [Stage 0 Interpreter](#stage-0i)
 - [Compilation Pipeline](#pipeline)
+  * [Interpreter](#interpret-pipeline)
+  * [Compiler Iterations](#compile-pipeline)
 - [Development](#development)
   * [Current Approach](#current-approach)
   * [The Go Implementation](#go-impl)
   * [Whirlwind](#whirlwind)
 
 ## <a name="features"> Features
+
+TODO
 
 ## <a name="building"> Building the Compiler
 
@@ -109,7 +113,7 @@ The interpreter's directory structure is as follows:
 | `MIR` | Lowering AST to MIR, Optimizing MIR, MIR representation |
 | `Interpret` | Interpreter |
 
-### <a name="compiler-pipeline"> Compiler Iterations
+### <a name="compile-pipeline"> Compiler Iterations
 
 Because the compiler have a little bit more side-effect freedom than the Haskell
 interpreter.  Therefore, sometimes stages are blurred a bit more (ie. the AST
@@ -129,7 +133,7 @@ happens in my head and on my whiteboard -- playing with ideas and solving
 problems. Just because there are no commits to this repository doesn't mean that
 nothing is happening!
 
-### <a name="current-approach" The Current Approach
+### <a name="current-approach"> The Current Approach
 
 After some fiddling around with different tools and languages, I ultimately
 realized that no language could adequately meet my needs but my own.  So,

@@ -48,7 +48,7 @@ exec_program(${LLVM_CONFIG_PATH}
 )
 separate_arguments(LLVM_LIBS)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LLVM_LIBS})
-target_link_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/lib")
+target_link_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}")
 
 # get the required system link libraries (eg. psapi.lib)
 exec_program(${LLVM_CONFIG_PATH}
@@ -67,10 +67,3 @@ exec_program(${LLVM_CONFIG_PATH}
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${LLVM_INCLUDE_PATH})
 target_include_directories(${PROJECT_NAME} PRIVATE "${LLVM_DIR}/include")
-
-
-# Other libraries
-# ---------------
-
-# TOML++
-target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlplusplus/include")
