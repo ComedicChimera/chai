@@ -26,13 +26,20 @@ executable chai-frontend
 
     -- Modules included in this executable, other than Main.
     other-modules:
+        -- Syntactic constructions
         Syntax.Lexer
         Syntax.Parser
         Syntax.AST
+        Syntax.Internal
+
+        -- Error reporting
         Report.Message
 
     -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    other-extensions:
+        FlexibleInstances
+        MultiParamTypeClasses
+
     build-depends:    
         base ^>=4.15.0.0,
         parsec ^>=3.1.14.0
