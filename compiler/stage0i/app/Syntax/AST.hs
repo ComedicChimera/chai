@@ -5,7 +5,8 @@ import Semantic.Types (Type)
 
 data Identifier = Identifier {
     idName :: String,
-    idPos :: TextPosition
+    idPos :: TextPosition,
+    idType :: Type
 }
 
 data Definition = Func { funcName :: Identifier, funcArgs :: [FuncArg], funcReturnType :: Type}

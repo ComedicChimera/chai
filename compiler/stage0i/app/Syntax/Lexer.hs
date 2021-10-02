@@ -1,6 +1,6 @@
 module Syntax.Lexer where
 
-import Control.Monad
+import Data.Functor
 
 import Text.Parsec
 import Text.Parsec.String (Parser)
@@ -9,7 +9,9 @@ import qualified Text.Parsec.Token as Tok
 
 import Syntax.Internal
 
-lexer :: ChaiLexer
+import Report.Message
+
+lexer :: Tok.TokenParser ()
 lexer = Tok.makeTokenParser style
     where
         ops = ["+", "*", "-", "/", "//"] -- TODO: rest
@@ -27,36 +29,29 @@ lexer = Tok.makeTokenParser style
         }
 
 
+-- identifier reads in a new identifier
+identifier :: Parser (String, TextPosition)
+identifier = positionOf $ Tok.identifier lexer
+
 -- keyword matches a keyword of the given value
-keyword :: String -> ChaiParser String
+keyword :: String -> Parser String
 keyword s = lexeme $ string s
 
--- keywordEOL matches a keyword at the end of a line
-keywordEOL :: String -> ChaiParser String
-keywordEOL s = lexemeEOL $ string s
-
--- lexemeEOL works exactly like Chai's `lexeme` but it does not skip newlines.
--- It is useful for language elements after which a newline might be significant
-lexemeEOL :: ChaiParser a -> ChaiParser a
-lexemeEOL p = do
-    x <- p
-    sensitiveWhiteSpace
-    splitJoin
-    return x
-
--- lexeme is Chai's "overload" of Parsec's lexeme to handle split-joins
-lexeme :: ChaiParser a -> ChaiParser a
+-- lexeme is Chai's "overload" of Parsec's lexeme to handle split-joins and
+-- sensitive whitespace (ie. no unexpected newlines)
+lexeme :: Parser a -> Parser a
 lexeme p = do 
     x <- Tok.lexeme lexer p 
     splitJoin
     return x
 
--- sensitiveWhiteSpace skips all standard whitespace except for newlines
-sensitiveWhiteSpace :: ChaiParser ()
-sensitiveWhiteSpace = void $ many $ oneOf [' ', '\t', '\v', '\f', '\r']
+-- sensitiveWhitespace is Chai's custom whitespace handling function for
+-- dealing with whitespace inside of meaningful statements
+sensitiveWhitespace :: Parser ()
+sensitiveWhitespace = many (oneOf ['\r', ' ', '\t', '\f', '\v']) $> ()
 
-splitJoin :: ChaiParser ()
+splitJoin :: Parser ()
 splitJoin = optional $ string "\\\n"
 
-multilineStringLit :: ChaiParser String
+multilineStringLit :: Parser String
 multilineStringLit = char '`' *> many (noneOf ['`']) <* char '`'

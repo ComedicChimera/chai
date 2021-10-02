@@ -13,5 +13,6 @@ data PrimType = I8
     | U64
     | F32
     | F64
-    | BOOL
-    | RUNE
+    | Bool
+    | Rune
+    | NothingType

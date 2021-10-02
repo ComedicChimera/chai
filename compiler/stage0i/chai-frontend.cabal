@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               chai-frontend
+name:               chai-stage0-interpreter
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -21,7 +21,7 @@ maintainer:         forlornsisu@gmail.com
 -- category:
 -- extra-source-files: CHANGELOG.md
 
-executable chai-frontend
+executable chai-stage0i
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
