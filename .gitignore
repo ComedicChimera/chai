@@ -1,4 +1,2 @@
-compiler/legacy/out
-compiler/legacy/vendor
-compiler/stage0i/dist-newstyle
+compiler/target
 .vscode/
