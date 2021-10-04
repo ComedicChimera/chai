@@ -384,6 +384,34 @@ static bool lexer_rune_lit(lexer_t* lexer, token_t* tok) {
     return true;
 }
 
+// lexer_raw_string_lit scans in a raw string literal assuming the leading
+// backtick hasn't been read in
+static bool lexer_raw_string_lit(lexer_t* lexer, token_t* tok) {
+    // mark the start of the string
+    lexer_mark_start(lexer);
+
+    // skip the leading back tick
+    lexer_skip(lexer);
+
+    // read in the string literal
+    for (char ahead = lexer_peek(lexer); ahead != '`'; ahead = lexer_peek(lexer)) {
+        if (ahead == EOF) {
+            lexer_fail(lexer, "expected closing backtick before end of file");
+            return false;
+        }
+
+        // read the string content
+        lexer_read(lexer);
+    }
+    
+    // skip the closing back tick
+    lexer_skip(lexer);
+
+    // make the token and return
+    *tok = lexer_make_token(lexer, TOK_STRINGLIT);
+    return true;
+}
+
 /* -------------------------------------------------------------------------- */
 
 lexer_t* lexer_new(const char* fpath) {
@@ -478,6 +506,9 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
             // handle runes
             case '\'':
                 return lexer_rune_lit(lexer, tok);
+            // handle raw/multiline strings
+            case '`':
+                return lexer_raw_string_lit(lexer, tok);
             default:
                 // handle identifiers and keyword
                 if (iscsymf(ahead)) {

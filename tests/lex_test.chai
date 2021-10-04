@@ -26,8 +26,15 @@ ending
 
 "big \0 a"
 
-beef
+beef `yo
+what's up!`
+
+`i am W \n`
 
 'a'
 
 '\r' '\x02'
+
+upside
+
+`test`
