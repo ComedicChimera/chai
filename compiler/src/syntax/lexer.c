@@ -412,6 +412,183 @@ static bool lexer_raw_string_lit(lexer_t* lexer, token_t* tok) {
     return true;
 }
 
+// lexer_num_lit scans in a numeric literal assuming the first char hasn't been
+// read in yet.
+static bool lexer_num_lit(lexer_t* lexer, token_t* tok) {
+    // mark the start of the numeric literal
+    lexer_mark_start(lexer);
+
+    // read in the leading char to check for base prefixes
+    char leading = lexer_read(lexer);
+
+    // if it is zero, then we may have a base prefix
+    int base = 10;
+    if (leading == '0') {
+        char ahead = lexer_peek(lexer);
+        switch (ahead) {
+            case 'b':
+                base = 2;
+                lexer_read(lexer);
+                break;
+            case 'o':
+                base = 8;
+                lexer_read(lexer);
+                break;
+            case 'x':
+                base = 16;
+                lexer_read(lexer);
+                break;
+        }
+    }
+
+    // data to determine and validate literal
+    bool is_floating = false, has_exponent = false, expecting_minus = false;
+    bool is_long = false, is_unsigned = false;
+
+    // greedily consume tokens until we can't anymore -- the loop will break
+    // itself as necessary (breaking logic is too complex for loop header);
+    // note: at all times in this loop if we encounter an "unexpected"
+    // character, we break out not error: numbers can be followed by all manner
+    // symbols that may appear related to them -- we have no cause to fail
+    for (char ahead = lexer_peek(lexer); ahead != EOF; ahead = lexer_peek(lexer)) {
+        // handle unsigned and long suffixes
+        if (is_unsigned) {
+            // only thing remaining can be long suffix
+            if (ahead == 'l') {
+                lexer_read(lexer);
+                is_long = true;
+            }
+            
+            break;
+        } else if (is_long) {
+            // only thing remaining can be unsigned suffix
+            if (ahead == 'u') {
+                lexer_read(lexer);
+                is_unsigned = true;
+            }
+
+            break;
+        }
+
+        // handle the content that differs by base
+        switch (base) {
+            // all bases that are not 10 must be integral bases so their logic
+            // is fairly simple -- we use continue to avoid the break at the end
+            // if the character's match
+            case 2:
+                if ('0' == ahead || '1' == ahead) {
+                    lexer_read(lexer);
+                    continue;
+                }
+
+                break;
+            case 8:
+                if ('0' <= ahead && ahead <= '7') {
+                    lexer_read(lexer);
+                    continue;
+                }
+
+                break;
+            case 16:
+                if (isdigit(ahead) || 'a' <= ahead && ahead <= 'f' || 'A' <= ahead && ahead <= 'F') {
+                    lexer_read(lexer);
+                    continue;
+                }
+
+                break;
+            case 10:
+                if (isdigit(ahead)) {
+                    lexer_read(lexer);
+
+                    // clear expecting minus if we encounter a digit
+                    expecting_minus = false;
+                    continue;
+                }
+
+                switch (ahead) {
+                    case '.':
+                        // we want to fail here if the dot is unexpected to
+                        // avoid ambiguity -- numbers always consume dots so
+                        // having it ignore simply because decimal exponents or
+                        // duplicate dots are illegal is unwise
+                        if (has_exponent) {
+                            lexer_fail(lexer, "decimal exponents are not allowed");
+                            return false;
+                        } else if (is_floating) {
+                            lexer_fail(lexer, "floating point number cannot contain multiple decimals");
+                            return false;
+                        }
+
+                        lexer_read(lexer);
+                        is_floating = true;
+                        continue;
+                    case 'e':
+                    case 'E':
+                        // by same logic as decimals, we also want to fail here
+                        // on duplicate exponents
+                        if (has_exponent) {
+                            lexer_fail(lexer, "floating point number cannot contain multiple exponents");
+                            return false;
+                        }
+
+                        lexer_read(lexer);
+                        is_floating = true;
+                        has_exponent = true;
+                        expecting_minus = true;
+                        continue;
+                    case '-':
+                        // obviously, we do NOT want to fail here since `5-3`
+                        // should be a valid Chai expression :)
+                        if (expecting_minus) {
+                            lexer_read(lexer);
+                            expecting_minus = false;
+                            continue;
+                        }
+
+                        break;
+                }
+
+                break;
+        }
+
+        // check for first suffix
+        if (!is_floating) {
+            if (ahead == 'u') {
+                lexer_read(lexer);
+                is_unsigned = true;
+                continue;
+            } else if (ahead == 'l') {
+                lexer_read(lexer);
+                is_unsigned = true;
+                continue;
+            }
+        }
+
+        // if we reach here, we always want to exit the loop -- found a
+        // non-matching character
+        break;
+    }
+
+    // check to make sure at least one digit is provided for base-prefixed
+    // literals (more than just `0p` in the token buffer)
+    if (base != 10 && lexer->tok_buff_len < 3) {
+        lexer_fail(lexer, "at least one digit expected after base prefix");
+        return false;
+    }
+
+    // make the literal based on collected info
+    if (base != 10 || is_long || is_unsigned)
+        *tok = lexer_make_token(lexer, TOK_INTLIT);
+    else if (is_floating)
+        *tok = lexer_make_token(lexer, TOK_FLOATLIT);
+    else
+        *tok = lexer_make_token(lexer, TOK_NUMLIT);
+
+    // all cases succeed :)
+    return true;
+}
+
+
 /* -------------------------------------------------------------------------- */
 
 lexer_t* lexer_new(const char* fpath) {
@@ -525,7 +702,9 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                     // make the identifier or keyword token
                     *tok = lexer_make_token(lexer, lexer_match_keyword(lexer));
                     return true;
-                } else {
+                } else if (isdigit(ahead))
+                    return lexer_num_lit(lexer, tok);
+                else {
                     // mark the beginning of the malformed token
                     lexer_mark_start(lexer);
 

@@ -10,6 +10,8 @@ I #! am !# a block comment
 # hello
 there end
 
+21 5012
+
 #! it is
 wednesday
 my dudes !#
@@ -18,11 +20,17 @@ my dudes !#
 
 long_identifier_that_is_more_than_15_bytes
 def_check_full_match
-ending
+ending 0x53fe
 
 "test string"
 
+0b101
+
 "char \n x"
+
+0o766
+
+0xEf1 0o5
 
 "big \0 a"
 
@@ -31,7 +39,26 @@ what's up!`
 
 `i am W \n`
 
-'a'
+'a' 0.1
+
+0xF
+
+2.012
+
+0.67
+78.22
+
+6e-5
+78
+89.2E12 2e31
+
+45u
+
+781l
+
+0xf42lu
+
+0b11101ul
 
 '\r' '\x02'
 

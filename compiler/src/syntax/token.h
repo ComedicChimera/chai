@@ -13,6 +13,9 @@ typedef enum {
     TOK_IDENTIFIER,
     TOK_STRINGLIT,
     TOK_RUNELIT,
+    TOK_INTLIT,
+    TOK_FLOATLIT,
+    TOK_NUMLIT,
     
     // Special "whitespace" tokens
     TOK_NEWLINE,
