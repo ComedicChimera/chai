@@ -1,10 +1,11 @@
 #include "lexer.h"
 
 #include <stdio.h>
+#include <ctype.h>
 
 #define TOK_BUFF_BLOCK_SIZE 16
 
-typedef struct {
+typedef struct lexer_t {
     // fpath is the path to the Lexer's current file
     const char* fpath;
 
@@ -48,7 +49,12 @@ static void lexer_fail(lexer_t* lexer, const char* message) {
     report_compile_error(lexer->fpath, lexer_get_pos(lexer), message);
 
     // clear the token buffer as its contents are no longer useful
-    free(lexer->tok_buff);
+    if (lexer->tok_buff != NULL) {
+        free(lexer->tok_buff);
+
+        // make sure dispose doesn't delete the buffer twice
+        lexer->tok_buff = NULL;
+    }      
 }
 
 // lexer_mark_start marks the beginning of a token as it is being read in
@@ -120,13 +126,13 @@ static char lexer_read(lexer_t* lexer) {
     char c = fgetc(lexer->file);
     if (c == EOF)
         // something went wrong reading the file
-        return;
+        return EOF;
 
     // update lexer state
     lexer_update_pos(lexer, c);
     lexer_write_char(lexer, c);
 
-    return 0;
+    return c;
 }
 
 // lexer_make_token produces a new token from the lexer's current state
@@ -172,6 +178,8 @@ lexer_t* lexer_new(const char* fpath) {
 
     // mark the token buffer as empty
     lexer->tok_buff = NULL;
+
+    return lexer;
 }
 
 bool lexer_next(lexer_t* lexer, token_t* tok) {
@@ -202,6 +210,24 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                 // make and return the token
                 *tok = lexer_make_token(lexer, TOK_NEWLINE);
                 return true;
+            default:
+                // handle identifiers
+                if (iscsymf(ahead)) {
+                    // keep reading until we encountered a character that can't
+                    // be in an identifier
+                    do {
+                        lexer_read(lexer);
+                        ahead = lexer_peek(lexer);
+                    } while (iscsym(ahead));
+
+                    *tok = lexer_make_token(lexer, TOK_IDENTIFIER);
+                    return true;
+                } else {
+                    char buff[128];
+                    sprintf(buff, "unknown character: `%c`", ahead);
+                    lexer_fail(lexer, buff);
+                    return false;
+                }
         }
     }
 

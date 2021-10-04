@@ -1,16 +1,27 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "syntax/lexer.h"
 
-int main() {
-    lexer_t* lexer = lexer_new("../tests/lex_test.chai");
+int main(int argc, char* argv[]) {
+    if (argc == 1) {
+        printf("missing required argument: `fpath`");
+        return 1;
+    }
+
+    lexer_t* lexer = lexer_new(argv[1]);
 
     token_t tok;
     while (lexer_next(lexer, &tok)) {
-        if (tok.kind == TOK_EOF)
+        if (tok.kind == TOK_EOF) {
+            printf("hit eof");
             break;
-
-        printf("%d: %s", tok.kind, tok.value);
+        }
+        
+        if (!strcmp(tok.value, "\n"))
+            printf("%d: \\n\n", tok.kind);
+        else
+            printf("%d: %s\n", tok.kind, tok.value);
     }
 
     lexer_dispose(lexer);
