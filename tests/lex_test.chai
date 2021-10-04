@@ -27,3 +27,7 @@ ending
 "big \0 a"
 
 beef
+
+'a'
+
+'\r' '\x02'

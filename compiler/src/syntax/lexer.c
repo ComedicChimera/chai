@@ -288,10 +288,10 @@ static bool lexer_escape_code(lexer_t* lexer) {
     return true;
 }
 
-// lexer_std_string reads a standard string assuming the leading double quote
-// hasn't already been read in.  It returns a boolean indicating if an error
-// occurred while reading the string (eg. invalid escape code)
-static bool lexer_std_string(lexer_t* lexer, token_t* tok) {
+// lexer_std_string_lit reads a standard string literal assuming the leading
+// double quote hasn't already been read in.  It returns a boolean indicating if
+// an error occurred while reading the string (eg. invalid escape code)
+static bool lexer_std_string_lit(lexer_t* lexer, token_t* tok) {
     // mark the beginning of the string
     lexer_mark_start(lexer);
 
@@ -324,6 +324,63 @@ static bool lexer_std_string(lexer_t* lexer, token_t* tok) {
 
     // make the the string token
     *tok = lexer_make_token(lexer, TOK_STRINGLIT);
+    return true;
+}
+
+// lexer_rune_lit scans in a rune literal assuming the leading `'` hasn't been
+// read in.  It returns a boolean indicating if an error occurred while reading
+// the rune (eg. invalid escape code)
+static bool lexer_rune_lit(lexer_t* lexer, token_t* tok) {
+    // mark the beginning of the rune
+    lexer_mark_start(lexer);
+
+    // skip the leading `'` so it doesn't end up in the literal value
+    lexer_skip(lexer);
+
+    // peek the main character of the rune literal
+    char body = lexer_peek(lexer);
+
+    switch (body) {
+        case EOF:
+            // if it is an EOF, error
+            lexer_fail(lexer, "expected a closing quote before end of file");
+            return false;
+        case '\n':
+            // newlines aren't allowed in runes
+            lexer_fail(lexer, "rune literals cannot contain newlines");
+            return false;
+        case '\\':
+            // handle escapes codes
+            if (!lexer_escape_code(lexer))
+                return false;
+
+            break;
+        case '\'':
+            // empty rune literal
+            
+            // read in the `'` to build an appropriate error message
+            lexer_skip(lexer);
+
+            lexer_fail(lexer, "empty rune literal");
+            return false;
+        default:
+            // just a regular character
+            lexer_read(lexer);
+            break;
+    }
+
+    // skip the closing `'`
+    char closer = lexer_skip(lexer);
+    if (closer != '\'') {
+        // handle invalid closer
+        char buff[64];
+        sprintf(buff, "expected a closing quote not `%c`", closer);
+        lexer_fail(lexer, buff);
+        return false;
+    }
+
+    // make the token and return
+    *tok = lexer_make_token(lexer, TOK_RUNELIT);
     return true;
 }
 
@@ -417,7 +474,10 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                 break;
             // handle standard strings
             case '\"':
-                return lexer_std_string(lexer, tok);
+                return lexer_std_string_lit(lexer, tok);
+            // handle runes
+            case '\'':
+                return lexer_rune_lit(lexer, tok);
             default:
                 // handle identifiers and keyword
                 if (iscsymf(ahead)) {
