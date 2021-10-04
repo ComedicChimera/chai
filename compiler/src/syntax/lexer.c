@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 
 #define TOK_BUFF_BLOCK_SIZE 16
 
@@ -89,19 +90,21 @@ static void lexer_update_pos(lexer_t* lexer, char c) {
     }
 }
 
-// lexer_skip skips a character in the input stream
-static void lexer_skip(lexer_t* lexer) {
+// lexer_skip skips a character in the input stream and returns the skipped
+// character
+static char lexer_skip(lexer_t* lexer) {
     // handle EOF case
     if (feof(lexer->file))
-        return;
+        return EOF;
 
     char c = fgetc(lexer->file);
     if (c == EOF)
         // something went wrong reading the file
-        return;
+        return EOF;
 
     // still want to update the position
     lexer_update_pos(lexer, c);
+    return c;
 }
 
 // lexer_write_char writes a character to the token buffer
@@ -117,7 +120,8 @@ static void lexer_write_char(lexer_t* lexer, char c) {
     lexer->tok_buff[lexer->tok_buff_len++] = c;
 }
 
-// lexer_read reads a character from the input stream into the token buffer
+// lexer_read reads a character from the input stream into the token buffer and
+// returns the read-in character
 static char lexer_read(lexer_t* lexer) {
     // handle EOF case
     if (feof(lexer->file))
@@ -152,6 +156,175 @@ token_t lexer_make_token(lexer_t* lexer, token_kind_t kind) {
     lexer->tok_buff = NULL;
 
     return tok;
+}
+
+/* -------------------------------------------------------------------------- */
+
+// lexer comment skips a line or block comment and returns whether a newline
+// should be emitted (ie. did it encountered a line comment)
+static bool lexer_comment(lexer_t* lexer) {
+    // skip the leading `#`
+    lexer_skip(lexer);
+
+    // check to see if a `!` is next => multiline or not
+    char ahead = lexer_skip(lexer);
+    if (ahead == '!') {
+        // multiline comment
+
+        // read until a `!#` is encountered (or the file ends)
+        while ((lexer_skip(lexer) != '!' || lexer_skip(lexer) != '#') && lexer_peek(lexer) != EOF);
+
+        // no newline necessary
+        return false;
+    } else if (ahead == '\n') {
+        // newline immediately after `#`
+        return true;
+    } else {
+        // singleline comment
+
+        // read until newline or end of file
+        while (lexer_peek(lexer) != '\n' && lexer_peek(lexer) != EOF)
+            lexer_skip(lexer);
+
+        // should emit a newline
+        return true;
+    }
+}
+
+// lexer_match_keyword attempts to match an identifier to a reserved keyword. It
+// returns TOK_IDENTIFIER if no match occurs.
+static token_kind_t lexer_match_keyword(lexer_t* lexer) {
+    // we need to null-terminate the token buffer before we can compare it, but
+    // we also know that Chai's longest keyword is less than 15 bytes so we only
+    // need at most 15 bytes of the token buffer to tell if it matches a keyword
+    // or not (one extra byte to see if there is meaningful character data after
+    // the match to preclude matching identifiers that start with keywords).  So
+    // we just copy <=15 bytes from the token buffer to a 16 byte buffer and add
+    // in a null terminator at the end of the meaningful data.
+    char keywordStr[16];
+    memcpy(keywordStr, lexer->tok_buff, min(lexer->tok_buff_len, 15));
+    keywordStr[min(lexer->tok_buff_len, 15)] = '\0';
+
+    // next, we just compare to all the keywords we know
+    if (!strcmp(keywordStr, "def")) return TOK_DEF;
+    else if (!strcmp(keywordStr, "end")) return TOK_END;
+    else return TOK_IDENTIFIER;
+}
+
+// lexer_unicode_escape reads in the escape sequence that follows a unicode
+// escape prefix (`\x`, `\u`, `\U`)
+static bool lexer_unicode_escape(lexer_t* lexer, int count) {
+    for (int i = 0; i < count; i++) {
+        char next = lexer_read(lexer);
+
+        if (next == EOF) {
+            lexer_fail(lexer, "expected rest of escape code not end of file");
+            return false;
+        } else if ('0' <= next && next <= '9' || 'a' <= next && next <= 'f' || 'A' <= next && next <= 'F')
+            continue;
+        else {
+            char buff[64];
+            sprintf(buff, "unexpected character: `%c`", next);
+            lexer_fail(lexer, buff);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// lexer_escape_code reads in an escape code encountered in a string or rune
+// assuming the leading `\` hasn't been read in yet
+static bool lexer_escape_code(lexer_t* lexer) {
+    // note: we actually write the escape code lexical value to the token stream
+    // because some escape codes may cause problems with the compiler's string
+    // handling (eg. if it contains a null terminator, we don't want to write
+    // that so the compiler processes the whole string)
+
+    // read the leading backslash
+    lexer_read(lexer);
+
+    // read in the escape code (it should br written to the stream)
+    char ahead = lexer_read(lexer);
+    if (ahead == EOF) {
+        lexer_fail(lexer, "expected escape code not end of file");
+        return false;
+    }
+
+    // match it against the valid escape codes; if the escape code is not a
+    // unicode int value (eg. not `\xb2`), then we just write the actual
+    // character value to the token buffer
+    switch (ahead) {
+        case 'a':
+        case 'b':
+        case 'f':
+        case 'n':
+        case 'r':
+        case 't':
+        case 'v':
+        case '0':
+        case '\"':
+        case '\'':
+        case '\\':
+            // standard acceptable escape codes
+            break;
+        // unicode escape codes
+        case 'x':
+            return lexer_unicode_escape(lexer, 2);
+        case 'u':
+            return lexer_unicode_escape(lexer, 4);
+        case 'U':
+            return lexer_unicode_escape(lexer, 8);
+        default:
+            // invalid escape code
+            char buff[32];
+            sprintf(buff, "unknown escape code: `\\%c`", ahead);
+            lexer_fail(lexer, buff);
+            return false;
+
+    }
+
+    // if we reach here, all good
+    return true;
+}
+
+// lexer_std_string reads a standard string assuming the leading double quote
+// hasn't already been read in.  It returns a boolean indicating if an error
+// occurred while reading the string (eg. invalid escape code)
+static bool lexer_std_string(lexer_t* lexer, token_t* tok) {
+    // mark the beginning of the string
+    lexer_mark_start(lexer);
+
+    // skip the leading double quote (we don't want it in the literal value)
+    lexer_skip(lexer);
+
+    // read until we encounter a closing quote
+    for (char ahead = lexer_peek(lexer); ahead != '\"'; ahead = lexer_peek(lexer)) {
+        // handle escape codes
+        if (ahead == '\\') {
+            if (!lexer_escape_code(lexer))
+                return false;
+        }     
+        // handle newlines in strings
+        else if (ahead == '\n') {
+            lexer_fail(lexer, "standard string literals cannot contain newlines");
+            return false;
+        }
+        // handle EOF in the middle of a string
+        else if (ahead == EOF) {
+            lexer_fail(lexer, "expected a closing quote before end of file");
+            return false;
+        }
+        else
+            lexer_read(lexer);
+    }
+
+    // skip the closing quote
+    lexer_skip(lexer);
+
+    // make the the string token
+    *tok = lexer_make_token(lexer, TOK_STRINGLIT);
+    return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -210,9 +383,47 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                 // make and return the token
                 *tok = lexer_make_token(lexer, TOK_NEWLINE);
                 return true;
+            // handle split joins
+            case '\\':
+                // mark the beginning for error reporting purposes
+                lexer_mark_start(lexer);
+
+                // skip the `\` 
+                lexer_skip(lexer);
+
+                // expect newline next
+                char next = lexer_skip(lexer);
+                if (ahead != '\n') {
+                    lexer_fail(lexer, "expected newline immediately after backslash");
+                    return false;
+                }            
+
+                break;
+            // handle comments
+            case '#':
+                // if `lexer_comment` returns true, we should emit a newline
+                // after the comment (it was a line comment)
+                if (lexer_comment(lexer)) {
+                    // mark the start of the newline
+                    lexer_mark_start(lexer);
+
+                    // read it in
+                    lexer_read(lexer);
+
+                    // make and return the token
+                    *tok = lexer_make_token(lexer, TOK_NEWLINE);
+                    return true;
+                }
+                break;
+            // handle standard strings
+            case '\"':
+                return lexer_std_string(lexer, tok);
             default:
-                // handle identifiers
+                // handle identifiers and keyword
                 if (iscsymf(ahead)) {
+                    // mark the beginning of the identifier
+                    lexer_mark_start(lexer);
+
                     // keep reading until we encountered a character that can't
                     // be in an identifier
                     do {
@@ -220,9 +431,17 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                         ahead = lexer_peek(lexer);
                     } while (iscsym(ahead));
 
-                    *tok = lexer_make_token(lexer, TOK_IDENTIFIER);
+                    // make the identifier or keyword token
+                    *tok = lexer_make_token(lexer, lexer_match_keyword(lexer));
                     return true;
                 } else {
+                    // mark the beginning of the malformed token
+                    lexer_mark_start(lexer);
+
+                    // skip it to get the correct error range
+                    lexer_skip(lexer);
+
+                    // build the message and fail
                     char buff[128];
                     sprintf(buff, "unknown character: `%c`", ahead);
                     lexer_fail(lexer, buff);

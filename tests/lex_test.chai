@@ -1,5 +1,29 @@
 id ZVar0 y12s _sas _0
 ab_cd CD _
-yep YIP
+yep YIP # hello there
 B0AS
-!
+
+def
+
+I #! am !# a block comment
+
+# hello
+there end
+
+#! it is
+wednesday
+my dudes !#
+
+"char \x12"
+
+long_identifier_that_is_more_than_15_bytes
+def_check_full_match
+ending
+
+"test string"
+
+"char \n x"
+
+"big \0 a"
+
+beef

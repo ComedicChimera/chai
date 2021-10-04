@@ -5,7 +5,14 @@
 
 // token_kind_t enumerates the possible kinds of Chai token
 typedef enum {
+    // Keyword tokens
+    TOK_DEF,
+    TOK_END,
+
+    // Value tokens
     TOK_IDENTIFIER,
+    TOK_STRINGLIT,
+    TOK_RUNELIT,
     
     // Special "whitespace" tokens
     TOK_NEWLINE,
