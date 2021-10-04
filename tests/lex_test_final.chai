@@ -1,0 +1,31 @@
+import println from io.std
+
+# I AM A COMMENT HEHEHE
+
+def main() = do
+    println(#! dope af !# "POGGERS!")
+end
+
+let numbers = {0x0f32, 0b1, 34.5, 67, 12.35e1, 7E-12, 0o124}
+
+let runes = {'a', 'b', '\0', '\xF2', '\U0001f34c'}
+
+let strings = {"big chungus", "a\ner", "\r\t123", `asdf`, `
+    am
+    \''
+    `,
+    `kappa yip yip`
+}
+
+#! multi-line
+comment
+lol
+!#
+
+let math_time = (1-2 * 42) + 563 % 12
+
+let binary_time = 0b101 << 2
+
+let algebraics = Some(x + y)
+
+let y = [6u, 76l, 12ul, 1243]
