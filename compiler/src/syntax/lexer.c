@@ -208,7 +208,178 @@ static token_kind_t lexer_match_keyword(lexer_t* lexer) {
     // next, we just compare to all the keywords we know
     if (!strcmp(keywordStr, "def")) return TOK_DEF;
     else if (!strcmp(keywordStr, "end")) return TOK_END;
+
+    else if (!strcmp(keywordStr, "type")) return TOK_TYPE;
+
+    else if (!strcmp(keywordStr, "if")) return TOK_IF;
+    else if (!strcmp(keywordStr, "elif")) return TOK_ELIF;
+    else if (!strcmp(keywordStr, "else")) return TOK_ELSE;
+    else if (!strcmp(keywordStr, "match")) return TOK_MATCH;
+    else if (!strcmp(keywordStr, "case")) return TOK_CASE;
+    else if (!strcmp(keywordStr, "while")) return TOK_WHILE;
+
+    else if (!strcmp(keywordStr, "import")) return TOK_IMPORT;
+    else if (!strcmp(keywordStr, "from")) return TOK_FROM;
+    else if (!strcmp(keywordStr, "as")) return TOK_AS;
+    else if (!strcmp(keywordStr, "pub")) return TOK_PUB;
+
+    else if (!strcmp(keywordStr, "true") || !strcmp(keywordStr, "false")) return TOK_BOOLLIT;
+
     else return TOK_IDENTIFIER;
+}
+
+// lexer_oper_or_punct matches an operator or a punctuation character. It
+// returns the token_kind of the operator it matched so the caller can build the
+// full token.  If no match occurs, it returns `TOK_EOF`.
+static token_kind_t lexer_oper_or_punct(lexer_t* lexer) {
+    // mark the beginning of the token
+    lexer_mark_start(lexer);
+
+    // read the leading/primary operator component
+    char next = lexer_read(lexer);
+
+    // kind is the kind the initial kind that matched for secondary matches
+    token_kind_t kind = TOK_EOF;
+
+    // check if it matches any of the possible token starts; some branches
+    // return if they match since that token is of length one
+    switch (next) {
+        case '+':
+            kind = TOK_PLUS;
+            break;
+        case '-':
+            kind = TOK_MINUS;
+            break;
+        case '*':
+            kind = TOK_STAR;
+            break;
+        case '/':
+            kind = TOK_DIV;
+            break;
+        case '%': return TOK_MODULO;
+        case '<':
+            kind = TOK_LT;
+            break;
+        case '>':
+            kind = TOK_GT;
+            break;
+        case '=':
+            kind = TOK_ASSIGN;
+            break;
+        case '&':
+            kind = TOK_AMP;
+            break;
+        case '|':
+            kind = TOK_PIPE;
+            break;
+        case '^': return TOK_CARRET;
+        case '!': 
+            kind = TOK_NOT;
+            break;
+        case '.':
+            kind = TOK_DOT;
+            break;
+        case '(': return TOK_LPAREN;
+        case ')': return TOK_RPAREN;
+        case '[': return TOK_LBRACKET;
+        case ']': return TOK_RBRACKET;
+        case '{': return TOK_LBRACE;
+        case '}': return TOK_RBRACE;
+        case '@': return TOK_ANNOTAT;
+        case ',': return TOK_COMMA;
+        case ':': return TOK_COLON;
+        case ';': return TOK_SEMICOLON;
+        default: return TOK_EOF;
+    }
+
+    // match tokens that might be multi-character
+    char ahead = lexer_peek(lexer);
+    switch (kind) {
+        case TOK_PLUS:
+            if (ahead == '+') {
+                lexer_read(lexer);
+                return TOK_INCREM;
+            } else
+                return kind;
+        case TOK_MINUS:
+            if (ahead == '-') {
+                lexer_read(lexer);
+                return TOK_DECREM;
+            } else if (ahead == '>') {
+                lexer_read(lexer);
+                return TOK_ARROW;  
+            } else
+                return kind;
+        case TOK_STAR:
+            if (ahead == '*') {
+                lexer_read(lexer);
+                return TOK_POWER;
+            } else
+                return kind;
+        case TOK_DIV:
+            if (ahead == '/') {
+                lexer_read(lexer);
+                return TOK_FLOORDIV;
+            } else
+                return kind;
+        case TOK_AMP:
+            if (ahead == '&') {
+                lexer_read(lexer);
+                return TOK_AND;
+            } else
+                return kind;
+        case TOK_PIPE:
+            if (ahead == '|') {
+                lexer_read(lexer);
+                return TOK_OR;
+            } else
+                return kind;
+        case TOK_GT:
+            if (ahead == '>') {
+                lexer_read(lexer);
+                return TOK_RSHIFT;
+            } else if (ahead == '=') {
+                lexer_read(lexer);
+                return TOK_GTEQ;  
+            } else
+                return kind;
+        case TOK_LT:
+            if (ahead == '<') {
+                lexer_read(lexer);
+                return TOK_LSHIFT;
+            } else if (ahead == '=') {
+                lexer_read(lexer);
+                return TOK_LTEQ;  
+            } else
+                return kind;
+        case TOK_ASSIGN:
+            if (ahead == '=') {
+                lexer_read(lexer);
+                return TOK_EQ;
+            } else
+                return kind;
+        case TOK_NOT:
+            if (ahead == '=') {
+                lexer_read(lexer);
+                return TOK_NEQ;
+            } else
+                return kind;
+        case TOK_DOT:
+            if (ahead == '.') {
+                lexer_read(lexer);
+                ahead = lexer_peek(lexer);
+
+                if (ahead == '.') {
+                    lexer_read(lexer);
+                    return TOK_ELLIPSIS;
+                } else
+                    return TOK_RANGETO;
+            } else
+                return kind;
+        default:
+            // just a singular character operator :)
+            return kind;
+    }
 }
 
 // lexer_unicode_escape reads in the escape sequence that follows a unicode
@@ -705,18 +876,26 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                 } else if (isdigit(ahead))
                     return lexer_num_lit(lexer, tok);
                 else {
-                    // mark the beginning of the malformed token
-                    lexer_mark_start(lexer);
+                    token_kind_t kind = lexer_oper_or_punct(lexer);
 
-                    // skip it to get the correct error range
-                    lexer_skip(lexer);
+                    // unknown character
+                    if (kind == TOK_EOF) {
+                        // should never be an actual end of file because
+                        // `lexer_oper_or_punct` only returns TOK_EOF if the
+                        // first character doesn't match which we know from the
+                        // loop condition *can't* be an EOF
 
-                    // build the message and fail
-                    char buff[128];
-                    sprintf(buff, "unknown character: `%c`", ahead);
-                    lexer_fail(lexer, buff);
-                    return false;
+                        // build the message and fail
+                        char buff[128];
+                        sprintf(buff, "unknown character: `%c`", lexer_peek(lexer));
+                        lexer_fail(lexer, buff);
+                        return false;
+                    } else {
+                        *tok = lexer_make_token(lexer, kind);
+                        return true;
+                    }
                 }
+                break;
         }
     }
 
