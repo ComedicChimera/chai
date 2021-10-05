@@ -10,6 +10,7 @@ set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 #  Main Application Configuration
 set(SRCS 
     "main.c"
+    "compile.c"
     "syntax/lexer.c"
     "report/report.c"
     )

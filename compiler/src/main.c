@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "syntax/lexer.h"
+#include "depm/source.h"
 
 int main(int argc, char* argv[]) {
     if (argc == 1) {
