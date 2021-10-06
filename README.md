@@ -110,14 +110,6 @@ I knew, that I could work reasonably fast in, that had decent tooling, and most
 importantly, had working LLVM bindings (or so I thought).  I was more than happy
 to work in another language.  
 
-After this, I briefly explored writing the whole compiler in C++ (which is the
-native language of LLVM).  However, I determined that doing so would be far too
-painful, time consuming, and error-ridden to justify.  So I ultimately scrapped
-the pure C++ implementation in favor of polylingual implmentation.  Although I
-had originally decided against this, after trying my hand at the pure C++
-approach, I realized that trying to write a frontend in either C++ or Go was
-truly untenable. 
-
 ### <a name="whirlwind"> Whirlwind
 
 Chai has gone through many iterations and names.  It used to be called
