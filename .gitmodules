@@ -1,0 +1,3 @@
+[submodule "compiler/vendor/dirent"]
+	path = compiler/vendor/dirent
+	url = https://github.com/tronkko/dirent
