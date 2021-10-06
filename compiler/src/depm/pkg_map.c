@@ -84,6 +84,19 @@ static kv_pair_t* pkg_map_lookup(package_map_t* map, const char* key) {
 // boolean indicating whether or not the insertion was successful -- ie. whether
 // or not a key value pair was already in place.
 static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair) {
+    // get the hash and expected index of the pair
+    uint64_t hash = string_hash(pair->key);
+    uint64_t index = hash % map->hash_table_cap;
+
+    // check to see if the key-value pair in at the given position in the hash
+    // table; if there is no key there, then we insert the pair into the table
+    kv_pair_t* pair = map->hash_table[index];
+    if (pair == NULL) {
+        map->hash_table[index] = pair;
+        return true;
+    }
+
+
     // TODO
 }
 
