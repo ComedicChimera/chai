@@ -63,6 +63,9 @@ typedef struct {
     // id is the id of the module
     uint32_t id;
 
+    // root_dir is the absolute root directory of the module
+    const char* root_dir;
+
     // root_package is the package at the root of the module
     package_t* root_package;
 
@@ -74,6 +77,16 @@ typedef struct {
     // TODO: rest
 } module_t;
 
+// loads a module at a given root directory
+module_t* mod_load(char* root_dir);
 
+// mod_new_file creates a new file that is a child of package of this module
+source_file_t* mod_new_file(module_t* mod, package_t* pkg, char* file_path);
+
+// mod_new_pkg creates a new package that is a child of this module
+package_t* mod_new_pkg(module_t* mod, const char* pkg_path);
+
+// mod_dispose disposes of a module
+void mod_dispose(module_t* mod);
 
 #endif

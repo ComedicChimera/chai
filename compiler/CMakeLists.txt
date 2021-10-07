@@ -19,6 +19,7 @@ set(SRCS
     "syntax/lexer.c"
     "report/report.c"
     "depm/pkg_map.c"
+    "depm/source.c"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 

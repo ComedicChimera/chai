@@ -80,10 +80,43 @@ static kv_pair_t* pkg_map_lookup(package_map_t* map, const char* key) {
     return NULL;
 }
 
+// pkg_map_grow grows the hash table of the package map
+static bool pkg_map_grow(package_map_t* map) {
+    // first, we want to save the old hash table temporarily so we can insert
+    // its pairs into the new table
+    kv_pair_t** old_table = map->hash_table;
+    uint32_t old_cap = map->hash_table_cap;
+    
+    // then, we want to allocate a new block of memory for the new table. This
+    // is because we need to rebalance the hash table and so realloc simply
+    // isn't sufficient.
+    map->hash_table_cap *= TABLE_GROWTH_FACTOR;
+    map->hash_table = (kv_pair_t**)calloc(sizeof(kv_pair_t*), map->hash_table_cap);
+
+    // just insert all non-null members of the old table into the new table
+    for (uint32_t i = 0; i < old_cap; i++) {
+        if (old_table[i] != NULL)
+            pkg_map_insert(map, old_table[i]);
+    }
+
+    // get rid of the old table now that we no longer need it
+    free(old_table);
+}
+
 // pkg_map_insert adds a new key-value pair into the hash table.  It returns a
 // boolean indicating whether or not the insertion was successful -- ie. whether
 // or not a key value pair was already in place.
 static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair) {
+    // I chose to grow the hash table whenever the number of pairs is equal to
+    // 1/2 of the hash table capacity.  This number is chosen because as the
+    // table fills, the lookup and insertion time increases dramatically so we
+    // want to grow the table sooner rather than later to preserve performance.
+    // This does waste memory, but also leads to much more performant lookups --
+    // plus, it is very uncommon that a module will contain more than 7
+    // packages, so this should happen fairly rarely.
+    if (map->num_pairs++ >= map->hash_table_cap / 2)
+        pkg_map_grow(map);
+
     // get the hash and expected index of the pair
     uint64_t hash = string_hash(pair->key);
     uint64_t index = hash % map->hash_table_cap;
@@ -96,8 +129,21 @@ static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair) {
         return true;
     }
 
+    // perform a linear probe to find the insertion position
+    int j = index + 1;
+    for (; j != index; j++) {
+        if (j == map->hash_table_cap)
+            j = 0;
 
-    // TODO
+        if (map->hash_table[j] == NULL) {
+            map->hash_table[j] = pair;
+            return true;
+        }
+    }
+    
+    // unreachable -- there should always be a location to insert since the
+    // table is grown before the function is called.
+    return false;
 }
 
 /* -------------------------------------------------------------------------- */
