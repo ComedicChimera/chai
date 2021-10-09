@@ -17,6 +17,7 @@ set(SRCS
     "main.c"
     "compile.c"
     "syntax/lexer.c"
+    "syntax/parser.c"
     "report/report.c"
     "depm/pkg_map.c"
     "depm/source.c"
