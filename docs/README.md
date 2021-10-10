@@ -12,7 +12,7 @@ possibly some compiler structure documentation although I have tried to make my
 code, comments, and directory structure as self-documenting as possible.  One
 benefit of being mildly OCD is that I tend to hyper-fixate on things naming
 conventions, consistency, and organization in general.  Just open this source
-file and not that ALL of the paragraphs have been wrapped to 80 characters.
+file and note that ALL of the paragraphs have been wrapped to 80 characters.
 
 Note that some (or most as of the time of writing this) of the language features
 documented in this guide are not yet implemented and may be subject to change. I
@@ -26,4 +26,5 @@ Below is an index of all the relevant documentation files (to make the
 file-system-based index more clear).
 
 - Language Guide
-  * [Basics](guide/basics.md)
+  * [Basics](guide/chapter1.md)
+  * [Variables](guide/chapter2.md)

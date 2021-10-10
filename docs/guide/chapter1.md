@@ -186,8 +186,8 @@ Similarly, the following are all guaranteed to be some form of integer:
 
 Note that if a type for a literal cannot be determined from context (which
 happens surpisingly often), then the compiler will pick a sensible default:
-generally one of the 32 or 64 bit forms.  If you want an specific type, then you
-best state it explicitly.
+generally one of the 32 or 64 bit forms.  If you want a specific type, then you
+should state it explicitly.
 
 ### Arithmetic
 
@@ -233,4 +233,41 @@ cast is invalid.
 Note that casts can cause data to be lost during conversion (eg. `5.4` to `i32`
 essentially floors it). 
 
-        
+### Booleans
+
+**Booleans** are a common fundamental type in Chai that used to represent a
+true/false value.  Their literals are `true` and `false`.
+
+Several operators are defined on booleans, called **logical operators**:
+
+| Operator | Operation |
+| -------- | --------- |
+| `&&` | Logical AND |
+| `||` | Logical OR |
+| `!` | Logical NOT |
+
+> Both logical AND and logical OR support short-circuit evaluation.
+
+These operators behave as standard 
+[boolean logic](https://en.wikipedia.org/wiki/Boolean_algebra) operators.
+
+Several other operators are used to produce boolean values, called **comparison
+operators**:
+
+| Operator | Operation |
+| -------- | --------- |
+| `==` | True if both values are equal |
+| `!=` | True if both values are not equal |
+| `<` | True if the LHS is less than the RHS |
+| `>` | True if the LHS is greater than the RHS |
+| `<=` | True if the LHS is less than or equal to the RHS |
+| `>=` | True if the LHS is greater than or equal to the RHS |
+
+Both `==` and `!=` are defined for all values of the same type.  However, the
+other comparison operators are only defined for numbers and runes by default.
+
+Here are some examples of these operators:
+
+    5 > 3           # => true
+    "hi" == "hello" # => false
+    7.6 <= -8.1     # => false      
