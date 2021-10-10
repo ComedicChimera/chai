@@ -21,8 +21,12 @@ set(SRCS
     "report/report.c"
     "depm/pkg_map.c"
     "depm/source.c"
+    "depm/mod_load.c"
     )
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
+
+# Add the TOMLC C file (b/c `tomlc99` doesn't have a CMakeLists.txt)
+list(APPEND SRCS "${VENDOR_DIR}/tomlc/toml.c")
 
 add_executable(${PROJECT_NAME} ${SRCS})
 
@@ -33,4 +37,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 
 # dirent.h
 target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/dirent/include")
+
+# tomlc (includes; C file added above)
+target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlc")
 

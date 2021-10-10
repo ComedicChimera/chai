@@ -16,7 +16,7 @@ typedef struct parser_t {
     // TODO: rest as necessary
 } parser_t;
 
-parser_t* parse_new(const char* fpath) {
+parser_t* parser_new(const char* fpath) {
     // parser is dynamically allocated primarily for convenience
     parser_t* p = malloc(sizeof(parser_t));
 

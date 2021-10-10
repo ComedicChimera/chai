@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "report/report.h"
+#include "hash.h"
 
 #define INITIAL_TABLE_SIZE 16
 #define TABLE_GROWTH_FACTOR 2
@@ -26,19 +27,6 @@ typedef struct package_map_t {
     // hash_table_cap stores the current capacity of the table
     uint32_t hash_table_cap;
 } package_map_t;
-
-// string_hash calculates the un-moduloed hash value for a string. This uses the
-// simple algorithm presented in K&R version 2 -- it is effective enough for our
-// purposes.
-static uint64_t string_hash(const char* string) {
-    uint64_t hash_val = 0;
-
-    for (; *string != '\0'; string++) {
-        hash_val = *string + 31 * hash_val;
-    }
-
-    return hash_val;
-}
 
 // pkg_map_lookup attempts to locate a key-value pair within the hash table
 // based on a given key.  It returns `NULL` if it doesn't find a match
@@ -80,8 +68,10 @@ static kv_pair_t* pkg_map_lookup(package_map_t* map, const char* key) {
     return NULL;
 }
 
+static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair);
+
 // pkg_map_grow grows the hash table of the package map
-static bool pkg_map_grow(package_map_t* map) {
+static void pkg_map_grow(package_map_t* map) {
     // first, we want to save the old hash table temporarily so we can insert
     // its pairs into the new table
     kv_pair_t** old_table = map->hash_table;
@@ -123,7 +113,7 @@ static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair) {
 
     // check to see if the key-value pair in at the given position in the hash
     // table; if there is no key there, then we insert the pair into the table
-    kv_pair_t* pair = map->hash_table[index];
+    pair = map->hash_table[index];
     if (pair == NULL) {
         map->hash_table[index] = pair;
         return true;
@@ -148,13 +138,14 @@ static bool pkg_map_insert(package_map_t* map, kv_pair_t* pair) {
 
 /* -------------------------------------------------------------------------- */
 
-package_map_t pkg_map_new() {
-    return (package_map_t) {
-        // calloc will zero out our hash table for us :)
-        .hash_table = (kv_pair_t**)calloc(sizeof(kv_pair_t*), INITIAL_TABLE_SIZE),
-        .num_pairs = 0,
-        .hash_table_cap = INITIAL_TABLE_SIZE
-    };
+package_map_t* pkg_map_new() {
+    package_map_t* map = malloc(sizeof(package_map_t));
+     // calloc will zero out our hash table for us :)
+    map->hash_table = calloc(sizeof(kv_pair_t*), INITIAL_TABLE_SIZE);
+    map->num_pairs = 0;
+    map->hash_table_cap = INITIAL_TABLE_SIZE;
+
+    return map;
 }
 
 void pkg_map_add(package_map_t* map, char* key, package_t* pkg) {

@@ -19,10 +19,12 @@ void init_compiler(compiler_t* c, const char* root_dir) {
     // TODO
 }
 
-void analyze(compiler_t* c) {
+bool analyze(compiler_t* c) {
     // TODO
+    return false;
 }
 
-void generate(compiler_t* c) {
+bool generate(compiler_t* c) {
     // TODO
+    return false;
 }

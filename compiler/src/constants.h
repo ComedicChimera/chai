@@ -1,0 +1,6 @@
+#ifndef CONSTANTS_H_INCLUDED
+#define CONSTANTS_H_INCLUDED
+
+#define CHAI_VERSION "0.1.0"
+
+#endif

@@ -33,7 +33,7 @@ package_t* mod_new_pkg(module_t* mod, const char* pkg_path) {
     memcpy(pkg_name, last_backslash+1, name_len);
 
     // create the package itself
-    package_t* pkg = (package_t*)malloc(sizeof(package_t));
+    package_t* pkg = malloc(sizeof(package_t));
     pkg->name = pkg_name;
     pkg->id = pkg_id_counter++;
     pkg->parent_id = mod->id;
@@ -48,6 +48,8 @@ package_t* mod_new_pkg(module_t* mod, const char* pkg_path) {
 
         // pkg_map_add(mod->sub_packages, pkg);
     }
+
+    return pkg;
 }
 
 void mod_dispose(module_t* mod) {
