@@ -159,7 +159,7 @@ void pkg_map_add(package_map_t* map, char* key, package_t* pkg) {
         // fatal errors exit the program immediately so no need to bother
         // freeing anything
         char buff[256];
-        sprintf(buff, "package with name `%s` inserted into package map multiple times", pkg->name);
+        snprintf(buff, 256, "package with name `%s` inserted into package map multiple times", pkg->name);
         report_fatal(buff);
     }
 }

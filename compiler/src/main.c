@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "compile.h"
 #include "depm/source.h"
 
 int main(int argc, char* argv[]) {
@@ -9,6 +10,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    module_t* mod = mod_load(argv[1], NULL);
+    // create the main compiler
+    compiler_t c;
+    init_compiler(&c, argv[1]);
+
+    // analyze the user's code
+    if (analyze(&c)) {
+        // if analysis succeeds, we can generate output
+        generate(&c); 
+    }
+
     return 0;
 }

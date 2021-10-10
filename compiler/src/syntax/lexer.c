@@ -394,8 +394,8 @@ static bool lexer_unicode_escape(lexer_t* lexer, int count) {
         } else if ('0' <= next && next <= '9' || 'a' <= next && next <= 'f' || 'A' <= next && next <= 'F')
             continue;
         else {
-            char buff[64];
-            sprintf(buff, "unexpected character: `%c`", next);
+            char buff[128];
+            snprintf(buff, 128, "unexpected character: `%c`", next);
             lexer_fail(lexer, buff);
             return false;
         }
@@ -448,8 +448,8 @@ static bool lexer_escape_code(lexer_t* lexer) {
             return lexer_unicode_escape(lexer, 8);
         default:
             // invalid escape code
-            char buff[32];
-            sprintf(buff, "unknown escape code: `\\%c`", ahead);
+            char buff[64];
+            snprintf(buff, 64, "unknown escape code: `\\%c`", ahead);
             lexer_fail(lexer, buff);
             return false;
 
@@ -545,7 +545,7 @@ static bool lexer_rune_lit(lexer_t* lexer, token_t* tok) {
     if (closer != '\'') {
         // handle invalid closer
         char buff[64];
-        sprintf(buff, "expected a closing quote not `%c`", closer);
+        snprintf(buff, 64, "expected a closing quote not `%c`", closer);
         lexer_fail(lexer, buff);
         return false;
     }
@@ -772,7 +772,7 @@ lexer_t* lexer_new(const char* fpath) {
     lexer->file = fopen(fpath, "r");
     if (lexer->file == NULL) {
         char buff[256];
-        sprintf(buff, "failed to open file at `%s`", fpath);
+        snprintf(buff, 256, "failed to open file at `%s`", fpath);
         report_fatal(buff);
     }
 
@@ -886,8 +886,8 @@ bool lexer_next(lexer_t* lexer, token_t* tok) {
                         // loop condition *can't* be an EOF
 
                         // build the message and fail
-                        char buff[128];
-                        sprintf(buff, "unknown character: `%c`", lexer_peek(lexer));
+                        char buff[64];
+                        snprintf(buff, 64, "unknown character: `%c`", lexer_peek(lexer));
                         lexer_fail(lexer, buff);
                         return false;
                     } else {

@@ -22,6 +22,8 @@ typedef struct {
     // name is the name string of the package
     char* name;
 
+    // TODO: add path to package
+
     // parent_id is the id of the parent module
     uint64_t parent_id;
 
@@ -125,7 +127,7 @@ typedef struct {
 module_t* mod_load(const char* root_dir, build_profile_t* profile);
 
 // mod_new_file creates a new file that is a child of package of this module
-source_file_t* mod_new_file(module_t* mod, package_t* pkg, char* file_path);
+source_file_t* mod_new_file(module_t* mod, package_t* pkg, const char* file_path);
 
 // mod_new_pkg creates a new package that is a child of this module
 package_t* mod_new_pkg(module_t* mod, const char* pkg_path);

@@ -11,6 +11,8 @@ typedef struct compiler_t {
     // root_module is the root module of the project being compiled.
     module_t* root_module;
 
+    // profile is the global build profile of the compiler.
+    build_profile_t profile;
 } compiler_t;
 
 // init_compiler initializes a new compiler in a given root module directory. It

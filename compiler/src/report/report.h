@@ -15,6 +15,10 @@ typedef struct {
 // code position -- these can be errors opening files, reading directories, etc.
 void report_fatal(const char* message);
 
+// report_warning reports a warning that doesn't correspond with some source
+// position -- these can be warnings parsing metadata, validating modules, etc.
+void report_warning(const char* message);
+
 // report_compile_error reports an error compiling a specific source file
 void report_compile_error(const char* fpath, text_pos_t position, const char* message);
 

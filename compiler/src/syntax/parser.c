@@ -24,6 +24,8 @@ parser_t* parser_new(const char* fpath) {
 
     // create the lexer for the parser;
     p->lexer = lexer_new(fpath);
+
+    return p;
 }
 
 void parser_dispose(parser_t* p) {

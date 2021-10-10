@@ -4,3 +4,6 @@
 [submodule "compiler/vendor/tomlc"]
 	path = compiler/vendor/tomlc
 	url = https://github.com/cktan/tomlc99
+[submodule "compiler/vendor/cwalk"]
+	path = compiler/vendor/cwalk
+	url = https://github.com/likle/cwalk

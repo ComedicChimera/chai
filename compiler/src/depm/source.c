@@ -22,6 +22,15 @@ void pkg_dispose(package_t* pkg) {
 
 /* -------------------------------------------------------------------------- */
 
+source_file_t* mod_new_file(module_t* mod, package_t* pkg, const char* file_path) {
+    
+
+    // TODO: calculate the file path relative to the parent module
+
+    // TODO: replace with file reference
+    return NULL;
+}
+
 package_t* mod_new_pkg(module_t* mod, const char* pkg_path) {
     // use this counter to get sequential package IDs
     static uint32_t pkg_id_counter = 0;

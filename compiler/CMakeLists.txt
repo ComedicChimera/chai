@@ -41,3 +41,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/dirent/include
 # tomlc (includes; C file added above)
 target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlc")
 
+# cwalk
+add_subdirectory("${VENDOR_DIR}/cwalk")
+target_link_libraries(${PROJECT_NAME} cwalk)
+
