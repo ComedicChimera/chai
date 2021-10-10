@@ -10,6 +10,9 @@ needs of any software developer.
 Check out the official website to install, learn, use Chai: chai-lang.dev
 (*insert link*)
 
+*Note: The website is still in development so if you want to see what language
+documentation exists, check out the `docs` directory.*
+
 **Language IP and Source Code Copyright &copy; Jordan Gaines 2018-2021**
 
 **This language is still in development!**
@@ -26,11 +29,62 @@ Check out the official website to install, learn, use Chai: chai-lang.dev
 
 ## <a name="features"> Features
 
-TODO
+- Strong, Static Typing
+- Hindley-Milner Type Inference
+- Generics
+    * On functions and types
+    * With powerful but intuitive constraint logic
+- Type Classes
+    * There are a special kind of higher-kinded generic that allows for
+      method-based polymorphism.  In English, they replace regular classes and
+      objects using generics based on functions bound to a given type (called
+      methods in Chai).
+- Lightweight Concurrency
+- First-Class Functions 
+    * Lambdas (anonymous functions)
+    * Closures (lambdas that capture state around them)
+    * Partial Function Application (able to call functions with only some of
+      their arguments to compose a new function)
+    * Operator Functions (trivially elevate operators into functions)
+- Pattern Matching and Algebraic Typing
+- Full Powered Expressions
+    * If/Elif/Else in expressions
+    * Full pattern matching (w/ fallthrough) in expressions
+    * Loops in expressions (act as sequence generators)
+    * Imperative blocks (you can write imperative code inside expressions)
+- Versatile Built-in Collections
+    * Lists (resizable collections of elements)
+    * Dictionaries (ordered hash-maps)
+    * Arrays (like mathematical vectors)
+    * Multi-Dimensional Arrays (like mathematical matrices)
+- Intuitive Vectorization
+    * Built-in `Array` type that allows for elementwise arithmetic operations
+    that are [vectorized](https://en.wikipedia.org/wiki/SIMD)
+    * Array types can be multi-dimensional allowing them to act like matrices
+- Garbage Collection
+- Directory-Based Package System 
+    * All files in a directory are part of one shared namespace (called a package)
+    * Packages are organized into modules for easy import resolution, build
+      configuration, and dependency management
+- Zero-Cost Abstractions
+    * No type erasure
+    * No boxing and unboxing
+    * Method calls fully evaluated at compile-time
+    * High-powered generics and algebraic types replace classes
+- Fully Mutable State 
+    * No functional programming-esque restrictions
+- Monadic Error Handling 
+    * No exceptions AND no ugly error handling after every function call
+    * As a user, you won't actually have to deal with the headache-inducing idea
+      of what a monad really is, but you will be able *intuitively* leverage the
+      benefits of working with them -- they are reasonably comprehensible once
+      they are presented a simpler form.
 
 ## <a name="building"> Building the Compiler
 
-TODO
+Navigate to the `compiler` directory and run the following command:
+
+    cmake -S . -B out
 
 ## <a name="pipeline"> Compilation Pipeline
 
@@ -60,9 +114,28 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-TODO: This is still being determined fully ATM -- I am still deciding whether or
-not I want to bootstrap the compiler or not.  Doing so has several benefits, but
-also several drawbacks.  It is all TBD.
+Right now, the compiler is being written in C.  Why C?  Because, C is one of the
+only languages with *working and up-to-date* LLVM bindings that doesn't drive me
+absolutely insane.  I could go on a two hour long rant about all of my issues
+with C++, but suffice it to say, I prefer C.  Python is too slow and the lack of
+strong, static type system is irking for a project like a compiler.  OCAML is
+an ugly-looking language that I couldn't be bothered to learn.  So, the compiler
+is currently being written in C.
+
+I am NOT changing languages again.  The only universe in which this compiler
+gets "rewritten" if I choose to write an implementation in Chai -- ie.
+bootstrapping.  That's it.  Mostly, because the effort working on a Chai
+implementation would actually be useful -- testing the integrity of the
+language, building out the standard library, and making it easier for new users
+to contribute.  I am still unsure whether or not I actually have the patience to
+do this or not, but if I do, I will likely only develop a partial C
+implementation and then bootstrap a full implementation in Chai.  Although Chai
+would theoretically be an *amazing* candidate to write a compiler in, it would
+be a bit of a struggle to develop all of the libraries I would need to do it.
+In theory, I would need to develop those libraries anyway but doing so with an
+"alpha" (ie. only partially complete) version of the language presents its own
+issues.  I will update this section as I make a more substantive decision on
+this matter.
 
 ### <a name="go-impl"> The Go Implmentation
 
@@ -108,7 +181,10 @@ This is all especially salient considering as I never really considered Golang a
 "great" language to write a compiler in.  I picked it because it was a language
 I knew, that I could work reasonably fast in, that had decent tooling, and most
 importantly, had working LLVM bindings (or so I thought).  I was more than happy
-to work in another language.  
+to work in another language.  But, restarting for the fourth time, well, let's
+just say it nearly drove me into a psychological abyss that would likely have
+ended with an obituary.  I feel that I am really living out that old adage about
+madness being the price of greatness.
 
 ### <a name="whirlwind"> Whirlwind
 
