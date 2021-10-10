@@ -26,7 +26,7 @@ set(SRCS
 list(TRANSFORM SRCS PREPEND "${SRC_DIR}/")
 
 # Add the TOMLC C file (b/c `tomlc99` doesn't have a CMakeLists.txt)
-list(APPEND SRCS "${VENDOR_DIR}/tomlc/toml.c")
+list(APPEND SRCS "${VENDOR_DIR}/tomlc99/toml.c")
 
 add_executable(${PROJECT_NAME} ${SRCS})
 
@@ -39,5 +39,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/dirent/include")
 
 # tomlc (includes; C file added above)
-target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlc")
+target_include_directories(${PROJECT_NAME} PRIVATE "${VENDOR_DIR}/tomlc99")
 
