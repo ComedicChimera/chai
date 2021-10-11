@@ -82,9 +82,7 @@ documentation exists, check out the `docs` directory.*
 
 ## <a name="building"> Building the Compiler
 
-Navigate to the `compiler` directory and run the following command:
-
-    cmake -S . -B out
+TODO
 
 ## <a name="pipeline"> Compilation Pipeline
 
@@ -114,28 +112,23 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-Right now, the compiler is being written in C.  Why C?  Because, C is one of the
-only languages with *working and up-to-date* LLVM bindings that doesn't drive me
-absolutely insane.  I could go on a two hour long rant about all of my issues
-with C++, but suffice it to say, I prefer C.  Python is too slow and the lack of
-strong, static type system is irking for a project like a compiler.  OCAML is
-an ugly-looking language that I couldn't be bothered to learn.  So, the compiler
-is currently being written in C.
+The compiler is being bootstrapped.  I am going to write a Python implementation
+of the compiler using the Python's LLVM bindings -- this compiler will compile a
+simple subset of Chai called Alpha Chai.  Once that is finished, a full Chai
+compiler will be implemented in Chai rendering the language full self-hosting.
+Eventually, the compiler will be able to compile itself.
 
-I am NOT changing languages again.  The only universe in which this compiler
-gets "rewritten" if I choose to write an implementation in Chai -- ie.
-bootstrapping.  That's it.  Mostly, because the effort working on a Chai
-implementation would actually be useful -- testing the integrity of the
-language, building out the standard library, and making it easier for new users
-to contribute.  I am still unsure whether or not I actually have the patience to
-do this or not, but if I do, I will likely only develop a partial C
-implementation and then bootstrap a full implementation in Chai.  Although Chai
-would theoretically be an *amazing* candidate to write a compiler in, it would
-be a bit of a struggle to develop all of the libraries I would need to do it.
-In theory, I would need to develop those libraries anyway but doing so with an
-"alpha" (ie. only partially complete) version of the language presents its own
-issues.  I will update this section as I make a more substantive decision on
-this matter.
+The `bootstrap` directory contains the Python implementation.  Once that
+implementation is finished, the `compiler` directory will contain the actual
+self-hosted (and final) version of the compiler.
+
+I tried briefly writing it in other languages (after the Go impl), but
+ultimately Python is simply the best language that I am comfortable with to
+write a compiler in.  But, for numerous reasons, Python is obviously not a
+candidate for the final compiler.  It will allow me to rapidly assemble a
+working compiler (I was able to completely catch up with a C implementation that
+took me over a week to write in one day of Python coding) that I can then use to
+make my language self-hosting.
 
 ### <a name="go-impl"> The Go Implmentation
 
