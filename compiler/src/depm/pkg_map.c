@@ -12,7 +12,7 @@
 // kv_pair_t is a simple struct used to group key-value pairs in the package map
 // table
 typedef struct {
-    char* key;
+    const char* key;
     package_t* value;
 } kv_pair_t;
 
@@ -148,7 +148,7 @@ package_map_t* pkg_map_new() {
     return map;
 }
 
-void pkg_map_add(package_map_t* map, char* key, package_t* pkg) {
+void pkg_map_add(package_map_t* map, const char* key, package_t* pkg) {
     // create the new pair
     kv_pair_t* pair = (kv_pair_t*)malloc(sizeof(kv_pair_t));
     pair->key = key;
@@ -175,7 +175,6 @@ package_t* pkg_map_get(package_map_t* map, const char* key) {
 void pkg_map_dispose(package_map_t* map) {
     for (int i = 0; i < map->hash_table_cap; i++) {
         kv_pair_t* pair = map->hash_table[i];
-        free(pair->key);
         pkg_dispose(pair->value);
 
         free(pair);

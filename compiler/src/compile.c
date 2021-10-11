@@ -8,12 +8,13 @@
 
 #include "constants.h"
 #include "report/report.h"
+#include "syntax/parser.h"
 
 // init_pkg initializes a package.  More specifically, it gathers information
 // about the package from the path, adds it to its parent module, parses the
 // files in the package's directory, and resolves imports and symbol
 // definitions.  After this function is called, the package is ready to be fed
-// to the walker.
+// to the walker.  NOTE: pkg_path is absolute path to the package
 static void init_pkg(compiler_t* c, module_t* mod, const char* pkg_path) {
     // create new package of the given module
     package_t* pkg = mod_new_pkg(mod, pkg_path);
@@ -48,18 +49,35 @@ static void init_pkg(compiler_t* c, module_t* mod, const char* pkg_path) {
                 continue;
 
             if (!strcmp(extension, CHAI_FILE_EXT)) {
+                // calculate the absolute path to the file 
+                char file_abs_path[512];
+                size_t file_abs_path_len = cwk_path_join(pkg_path, item->d_name, file_abs_path, 512);
+
                 // create a new file
                 source_file_t* curr_file = mod_new_file(mod, pkg, item->d_name);
 
-                // TODO: parse the file and determine if it should be compiled
+                // parse the file and determine if it should be compiled
+                parser_t* parser = parser_new(curr_file, file_abs_path);
+                if (parse_file(parser, &c->profile)) {
+                    // add the file to the package
+                    *(p++) = curr_file;
+                    pkg->files_len++;
+                } else {
+                    // the file shouldn't be compile => dispose of it
+                    src_file_dispose(curr_file);
+                }
+
+                // dispose of the parser
+                parser_dispose(parser);
             }
         }
-
-        // free the direntry after we are done processing it
-        // free(item);
     }
 
     // free the directory entries
+    for (int i = 0; i < n; i++) {
+        free(files[i]);
+    }
+
     free(files);
 
     // validate that the package is not empty
@@ -84,7 +102,7 @@ bool analyze(compiler_t* c) {
 
     // TODO: semantic analysis
 
-    return false;
+    return true;
 }
 
 bool generate(compiler_t* c) {

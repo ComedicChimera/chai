@@ -7,8 +7,8 @@
 // the `grammar.c` file.
 
 typedef struct parser_t {
-    // fpath is the path to source file (TODO: replace `source_file_t`)
-    const char* fpath;
+    // src_file is the source file of that the parser is parsing
+    source_file_t* src_file;
 
     // lexer is the lexer for this parser
     lexer_t* lexer;
@@ -16,14 +16,14 @@ typedef struct parser_t {
     // TODO: rest as necessary
 } parser_t;
 
-parser_t* parser_new(const char* fpath) {
+parser_t* parser_new(source_file_t* src_file, const char* file_abs_path) {
     // parser is dynamically allocated primarily for convenience
     parser_t* p = malloc(sizeof(parser_t));
 
-    p->fpath = fpath;
+    p->src_file = src_file;
 
     // create the lexer for the parser;
-    p->lexer = lexer_new(fpath);
+    p->lexer = lexer_new(src_file, file_abs_path);
 
     return p;
 }

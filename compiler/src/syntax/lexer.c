@@ -7,8 +7,8 @@
 #define TOK_BUFF_BLOCK_SIZE 16
 
 typedef struct lexer_t {
-    // fpath is the path to the Lexer's current file
-    const char* fpath;
+    // src_file is the source file being lexed
+    source_file_t* src_file;
 
     // file the current file being read by the lexer
     FILE* file;
@@ -47,7 +47,7 @@ static text_pos_t lexer_get_pos(lexer_t* lexer) {
 
 // lexer_fail reports an error lexing the user source file
 static void lexer_fail(lexer_t* lexer, const char* message) {
-    report_compile_error(lexer->fpath, lexer_get_pos(lexer), message);
+    report_compile_error(lexer->src_file->file_rel_path, lexer_get_pos(lexer), message);
 
     // clear the token buffer as its contents are no longer useful
     if (lexer->tok_buff != NULL) {
@@ -762,17 +762,17 @@ static bool lexer_num_lit(lexer_t* lexer, token_t* tok) {
 
 /* -------------------------------------------------------------------------- */
 
-lexer_t* lexer_new(const char* fpath) {
+lexer_t* lexer_new(source_file_t* src_file, const char* file_abs_path) {
     lexer_t* lexer = (lexer_t*)malloc(sizeof(lexer_t));
 
     // store the fpath in the lexer for error reporting purposes
-    lexer->fpath = fpath;
+    lexer->src_file = src_file;
 
     // open the file for reading
-    lexer->file = fopen(fpath, "r");
+    lexer->file = fopen(file_abs_path, "r");
     if (lexer->file == NULL) {
         char buff[256];
-        snprintf(buff, 256, "failed to open file at `%s`", fpath);
+        snprintf(buff, 256, "failed to open file at `%s`", file_abs_path);
         report_fatal(buff);
     }
 

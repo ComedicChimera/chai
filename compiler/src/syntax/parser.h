@@ -2,6 +2,7 @@
 #define PARSER_H_INCLUDED
 
 #include "token.h"
+#include "depm/source.h"
 
 // parser_t is parser for the Chai programming language.  It is
 // recursive-descent parser and performs 4 distinct functions, namely:
@@ -22,7 +23,7 @@ typedef struct parser_t parser_t;
 // parser_new creates a new parser for a given a source file 
 // TODO: formalize to use constructs for `source.h` (ie. modules, sources files,
 // etc).
-parser_t* parser_new(const char* fpath);
+parser_t* parser_new(source_file_t* src_file, const char* file_abs_path);
 
 // parser_dispose disposes of all resources associated with the parser including
 // the parser itself.
@@ -45,6 +46,14 @@ bool parser_consume(parser_t* p, token_t* tok);
 // parser_report_unexpected reports an unexpected token error (or unexpected end
 // of file error as necessary)
 void parser_report_unexpected(parser_t* p, token_t* tok);
+
+// parse_file parses a program file and returns a boolean indicating whether or
+// not the file should be added.  This boolean does not necessarily indicate
+// whether or not parsing failed -- metadata can also cause a parse to be
+// aborted.  The AST is stored into the source file if parsing succeeds.  The
+// `profile` argument is used in metadata analysis.
+bool parse_file(parser_t* p, build_profile_t* profile);
+
 
 
 #endif

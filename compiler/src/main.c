@@ -16,6 +16,12 @@ int main(int argc, char* argv[]) {
 
     // analyze the user's code
     if (analyze(&c)) {
+        // DEBUG: check to see if the module and package are there
+        printf("%s\n", c.root_module->name);
+        printf("%s\n", c.root_module->root_dir);
+        printf("%s\n", c.root_module->root_package->name);
+        printf("%s\n", c.root_module->root_package->rel_path);
+
         // if analysis succeeds, we can generate output
         generate(&c); 
     }

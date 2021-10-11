@@ -8,11 +8,14 @@ typedef struct {
     // parent_id is the id of the parent package
     uint64_t parent_id;
 
-    // file_path is the module-relative path to the file
-    char* file_path;
+    // file_rel_path is the module-relative path to the file
+    char* file_rel_path;
 
     // TODO: rest
 } source_file_t;
+
+// src_file_dispose disposes of an allocated source file
+void src_file_dispose(source_file_t* file);
 
 // package_t represents a single Chai package
 typedef struct {
@@ -22,7 +25,8 @@ typedef struct {
     // name is the name string of the package
     char* name;
 
-    // TODO: add path to package
+    // rel_path is the path of the package relative to its parent module
+    char* rel_path;
 
     // parent_id is the id of the parent module
     uint64_t parent_id;
@@ -43,7 +47,7 @@ void pkg_dispose(package_t* pkg);
 
 // package_map_t is a map of packages organized by a string value such as a path
 // or a name.  It is generally used in modules to allow for sub-package
-// organization.  Note that the package map owns both the strings and packages.
+// organization.  Note that the package map owns only the packages
 typedef struct package_map_t package_map_t;
 
 // pkg_map_new creates a new package map
@@ -51,7 +55,7 @@ package_map_t* pkg_map_new();
 
 // pkg_map_add adds a new package the key value map.  It will log a fatal error
 // if a package is inserted into the map multiple times. 
-void pkg_map_add(package_map_t* map, char* key, package_t* package);
+void pkg_map_add(package_map_t* map, const char* key, package_t* package);
 
 // pkg_map_get looks up a given key in the package map and returns a package
 // pointer if it finds a match and `NULL` if it doesn't.
@@ -106,17 +110,17 @@ typedef struct {
 
     // name is the name of the module -- it is const because although it is
     // dynamically allocated, it exists for the lifetime for the program
-    const char* name;
+    char* name;
 
     // root_dir is the absolute root directory of the module
-    const char* root_dir;
+    char* root_dir;
 
     // root_package is the package at the root of the module
     package_t* root_package;
 
     // sub_packages is a package map of the packages in the module organized by
     // sub-path; eg. the package at `a/b/c` where `a` is the parent module would
-    // have a module sub-path of `.b.c`.  It is a pointer because the type is
+    // have a module sub-path of `b/c`.  It is a pointer because the type is
     // incomplete.
     package_map_t* sub_packages;
 
@@ -126,11 +130,11 @@ typedef struct {
 // loads a module at a given root directory
 module_t* mod_load(const char* root_dir, build_profile_t* profile);
 
-// mod_new_file creates a new file that is a child of package of this module
-source_file_t* mod_new_file(module_t* mod, package_t* pkg, const char* file_path);
+// mod_new_file creates a new file that is a child of package of this module.
+source_file_t* mod_new_file(module_t* mod, package_t* pkg, const char* file_abs_path);
 
-// mod_new_pkg creates a new package that is a child of this module
-package_t* mod_new_pkg(module_t* mod, const char* pkg_path);
+// mod_new_pkg creates a new package that is a child of this module.
+package_t* mod_new_pkg(module_t* mod, const char* pkg_abs_path);
 
 // mod_dispose disposes of a module
 void mod_dispose(module_t* mod);

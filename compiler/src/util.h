@@ -4,10 +4,6 @@
 // Common includes
 #include <stdint.h>
 #include <stdlib.h>
-
-// The bool type
-#define bool char
-#define false 0
-#define true 1
+#include <stdbool.h>
 
 #endif
