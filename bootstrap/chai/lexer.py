@@ -100,6 +100,9 @@ class Token:
     value: str
     position: TextPosition
 
+    def __bool__(self) -> bool:
+        return self.kind != TokenKind.EndOfFile
+
 # ESCAPE_CODES is mapping of supported basic escape codes in Chai
 ESCAPE_CODES = {
     'a': '\a',

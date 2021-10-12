@@ -1,13 +1,16 @@
 from dataclasses import dataclass
 from typing import List, Dict
 
+from .ast import ASTDef
+
 # ChaiFile represents a Chai source file.
 @dataclass
 class ChaiFile:
     rel_path: str
     parent_id: int
 
-    # TODO: rest
+    # defs is the list of top level AST definitions of this file
+    defs: List[ASTDef]
 
 # ChaiPackage represents a Chai package.
 @dataclass
