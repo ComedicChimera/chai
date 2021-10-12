@@ -7,6 +7,7 @@ import toml
 
 from . import CHAI_VERSION, ChaiModuleError
 from .source import ChaiModule
+from .report import report
 
 # The expected name of the module file.
 MOD_FILE_NAME = "chai-mod.toml"
@@ -67,7 +68,7 @@ def load_module(mod_abs_path: str, profile: Optional[BuildProfile]) -> Tuple[Cha
 
         # version is older than current version => warn, but still compile
         if mod_chai_version < CHAI_VERSION:
-            print(f'warning in module {mod_name}: current Chai version ({CHAI_VERSION}) is ahead of version specified by module ({mod_chai_version})')
+            report.report_module_warning(mod_name, 'current Chai version ({CHAI_VERSION}) is ahead of version specified by module ({mod_chai_version})')
         # version is newer than current version => fail
         elif mod_chai_version > CHAI_VERSION:
             raise ChaiModuleError(mod_name, f'current Chai version ({CHAI_VERSION}) is behind version specified by module ({mod_chai_version})')

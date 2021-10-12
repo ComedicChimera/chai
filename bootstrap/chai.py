@@ -2,16 +2,21 @@ import argparse
 
 from chai import ChaiCompileError, ChaiModuleError
 from chai.compile import compile_module
+from chai.report import report
 
 def build(args):
+    output_dir = None
+
     try:
-        compile_module(args.mod_path)
+        output_dir = compile_module(args.mod_path)
     except ChaiCompileError as cce:
-        print(cce.report())
+        report.report_compile_error(cce)
     except ChaiModuleError as cme:
-        print(cme.report())
+        report.report_module_error(cme)
     except Exception as e:
-        print(e)
+        report.report_fatal_error(e)
+
+    report.report_compile_status(output_dir)   
 
 
 if __name__ == '__main__':

@@ -21,14 +21,8 @@ class ChaiCompileError(Exception):
     position: TextPosition
     message: str
 
-    def report(self) -> str:
-        return f'{self.rel_path}:{self.position.start_line}:{self.position.start_col}: {self.message}'
-
 # ChaiModuleError is an error loading a module.
 @dataclass
 class ChaiModuleError(Exception):
     module_name: str
     message: str
-
-    def report(self) -> str:
-        return f'error loading module `{self.module_name}`: {self.message}'
