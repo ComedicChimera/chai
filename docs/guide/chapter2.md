@@ -4,6 +4,14 @@ This chapter introduces variables, assignment, scoping, and blocks.  Chai's
 system for handling variables and state is fairly intuitive once you understand
 the syntax and the rules.
 
+It is worth noting that from this point forward, the main function will be
+elided: it can be assumed that all code that is not itself a top-level
+definition is enclosed in an appropriate function (normally the main function).
+Additionally, all code samples can be assumed to have access to `println`.
+Furthermore, made up functions may occasionally be used: eg. `random_value()`
+which doesn't actually exist in the language (at least not in that form). Just
+use common sense when reading the documentation.
+
 ## Blocks and Statements
 
 Up until now, the only Chai code we have dealt with has been in the form of
