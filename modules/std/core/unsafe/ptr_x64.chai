@@ -1,0 +1,5 @@
+!! arch = "amd64"
+
+pub
+    type uintptr = u64
+end

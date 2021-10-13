@@ -1,0 +1,12 @@
+pub
+    type VoidPtr = &u8
+
+    space for VoidPtr
+        def int_to_ptr(i: uintptr) VoidPtr = __int_to_ptr(i) 
+    end
+
+    let nullptr = VoidPtr.int_to_ptr(0)
+end
+
+@intrinsic
+def __int_to_ptr(i: uintptr) VoidPtr
