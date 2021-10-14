@@ -17,8 +17,8 @@ file and note that ALL of the paragraphs have been wrapped to 80 characters.
 Note that some (or most as of the time of writing this) of the language features
 documented in this guide are not yet implemented and may be subject to change. I
 am writing them down here both to keep my own language straight in my head and
-to give people who don't want to pour over thousands of lines of C code an idea
-of what is going on here.
+to give people who don't want to pour over thousands of lines of code an idea of
+what is going on here.
 
 ## Documents
 

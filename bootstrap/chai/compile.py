@@ -10,7 +10,7 @@ from .report import report
 class Compiler:
     root_abs_dir: str
     root_mod: ChaiModule
-    global_prof: BuildProfile
+    base_prof: BuildProfile
 
     def __init__(self, root_dir: str):
         # convert the root directory to an absolute path
@@ -19,7 +19,7 @@ class Compiler:
     # analyze runs the analysis phase of compilation.
     def analyze(self) -> None:
         # load the root module
-        self.root_mod, self.global_prof = load_module(self.root_abs_dir, None)
+        self.root_mod, self.base_prof = load_module(self.root_abs_dir, None, "")
 
         # initialize the root package (which also initializes all sub-packages)
         self.init_pkg(self.root_mod, self.root_mod.abs_path)
