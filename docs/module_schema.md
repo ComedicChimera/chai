@@ -5,9 +5,12 @@ accept: ie. the module's schema.
 
 *Note: other supported operating systems and architectures will be added in the future.*
 
+*Note: not all of these options are implemented.*
+
 ## Table of Contents
 
 - [Top Level Configuration](#top-conf)
+  * [Compilation Caching](#compl-caching)
 - [Build Profiles](#build-prof)
   * [Supported Operating System](#supported-os)
   * [Supported Architectures](#supported-arch)
@@ -23,15 +26,43 @@ The following are all the top level module configuration fields:
 | ----- | ---- | ------- | -------- |
 | `name` | string | specifiy the module name | Y |
 | `version` | string | version specifies the module's version (mostly for dependency version control) | N |
-| `chai-version` | string | specify the Chai version the module was created on in the form: `Major.Minor.Build` | Y |
-| `caching` | bool | enable compilation caching | N, default = `false` |
+| `chai-version` | string | specify the Chai version the module was created on; in the form: `Major.Minor.Build` | Y |
+| `caching` | bool | enable [compilation caching](#compl-caching) | N, default = `false` |
 | `enable-profile-elision` | bool | enables [profile elision](#profile-elision) | N, default = `true` |
+
+### <a name="compl-caching"> Compilation Caching
+
+**Compilation caching** is profile by which the Chai compiler will cache
+precompiled object files from previous builds so that it doesn't have to
+recompile code that hasn't changed.  This works very similar to Makefiles
+wherein the code is recompiled if the corresponding package has been updated
+since the object files were last created.
+
+This option can save a lot of compilation time on large projects.
+
+All cached files are placed in the `.chai` directory which is located in the
+same directory that contains the output path (directory or file). 
+
+For example, if you had a project where the output path was `out/project.exe`,
+then, the `.chai` directory would be dropped in `out` like so:
+
+    project/
+        out/  
+            .chai/  <-- same dir as output path
+                ...
+            project.exe  <-- output path
+        ...
+
+The `.chai` directory should generally be placed in your `.gitignore`.  Not only
+will large object files be placed in it but also several other associated files,
+namely, `cpi` files for each object file and possibly partial `pdb` files as
+well.
 
 ## <a name="build-prof"> Build Profiles
 
-Build profiles are a mechanism for specifying compilation options such as target
-operating system, link objects, etc.  They are essentially just platform
-specific configurations for a project.
+Build profiles are a mechanism for specifying compilation options such as the
+target operating system, additional link objects, etc.  They are essentially
+just platform specific configurations for a project.
 
 Build profiles are specified in an array of tables called `profiles`.
 
@@ -41,10 +72,10 @@ The primary options for each build profile entry are:
 | ------ | ---- | ------- | -------- |
 | `name` | string | the name for the profile (as it can be specified from the CLI) | Y |
 | `target-os` | string | the target operating system (see [supported OSs](#supported-os)) | Y |
-| `target-arch` | string | the target architecture (see [supported architectures](#supported-arch) | Y |
+| `target-arch` | string | the target architecture (see [supported architectures](#supported-arch)) | Y |
 | `debug` | bool | indicates whether the profile should be built in debug mode + debug info | Y |
 | `format` | string | indicates the output format (see [output formats](#output-fmt)) | Y |
-| `output-dir` | string | the path to write output (directory of file depending on output format) | Y |
+| `output-path` | string | the path to write output (directory of file depending on output format) | Y |
 | `link-objects` | array of strings | array of paths to additional objects or static libraries to link | N |
 | `default` | bool | flag indicates that this profile is the [default](#profile-selection) | N, default = `false` |
 | `base-only` | bool | flag indicates that this profile should only be considered if it is being selected as the [base profile](#profile-selection) | N, default = `false` |
@@ -59,8 +90,8 @@ The primary options for each build profile entry are:
 
 | Arch | Alias |
 | ---- | ----- |
-| x64 | `amd64` |
 | x86 | `i386` |
+| x64 | `amd64` |
 
 ### <a name="output-fmt"> Output Formats
 
