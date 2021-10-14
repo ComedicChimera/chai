@@ -29,3 +29,4 @@ file-system-based index more clear).
   * [Basics](guide/chapter1.md)
   * [Variables](guide/chapter2.md)
   * [Control Flow](guide/chapter3.md)
+- [Module Schema](module_schema.md)

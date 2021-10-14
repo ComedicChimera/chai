@@ -84,22 +84,22 @@ The **base profile** is the profile of the root module being built.
 Chai determines the profile to build based on (in order of precedence):
 
 1. Specified input profile (with `-p` or `--profile` compiler argument)
-  - This only determines the base profile
+  * This only determines the base profile
 2. Single profile matching base profile
-  - Profile shares same: target os, target architecture, and debug flag
-  - The profile's output format is overridden by the base profile's output
+  * Profile shares same: target os, target architecture, and debug flag
+  * The profile's output format is overridden by the base profile's output
     format
-  - The profile's output directory is also overidden
-  - If the profile being determined is the base profile, then the target os and
+  * The profile's output directory is also overidden
+  * If the profile being determined is the base profile, then the target os and
     arch are chosen based on the current system and the debug profile is
     preferred.
 3. Matching default profile
-  - This occurs when there are multiple matching profiles
-  - The profile with the `default` option is selected: called the **default
+  * This occurs when there are multiple matching profiles
+  * The profile with the `default` option is selected: called the **default
     profile**
-  - If multiple matching profiles are marked as default, the first in order of
+  * If multiple matching profiles are marked as default, the first in order of
     definition is selected.
-  - Similarly, if there is no default profile and multiple matching profiles,
+  * Similarly, if there is no default profile and multiple matching profiles,
     the first in order of definition is selected.
 
 If there is no matching profile, then refer to [profile elision](#profile-elision)
