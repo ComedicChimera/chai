@@ -106,7 +106,31 @@ class Parser:
 
     # file = [metadata] {import_stmt} {definition | pub_block}
     def _parse_file(self) -> List[ASTDef]:
-        pass
+        # TODO: metadata
+
+        # TODO: import statement
+
+        defs = []
+        while (tok := self._one_of(TokenKind.Def, TokenKind.EndOfFile)).kind != TokenKind.EndOfFile:
+            defs.append(self._parse_definition(tok))
+
+        return defs
+
+
+    # definition = func_def
+    def _parse_definition(self, first: Token) -> ASTDef:
+        return self._parse_func_def(True)
+
+    # func_def = `def` `IDENTIFIER` `(` args_list `)` type func_body
+    # `expect_body` indicates whether the parser expects the function to have a
+    # body
+    def _parse_func_def(self, expect_body: bool) -> ASTDef:
+        name = self._expect(TokenKind.Identifier)
+
+        # TODO: define symbol
+
+        # TODO: parse rest
+
 
         
 
