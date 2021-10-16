@@ -1,18 +1,23 @@
+from typing import Tuple
+
 from . import ChaiCompileError
 from .source import ChaiFile
 from .mod_loader import BuildProfile
 from .lexer import *
 from .ast import *
+from .symbol import *
 
 # Parser is the parser for Chai -- one parser per package
 class Parser:
     profile: BuildProfile
-    # TODO: symbol table
+    
+    table: SymbolTable
 
     ch_file: ChaiFile
     lexer: Lexer
 
-    def __init__(self, profile: BuildProfile) -> None:
+    def __init__(self, profile: BuildProfile, table: SymbolTable,) -> None:
+        self.table = table
         self.profile = profile
 
     # parse is the main entry point for the parser.  It takes the ChaiFile being
@@ -91,7 +96,7 @@ class Parser:
         if TokenKind.NewLine in token_kinds:
             tok = self.lexer.next_token()
         else:
-            tok = self._next_maybe()
+            tok = self._next_maybe(True)
 
         if tok.kind in token_kinds:
             return tok
@@ -110,6 +115,7 @@ class Parser:
 
         # TODO: import statement
 
+        # parse definitions/public blocks
         defs = []
         while (tok := self._one_of(TokenKind.Def, TokenKind.EndOfFile)).kind != TokenKind.EndOfFile:
             defs.append(self._parse_definition(tok))
@@ -119,17 +125,42 @@ class Parser:
 
     # definition = func_def
     def _parse_definition(self, first: Token) -> ASTDef:
+        # TODO: other definitions
         return self._parse_func_def(True)
 
-    # func_def = `def` `IDENTIFIER` `(` args_list `)` type func_body
+    # func_def = `def` `IDENTIFIER` `(` [args_decl] `)` type func_body
     # `expect_body` indicates whether the parser expects the function to have a
     # body
     def _parse_func_def(self, expect_body: bool) -> ASTDef:
+        # parse and define the function name
         name = self._expect(TokenKind.Identifier)
+        sym = Symbol(name.value, None, name.position, self.ch_file.parent_id, False, DefKind.ValueDef, Mutability.Immutable)
+        sym = self.table.define(sym, self.ch_file.rel_path)
 
-        # TODO: define symbol
+        # TODO: generics
 
-        # TODO: parse rest
+        # parse the args_decl
+        self._expect(TokenKind.LParen)
+        tok = self._next(True)
+        if tok.kind == TokenKind.Identifier or tok.kind == TokenKind.Amp:
+            args, tok = self._parse_args_decl(tok)
+        else:
+            args = []
+        
+        if tok.kind != TokenKind.RParen:
+            self._reject(tok)
+
+        # TODO: parse the return type
+
+        # TODO: parse the function body as necessary
+
+        # make the function AST
+
+    # args_decl = arg {`,` arg}
+    # arg = [`&`] `IDENTIFIER` {`,` [`&`] `IDENTIFIER`} `:` type
+    def _parse_args_decl(self, first: Token) -> Tuple[FuncArg, Token]:
+        pass
+
 
 
         
