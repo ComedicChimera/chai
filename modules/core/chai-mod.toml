@@ -1,0 +1,3 @@
+name = "core"
+chai-version = "0.1.0"
+allow-profile-elision = true

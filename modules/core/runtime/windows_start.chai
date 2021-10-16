@@ -1,0 +1,9 @@
+!! os = "windows"
+
+@intrinsic
+def _user_main(args: Array[string]) i32
+
+@[entry("default"), call_conv("win64")]
+def _start()
+    # TODO
+end

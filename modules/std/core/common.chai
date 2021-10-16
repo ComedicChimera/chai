@@ -1,5 +1,0 @@
-pub
-    def abs[T: Num](a: T) T =
-        if a < 0 -> -a
-        else -> a end
-end

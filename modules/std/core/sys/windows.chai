@@ -1,5 +1,0 @@
-!! os = "windows"
-
-type win_HANDLE = &u8
-
-pub type Handle = win_HANDLE
