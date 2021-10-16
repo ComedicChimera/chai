@@ -36,6 +36,6 @@ class Reporter:
             print('output written to:', output_path)
 
     def should_proceed(self) -> bool:
-        return self.errors_count > 0
+        return self.errors_count == 0
 
 report = Reporter()

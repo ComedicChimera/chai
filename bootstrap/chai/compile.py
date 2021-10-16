@@ -39,7 +39,7 @@ class Compiler:
     # the output location if it succeeds.
     def generate(self) -> Optional[str]:
         # TODO
-        pass
+        return self.base_prof.output_path
 
     # init_pkg initializes a package and all its dependencies.
     def init_pkg(self, parent_mod: ChaiModule, pkg_abs_path: str) -> ChaiPackage:

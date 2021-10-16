@@ -28,7 +28,9 @@ if __name__ == '__main__':
     parser_build.set_defaults(func=build)
     
     result = parser.parse_args()
-    result.func(result)
+
+    if hasattr(result, 'func'):
+        result.func(result)
 
 
 

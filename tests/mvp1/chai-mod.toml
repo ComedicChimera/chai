@@ -5,12 +5,11 @@ caching = true
 cache-directory = ".chai"
 allow-profile-elision = true
 
-[[module.profiles]]
+[[profiles]]
     name = "debug"
     debug = true
     format = "bin"
     target-os = "windows"
     target-arch = "amd64"
-    output = "C:/Users/forlo/dev/Projects/chai/tests/mvp1/bin/mvp1_debug.exe"
-    primary = false
+    output-path = "C:/Users/forlo/dev/Projects/chai/tests/mvp1/bin/mvp1_debug.exe"
     default = true
