@@ -26,3 +26,9 @@ class ChaiCompileError(Exception):
 class ChaiModuleError(Exception):
     module_name: str
     message: str
+
+# ChaiFail is an exception used to exit an "error bubble" of compilation without
+# a specific error message.  This is generally used when several errors have
+# already been logged.
+class ChaiFail(Exception):
+    pass

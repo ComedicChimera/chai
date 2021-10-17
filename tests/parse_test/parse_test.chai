@@ -1,15 +1,15 @@
-def test()
+def test() end
 
-def fib(n, a, b: i32) i32
+def fib(n, a, b: i32) i32 end
 
-def print(s: f32)
+def print(s: f32) end
 
-def nroot(f: f32, r: i32) f32
+def nroot(f: f32, r: i32) f32 end 
 
-def roon_time(r: rune, a, b: rune)
+def roon_time(r: rune, a, b: rune) end
 
-def bold_of_you(s, a: nothing, dir: u8) u64
+def bold_of_you(s, a: nothing, dir: u8) u64 end
 
-def by_ref_bash(&x: i32) i16
+def by_ref_bash(&x: i32) i16 end 
 
-def by_ref_even_more(&y: rune, &z: i32) i32
+def by_ref_even_more(&y: rune, &z: i32) i32 end

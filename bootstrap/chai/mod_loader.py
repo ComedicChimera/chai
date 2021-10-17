@@ -56,6 +56,7 @@ class ModuleLoader:
     selected_profile_name: str
 
     def __init__(self, mod_abs_path: str, base_profile: Optional[BuildProfile], selected_profile_name: str) -> None:
+        self.mod_name = ""
         self.mod_abs_path = mod_abs_path
         self.base_profile = base_profile
         self.selected_profile_name = selected_profile_name
@@ -233,7 +234,7 @@ class ModuleLoader:
     # _error reports an error loading the module
     def _error(self, msg: str) -> None:
         if self.mod_name == "":
-            raise ChaiModuleError(f'<module at {self.mod_abs_path}', msg)
+            raise ChaiModuleError(f'<module at {self.mod_abs_path}>', msg)
         else:
             raise ChaiModuleError(self.mod_name, msg)
 

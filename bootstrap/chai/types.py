@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List
-from enum import Enum, auto
+from enum import IntEnum, auto
 
 # DataType is the base class for all data types in Chai
 class DataType:
@@ -16,7 +16,7 @@ class DataType:
 # ---------------------------------------------------------------------------- #
 
 # PrimType represents a primtive type
-class PrimType(Enum):
+class PrimType(DataType, IntEnum):
     U8 = auto()
     U16 = auto()
     U32 = auto()
@@ -33,17 +33,37 @@ class PrimType(Enum):
     NOTHING = auto()
 
     def __repr__(self) -> str:
-        # TODO
-        return ''
+        return PRIM_STRINGS[self.value]
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+# PRIM_STRINGS is a listing of the primitive values as strings
+PRIM_STRINGS = {
+    PrimType.U8: 'u8',
+    PrimType.U16: 'u16',
+    PrimType.U32: 'u32',
+    PrimType.U64: 'u64',
+    PrimType.I8: 'i8',
+    PrimType.I16: 'i16',
+    PrimType.I32: 'i32',
+    PrimType.I64: 'i64',
+    PrimType.F32: 'f32',
+    PrimType.F64: 'f64',
+    PrimType.STRING: 'string',
+    PrimType.BOOL: 'bool',
+    PrimType.RUNE: 'rune',
+    PrimType.NOTHING: 'nothing',
+}
 
 # ---------------------------------------------------------------------------- #
 
 # FuncArg represents a function argument
 @dataclass(repr=True)
 class FuncArg:
-    by_ref: bool
     name: str
     typ: DataType
+    by_ref: bool
 
     def __repr__(self) -> str:
         return f'&{self.typ}' if self.by_ref else repr(self.typ)

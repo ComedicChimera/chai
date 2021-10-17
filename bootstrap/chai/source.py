@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Dict
 
 from .ast import ASTDef
+from .symbol import SymbolTable
 
 # ChaiFile represents a Chai source file.
 @dataclass
@@ -19,6 +20,7 @@ class ChaiPackage:
     name: str
     parent_id: int
     files: List[ChaiFile]
+    global_table: SymbolTable
 
     # TODO: rest
 
@@ -34,3 +36,7 @@ class ChaiModule:
     # by sub-path.  For example, the package `io.fs.path` would have a sub-path
     # of `fs/path`.
     sub_packages: Dict[str, ChaiPackage]
+
+    # packages returns the full list of packages
+    def packages(self) -> List[ChaiPackage]:
+        return [self.root_package] + list(self.sub_packages.values())

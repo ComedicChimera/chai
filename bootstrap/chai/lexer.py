@@ -1,15 +1,13 @@
-from enum import Enum, auto
+from enum import IntEnum, auto
 from dataclasses import dataclass
 from io import TextIOWrapper
-from os import symlink
-import struct
 from typing import Optional
 
 from . import ChaiCompileError, TextPosition
 from .source import ChaiFile
 
 # TokenKind is an enumeration of the different kinds of Chai tokens.
-class TokenKind(Enum):
+class TokenKind(IntEnum):
     # Keyword Tokens
     Def = auto()
     Type = auto()
@@ -31,6 +29,21 @@ class TokenKind(Enum):
     Do = auto()
     Match = auto()
     Case = auto()
+
+    U8 = auto()
+    U16 = auto()
+    U32 = auto()
+    U64 = auto()
+    I8 = auto()
+    I16 = auto()
+    I32 = auto()
+    I64 = auto()
+    F32 = auto()
+    F64 = auto()
+    String = auto()
+    Bool = auto()
+    Rune = auto()
+    Nothing = auto()
 
     # Operator Tokens
     Plus = auto()
@@ -144,6 +157,21 @@ KEYWORD_PATTERNS = {
     'true': TokenKind.BoolLit,
     'false': TokenKind.BoolLit,
     'null': TokenKind.Null,
+
+    'u8': TokenKind.U8,
+    'u16': TokenKind.U16,
+    'u32': TokenKind.U32,
+    'u64': TokenKind.U64,
+    'i8': TokenKind.I8,
+    'i16': TokenKind.I16,
+    'i32': TokenKind.I32,
+    'i64': TokenKind.I64,
+    'f32': TokenKind.F32,
+    'f64': TokenKind.F64,
+    'string': TokenKind.String,
+    'bool': TokenKind.Bool,
+    'rune': TokenKind.Rune,
+    'nothing': TokenKind.Nothing
 }
 
 # SYMBOL_PATTERNS is a map of the different patterns for operators and
@@ -252,6 +280,8 @@ class Lexer:
             elif ahead.isdigit():
                 return self._lex_num_lit()
             elif ahead.isidentifier():
+                self._mark()
+
                 # read in the leading character
                 self._read()
 
