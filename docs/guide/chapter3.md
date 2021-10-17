@@ -127,11 +127,50 @@ to use and b) that value must be of a type Chai can determine at compile time
 because Chai is statically typed.  All the other rules exist to satisfy those
 two conditions.  
 
-## While Loops
+## Header Variables
 
-TODO
+**Header variables** are a convenience feature in Chai that allows you define
+variables in the header of if statements that will be bound to their bodies.
 
-## After Blocks
+For example, consider you have a function that makes a network request and
+returns some form a response, and you only want to process the response's data
+if it is valid.
 
-TODO
+Normally, you would have to write code that looks like this:
 
+    let resp = make_request()
+
+    if is_valid(resp)
+        do_something_with_data(resp)
+    end
+
+However, the `resp` variable isn't actually useful outside of the body if
+the if statement.  This is where a header variable comes in.
+
+Header variables are defined like regular variables except they are placed write
+after the `if`.  They are closed by a semicolon followed by the actual condition
+of the if.  Rewriting our previous code to use header variables looks like this:
+
+    if let resp = make_request(); is_valid(resp)
+        do_something_with_data(resp)
+    end
+
+    # `resp` is not defined out here :)
+
+Another useful case for header variables is when you have some value
+that is reused multiple times in a condition.  
+
+    if (a + b * c) < 1 || (a + b * c) == 0
+        ...
+    end
+
+This is an obvious waste of computation (especially if the expression is not
+just trivial arithmetic).  The logical solution: header variables!
+
+    if let k = a + b * c; k < 1 || k == 0
+        ...
+    end
+
+It is worth noting that you should be careful not to overuse header variables:
+if every if statement in your code base defined three or four header variables,
+your code is probably going to be hard to read and maintain.  
