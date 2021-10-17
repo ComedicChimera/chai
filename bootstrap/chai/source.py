@@ -9,6 +9,7 @@ from .symbol import SymbolTable
 class ChaiFile:
     rel_path: str
     parent_id: int
+    metadata: Dict[str, str]
 
     # defs is the list of top level AST definitions of this file
     defs: List[ASTDef]

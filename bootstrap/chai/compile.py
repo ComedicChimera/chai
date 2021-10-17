@@ -64,20 +64,28 @@ class Compiler:
             if not os.path.isdir(file) and ext == CHAI_FILE_EXT:
                 # create the Chai file
                 file_abs_path = os.path.join(pkg_abs_path, file)
-                ch_file = ChaiFile(os.path.relpath(file_abs_path, parent_mod.abs_path), pkg.id, [])
+                ch_file = ChaiFile(os.path.relpath(file_abs_path, parent_mod.abs_path), pkg.id, {}, [])
 
                 # catch parse errors so we can continue with analysis
                 try:
-                    # DEBUG: parse the file
+                    # parse the file and/or determine whether it should be
+                    # parsed (based on the metadata)
                     with open(file_abs_path) as fp:
-                        p.parse(ch_file, fp)
-                        print(ch_file.defs)
+                        if p.parse(ch_file, fp):
+                            pkg.files.append(ch_file)
 
-                    # TODO: parse it and determine if it should be added
+                            # DEBUG
+                            print(ch_file.metadata)
+                            print(ch_file.defs)
                 except ChaiCompileError as cce:
                     report.report_compile_error(cce)
                 except ChaiFail:
                     pass
+
+        # test to make sure package isn't empty (but only if there aren't other
+        # errors -- we don't want to create more errors than necessary)
+        if report.should_proceed() and not pkg.files:
+            report.report_fatal_error(f'package `{pkg.name}` contains no compileable source files')
 
 # compile_module compiles a module and all of its sub-dependencies.  This is the
 # main entry for compilation.  It returns the output location if it succeeds.

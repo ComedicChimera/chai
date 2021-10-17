@@ -1,3 +1,5 @@
+from typing import Union
+
 from . import ChaiCompileError, ChaiModuleError, TextPosition
 
 # Reporter is class responsible for displaying compile information to the user
@@ -16,7 +18,7 @@ class Reporter:
         self.errors_count += 1
         print(f'Module Error in `{cm.module_name}`: {cm.message}')
 
-    def report_fatal_error(self, e: Exception) -> None:
+    def report_fatal_error(self, e: Union[Exception, str]) -> None:
         self.errors_count += 1
         print('Fatal Error:', e)
 

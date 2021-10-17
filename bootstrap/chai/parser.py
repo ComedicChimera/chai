@@ -38,13 +38,17 @@ class Parser:
     # parse is the main entry point for the parser.  It takes the ChaiFile being
     # parsed and an opened file pointer to parse over.  The contents of the Chai
     # file are updated with the file AST if parsing succeeds.
-    def parse(self, ch_file: ChaiFile, fp: TextIOWrapper) -> None:
+    def parse(self, ch_file: ChaiFile, fp: TextIOWrapper) -> bool:
         # initialize parser state
         self.ch_file = ch_file
         self.lexer = Lexer(ch_file, fp)
 
         self._next()
-        ch_file.defs = self._parse_file()
+        if defs := self._parse_file():
+            ch_file.defs = defs
+            return True
+
+        return False
 
     # ---------------------------------------------------------------------------- #
 
@@ -184,8 +188,14 @@ class Parser:
     # will return their AST node if they parsed or None.
 
     # file = [metadata] {import_stmt} {definition | pub_definition | pub_block}
-    def _parse_file(self) -> List[ASTDef]:
-        # TODO: metadata
+    def _parse_file(self) -> Optional[List[ASTDef]]:
+        self._newlines()
+
+        # [metadata]
+        if self._maybe_parse_metadata():
+            return None
+
+        self._newlines()
 
         # TODO: import statement
 
@@ -203,6 +213,55 @@ class Parser:
         self._assert(TokenKind.EndOfFile)
 
         return defs
+
+    # metadata = '!' '!' metadata_tag {',' metadata_tag}
+    # metadata_tag = 'ID' '=' 'STRING'
+    # This function returns True if the file should not be compiled.
+    def _maybe_parse_metadata(self) -> bool:
+        if self._got(TokenKind.Not):
+            self._want(TokenKind.Not)
+
+            while True:
+                self._want(TokenKind.Identifier)
+                meta_name = self.tok.value
+                meta_value = ""
+
+                # check for `no_compile`
+                if meta_name == 'no_compile':
+                    return True
+
+                if meta_name in self.ch_file.metadata:
+                    self._error(f'metadata named `{meta_name}` declared multiple times')
+
+                self._next()
+
+                # handle metadata with values
+                if self._got(TokenKind.Assign):
+                    self._want(TokenKind.StringLit)
+
+                    meta_value = self.tok.value
+
+                    # check for os/arch conditions
+                    if meta_name == 'os' and meta_value != self.profile.target_os:
+                        return True
+
+                    if meta_name == 'arch' and meta_value != self.profile.target_arch:
+                        return True
+
+                    self._next()
+
+                if self._got(TokenKind.Comma):
+                    self.ch_file.metadata[meta_name] = meta_value
+                elif self._got(TokenKind.NewLine):
+                    self.ch_file.metadata[meta_name] = meta_value
+                    self._next()
+                    break
+                else:
+                    self._reject()
+                    
+            return False
+
+        return False
 
     # definition = func_def | type_def
     def _maybe_parse_definition(self) -> Optional[ASTDef]:
