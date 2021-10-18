@@ -1,12 +1,15 @@
 from typing import Tuple
 
-from . import ChaiCompileError
-from .source import ChaiFile
+from . import ChaiCompileError, text_pos_from_range
+from .source import ChaiFile, ChaiModule, ChaiPackage
 from .mod_loader import BuildProfile
 from .lexer import *
 from .ast import *
 from .symbol import *
 from .types import *
+
+# ImportCallback is my sloppy way of getting around Python's recursive imports.
+ImportCallback = Callable[[ChaiModule, str, str], ChaiPackage]
 
 # Parser is the parser for Chai -- one parser per package.  This is recursive
 # descent parser that acts a state machine -- moving forward one toekn at a time
@@ -14,6 +17,7 @@ from .types import *
 # such as interacting with the symbol table, checking for duplicate names, etc.
 # It does NOT perform any type checking.
 class Parser:
+    parent_mod: ChaiModule
     profile: BuildProfile
     
     table: SymbolTable
@@ -31,9 +35,14 @@ class Parser:
     # scopes is the stack of subscopes declared as the parser parses
     scopes: List[Dict[str, Symbol]] = []
 
-    def __init__(self, profile: BuildProfile, table: SymbolTable,) -> None:
+    # import_callback is a callback to the `import_package` function
+    import_callback: ImportCallback
+
+    def __init__(self, parent_mod: ChaiModule, profile: BuildProfile, table: SymbolTable, import_callback: ImportCallback) -> None:
+        self.parent_mod = parent_mod
         self.table = table
         self.profile = profile
+        self.import_callback = import_callback
 
     # parse is the main entry point for the parser.  It takes the ChaiFile being
     # parsed and an opened file pointer to parse over.  The contents of the Chai
@@ -181,7 +190,8 @@ class Parser:
     # tokens associated with their grammar and leave the parser positioned on
     # the token immediately after their production.  The functions should also
     # expect to begin with the parser positioned on the first token of their
-    # production.
+    # production.  All the non-maybe functions assume that the first token is
+    # correct unless otherwise specified.
     # 
     # The ``maybe` prefix is used for parsing functions that will parse their
     # production if it exists or will simple do nothing if it doesn't.  They
@@ -197,7 +207,10 @@ class Parser:
 
         self._newlines()
 
-        # TODO: import statement
+        # {import_stmt}
+        while self._got(TokenKind.Import):
+            self._parse_import_stmt()
+            self._newlines()
 
         # {definition | pub_definition | pub_block}
         defs = []
@@ -262,6 +275,56 @@ class Parser:
             return False
 
         return False
+
+    # import_stmt = 'import' (pkg_name ['as' 'ID'] | id_list 'from' pkg_name)
+    # pkg_name = 'ID' {'.' 'ID'}
+    # Semantic Actions: imports a package, declares imported symbols or imported
+    # package.
+    def _parse_import_stmt(self) -> None:
+        self._want(TokenKind.Identifier)
+        first = self.tok
+        self._next()
+
+        def parse_pkg_path_tail() -> List[Token]:
+            pkg_path_toks = []
+            while self._got(TokenKind.Dot):
+                self._want(TokenKind.Identifier)
+                pkg_path_toks.append(self.tok)
+                self._next()
+
+            return pkg_path_toks
+
+        def import_package(mod_tok: Token, pkg_path_toks: List[Token]) -> ChaiPackage:
+            mod_name = mod_tok.value
+
+            pkg_path = '.'.join(tok.value for tok in pkg_path_toks)
+            pkg = self.import_callback(self.parent_mod, mod_name, pkg_path)
+            if not pkg:
+                if pkg_path_toks:
+                    raise ChaiCompileError(
+                        self.ch_file.rel_path, 
+                        text_pos_from_range(first.position, pkg_path_toks[-1].position),
+                        f'unable to import package `{mod_name}.{pkg_path}`'
+                        )
+                else:
+                    raise ChaiCompileError(
+                        self.ch_file.rel_path,
+                        first.position,
+                        f'unable to import package `{mod_name}`'
+                    )
+
+            return pkg
+
+        # pkg name case
+        if self._got(TokenKind.Dot):
+            # collect the elements of the package path
+            pkg_path_toks = parse_pkg_path_tail()
+
+            # import the package
+            pkg = import_package(first, pkg_path_toks)
+
+            # TODO: add the package import to the file
+        # TODO: multiple symbols case
 
     # definition = func_def | type_def
     def _maybe_parse_definition(self) -> Optional[ASTDef]:

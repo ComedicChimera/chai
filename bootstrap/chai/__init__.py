@@ -14,6 +14,11 @@ class TextPosition:
     end_line: int
     end_col: int
 
+# text_pos_from_range calculates a text position spanning between two text
+# positions (useful for highlighting blocks of text)
+def text_pos_from_range(start: TextPosition, end: TextPosition) -> TextPosition:
+    return TextPosition(start.start_line, start.start_col, end.end_line, end.end_col)
+
 # ChaiCompileError is an error in user source code.
 @dataclass
 class ChaiCompileError(Exception):

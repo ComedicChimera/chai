@@ -35,7 +35,7 @@ class ChaiModule:
 
     # sub_packages is a dictionary of the sub-packages of the module organized
     # by sub-path.  For example, the package `io.fs.path` would have a sub-path
-    # of `fs/path`.
+    # of `fs.path`.
     sub_packages: Dict[str, ChaiPackage]
 
     # packages returns the full list of packages
