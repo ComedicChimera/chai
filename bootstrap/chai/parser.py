@@ -281,94 +281,77 @@ class Parser:
     # Semantic Actions: imports a package, declares imported symbols or imported
     # package.
     def _parse_import_stmt(self) -> None:
+        # collect leading identifier
         self._want(TokenKind.Identifier)
         first = self.tok
         self._next()
 
-        def parse_pkg_path_tail() -> List[Token]:
-            pkg_path_toks = []
+        # utility function to build package path
+        def build_package_path(pkg_path_root_pos: TextPosition) -> Tuple[str, TextPosition]:
+            pkg_path = []
             while self._got(TokenKind.Dot):
                 self._want(TokenKind.Identifier)
-                pkg_path_toks.append(self.tok)
+                pkg_path.append(self.tok.value)
+                pkg_path_root_pos = text_pos_from_range(pkg_path_root_pos, self.tok.position)
                 self._next()
 
-            return pkg_path_toks
+            return '.'.join(pkg_path), pkg_path_root_pos
 
-        def import_package(mod_tok: Token, pkg_path_toks: List[Token]) -> ChaiPackage:
-            mod_name = mod_tok.value
+        # collect data from AST as follows:
+        imported_symbols = {}
+        
+        # 'import' id_list 'from' pkg_path
+        if self._got(TokenKind.Comma):
+            # consider the first token an imported symbol
+            imported_symbols[first.value] = first
 
-            pkg_path = '.'.join(tok.value for tok in pkg_path_toks)
-            pkg = self.import_callback(self.parent_mod, mod_name, pkg_path)
-            if not pkg:
-                if pkg_path_toks:
-                    raise ChaiCompileError(
-                        self.ch_file.rel_path, 
-                        text_pos_from_range(first.position, pkg_path_toks[-1].position),
-                        f'unable to import package `{mod_name}.{pkg_path}`'
-                        )
-                else:
-                    raise ChaiCompileError(
-                        self.ch_file.rel_path,
-                        first.position,
-                        f'unable to import package `{mod_name}`'
-                    )
-
-            return pkg
-
-        # 'import' pkg_name ['as' 'ID']
-        if self._got(TokenKind.Dot):
-            # collect the elements of the package path
-            pkg_path_toks = parse_pkg_path_tail()
-
-            # import the package
-            pkg = import_package(first, pkg_path_toks)
-
-            # check for renames
-            pkg_import_name = pkg.name
-            pkg_import_name_pos = pkg_path_toks[-1].position
-            if self._got(TokenKind.As):
-                self._want(TokenKind.Identifier)
-                pkg_import_name = self.tok.value
-                pkg_import_name_pos = self.tok.position
-                self._next()
-
-            # confirm that the package name doesn't conflict
-            if pkg_import_name in self.ch_file.visible_packages:
-                raise ChaiCompileError(
-                    self.ch_file.rel_path, 
-                    pkg_import_name_pos,
-                    f'package already imported with name `{pkg_import_name}`' 
-                    )
-            
-            self.table.check_conflict(self.ch_file.rel_path, pkg_import_name, pkg_import_name_pos)
-            
-            # add it to the list of visible packages
-            self.ch_file.visible_packages[pkg_import_name] = pkg
-        # 'import' id_list 'from' pkg_name
-        elif self._got(TokenKind.Comma):
-            imported_symbols = {first.value: first}
+            # read in the ID list
             while self._got(TokenKind.Comma):
                 self._want(TokenKind.Identifier)
+
                 if self.tok.value in imported_symbols:
-                    self._error(f'another symbol with name `{self.tok.value}` already imported')
+                    self._error(f'symbol `{self.tok.value}` imported multiple times')
+                
+                imported_symbols[self.tok.value] = self.tok
 
-            self._want(TokenKind.From)
+                self._next()
 
-            # TODO: import package
-        # 'import' 'ID' 'from' pkg_name
-        elif self._got(TokenKind.From):
-            imported_symbols = {first.value: first}
+            # get the package path
+            self._assert(TokenKind.From)
+            self._want(TokenKind.Identifier)
+            mod_name = self.tok.value
+            pkg_path_pos = self.tok.position
+            self._next()
 
-            # TODO: import package
+            pkg_path, pkg_path_pos = build_package_path(pkg_path_pos)
+        # 'import' pkg_name ['as' 'ID']
+        elif self._got(TokenKind.Dot):
+            mod_name = first.value
+            pkg_path, pkg_path_pos = build_package_path(first.position)
+
+            # check for alias
+            if self._got(TokenKind.As):
+                self._next()
+                self._want(TokenKind.Identifier)
+
+                pkg_import_name_tok = self.tok
+
+                self._next()
         # 'import' 'ID' 'as' 'ID'
         elif self._got(TokenKind.As):
             pass
-        # 'import' 'ID'
+        # 'import' 'ID' 'from' 'ID'
+        elif self._got(TokenKind.From):
+            pass
+        # 'import' 'ID' 
         elif self._got(TokenKind.NewLine):
             pass
-        # else => invalid
+        # otherwise => reject
         else:
             self._reject()
+
+            
+
 
         # mark the package as imported
         if pkg.id in self.ch_file.parent.import_table:
