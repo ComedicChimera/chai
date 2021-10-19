@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, MutableSet
 
 from .ast import ASTDef
 from .symbol import SymbolTable
@@ -8,22 +8,31 @@ from .symbol import SymbolTable
 @dataclass
 class ChaiFile:
     rel_path: str
-    parent_id: int
+    parent: "ChaiPackage"
     metadata: Dict[str, str]
 
     # defs is the list of top level AST definitions of this file
     defs: List[ASTDef]
+
+    # visible_packages is a dict of all the packages that are directly by as a
+    # named package (eg. `import pkg`) by this file stored by package organized
+    # by the name they are defined with
+    visible_packages: Dict[str, "ChaiPackage"]
+
+@dataclass
+class ChaiPackageImport:
+    pkg: "ChaiPackage"
+    used_names: MutableSet[str] = set()
 
 # ChaiPackage represents a Chai package.
 @dataclass
 class ChaiPackage:
     id: int
     name: str
-    parent_id: int
+    parent: "ChaiModule"
     files: List[ChaiFile]
     global_table: SymbolTable
-
-    # TODO: rest
+    import_table: Dict[int, ChaiPackageImport]
 
 # ChaiModule represents a Chai module.
 @dataclass

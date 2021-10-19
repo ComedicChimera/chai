@@ -16,8 +16,8 @@ class TokenKind(IntEnum):
 
     Import = auto()
     From = auto()
+    As = auto()
     Pub = auto()
-    Priv = auto()
 
     If = auto()
     Elif = auto()
@@ -140,8 +140,8 @@ KEYWORD_PATTERNS = {
 
     'import': TokenKind.Import,
     'from': TokenKind.From,
+    'as': TokenKind.As,
     'pub': TokenKind.Pub,
-    'priv': TokenKind.Priv,
 
     'if': TokenKind.If,
     'elif': TokenKind.Elif,

@@ -59,7 +59,7 @@ class Compiler:
         # create a new package for the given parent module
         pkg_name = os.path.basename(pkg_abs_path)
         pkg_id = hash(pkg_abs_path)
-        pkg = ChaiPackage(pkg_id, pkg_name, parent_mod.id, [], SymbolTable(pkg_id))
+        pkg = ChaiPackage(pkg_id, pkg_name, parent_mod, [], SymbolTable(pkg_id))
 
         # add it to the parent package
         if os.path.samefile(parent_mod.abs_path, pkg_abs_path):
@@ -80,7 +80,7 @@ class Compiler:
             if not os.path.isdir(file) and ext == CHAI_FILE_EXT:
                 # create the Chai file
                 file_abs_path = os.path.join(pkg_abs_path, file)
-                ch_file = ChaiFile(os.path.relpath(file_abs_path, parent_mod.abs_path), pkg.id, {}, [])
+                ch_file = ChaiFile(os.path.relpath(file_abs_path, parent_mod.abs_path), pkg, {}, [])
 
                 # catch parse errors so we can continue with analysis
                 try:

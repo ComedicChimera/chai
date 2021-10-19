@@ -1,7 +1,7 @@
 from typing import Tuple
 
 from . import ChaiCompileError, text_pos_from_range
-from .source import ChaiFile, ChaiModule, ChaiPackage
+from .source import ChaiFile, ChaiModule, ChaiPackage, ChaiPackageImport
 from .mod_loader import BuildProfile
 from .lexer import *
 from .ast import *
@@ -323,8 +323,29 @@ class Parser:
             # import the package
             pkg = import_package(first, pkg_path_toks)
 
-            # TODO: add the package import to the file
+            # check for renames
+            pkg_import_name = pkg.name
+            pkg_import_name_pos = pkg_path_toks[-1].position if pkg_path_toks else first.position
+            if self._got(TokenKind.As):
+                self._want(TokenKind.Identifier)
+                pkg_import_name = self.tok.value
+                pkg_import_pos = self.tok.position
+                self._next()
+
+            # TODO: confirm that the package name doesn't conflict
+
+            # add it to the list of visible packages
+            self.ch_file.visible_packages[pkg_import_name] = pkg
+
         # TODO: multiple symbols case
+
+        # mark the package as imported
+        if pkg.id in self.ch_file.parent.import_table:
+            self.ch_file.parent.import_table[pkg.id] = ChaiPackageImport(pkg)
+
+        # close off import stmt
+        self._assert(TokenKind.NewLine)
+        self._next()
 
     # definition = func_def | type_def
     def _maybe_parse_definition(self) -> Optional[ASTDef]:
@@ -361,7 +382,7 @@ class Parser:
 
         # handle the body
         if self._got(TokenKind.End):
-            self._next()
+            self._want(TokenKind.NewLine)
         else:
             self._reject()
 
