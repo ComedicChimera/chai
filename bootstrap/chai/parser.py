@@ -315,7 +315,7 @@ class Parser:
 
             return pkg
 
-        # pkg name case
+        # 'import' pkg_name ['as' 'ID']
         if self._got(TokenKind.Dot):
             # collect the elements of the package path
             pkg_path_toks = parse_pkg_path_tail()
@@ -325,19 +325,50 @@ class Parser:
 
             # check for renames
             pkg_import_name = pkg.name
-            pkg_import_name_pos = pkg_path_toks[-1].position if pkg_path_toks else first.position
+            pkg_import_name_pos = pkg_path_toks[-1].position
             if self._got(TokenKind.As):
                 self._want(TokenKind.Identifier)
                 pkg_import_name = self.tok.value
-                pkg_import_pos = self.tok.position
+                pkg_import_name_pos = self.tok.position
                 self._next()
 
-            # TODO: confirm that the package name doesn't conflict
-
+            # confirm that the package name doesn't conflict
+            if pkg_import_name in self.ch_file.visible_packages:
+                raise ChaiCompileError(
+                    self.ch_file.rel_path, 
+                    pkg_import_name_pos,
+                    f'package already imported with name `{pkg_import_name}`' 
+                    )
+            
+            self.table.check_conflict(self.ch_file.rel_path, pkg_import_name, pkg_import_name_pos)
+            
             # add it to the list of visible packages
             self.ch_file.visible_packages[pkg_import_name] = pkg
+        # 'import' id_list 'from' pkg_name
+        elif self._got(TokenKind.Comma):
+            imported_symbols = {first.value: first}
+            while self._got(TokenKind.Comma):
+                self._want(TokenKind.Identifier)
+                if self.tok.value in imported_symbols:
+                    self._error(f'another symbol with name `{self.tok.value}` already imported')
 
-        # TODO: multiple symbols case
+            self._want(TokenKind.From)
+
+            # TODO: import package
+        # 'import' 'ID' 'from' pkg_name
+        elif self._got(TokenKind.From):
+            imported_symbols = {first.value: first}
+
+            # TODO: import package
+        # 'import' 'ID' 'as' 'ID'
+        elif self._got(TokenKind.As):
+            pass
+        # 'import' 'ID'
+        elif self._got(TokenKind.NewLine):
+            pass
+        # else => invalid
+        else:
+            self._reject()
 
         # mark the package as imported
         if pkg.id in self.ch_file.parent.import_table:

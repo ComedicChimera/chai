@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List, MutableSet, Optional, Callable
+from typing import Dict, List, MutableSet, Optional, Callable, Tuple
 
 from . import ChaiCompileError, ChaiFail, TextPosition
 from .types import DataType
@@ -66,6 +66,11 @@ class SymbolTable:
     # resolution failed.
     resolution_failed: MutableSet[str] = set()
 
+    # import_conficts is a dictionary of imported symbols/package names
+    # associated with their positions that should be errored upon if a
+    # conflicting global symbol is defined.
+    import_conflicts: Dict[str, List[Tuple[str, TextPosition]]] = {}
+
     # pkg_id is the ID of the package that this symbol table belongs to
     pkg_id: int
 
@@ -80,6 +85,17 @@ class SymbolTable:
     # definition fails.  It also requires the relative path to the file that
     # defines the symbol for purposes of error reporting.
     def define(self, sym: Symbol, rel_path: str) -> Symbol:
+        # report import conflicts
+        if sym.name in self.import_conflicts:
+            for conf_rel_path, conf_pos, in self.import_conflicts[sym.name]:
+                report.report_compile_error(ChaiCompileError(
+                    conf_rel_path,
+                    conf_pos,
+                    f'imported name `{sym.name}` conflicts with globally defined symbol'
+                ))
+            
+            self.import_conflicts.pop(sym.name)
+
         # if resolution has already been attempted and failed for this symbol
         # then trying to define it again is equivalent to a multi-definition
         if sym.name in self.resolution_failed:
@@ -139,6 +155,17 @@ class SymbolTable:
             self.lookup_table[name] = Symbol(name, None, None, self.pkg_id, self.pkg_id != pkg_id, def_kind, mutability)
             self.unresolved[name].append(SymbolReference(pkg_id, rel_path, pos, mutability == Mutability.Mutable))
             return self.lookup_table[name]
+
+    # check_conflict checks if an imported name conflicts with an already defined symbol.
+    # If it does, a conflict is reported.  Otherwise, it is added to the dictionary
+    # of potential import conflicts.
+    def check_conflict(self, rel_path: str, name: str, pos: TextPosition) -> None:
+        if name in self.lookup_table:
+            raise ChaiCompileError(rel_path, pos, f'imported name `{name}` conflicts with globally defined symbol')
+        elif name in self.import_conflicts:
+            self.import_conflicts[name].append((rel_path, pos))
+        else:
+            self.import_conflicts[name] = [(rel_path, pos)]
 
     # report_unresolved reports all remaining unresolved symbols as unresolved
     # => package initialization has finished; no more symbols can resolve
