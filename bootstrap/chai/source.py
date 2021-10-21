@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from typing import List, Dict, MutableSet
 
 from .ast import ASTDef
-from .symbol import SymbolTable
+from .symbol import SymbolTable, Symbol
+
+# SymbolImport represents a symbol imported by a file
+@dataclass
+class SymbolImport:
+    sym: Symbol
+    parent_pkg: "ChaiPackage"
+    used: bool
 
 # ChaiFile represents a Chai source file.
 @dataclass
@@ -18,6 +25,11 @@ class ChaiFile:
     # named package (eg. `import pkg`) by this file stored by package organized
     # by the name they are defined with
     visible_packages: Dict[str, "ChaiPackage"]
+
+    # imported_symbols is a dictionary of the symbols imported by this file.  No
+    # extra symbol table machinery is required here since these symbols are
+    # always imported at the start of the file.
+    imported_symbols: Dict[str, SymbolImport]
 
 @dataclass
 class ChaiPackageImport:

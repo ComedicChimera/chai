@@ -74,7 +74,7 @@ class Compiler:
             parent_mod.sub_packages[sub_path] = pkg
 
         # walk through the files in the package directory
-        p = Parser(self.base_prof, pkg.global_table)
+        p = Parser(self.base_prof, pkg.global_table, self.import_package)
         for file in os.listdir(pkg_abs_path):
             _, ext = os.path.splitext(file)
             if not os.path.isdir(file) and ext == CHAI_FILE_EXT:

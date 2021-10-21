@@ -7,6 +7,7 @@ from .types import DataType
 from .report import report
 
 class DefKind(Enum):
+    Unknown = auto()
     ValueDef = auto()
 
     @staticmethod
@@ -122,6 +123,8 @@ class SymbolTable:
     def lookup(self, pkg_id: int, rel_path: str, pos: TextPosition, name: str, def_kind: DefKind, mutability: Mutability) -> Symbol:
         if name in self.lookup_table:
             decl_sym = self.lookup_table[name]
+
+            # TODO: handle DefKind.Unknown
 
             # check for partial matches (ie. non-matching def kinds, etc.)
             if decl_sym.def_kind != def_kind:

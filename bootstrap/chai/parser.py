@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 from . import ChaiCompileError, text_pos_from_range
 from .source import ChaiFile, ChaiModule, ChaiPackage, ChaiPackageImport
@@ -9,7 +9,7 @@ from .symbol import *
 from .types import *
 
 # ImportCallback is my sloppy way of getting around Python's recursive imports.
-ImportCallback = Callable[[ChaiModule, str, str], ChaiPackage]
+ImportCallback = Callable[[ChaiModule, str, str], Optional[ChaiPackage]]
 
 # Parser is the parser for Chai -- one parser per package.  This is recursive
 # descent parser that acts a state machine -- moving forward one toekn at a time
@@ -287,15 +287,17 @@ class Parser:
         self._next()
 
         # utility function to build package path
-        def build_package_path(pkg_path_root_pos: TextPosition) -> Tuple[str, TextPosition]:
+        def build_package_path(pkg_path_root_pos: TextPosition, mod_name_tok: Token) -> Tuple[str, TextPosition, Token]:
             pkg_path = []
+            pkg_import_name_tok = mod_name_tok
             while self._got(TokenKind.Dot):
                 self._want(TokenKind.Identifier)
                 pkg_path.append(self.tok.value)
+                pkg_import_name_tok = self.tok
                 pkg_path_root_pos = text_pos_from_range(pkg_path_root_pos, self.tok.position)
                 self._next()
 
-            return '.'.join(pkg_path), pkg_path_root_pos
+            return '.'.join(pkg_path), pkg_path_root_pos, pkg_import_name_tok
 
         # collect data from AST as follows:
         imported_symbols = {}
@@ -319,15 +321,16 @@ class Parser:
             # get the package path
             self._assert(TokenKind.From)
             self._want(TokenKind.Identifier)
+            pkg_import_name_tok = self.tok
             mod_name = self.tok.value
             pkg_path_pos = self.tok.position
             self._next()
 
-            pkg_path, pkg_path_pos = build_package_path(pkg_path_pos)
+            pkg_path, pkg_path_pos, pkg_import_name_tok = build_package_path(pkg_path_pos, pkg_import_name_tok)
         # 'import' pkg_name ['as' 'ID']
         elif self._got(TokenKind.Dot):
             mod_name = first.value
-            pkg_path, pkg_path_pos = build_package_path(first.position)
+            pkg_path, pkg_path_pos, pkg_import_name_tok = build_package_path(first.position, first)
 
             # check for alias
             if self._got(TokenKind.As):
@@ -339,19 +342,77 @@ class Parser:
                 self._next()
         # 'import' 'ID' 'as' 'ID'
         elif self._got(TokenKind.As):
-            pass
-        # 'import' 'ID' 'from' 'ID'
+            mod_name = first.value
+            pkg_path, pkg_path_pos = "", first.position
+
+            self._want(TokenKind.Identifier)
+            pkg_import_name_tok = self.tok
+            self._next()
+        # 'import' 'ID' 'from' pkg_name
         elif self._got(TokenKind.From):
-            pass
+            imported_symbols[first.value] = first
+
+            self._want(TokenKind.Identifier)
+            mod_name = self.tok.value
+            mod_name_tok = self.tok
+            self._next()
+
+            pkg_path, pkg_path_pos, pkg_import_name_tok = build_package_path(mod_name_tok.position, mod_name_tok)
         # 'import' 'ID' 
         elif self._got(TokenKind.NewLine):
-            pass
+            mod_name = first.value
+            pkg_path, pkg_path_pos = "", first.position
         # otherwise => reject
         else:
             self._reject()
 
-            
+        # import the package
+        pkg = self.import_callback(self.ch_file.parent.parent, mod_name, pkg_path)
+        if not pkg:
+            raise ChaiCompileError(self.ch_file.rel_path, pkg_path_pos, 'unable to import package')
 
+        # import symbols from package
+        if imported_symbols:
+            for symbol_tok in imported_symbols.values():
+                if symbol_tok.value in self.ch_file.imported_symbols:
+                    raise ChaiCompileError(
+                        self.ch_file.rel_path,
+                        symbol_tok.position,
+                        f'multiple symbols imported with name `{symbol_tok.value}`'
+                    )
+                elif symbol_tok.value in self.ch_file.visible_packages:
+                    raise ChaiCompileError(
+                        self.ch_file.rel_path,
+                        symbol_tok.position,
+                        f'imported symbol name `{symbol_tok.value}` conflicts with name of imported package'
+                    )
+                
+                self.table.check_conflict(self.ch_file.rel_path, symbol_tok.value, symbol_tok.position)
+
+                self.ch_file.imported_symbols[symbol_tok.value] = pkg.global_table.lookup(
+                    self.ch_file.parent.id,
+                    self.ch_file.rel_path,
+                    symbol_tok.position,
+                    symbol_tok.value,
+                    DefKind.Unknown,
+                    Mutability.NeverMutated
+                )
+        # import package by name
+        else:
+            if pkg_import_name_tok.value in self.ch_file.visible_packages:
+                raise ChaiCompileError(
+                    self.ch_file.rel_path, 
+                    pkg_import_name_tok.position, 
+                    f'multiple packages imported with name `{pkg_import_name_tok.value}`')
+            elif pkg_import_name_tok.value in self.ch_file.imported_symbols:
+                raise ChaiCompileError(
+                    self.ch_file.rel_path,
+                    pkg_import_name_tok.position,
+                    f'imported package name `{pkg_import_name_tok.value}` conflicts with name of imported symbol'
+                )
+
+            self.table.check_conflict(self.ch_file.rel_path, pkg_import_name_tok.value, pkg_import_name_tok.position)
+            self.ch_file.visible_packages[pkg_import_name_tok.value] = pkg
 
         # mark the package as imported
         if pkg.id in self.ch_file.parent.import_table:
