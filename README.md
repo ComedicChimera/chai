@@ -10,8 +10,9 @@ needs of any software developer.
 Check out the official website to install, learn, use Chai: chai-lang.dev
 (*insert link*)
 
-*Note: The website is still in development so if you want to see what language
-documentation exists, check out the `docs` directory.*
+*Note: The website is still in development, but the Markdown source for the
+documentation can be found in the
+[chai-lang.dev](//github.com/ComedicChimera/chai-lang.dev) repository.*
 
 **Language IP and Source Code Copyright &copy; Jordan Gaines 2018-2021**
 
