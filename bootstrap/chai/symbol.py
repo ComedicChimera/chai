@@ -124,10 +124,8 @@ class SymbolTable:
         if name in self.lookup_table:
             decl_sym = self.lookup_table[name]
 
-            # TODO: handle DefKind.Unknown
-
             # check for partial matches (ie. non-matching def kinds, etc.)
-            if decl_sym.def_kind != def_kind:
+            if def_kind != DefKind.Unknown and decl_sym.def_kind != DefKind.Unknown and decl_sym.def_kind != def_kind:
                 raise ChaiCompileError(rel_path, pos, f'cannot use {decl_sym.def_kind} as {def_kind}')
             elif decl_sym.mutability == Mutability.Immutable and mutability == Mutability.Mutable:
                 raise ChaiCompileError(rel_path, pos, 'cannot mutate an immutable value')
@@ -147,6 +145,10 @@ class SymbolTable:
             # update mutability => this happens in all cases
             if decl_sym.mutability == Mutability.NeverMutated and mutability != Mutability.NeverMutated:
                 decl_sym.mutability = mutability
+
+            # update definition kind if the symbol's kind is unknown
+            if decl_sym.def_kind == DefKind.Unknown:
+                decl_sym.def_kind = def_kind
 
             # add the symbol reference to list of unresolved as necessary
             if name in self.unresolved:
@@ -197,7 +199,7 @@ class SymbolTable:
         if decl_sym.public and not sym.public:
             self._error_unresolved(sym.name, f'symbol `{sym.name}` is not publically visible', lambda s: s.pkg_id != self.pkg_id)
 
-        if decl_sym.def_kind != sym.def_kind:
+        if decl_sym.def_kind != DefKind.Unknown and decl_sym.def_kind != sym.def_kind:
             self._error_unresolved(sym.name, f'cannot use {sym.def_kind} as {decl_sym.def_kind}')
         
         # mutability is only an issue if the declared symbol is marked as

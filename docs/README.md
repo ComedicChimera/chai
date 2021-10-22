@@ -1,5 +1,7 @@
 # Chai Documentation
 
+**NOTE: This will likely soon be moved into the `chai-lang.dev` Github repo.**
+
 This directory is a place for me to put language documentation while the
 official website is still MIA.  I am not working on it because the current state
 of web development is an actual trainwreck, and I am trying to figure out a

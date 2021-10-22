@@ -20,6 +20,9 @@ documentation exists, check out the `docs` directory.*
 ## Table of Contents
 
 - [Features](#features)
+- [Progress](#progress)
+  * [Compiler](#compiler-prog)
+  * [Standard Library](#std-lib-prog)
 - [Building the Compiler](#building)
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)
@@ -80,6 +83,66 @@ documentation exists, check out the `docs` directory.*
       benefits of working with them -- they are reasonably comprehensible once
       they are presented a simpler form.
 
+## <a name="progress"> Progress
+
+This section details the progress made on the compiler as of now.  It is not
+perfectly up to date but should help to give some idea of where we are.
+
+*NB: Alpha Chai is the name for the reduced subset of Chai being implemented for bootstrapping purposes.*
+
+### <a name="compiler-prog"/> Compiler
+
+- [ ] Alpha Chai in Python <--
+- [ ] Alpha Chai in Alpha Chai
+- [ ] Chai in Chai
+
+See the Trello for more detailed info on the progress of Step 1
+
+### <a name="std-lib-prog"/> Standard Library
+
+*These are only the planned features of Alpha Chai*
+
+- [ ] Builtin Types
+  * [ ] `Array`
+  * [ ] String
+  * [ ] `List`
+  * [ ] `Dict`
+  * [ ] `Iter` 
+- [ ] Runtime
+  * [ ] Program Startup
+  * [ ] Graceful Exit
+  * [ ] Global Initializers
+  * [ ] Signaling
+  * [ ] Allocator
+  * [ ] Garbage Collector
+  * [ ] Argc and Argv
+- [ ] Standard I/O
+  * [ ] `puts`
+  * [ ] `puti`
+  * [ ] `putf`
+- [ ] String Manipulation
+  * [ ] `StringBuilder`
+  * [ ] `starts_with`
+  * [ ] `ends_with`
+  * [ ] `contains`
+  * [ ] `trim_left`
+  * [ ] `trim_right`
+  * [ ] `parse_int`
+  * [ ] `parse_float`
+  * [ ] `to_string`
+- [ ] File I/O
+  * [ ] Open and Close
+  * [ ] Read File
+  * [ ] Write File
+  * [ ] Create File
+  * [ ] Basic Path Manipulation
+  * [ ] Walk Directory
+  * [ ] Create Directory
+- [ ] TOML
+  * [ ] Parsing
+  * [ ] Serialization
+  * [ ] Deserialization (needs reflection?)
+
 ## <a name="building"> Building the Compiler
 
 TODO
@@ -90,13 +153,9 @@ The compilation pipeline, that is the stages of compilation depend on the
 iteration of the compiler but in general the flow is as follows:
 
 1. Source Text
-2. Untyped AST
-3. Typed AST
-4. Unoptimized MIR
-5. Optimized MIR
-6. LLVM IR
-
-with some boundary blurring between the typed and untyped AST
+2. Typed AST
+3. Chai MIR
+4. LLVM IR
 
 ## <a name="development"> Development
 

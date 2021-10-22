@@ -1,4 +1,5 @@
 from typing import Tuple, Optional
+from dataclasses import dataclass
 
 from . import ChaiCompileError, text_pos_from_range
 from .source import ChaiFile, ChaiModule, ChaiPackage, ChaiPackageImport
@@ -10,6 +11,20 @@ from .types import *
 
 # ImportCallback is my sloppy way of getting around Python's recursive imports.
 ImportCallback = Callable[[ChaiModule, str, str], Optional[ChaiPackage]]
+
+# LocalScope represents a single lexical scope in Chai along with relevant
+# contextual information such as the enclosing function.
+@dataclass
+class LocalScope:
+    # symbols is the dictionary of symbols local to the immediate enclosing
+    # scope.  These can be the arguments of a function if the function is the
+    # enclosing scope of a function.
+    symbols: Dict[str, Symbol]
+
+    # rt_type is the return type of the enclosing function.
+    rt_type: DataType
+
+    # TODO: control flow flags
 
 # Parser is the parser for Chai -- one parser per package.  This is recursive
 # descent parser that acts a state machine -- moving forward one toekn at a time
@@ -33,7 +48,7 @@ class Parser:
     public: bool = False
 
     # scopes is the stack of subscopes declared as the parser parses
-    scopes: List[Dict[str, Symbol]] = []
+    scopes: List[LocalScope] = []
 
     # import_callback is a callback to the `import_package` function
     import_callback: ImportCallback
@@ -144,10 +159,10 @@ class Parser:
     def _define(self, sym: Symbol) -> Symbol:
         if self.scopes:
             curr_scope = self.scopes[-1]
-            if sym.name in curr_scope:
+            if sym.name in curr_scope.symbols:
                 raise ChaiCompileError(self.ch_file.rel_path, sym.def_pos, f'symbol defined multiple times: `{sym.name}`')
             
-            curr_scope[sym.name] = sym
+            curr_scope.symbols[sym.name] = sym
             return sym
         else:
             return self.table.define(sym, self.ch_file.rel_path)
@@ -158,8 +173,8 @@ class Parser:
         if def_kind == DefKind.ValueDef and self.scopes:
             # backwards for shadowing
             for scope in reversed(self.scopes):
-                if name in scope:
-                    return scope[name]
+                if name in scope.symbols:
+                    return scope.symbols[name]
 
         # scope lookups failed => global lookup
         return self.table.lookup(
@@ -171,9 +186,18 @@ class Parser:
             mutability
             )
 
-    # _push_scope begins a new local scope
-    def _push_scope(self):
-        self.scopes.append([])
+    # _push_scope begins a new local scope (optionally specifying the enclosing
+    # function, if not the return type of the parent scope is used)
+    def _push_scope(self, func: Optional[FuncType] = None):
+        # caller specified a function => this is enclosing scope of that function
+        if func:
+            self.scopes.append(LocalScope({
+                # add the arguments to the local scope
+                Symbol(arg.name, arg.typ, None, self.ch_file.parent.id, False, DefKind.ValueDef, Mutability.NeverMutated) for arg in func.args
+            }, func.rt_type))
+        else:
+            assert len(self.scopes) > 0, "local scope must define an enclosing function"
+            self.scopes.append(LocalScope({}, self.scopes[-1].rt_type))
     
     # _pop_scope pops a new local scope
     def _pop_scope(self):
@@ -197,7 +221,7 @@ class Parser:
     # production if it exists or will simple do nothing if it doesn't.  They
     # will return their AST node if they parsed or None.
 
-    # file = [metadata] {import_stmt} {definition | pub_definition | pub_block}
+    # file = [metadata] {import_stmt} {definition | ['pub'] definition | annotated_def | pub_block}
     def _parse_file(self) -> Optional[List[ASTDef]]:
         self._newlines()
 
@@ -212,10 +236,10 @@ class Parser:
             self._parse_import_stmt()
             self._newlines()
 
-        # {definition | pub_definition | pub_block}
+        # {definition | ['pub'] definition | annotated_def | pub_block}
         defs = []
         while True:
-            # TODO: publics
+            # TODO: publics, annotated_def
 
             if defin := self._maybe_parse_definition():
                 defs.append(defin)
@@ -226,6 +250,8 @@ class Parser:
         self._assert(TokenKind.EndOfFile)
 
         return defs
+
+    # FILE HEADER PARSING:
 
     # metadata = '!' '!' metadata_tag {',' metadata_tag}
     # metadata_tag = 'ID' '=' 'STRING'
@@ -422,22 +448,21 @@ class Parser:
         self._assert(TokenKind.NewLine)
         self._next()
 
-    # definition = func_def | type_def
+    # DEFINITION PARSING:
+
+    # definition = func_def | type_def | space_def | oper_def
     def _maybe_parse_definition(self) -> Optional[ASTDef]:
         # func_def
         if self._got(TokenKind.Def):
-            return self._parse_func_def()
-        # TODO: type_def
+            return self._parse_func_def(True)
+        # TODO: type_def, space_def, oper_def
 
     # func_def = 'def' 'ID' '(' args_decl ')' [type] ('=' expr | block | 'end')
     # Semantic Actions: defines function
-    def _parse_func_def(self) -> ASTDef:
+    def _parse_func_def(self, expects_body: bool) -> ASTDef:
         # get the function's name
         self._want(TokenKind.Identifier)
         name_tok = self.tok
-
-        # push a scope for the arguments and function body
-        self._push_scope()
 
         # parse the arguments
         self._want(TokenKind.LParen)
@@ -454,6 +479,9 @@ class Parser:
             rt_type = PrimType.NOTHING
 
         typ = FuncType(args, rt_type)
+
+        # push the enclosing scope of the body
+        self._push_scope(typ)
 
         # handle the body
         if self._got(TokenKind.End):
@@ -529,6 +557,35 @@ class Parser:
 
         return args
 
+    # EXPR PARSING:
+
+    # expr = simple_expr | block_expr
+    def _parse_expr(self) -> ASTExpr:
+        # TODO: check for block expr keywords
+
+        # no block expr keyword => simple expr
+        return self._parse_simple_expr 
+
+    # simple_expr = or_expr ['as' type_label]
+    # Semantic Actions: apply type cast assertions
+    def _parse_simple_expr(self) -> ASTExpr:
+        pass
+
+    # or_expr = xor_expr {('||' | '|') xor_expr}
+    # xor_expr = and_expr {'^' and_expr}
+    # and_expr = comp_expr {('&&' | '&') comp_expr}
+    # comp_expr = shift_expr {('==' | '!=' | '<' | '>' | '<=' | '>=') shift_expr}
+    # shift_expr = arith_expr {('>>' | '<<') arith_expr}
+    # arith_expr = term {('+' | '-') term}
+    # term = factor {('*' | '/' | '//') factor}
+    # factor = unary_expr {'**' unary_expr}
+    # Semantic Actions: lookup operator overloads, apply operator type
+    # constraints
+    def _parse_bin_op(self) -> ASTExpr:
+        pass
+
+    # COMMON PARSING
+
     # type_label = prim_type | ref_type | tuple_type | named_type
     # Semantic Actions: lookup named types
     def _parse_type_label(self) -> DataType:
@@ -536,6 +593,8 @@ class Parser:
         if 0 < prim_val <= PrimType.NOTHING.value:
             self._next()
             return PrimType(prim_val)
+
+        # TODO: ref_type, tuple_type, named_type
 
         self._reject()
 
