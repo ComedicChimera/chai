@@ -564,12 +564,13 @@ class Parser:
         # TODO: check for block expr keywords
 
         # no block expr keyword => simple expr
-        return self._parse_simple_expr 
+        return self._parse_simple_expr()
 
     # simple_expr = or_expr ['as' type_label]
     # Semantic Actions: apply type cast assertions
     def _parse_simple_expr(self) -> ASTExpr:
-        pass
+        # TODO: ['as' type_label]
+        return self._parse_bin_op()
 
     # or_expr = xor_expr {('||' | '|') xor_expr}
     # xor_expr = and_expr {'^' and_expr}
@@ -582,9 +583,49 @@ class Parser:
     # Semantic Actions: lookup operator overloads, apply operator type
     # constraints
     def _parse_bin_op(self) -> ASTExpr:
-        pass
+        # TODO: parse binary operators
+        return self._parse_unary_expr()
+
+    # unary_expr = ['&' | '*' | '-' | '!' | '~'] atom_expr ['?']
+    # Semantic Actions: lookup operators overloads, apply operator type
+    # constraints
+    def _parse_unary_expr(self) -> ASTExpr:
+        # TODO: parse unary exprs
+        return self._parse_atom_expr()
+
+    # atom_expr = atom {trailer}
+    # trailer = '.' ('IDENTIFIER' | 'INT_LIT') 
+    #   | '(' args ')' 
+    #   | '[' (expr [':' expr] | ':' expr) ']' 
+    #   | '{' struct_init '}'
+    # struct_init = ('...' 'IDENTIFIER' | 'ID' initializer) {',' 'ID' initializer}
+    # Semantic Actions: get fields from records (structs, hybrids, tuples,
+    # packages, etc.), apply call constraints and struct constraints, lookup
+    # operator overloads, apply operator type constraints
+    def _parse_atom_expr(self) -> ASTExpr:
+        # TODO: parse trailer
+        return self._parse_atom()
+
+    # atom = 'INT_LIT' | 'FLOAT_LIT' | 'NUM_LIT' | 'STRING_LIT' | 'RUNE_LIT'
+    #   | 'BOOL_LIT' | 'ID' | 'NULL' | '(' [expr_list] ')'
+    # Semantic Actions: look up identifiers
+    def _parse_atom(self) -> ASTExpr:
+        # if self._got(TokenKind.BoolLit):
+        #     return ASTLit()
+        # TODO
+        return None
 
     # COMMON PARSING
+
+    # expr_list = expr {',' expr}
+    def _parse_expr_list(self) -> List[ASTExpr]:
+        exprs = [self._parse_expr()]
+
+        while self.got(TokenKind.Comma):
+            self._next()
+            exprs.append(self._parse_expr())
+
+        return exprs   
 
     # type_label = prim_type | ref_type | tuple_type | named_type
     # Semantic Actions: lookup named types

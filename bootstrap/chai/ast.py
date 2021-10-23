@@ -30,3 +30,23 @@ class ValueCategory(Enum):
 class ASTExpr:
     typ: DataType
     category: ValueCategory
+
+# TODO: dataclass inheritance :(
+
+# ASTIdent is an AST identifier
+@dataclass
+class ASTIdent(ASTExpr):
+    sym: Symbol
+
+    def __post_init__(self, sym: Symbol) -> None:
+        super().__init__(sym.typ, ValueCategory.LValue)
+        self.sym = sym
+
+# ASTLit is an AST literal
+@dataclass
+class ASTLit(ASTExpr):
+    value: str
+
+    def __post_init__(self, typ: DataType, value: str) -> None:
+        super().__init__(typ, ValueCategory.RValue)
+        self.value = value
