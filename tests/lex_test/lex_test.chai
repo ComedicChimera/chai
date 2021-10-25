@@ -16,8 +16,6 @@ there end
 wednesday
 my dudes !#
 
-"char \x12"
-
 long_identifier_that_is_more_than_15_bytes
 def_check_full_match
 ending 0x53fe
@@ -60,7 +58,7 @@ what's up!`
 
 0b11101ul
 
-'\r' '\x02'
+'\r'
 
 upside
 

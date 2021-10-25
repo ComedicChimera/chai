@@ -65,8 +65,11 @@ func (cm *CompileMessage) displayHeader() {
 		WarnStyleBG.Print("Compile Warning")
 	}
 
-	fmt.Println(" ")
-	ErrorColorFG.Printf("[%s] %s:(%d, %d): %s\n", cm.Context.ModName, cm.Context.FileRelPath, cm.Position.StartLn, cm.Position.StartCol, cm.Message)
+	// sanitize message
+	msg := strings.ReplaceAll(cm.Message, "\r", "\\r")
+	msg = strings.ReplaceAll(msg, "\n", "\\n")
+
+	ErrorColorFG.Printf(" [%s] %s:(%d, %d): %s\n", cm.Context.ModName, cm.Context.FileRelPath, cm.Position.StartLn, cm.Position.StartCol, msg)
 }
 
 // displayCodeSelection displays the erroneous code (with line numbers) and
@@ -127,7 +130,7 @@ func (cm *CompileMessage) displayCodeSelection() {
 		// print the carrets
 		fmt.Print(strings.Repeat(" ", maxLineNumberWidth), "|  ")
 		if i == 0 {
-			fmt.Print(strings.Repeat(" ", cm.Position.StartCol-minWhitespace))
+			fmt.Print(strings.Repeat(" ", cm.Position.StartCol-minWhitespace-1))
 
 			// if the selection is one line long then we don't print carrets to
 			// the end of the line; if it isn't, then we print carrets to the
@@ -136,12 +139,12 @@ func (cm *CompileMessage) displayCodeSelection() {
 				ErrorColorFG.Print(strings.Repeat("^", cm.Position.EndCol-cm.Position.StartCol))
 				fmt.Println()
 			} else {
-				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol))
+				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol+1))
 			}
 		} else if i == len(lines)-1 {
 			// if we are at the last line, we print carrets until the end column
 			// and then stop
-			ErrorColorFG.Println(strings.Repeat("^", cm.Position.EndCol-minWhitespace))
+			ErrorColorFG.Println(strings.Repeat("^", cm.Position.EndCol-minWhitespace-1))
 		} else {
 			// if we are in the middle of highlighting then we simply fill the
 			// line with carrets

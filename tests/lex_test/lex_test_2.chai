@@ -8,7 +8,7 @@ end
 
 let numbers = {0x0f32, 0b1, 34.5, 67, 12.35e1, 7E-12, 0o124}
 
-let runes = {'a', 'b', '\0', '\xF2', '\U0001f34c'}
+let runes = {'a', 'b', '\0'}
 
 let strings = {"big chungus", "a\ner", "\r\t123", `asdf`, `
     am

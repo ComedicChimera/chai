@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"chai/common"
 	"chai/report"
+	"chai/syntax"
 	"fmt"
 	"os"
 
@@ -36,7 +38,7 @@ func Execute() {
 	// run the argument parser
 	result, err := olive.ParseArgs(cli, os.Args)
 	if err != nil {
-		report.ReportFatal("CLI Usage Error: " + err.Error())
+		report.ReportFatal(err.Error())
 	}
 
 	// process the inputed command line
@@ -53,7 +55,29 @@ func Execute() {
 
 // execBuildCommand executes the build subcommand and handles all errors
 func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
-	// TODO
+	// initialize the reporter
+	report.InitReporter(report.LogLevelVerbose)
+
+	// DEBUG: test lexer
+	arg, _ := result.PrimaryArg()
+
+	file, err := os.Open(arg)
+	if err != nil {
+		report.ReportFatal("failed to open file: " + err.Error())
+	}
+	defer file.Close()
+
+	ctx := &report.CompilationContext{
+		ModAbsPath:  "",
+		FileRelPath: arg,
+	}
+
+	r := bufio.NewReader(file)
+	l := syntax.NewLexer(ctx, r)
+
+	for tok, ok := l.NextToken(); ok && tok.Kind != syntax.EOF; tok, ok = l.NextToken() {
+		fmt.Println(tok.Kind, tok.Value)
+	}
 }
 
 // execModCommand executes the `mod` subcommand and its subcommands.  It handles

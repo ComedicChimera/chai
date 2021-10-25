@@ -80,7 +80,7 @@ func (l *Lexer) NextToken() (*Token, bool) {
 
 			// numeric literals
 			if isDigit(ahead) {
-
+				return l.lexNumber()
 			} else if isAlpha(ahead) || ahead == '_' /* identifiers and keywords */ {
 				l.read()
 
@@ -105,11 +105,13 @@ func (l *Lexer) NextToken() (*Token, bool) {
 				op, ok := symbolPatterns[l.tokBuff.String()]
 				if !ok {
 					l.fail(fmt.Sprintf("unknown rune `%c`", ahead))
+					return nil, false
 				}
 
 				for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
-					if op, ok = symbolPatterns[l.tokBuff.String()+string(ahead)]; ok {
+					if nextOp, ok := symbolPatterns[l.tokBuff.String()+string(ahead)]; ok {
 						l.read()
+						op = nextOp
 					} else {
 						break
 					}
@@ -254,7 +256,9 @@ func (l *Lexer) lexRune() (*Token, bool) {
 
 	switch c {
 	case '\\':
-		l.lexEscapeSequence()
+		if !l.lexEscapeSequence() {
+			return nil, false
+		}
 	case '\'':
 		l.fail("empty rune literal")
 		return nil, false
@@ -265,6 +269,7 @@ func (l *Lexer) lexRune() (*Token, bool) {
 	if closer, ok := l.peek(); ok {
 		if closer != '\'' {
 			l.fail(fmt.Sprintf("expected `'` not `%c`", closer))
+			return nil, false
 		}
 
 		l.skip()
@@ -315,10 +320,8 @@ func (l *Lexer) lexEscapeSequence() bool {
 	return true
 }
 
-// lexNumber lexes a number literals
+// lexNumber lexes a number literals -- assumes mark has already been set.
 func (l *Lexer) lexNumber() (*Token, bool) {
-	l.mark()
-
 	var isFloat, isUns, isLong bool
 	base := 10
 
@@ -347,6 +350,7 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 	// stop as soon as they are unsatisfied.
 	hasExp := false
 	mustHaveDigit := false // only applies in base 10
+loop:
 	for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
 		// for all bases that are not base 10, the only special handling is for
 		// integer suffixes -- so if we get a valid digit for any of the bases,
@@ -356,16 +360,22 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 			if ahead == '1' || ahead == '0' {
 				l.read()
 				continue
+			} else {
+				break loop
 			}
 		case 8:
 			if '0' <= ahead && ahead < '8' {
 				l.read()
 				continue
+			} else {
+				break loop
 			}
 		case 16:
 			if isDigit(ahead) || 'A' <= ahead && ahead <= 'F' || 'a' <= ahead && ahead <= 'f' {
 				l.read()
 				continue
+			} else {
+				break loop
 			}
 		case 10:
 			if isDigit(ahead) {
@@ -374,6 +384,7 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 				continue
 			} else if mustHaveDigit {
 				l.fail(fmt.Sprintf("expected digit not `%c`", ahead))
+				return nil, false
 			}
 
 			// for float logic, we make the assumption that things like `e` that
@@ -383,6 +394,7 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 			case 'e', 'E':
 				if hasExp {
 					l.fail("float literal cannot have multiple exponents")
+					return nil, false
 				}
 
 				l.read()
@@ -397,18 +409,26 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 
 					mustHaveDigit = true
 				} else {
-					l.fail(fmt.Sprintf("expected digit or `-` not end of file"))
+					l.fail("expected digit or `-` not end of file")
+					return nil, false
 				}
+
+				continue
 			case '.':
 				if isFloat {
 					l.fail("float literal cannot have multiple decimals")
+					return nil, false
 				}
 
 				l.read()
 				isFloat = true
+
+				continue
 			case '_':
 				// allow underscores to separate large numbers: eg. 100_000_000
-				l.read()
+				l.skip()
+
+				continue
 			}
 		}
 
@@ -424,8 +444,6 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 						isLong = true
 					}
 				}
-
-				break
 			} else if ahead == 'l' {
 				l.read()
 				isLong = true
@@ -436,10 +454,17 @@ func (l *Lexer) lexNumber() (*Token, bool) {
 						isUns = true
 					}
 				}
-
-				break
 			}
 		}
+
+		// if we reach here, completely unknown symbol/all of number has been
+		// read in
+		break
+	}
+
+	if mustHaveDigit {
+		l.fail("expected digit not end of file")
+		return nil, false
 	}
 
 	if base != 10 || isUns || isLong {
