@@ -63,9 +63,11 @@ func (l *Lexer) NextToken() (*Token, bool) {
 				l.fail("unexpected end of file")
 				return nil, false
 			}
-		// TODO: comments
+		// comments
 		case '#':
-			break
+			if tok := l.skipComment(); tok != nil {
+				return tok, true
+			}
 		// handle string-like
 		case '"':
 			return l.lexStdString()
@@ -74,13 +76,46 @@ func (l *Lexer) NextToken() (*Token, bool) {
 		case '\'':
 			return l.lexRune()
 		default:
+			l.mark()
+
 			// numeric literals
 			if isDigit(ahead) {
 
 			} else if isAlpha(ahead) || ahead == '_' /* identifiers and keywords */ {
+				l.read()
 
+				// greedily read in as large an identifier as possible
+				for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
+					if isAlpha(ahead) || isDigit(ahead) || ahead == '_' {
+						l.read()
+					} else {
+						break
+					}
+				}
+
+				// check for keywords
+				if keyword, ok := keywordPatterns[l.tokBuff.String()]; ok {
+					return l.makeToken(keyword), true
+				}
+
+				return l.makeToken(IDENTIFIER), true
 			} else /* punctuation and operators */ {
+				l.read()
 
+				op, ok := symbolPatterns[l.tokBuff.String()]
+				if !ok {
+					l.fail(fmt.Sprintf("unknown rune `%c`", ahead))
+				}
+
+				for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
+					if op, ok = symbolPatterns[l.tokBuff.String()+string(ahead)]; ok {
+						l.read()
+					} else {
+						break
+					}
+				}
+
+				return l.makeToken(op), true
 			}
 		}
 	}
@@ -91,6 +126,59 @@ func (l *Lexer) NextToken() (*Token, bool) {
 }
 
 // -----------------------------------------------------------------------------
+
+// skipComment skips a line or block comment.  It optionally returns a token to
+// return (if the comment counts as a newline).
+func (l *Lexer) skipComment() *Token {
+	l.skip()
+
+	ahead, ok := l.peek()
+	if !ok {
+		return nil
+	}
+
+	// multi-line comment
+	if ahead == '!' {
+		for {
+			l.skip()
+
+			ahead, ok = l.peek()
+			if !ok {
+				break
+			}
+
+			// check for the ending sequence
+			if ahead == '!' {
+				l.skip()
+
+				ahead, ok = l.peek()
+				if !ok {
+					break
+				}
+
+				if ahead == '#' {
+					l.skip()
+					break
+				}
+			}
+		}
+	} else /* single-line comment */ {
+		for ; ok && ahead != '\n'; ahead, ok = l.peek() {
+			l.skip()
+		}
+
+		if !ok {
+			return nil
+		}
+
+		// emit the newline at the end of the line comment
+		l.mark()
+		l.read()
+		return l.makeToken(NEWLINE)
+	}
+
+	return nil
+}
 
 // lexStdString lexes a standard (double-quoted) string literal.
 func (l *Lexer) lexStdString() (*Token, bool) {
@@ -225,6 +313,143 @@ func (l *Lexer) lexEscapeSequence() bool {
 	}
 
 	return true
+}
+
+// lexNumber lexes a number literals
+func (l *Lexer) lexNumber() (*Token, bool) {
+	l.mark()
+
+	var isFloat, isUns, isLong bool
+	base := 10
+
+	// we know there is a token ahead
+	curr, _ := l.read()
+
+	// handle base prefixes if we have a zero
+	if curr == '0' {
+		ahead, ok := l.peek()
+		if ok {
+			switch ahead {
+			case 'x':
+				base = 16
+				l.read()
+			case 'b':
+				base = 2
+				l.read()
+			case 'o':
+				base = 8
+				l.read()
+			}
+		}
+	}
+
+	// keep reading while there are valid runes to consume; number literals just
+	// stop as soon as they are unsatisfied.
+	hasExp := false
+	mustHaveDigit := false // only applies in base 10
+	for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
+		// for all bases that are not base 10, the only special handling is for
+		// integer suffixes -- so if we get a valid digit for any of the bases,
+		// we just continue.
+		switch base {
+		case 2:
+			if ahead == '1' || ahead == '0' {
+				l.read()
+				continue
+			}
+		case 8:
+			if '0' <= ahead && ahead < '8' {
+				l.read()
+				continue
+			}
+		case 16:
+			if isDigit(ahead) || 'A' <= ahead && ahead <= 'F' || 'a' <= ahead && ahead <= 'f' {
+				l.read()
+				continue
+			}
+		case 10:
+			if isDigit(ahead) {
+				l.read()
+				mustHaveDigit = false
+				continue
+			} else if mustHaveDigit {
+				l.fail(fmt.Sprintf("expected digit not `%c`", ahead))
+			}
+
+			// for float logic, we make the assumption that things like `e` that
+			// immediately follow numeric literals are meant to be part of the
+			// literal for sake of logical consistency.
+			switch ahead {
+			case 'e', 'E':
+				if hasExp {
+					l.fail("float literal cannot have multiple exponents")
+				}
+
+				l.read()
+				hasExp = true
+				isFloat = true
+
+				// check for negatives
+				if ahead, ok := l.peek(); ok {
+					if ahead == '-' {
+						l.read()
+					}
+
+					mustHaveDigit = true
+				} else {
+					l.fail(fmt.Sprintf("expected digit or `-` not end of file"))
+				}
+			case '.':
+				if isFloat {
+					l.fail("float literal cannot have multiple decimals")
+				}
+
+				l.read()
+				isFloat = true
+			case '_':
+				// allow underscores to separate large numbers: eg. 100_000_000
+				l.read()
+			}
+		}
+
+		// handle suffixes
+		if !isFloat {
+			if ahead == 'u' {
+				l.read()
+				isUns = true
+
+				if ahead, ok := l.peek(); ok {
+					if ahead == 'l' {
+						l.read()
+						isLong = true
+					}
+				}
+
+				break
+			} else if ahead == 'l' {
+				l.read()
+				isLong = true
+
+				if ahead, ok := l.peek(); ok {
+					if ahead == 'u' {
+						l.read()
+						isUns = true
+					}
+				}
+
+				break
+			}
+		}
+	}
+
+	if base != 10 || isUns || isLong {
+		return l.makeToken(INTLIT), true
+	} else if isFloat {
+		return l.makeToken(FLOATLIT), true
+	} else {
+		// some tokens may not be determinable as integers or floats yet
+		return l.makeToken(NUMLIT), true
+	}
 }
 
 // -----------------------------------------------------------------------------

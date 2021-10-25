@@ -134,6 +134,7 @@ const (
 	STRINGLIT
 	INTLIT
 	FLOATLIT
+	NUMLIT
 	RUNELIT
 	BOOLLIT
 
@@ -190,6 +191,8 @@ var keywordPatterns = map[string]int{
 	"bool":        BOOL,
 	"rune":        RUNE,
 	"nothing":     NOTHING,
+	"true":        BOOLLIT,
+	"false":       BOOLLIT,
 }
 
 // token patterns for symbolic items - longest match wins
