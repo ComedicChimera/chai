@@ -27,8 +27,8 @@ documentation can be found in the
 - [Building the Compiler](#building)
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)
-  * [Current Approach](#current-approach)
-  * [The Go Implementation](#go-impl)
+  * [Current Approach](#current-approach) <-- Update?
+  * [The Go Implementation](#go-impl) <-- Remove Note?
   * [Whirlwind](#whirlwind)
 
 ## <a name="features"> Features
