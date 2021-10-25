@@ -2,14 +2,14 @@ package syntax
 
 import "chai/report"
 
-// Token represents a token read in by the scanner
+// Token represents a token read in by the lexer.
 type Token struct {
 	Kind  int
 	Value string
 	Pos   *report.TextPosition
 }
 
-// The various kinds of a tokens supported by the scanner
+// The various kinds of a tokens supported by the lexer.
 const (
 	// variables
 	LET = iota
@@ -142,7 +142,7 @@ const (
 	EOF
 )
 
-// token patterns (matching strings) for keywords
+// token patterns (matching strings) for keywords.
 var keywordPatterns = map[string]int{
 	"let":         LET,
 	"if":          IF,
@@ -195,7 +195,7 @@ var keywordPatterns = map[string]int{
 	"false":       BOOLLIT,
 }
 
-// token patterns for symbolic items - longest match wins
+// token patterns for symbolic items - longest match wins.
 var symbolPatterns = map[string]int{
 	"+":   PLUS,
 	"++":  INCREM,
