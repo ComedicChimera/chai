@@ -27,8 +27,7 @@ documentation can be found in the
 - [Building the Compiler](#building)
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)
-  * [Current Approach](#current-approach) <-- Update?
-  * [The Go Implementation](#go-impl) <-- Remove Note?
+  * [Current Approach](#current-approach)
   * [Whirlwind](#whirlwind)
 
 ## <a name="features"> Features
@@ -93,11 +92,9 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### <a name="compiler-prog"/> Compiler
 
-- [ ] Alpha Chai in Python <--
+- [ ] Alpha Chai in Go <--
 - [ ] Alpha Chai in Alpha Chai
 - [ ] Chai in Chai
-
-See the Trello for more detailed info on the progress of Step 1
 
 ### <a name="std-lib-prog"/> Standard Library
 
@@ -154,8 +151,8 @@ The compilation pipeline, that is the stages of compilation depend on the
 iteration of the compiler but in general the flow is as follows:
 
 1. Source Text
-2. Typed AST
-3. Chai MIR
+2. Untyped AST
+3. Typed AST
 4. LLVM IR
 
 ## <a name="development"> Development
@@ -172,72 +169,17 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-The compiler is being bootstrapped.  I am going to write a Python implementation
-of the compiler using the Python's LLVM bindings -- this compiler will compile a
-simple subset of Chai called Alpha Chai.  Once that is finished, a full Chai
-compiler will be implemented in Chai rendering the language full self-hosting.
-Eventually, the compiler will be able to compile itself.
+The compiler is being bootstrapped.  I am going to write a Go implementation of
+the compiler using the Go's LLVM IR generation library (this LLVM source text
+will then be piped to the LLVM compiler, Go's LLVM bindings don't work) -- this
+compiler will compile a simple subset of Chai called Alpha Chai.  Once that is
+finished, a full Chai compiler will be implemented in Chai rendering the
+language full self-hosting. Eventually, the compiler will be able to compile
+itself.
 
 The `bootstrap` directory contains the Python implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
-
-I tried briefly writing it in other languages (after the Go impl), but
-ultimately Python is simply the best language that I am comfortable with to
-write a compiler in.  But, for numerous reasons, Python is obviously not a
-candidate for the final compiler.  It will allow me to rapidly assemble a
-working compiler (I was able to completely catch up with a C implementation that
-took me over a week to write in one day of Python coding) that I can then use to
-make my language self-hosting.
-
-### <a name="go-impl"> The Go Implmentation
-
-The few of you that had paid any attention to this repository previously may
-have remembered a fairly substantial amount of work was done on a Golang
-implementation of the Chai compiler.  You will have also noticed that this
-implementation is no longer on the main branch of the repository.  In fact, it
-is no longer being developed at all.
-
-The reason for this is that I discovered that the LLVM bindings for Go don't
-work -- at all.  I spent 2 months trying to get them to work and ultimately
-concluded that there was nothing I could reasonably do to get them to work. I
-didn't check that the bindings worked before I started building the compiler:
-only that they existed.  Silly me thought that the *official LLVM bindings* for
-Go that were included in the *main LLVM project repository* and listed on page
-for supported Go bindings on the *official LLVM website* would work. They don't.
-They wouldn't even install via `go get`, and when I tried to hack them into
-project manually, I got assaulted with build errors that, after months of
-wrangling with CGO (which for some reason only supports GCC), I concluded that
-the only options would be to copy core system libraries such as `shell32.lib`
-into the primary repository directory which for obvious reasons was no going to
-work.  I needed the bindings to work on Windows: full stop -- they didn't.
-
-I googled; I posted on Stack Overflow; I posted in the official LLVM Discord:
-crickets -- no one knew a thing.  Short of messaging the creators of the
-bindings manually on Github (all of whom appeared to be Linux developers), I
-tried everything.  The primary other solution would have been to use a library to
-generate LLVM source text, pass it to `llc` (which would entail a bunch of file
-IO operations, parsing, and subprocess spawning), pass it to `opt` if I need to
-optimize it, and then pass it to the assembler.  The performance cost, along
-with the fact that the module that did the text-LLVM generation was not actually
-an official LLVM package, discouraged me from pursuing this route -- having to
-repeatedly reparse source text seemed foolish.  It may have also been possible
-to use a tool like `protobuf` to pass data from the Go front-end to a C++
-back-end, but that adds a whole bunch of added complexity: maintaining a
-multi-language build pipeline and respository, maintaining a shared data schema,
-running multiple applications together at runtime, and the time to serialize and
-deserialize data passed between the languages.  In short, both options seemed
-to incur a significant performance cost and a mountain of tech debt -- ultimately,
-neither seemed worth it.  
-
-This is all especially salient considering as I never really considered Golang a
-"great" language to write a compiler in.  I picked it because it was a language
-I knew, that I could work reasonably fast in, that had decent tooling, and most
-importantly, had working LLVM bindings (or so I thought).  I was more than happy
-to work in another language.  But, restarting for the fourth time, well, let's
-just say it nearly drove me into a psychological abyss that would likely have
-ended with an obituary.  I feel that I am really living out that old adage about
-madness being the price of greatness.
 
 ### <a name="whirlwind"> Whirlwind
 
