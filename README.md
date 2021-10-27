@@ -177,7 +177,7 @@ finished, a full Chai compiler will be implemented in Chai rendering the
 language full self-hosting. Eventually, the compiler will be able to compile
 itself.
 
-The `bootstrap` directory contains the Python implementation.  Once that
+The `bootstrap` directory contains the Go implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
 
