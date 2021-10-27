@@ -486,7 +486,7 @@ func (l *Lexer) makeToken(kind int) *Token {
 	return &Token{
 		Kind:  kind,
 		Value: l.tokBuff.String(),
-		Pos: &report.TextPosition{
+		Position: &report.TextPosition{
 			StartLn:  l.startLine,
 			StartCol: l.startCol,
 			EndLn:    l.line,

@@ -4,15 +4,16 @@ import "chai/report"
 
 // Token represents a token read in by the lexer.
 type Token struct {
-	Kind  int
-	Value string
-	Pos   *report.TextPosition
+	Kind     int
+	Value    string
+	Position *report.TextPosition
 }
 
 // The various kinds of a tokens supported by the lexer.
 const (
 	// variables
 	LET = iota
+	CONST
 	VOL
 
 	// control flow
@@ -20,18 +21,15 @@ const (
 	ELIF
 	ELSE
 	FOR
+	WHILE
 	BREAK
 	CONTINUE
-	WHEN
-	NOBREAK
-	WHILE
-	FALLTHROUGH
-	WITH
-	DO
-	OF
+	AFTER
 	MATCH
 	CASE
-	AFTER
+	WHEN
+	FALLTHROUGH
+	DO
 	END
 
 	// function terminators
@@ -39,15 +37,13 @@ const (
 
 	// function definitions
 	DEF
-	ASYNC
 	OPER
 
 	// type definitions
 	TYPE
-	CLASS
 	SPACE
+	WITH
 	CLOSED
-	UNION
 
 	// package keywords
 	IMPORT
@@ -144,55 +140,60 @@ const (
 
 // token patterns (matching strings) for keywords.
 var keywordPatterns = map[string]int{
-	"let":         LET,
+	"let":   LET,
+	"const": CONST,
+	"vol":   VOL,
+
 	"if":          IF,
 	"elif":        ELIF,
 	"else":        ELSE,
 	"for":         FOR,
+	"while":       WHILE,
 	"break":       BREAK,
 	"continue":    CONTINUE,
-	"when":        WHEN,
 	"after":       AFTER,
-	"while":       WHILE,
-	"fallthrough": FALLTHROUGH,
-	"with":        WITH,
-	"do":          DO,
-	"of":          OF,
-	"return":      RETURN,
-	"vol":         VOL,
-	"def":         DEF,
-	"async":       ASYNC,
-	"oper":        OPER,
-	"type":        TYPE,
-	"closed":      CLOSED,
-	"class":       CLASS,
-	"space":       SPACE,
-	"union":       UNION,
-	"import":      IMPORT,
-	"pub":         PUB,
-	"from":        FROM,
-	"null":        NULL,
-	"as":          AS,
 	"match":       MATCH,
-	"end":         END,
-	"in":          IN,
 	"case":        CASE,
-	"i8":          I8,
-	"i16":         I16,
-	"i32":         I32,
-	"i64":         I64,
-	"u8":          U8,
-	"u16":         U16,
-	"u32":         U32,
-	"u64":         U64,
-	"f32":         F32,
-	"f64":         F64,
-	"string":      STRING,
-	"bool":        BOOL,
-	"rune":        RUNE,
-	"nothing":     NOTHING,
-	"true":        BOOLLIT,
-	"false":       BOOLLIT,
+	"when":        WHEN,
+	"fallthrough": FALLTHROUGH,
+	"do":          DO,
+	"end":         END,
+
+	"return": RETURN,
+
+	"def":  DEF,
+	"oper": OPER,
+
+	"type":   TYPE,
+	"space":  SPACE,
+	"closed": CLOSED,
+	"with":   WITH,
+
+	"import": IMPORT,
+	"pub":    PUB,
+	"from":   FROM,
+
+	"null": NULL,
+	"as":   AS,
+
+	"in":      IN,
+	"i8":      I8,
+	"i16":     I16,
+	"i32":     I32,
+	"i64":     I64,
+	"u8":      U8,
+	"u16":     U16,
+	"u32":     U32,
+	"u64":     U64,
+	"f32":     F32,
+	"f64":     F64,
+	"string":  STRING,
+	"bool":    BOOL,
+	"rune":    RUNE,
+	"nothing": NOTHING,
+
+	"true":  BOOLLIT,
+	"false": BOOLLIT,
 }
 
 // token patterns for symbolic items - longest match wins.

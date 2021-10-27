@@ -1,6 +1,7 @@
 package depm
 
 import (
+	"chai/ast"
 	"chai/report"
 	"time"
 )
@@ -16,6 +17,9 @@ type ChaiFile struct {
 	// Metadata is the map of all metadata keys specified for this file.
 	// Metadata flags have an empty string as their value.
 	Metadata map[string]string
+
+	// Defs is the list of AST definitions that make up this source file.
+	Defs []*ast.Definition
 
 	// TODO: rest
 }
