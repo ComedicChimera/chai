@@ -1,11 +1,14 @@
 package depm
 
-import "time"
+import (
+	"chai/report"
+	"time"
+)
 
 // ChaiFile represents a Chai source file.
 type ChaiFile struct {
-	// RelPath is the module-relative path to the file.
-	RelPath string
+	// Context is the module-relative compilation context of the file.
+	Context *report.CompilationContext
 
 	// Parent is the parent package to the file.
 	Parent *ChaiPackage

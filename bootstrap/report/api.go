@@ -80,14 +80,14 @@ func ReportFatal(msg string) {
 
 // LogCompileHeader reports the pre-compilation header: information about the
 // compiler's current configuration (version, target, caching, etc.).
-func LogCompileHeader(target string, caching bool) {
+func ReportCompileHeader(target string, caching bool) {
 	if reporter.LogLevel == LogLevelVerbose {
 		displayCompileHeader(target, caching)
 	}
 }
 
 // ReportBeginPhase reports the beginning of a compilation phase.
-func LogBeginPhase(phase string) {
+func ReportBeginPhase(phase string) {
 	if reporter.LogLevel == LogLevelVerbose {
 		displayBeginPhase(phase)
 	}
