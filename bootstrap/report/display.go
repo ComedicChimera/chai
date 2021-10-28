@@ -38,7 +38,7 @@ func DisplayInfoMessage(dataName, msg string) {
 
 func (me *ModuleMessage) display() {
 	ErrorStyleBG.Print("Module Error")
-	ErrorColorFG.Printf("in module `%s`: %s\n", me.ModName, me.Message)
+	ErrorColorFG.Printf(" in module `%s`: %s\n", me.ModName, me.Message)
 }
 
 func (cm *CompileMessage) display() {
@@ -50,7 +50,6 @@ func (cm *CompileMessage) display() {
 }
 
 func displayFatalError(msg string) {
-	fmt.Print("\n\n")
 	ErrorStyleBG.Print("Fatal Error")
 	ErrorColorFG.Println(" " + msg)
 }
@@ -69,7 +68,13 @@ func (cm *CompileMessage) displayHeader() {
 	msg := strings.ReplaceAll(cm.Message, "\r", "\\r")
 	msg = strings.ReplaceAll(msg, "\n", "\\n")
 
-	ErrorColorFG.Printf(" [%s] %s:(%d, %d): %s\n", cm.Context.ModName, cm.Context.FileRelPath, cm.Position.StartLn, cm.Position.StartCol, msg)
+	// end of file
+	if cm.Position == nil {
+		ErrorColorFG.Printf(" [%s] %s: %s\n", cm.Context.ModName, cm.Context.FileRelPath, msg)
+	} else {
+		ErrorColorFG.Printf(" [%s] %s:(%d, %d): %s\n", cm.Context.ModName, cm.Context.FileRelPath, cm.Position.StartLn, cm.Position.StartCol, msg)
+	}
+
 }
 
 // displayCodeSelection displays the erroneous code (with line numbers) and
@@ -167,6 +172,8 @@ func displayCompileHeader(target string, caching bool) {
 	if caching {
 		fmt.Println("compiling using cache")
 	}
+
+	fmt.Print("\n")
 }
 
 // phaseSpinner stores the current phase spinner
@@ -178,28 +185,28 @@ const maxPhaseLength = len("Generating")
 
 // displayBeginPhase displays the beginning of a compilation phase
 func displayBeginPhase(phase string) {
-	currentPhase = phase
-	phaseText := phase + "..." + strings.Repeat(" ", maxPhaseLength-len(phase)+2)
-	phaseSpinner = pterm.DefaultSpinner.WithStyle(pterm.NewStyle(InfoColorFG))
+	// currentPhase = phase
+	// phaseText := phase + "..." + strings.Repeat(" ", maxPhaseLength-len(phase)+2)
+	// phaseSpinner = pterm.DefaultSpinner.WithStyle(pterm.NewStyle(InfoColorFG))
 
-	phaseSpinner.SuccessPrinter = &pterm.PrefixPrinter{
-		MessageStyle: pterm.NewStyle(pterm.FgDefault),
-		Prefix: pterm.Prefix{
-			Style: SuccessStyleBG,
-			Text:  "Done",
-		},
-	}
+	// phaseSpinner.SuccessPrinter = &pterm.PrefixPrinter{
+	// 	MessageStyle: pterm.NewStyle(pterm.FgDefault),
+	// 	Prefix: pterm.Prefix{
+	// 		Style: SuccessStyleBG,
+	// 		Text:  "Done",
+	// 	},
+	// }
 
-	phaseSpinner.FailPrinter = &pterm.PrefixPrinter{
-		MessageStyle: pterm.NewStyle(pterm.FgDefault),
-		Prefix: pterm.Prefix{
-			Style: ErrorStyleBG,
-			Text:  "Fail",
-		},
-	}
+	// phaseSpinner.FailPrinter = &pterm.PrefixPrinter{
+	// 	MessageStyle: pterm.NewStyle(pterm.FgDefault),
+	// 	Prefix: pterm.Prefix{
+	// 		Style: ErrorStyleBG,
+	// 		Text:  "Fail",
+	// 	},
+	// }
 
-	phaseSpinner.Start(phaseText)
-	phaseStartTime = time.Now()
+	// phaseSpinner.Start(phaseText)
+	// phaseStartTime = time.Now()
 }
 
 // displayEndPhase displays the end of a compilation phase
@@ -214,6 +221,8 @@ func displayEndPhase(success bool) {
 			phaseSpinner.Fail(currentPhase + strings.Repeat(" ", maxPhaseLength-len(currentPhase)+2))
 		}
 
+		phaseSpinner.Stop()
+		time.Sleep(phaseSpinner.Delay * 2)
 		phaseSpinner = nil
 	}
 }

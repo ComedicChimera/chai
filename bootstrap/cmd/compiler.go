@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // Compiler represents the global state of the compiler.
@@ -35,7 +36,14 @@ func NewCompiler(rootRelPath string) *Compiler {
 
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
-		baseProfile: &depm.BuildProfile{},
+		// default profile options, will be overridden if there the `--profile`
+		// argument is specified.
+		baseProfile: &depm.BuildProfile{
+			TargetOS:     runtime.GOOS,
+			TargetArch:   runtime.GOARCH,
+			Debug:        true,
+			OutputFormat: -1, // undetermined
+		},
 	}
 }
 
@@ -89,11 +97,12 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	}
 
 	// create the package struct.
+	pkgID := depm.GenerateIDFromPath(pkgAbsPath)
 	pkg := &depm.ChaiPackage{
-		ID:          depm.GenerateIDFromPath(pkgAbsPath),
+		ID:          pkgID,
 		Name:        pkgName,
 		Parent:      parentMod,
-		GlobalTable: &depm.SymbolTable{},
+		GlobalTable: depm.NewSymbolTable(pkgID),
 	}
 
 	// TODO: add package to dependency graph (before parsing to prevent import

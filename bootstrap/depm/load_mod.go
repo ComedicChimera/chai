@@ -28,7 +28,7 @@ type tomlProfile struct {
 	TargetOS      string     `toml:"target-os"`
 	TargetArch    string     `toml:"target-arch"`
 	Debug         bool       `toml:"debug"`
-	OutputPath    string     `toml:"output"`
+	OutputPath    string     `toml:"output-path"`
 	Format        string     `toml:"format"`
 	LinkObjects   []string   `toml:"link-objects,omitempty"`
 	DefaultProf   bool       `toml:"default"`
@@ -85,32 +85,32 @@ func LoadModule(abspath, selectedProfile string, baseProfile *BuildProfile) (*Ch
 		return nil, false
 	}
 
-	// move all the relevant TOML module attributes over to the Chai module
-	chaiMod.Name = tomlMod.Name
-	chaiMod.ShouldCache = tomlMod.ShouldCache
-
 	return chaiMod, true
 }
 
 // validateModule checks that the top level module contents are valid
-func validateModule(cmod *ChaiModule, mod *tomlModule) bool {
-	if mod.Name == "" {
-		report.ReportModuleError(fmt.Sprintf("<module at `%s`>", cmod.AbsPath), "missing module name")
+func validateModule(chaiMod *ChaiModule, tomlMod *tomlModule) bool {
+	if tomlMod.Name == "" {
+		report.ReportModuleError(fmt.Sprintf("<module at `%s`>", chaiMod.AbsPath), "missing module name")
 		return false
 	}
 
-	if !IsValidIdentifier(mod.Name) {
-		report.ReportModuleError(fmt.Sprintf("<module at `%s`>", cmod.AbsPath), "module name must be a valid identifier")
+	if !IsValidIdentifier(tomlMod.Name) {
+		report.ReportModuleError(fmt.Sprintf("<module at `%s`>", chaiMod.AbsPath), "module name must be a valid identifier")
 		return false
 	}
 
-	if mod.ChaiVersion != common.ChaiVersion {
-		report.ReportModuleWarning(mod.Name, fmt.Sprintf("version of module `%s` (v%s) does not match current chai version (v%s)",
-			mod.Name,
-			mod.ChaiVersion,
+	if tomlMod.ChaiVersion != common.ChaiVersion {
+		report.ReportModuleWarning(tomlMod.Name, fmt.Sprintf("version of module `%s` (v%s) does not match current chai version (v%s)",
+			tomlMod.Name,
+			tomlMod.ChaiVersion,
 			common.ChaiVersion,
 		))
 	}
+
+	// move all the relevant TOML module attributes over to the Chai module
+	chaiMod.Name = tomlMod.Name
+	chaiMod.ShouldCache = tomlMod.ShouldCache
 
 	return true
 }
@@ -119,14 +119,14 @@ func validateModule(cmod *ChaiModule, mod *tomlModule) bool {
 // profile and a selected profile if one exists, validates this profile, and
 // updates the base build profile accordingly.  More information about this
 // process can be found in the module schema.
-func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, baseProfile *BuildProfile) error {
+func selectProfile(chaiMod *ChaiModule, tomlMod *tomlModule, selectedProfile string, baseProfile *BuildProfile) error {
 	// selectedProfile != nil => base profile
 	if selectedProfile != "" {
-		if len(mod.BuildProfiles) == 0 {
+		if len(tomlMod.BuildProfiles) == 0 {
 			return errors.New("root module must provide at least one build profile")
 		}
 
-		for _, prof := range mod.BuildProfiles {
+		for _, prof := range tomlMod.BuildProfiles {
 			if prof.Name == selectedProfile {
 				convProf, err := convertProfile(prof)
 
@@ -141,7 +141,7 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ba
 
 				// set the module last build time to the last build time of the
 				// profile (may be `nil` if no caching is enabled)
-				cmod.LastBuildTime = prof.LastBuildTime
+				chaiMod.LastBuildTime = prof.LastBuildTime
 
 				// found profile; exit
 				return nil
@@ -155,14 +155,14 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ba
 	var possibleTomlProfiles []*tomlProfile
 	defaultProfile := -1
 
-	for _, prof := range mod.BuildProfiles {
+	for _, prof := range tomlMod.BuildProfiles {
 		convProf, err := convertProfile(prof)
 		if err != nil {
 			return err
 		}
 
 		if convProf.Debug == baseProfile.Debug &&
-			convProf.OutputFormat == baseProfile.OutputFormat &&
+			(baseProfile.OutputFormat == -1 || convProf.OutputFormat == baseProfile.OutputFormat) &&
 			convProf.TargetArch == baseProfile.TargetArch &&
 			convProf.TargetOS == baseProfile.TargetOS {
 
@@ -182,16 +182,16 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ba
 			return errors.New("root module must specify a valid build profile")
 		}
 
-		if !mod.AllowProfileElision {
+		if !tomlMod.AllowProfileElision {
 			return errors.New("module does not specify a build profile compatible with the base profile")
 		}
 	case 1:
 		updateProfile(baseProfile, possibleProfiles[0])
-		cmod.LastBuildTime = possibleTomlProfiles[0].LastBuildTime
+		chaiMod.LastBuildTime = possibleTomlProfiles[0].LastBuildTime
 	default:
 		if defaultProfile == -1 {
 			report.ReportModuleWarning(
-				cmod.Name,
+				chaiMod.Name,
 				fmt.Sprintf("multiple possible profiles for module detected: building with profile `%s`", possibleTomlProfiles[0].Name),
 			)
 
@@ -199,7 +199,7 @@ func selectProfile(cmod *ChaiModule, mod *tomlModule, selectedProfile string, ba
 		}
 
 		updateProfile(baseProfile, possibleProfiles[defaultProfile])
-		cmod.LastBuildTime = possibleTomlProfiles[defaultProfile].LastBuildTime
+		chaiMod.LastBuildTime = possibleTomlProfiles[defaultProfile].LastBuildTime
 	}
 
 	return nil

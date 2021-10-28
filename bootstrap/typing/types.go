@@ -1,13 +1,17 @@
 package typing
 
+import "strings"
+
 // DataType is the parent interface for all types in Chai.
 type DataType interface {
-	// Equals returns if two types are exactly identical.
+	// Equals returns if two types are exactly identical.  This operation is
+	// commutative.
 	Equals(DataType) bool
 
 	// Equiv returns if two types are semantic equivalent: eg. an alias is
 	// equivalent to the type that it is an alias of, but it is not equal to
-	// that type.
+	// that type.  This operation is commutative.  Equivalency requires that the
+	// two types compile to the same output type in LLVM.
 	Equiv(DataType) bool
 
 	// Repr returns a representative string of the type for purposes of error
@@ -80,4 +84,78 @@ func (pt PrimType) Repr() string {
 		// PrimNothing
 		return "nothing"
 	}
+}
+
+// -----------------------------------------------------------------------------
+
+// FuncType represents a function type.
+type FuncType struct {
+	Args       []FuncArg
+	ReturnType DataType
+}
+
+// FuncArg is a function argument (used in a function type).
+type FuncArg struct {
+	Name  string
+	Type  DataType
+	ByRef bool
+}
+
+func (ft *FuncType) Equals(other DataType) bool {
+	if oft, ok := other.(*FuncType); ok {
+		if len(ft.Args) != len(oft.Args) {
+			return false
+		}
+
+		for i, arg := range ft.Args {
+			oarg := oft.Args[i]
+
+			if arg.ByRef != oarg.ByRef || !arg.Type.Equals(oarg.Type) {
+				return false
+			}
+		}
+
+		return ft.ReturnType.Equals(oft.ReturnType)
+	}
+
+	return false
+}
+
+func (ft *FuncType) Equiv(other DataType) bool {
+	if oft, ok := other.(*FuncType); ok {
+		if len(ft.Args) != len(oft.Args) {
+			return false
+		}
+
+		for i, arg := range ft.Args {
+			oarg := oft.Args[i]
+
+			if arg.ByRef != oarg.ByRef || !arg.Type.Equiv(oarg.Type) {
+				return false
+			}
+		}
+
+		return ft.ReturnType.Equiv(oft.ReturnType)
+	}
+
+	return false
+}
+
+func (ft *FuncType) Repr() string {
+	sb := strings.Builder{}
+
+	sb.WriteRune('(')
+
+	for i, arg := range ft.Args {
+		sb.WriteString(arg.Type.Repr())
+
+		if i < len(ft.Args)-1 {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteString(") -> ")
+	sb.WriteString(ft.ReturnType.Repr())
+
+	return sb.String()
 }

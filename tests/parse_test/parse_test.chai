@@ -6,10 +6,12 @@ def print(s: f32) end
 
 def nroot(f: f32, r: i32) f32 end 
 
-def roon_time(r: rune, a, b: rune) end
+def roon_time(r: u32, a, b: u64) end
 
 def bold_of_you(s, a: nothing, dir: u8) u64 end
 
 def by_ref_bash(&x: i32) i16 end 
 
-def by_ref_even_more(&y: rune, &z: i32) i32 end
+def by_ref_even_more(&y: string, &z: i32) i32 end
+
+def many_args(z: i32, &b: u16, p: f64) end

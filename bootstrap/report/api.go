@@ -69,7 +69,11 @@ func ReportModuleWarning(modName string, msg string) {
 
 // ReportFatal reports a fatal error and exits the program.
 func ReportFatal(msg string) {
+	reporter.errorCount++
+
+	ReportEndPhase()
 	displayFatalError(msg)
+
 	os.Exit(1)
 }
 

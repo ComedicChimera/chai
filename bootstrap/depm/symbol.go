@@ -1,6 +1,9 @@
 package depm
 
-import "chai/report"
+import (
+	"chai/report"
+	"chai/typing"
+)
 
 // Symbol represents a Chai symbol.
 type Symbol struct {
@@ -12,7 +15,8 @@ type Symbol struct {
 	// DefPosition is the position of the identifier that defines the symbol.
 	DefPosition *report.TextPosition
 
-	// TODO: Type
+	// Type is the symbol's defined type.
+	Type typing.DataType
 
 	// DefKind indicates what type of symbol this is: ie. does it correspond to
 	// a value such as a function or a type.  Must be one of the enumerated def

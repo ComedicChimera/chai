@@ -1,8 +1,19 @@
 package syntax
 
+import "chai/typing"
+
+// type_ext = ':' type_label
+func (p *Parser) parseTypeExt() (typing.DataType, bool) {
+	if !p.assert(COLON) || !p.next() {
+		return nil, false
+	}
+
+	return p.parseTypeLabel()
+}
+
 // type_label = prim_type | ref_type | named_type | tuple_type
 // ref_type = '&' (prim_type | named_type | tuple_type)
-func (p *Parser) parseTypeLabel() bool {
+func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	// TODO: check for reference types
 
 	switch p.tok.Kind {
@@ -11,8 +22,18 @@ func (p *Parser) parseTypeLabel() bool {
 	case LPAREN:
 		// TODO: tuple_type
 	default:
-		// TODO: prim_type
+		// prim_type
+		if U8 <= p.tok.Kind && p.tok.Kind <= NOTHING {
+			if !p.next() {
+				return nil, false
+			}
+
+			// use the fact that the token kind is numerically aligned with the
+			// different primitive kinds -- just need to remove an offset.
+			return typing.PrimType(p.tok.Kind - U8), true
+		}
 	}
 
-	return false
+	p.reject()
+	return nil, false
 }

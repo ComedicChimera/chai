@@ -45,7 +45,7 @@ func NewParser(chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
 // succeeded or failed.
 func (p *Parser) Parse() bool {
 	// move the parser onto the first token
-	if p.next() {
+	if !p.next() {
 		return false
 	}
 
@@ -77,11 +77,27 @@ func (p *Parser) got(kind int) bool {
 	return p.tok.Kind == kind
 }
 
+// gotOneOf returns if the parser's current token kind is one of given kinds.
+func (p *Parser) gotOneOf(kinds ...int) bool {
+	for _, kind := range kinds {
+		if p.tok.Kind == kind {
+			return true
+		}
+	}
+
+	return false
+}
+
 // assert checks if the parser is on a token of a given kind and rejects the
 // token if not.  It returns a boolean indicating whether or not the parser is
 // on a matching token kind (and should continue).
 func (p *Parser) assert(kind int) bool {
 	if p.got(kind) {
+		return true
+	}
+
+	// EOF can work as a newline
+	if kind == NEWLINE && p.got(EOF) {
 		return true
 	}
 
@@ -118,10 +134,20 @@ func (p *Parser) newlines() bool {
 
 // reject reports an unexpected token error on the current token.
 func (p *Parser) reject() {
+	var msg string
+	switch p.tok.Kind {
+	case NEWLINE:
+		msg = "unexpected newline"
+	case EOF:
+		msg = "unexpected end of file"
+	default:
+		msg = fmt.Sprintf("unexpected token: `%s`", p.tok.Value)
+	}
+
 	report.ReportCompileError(
 		p.chFile.Context,
 		p.tok.Position,
-		fmt.Sprintf("unexpected token: `%s`", p.tok.Value),
+		msg,
 	)
 }
 
