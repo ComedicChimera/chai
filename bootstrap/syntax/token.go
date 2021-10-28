@@ -70,7 +70,6 @@ const (
 	F32
 	F64
 	BOOL
-	RUNE
 	STRING
 	NOTHING
 
@@ -187,9 +186,8 @@ var keywordPatterns = map[string]int{
 	"u64":     U64,
 	"f32":     F32,
 	"f64":     F64,
-	"string":  STRING,
 	"bool":    BOOL,
-	"rune":    RUNE,
+	"string":  STRING,
 	"nothing": NOTHING,
 
 	"true":  BOOLLIT,

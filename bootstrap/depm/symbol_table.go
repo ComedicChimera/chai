@@ -70,10 +70,10 @@ func NewSymbolTable(pkgid uint) *SymbolTable {
 // Define defines a new global symbol and resolves all those symbols depending
 // on it. This function returns false if the definition fails -- it will report
 // errors in the case of failures.  It also requires the compilation context of
-// the symbol definition for purposes of error reporting.  The returned symbol
-// is the shared reference to the symbol that should be used as the definitive
-// reference to this symbol henceforth.
-func (st *SymbolTable) Define(ctx *report.CompilationContext, sym *Symbol) (*Symbol, bool) {
+// the symbol definition for purposes of error reporting.  The symbol passed in
+// may no longer be the valid shared reference to the global symbol and so
+// shouldn't be used after it is passed to Define.
+func (st *SymbolTable) Define(ctx *report.CompilationContext, sym *Symbol) bool {
 	// report import conflicts
 	if _, ok := st.importConflicts[sym.Name]; ok {
 		for _, ic := range st.importConflicts[sym.Name] {
@@ -96,7 +96,7 @@ func (st *SymbolTable) Define(ctx *report.CompilationContext, sym *Symbol) (*Sym
 			fmt.Sprintf("symbol defined multiple times: `%s`", sym.Name),
 		)
 
-		return nil, false
+		return false
 	} else if _, ok := st.unresolved[sym.Name]; ok {
 		// if the symbol is unresolved, then its definition is ok and this
 		// definition completes the previously defined symbol and removes
@@ -105,7 +105,7 @@ func (st *SymbolTable) Define(ctx *report.CompilationContext, sym *Symbol) (*Sym
 	} else {
 		// otherwise, just put the completed symbol in the lookup table
 		st.lookupTable[sym.Name] = sym
-		return sym, true
+		return true
 	}
 }
 
@@ -234,9 +234,8 @@ func (st *SymbolTable) ReportUnresolved() {
 // -----------------------------------------------------------------------------
 
 // resolve attempts to resolve a declared-by-usage symbol with its actual
-// definition. This function returns the declared symbol if resolution succeeds
-// and false if it fails.
-func (st *SymbolTable) resolve(sym *Symbol) (*Symbol, bool) {
+// definition. This function returns if resolution succeeds.
+func (st *SymbolTable) resolve(sym *Symbol) bool {
 	// we want to first check that the properties of the declared symbol match
 	// up with those of the defined symbol.  If not, then we need to error on
 	// all the unresolved usages appropriately.
@@ -252,7 +251,7 @@ func (st *SymbolTable) resolve(sym *Symbol) (*Symbol, bool) {
 			}
 		}
 
-		return nil, false
+		return false
 	}
 
 	// if the definition kind of the globally declared symbol doesn't match the
@@ -296,10 +295,7 @@ func (st *SymbolTable) resolve(sym *Symbol) (*Symbol, bool) {
 
 	// remove the unnecessary unresolved entries.
 	delete(st.unresolved, sym.Name)
-
-	// the declared symbol is still the shared symbol reference -- it supercedes
-	// the symbol in the actual definition.
-	return declSym, true
+	return true
 }
 
 // reportErrorOnSymRef is a utility function to report an error related to a

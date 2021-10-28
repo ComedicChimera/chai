@@ -90,9 +90,10 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 
 	// create the package struct.
 	pkg := &depm.ChaiPackage{
-		ID:     depm.GenerateIDFromPath(pkgAbsPath),
-		Name:   pkgName,
-		Parent: parentMod,
+		ID:          depm.GenerateIDFromPath(pkgAbsPath),
+		Name:        pkgName,
+		Parent:      parentMod,
+		GlobalTable: &depm.SymbolTable{},
 	}
 
 	// TODO: add package to dependency graph (before parsing to prevent import

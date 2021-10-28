@@ -19,7 +19,7 @@ type ChaiFile struct {
 	Metadata map[string]string
 
 	// Defs is the list of AST definitions that make up this source file.
-	Defs []*ast.Definition
+	Defs []ast.Def
 
 	// TODO: rest
 }
@@ -37,6 +37,9 @@ type ChaiPackage struct {
 
 	// Files is a list of all the Chai source files that belong to this package.
 	Files []*ChaiFile
+
+	// GlobalTable is the global symbol table for this package.
+	GlobalTable *SymbolTable
 
 	// TODO: rest
 }

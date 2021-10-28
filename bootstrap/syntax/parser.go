@@ -7,12 +7,19 @@ import (
 	"fmt"
 )
 
+// NOTE: All parsing functions (that are not utility/API functions) are
+// commented with the EBNF notation of the grammar they parse as well as any
+// semantic actions they perform during parsing.
+
 // Parser is the parser for a Chai source file. They perform three primary
 // tasks: syntax analysis, AST generation, and symbol/import resolution. The
 // parser itself acts as a state machine the moves over the file token by token
 // and deciding what to parse based on the token it currently positioned over
 // and its context (implicit from the callstack of parsing functions): it is a
-// recursive descent parser.  Parsers are created once per file.
+// recursive descent parser.  All parsing functions assume that they begin with
+// the parser centered on the first token of their production and must consume
+// all tokens (including the last) of their production, leaving the parser on
+// the next token.  Parsers are created once per file.
 type Parser struct {
 	// chFile is the Chai source file being parsed.
 	chFile *depm.ChaiFile
@@ -93,6 +100,20 @@ func (p *Parser) want(kind int) bool {
 	return false
 }
 
+// newlines moves the parser forward until a non-newline token is encountered.
+// This will leave the parser positioned on the first non-newline character. The
+// current token is considered.  This function returns false if at any point the
+// parser fails to move forward.
+func (p *Parser) newlines() bool {
+	for p.got(NEWLINE) {
+		if !p.next() {
+			return false
+		}
+	}
+
+	return true
+}
+
 // -----------------------------------------------------------------------------
 
 // reject reports an unexpected token error on the current token.
@@ -132,4 +153,11 @@ func (p *Parser) warnOn(tok *Token, msg string, a ...interface{}) {
 		tok.Position,
 		fmt.Sprintf(msg, a...),
 	)
+}
+
+// -----------------------------------------------------------------------------
+
+// defineGlobal defines a global symbol.
+func (p *Parser) defineGlobal(sym *depm.Symbol) bool {
+	return p.chFile.Parent.GlobalTable.Define(p.chFile.Context, sym)
 }
