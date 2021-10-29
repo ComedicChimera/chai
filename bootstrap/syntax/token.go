@@ -77,10 +77,10 @@ const (
 	PLUS
 	MINUS
 	STAR
-	DIVIDE
-	FDIVIDE
+	IDIV
+	FDIV
 	MOD
-	RAISETO
+	POWER
 	INCREM
 	DECREM
 
@@ -104,7 +104,12 @@ const (
 	COMPL
 
 	// assignment/declaration operators
-	ASSIGN // =
+	ASSIGN  // =
+	EXTRACT // <-
+
+	// monadic operators
+	BIND // >>=
+	ACC  // ?
 
 	// dots
 	DOT
@@ -196,43 +201,53 @@ var keywordPatterns = map[string]int{
 
 // token patterns for symbolic items - longest match wins.
 var symbolPatterns = map[string]int{
-	"+":   PLUS,
-	"++":  INCREM,
-	"-":   MINUS,
-	"--":  DECREM,
-	"*":   STAR,
-	"//":  FDIVIDE,
-	"%":   MOD,
-	"**":  RAISETO,
-	"<":   LT,
-	">":   GT,
-	"<=":  LTEQ,
-	">=":  GTEQ,
-	"==":  EQ,
-	"!=":  NEQ,
-	"!":   NOT,
-	"&&":  AND,
-	"||":  OR,
-	"&":   AMP,
-	"|":   PIPE,
-	"^":   CARRET,
-	"<<":  LSHIFT,
-	">>":  RSHIFT,
-	"~":   COMPL,
-	"=":   ASSIGN,
+	"+":  PLUS,
+	"++": INCREM,
+	"-":  MINUS,
+	"--": DECREM,
+	"*":  STAR,
+	"/":  FDIV,
+	"//": IDIV,
+	"%":  MOD,
+	"**": POWER,
+
+	"<":  LT,
+	">":  GT,
+	"<=": LTEQ,
+	">=": GTEQ,
+	"==": EQ,
+	"!=": NEQ,
+
+	"!":  NOT,
+	"&&": AND,
+	"||": OR,
+
+	"&":  AMP,
+	"|":  PIPE,
+	"^":  CARRET,
+	"<<": LSHIFT,
+	">>": RSHIFT,
+	"~":  COMPL,
+
+	"=":  ASSIGN,
+	"<-": EXTRACT,
+
+	">>=": BIND,
+	"?":   ACC,
+
 	".":   DOT,
 	"..":  RANGETO,
 	"...": ELLIPSIS,
-	"@":   ANNOTSTART,
-	"(":   LPAREN,
-	")":   RPAREN,
-	"{":   LBRACE,
-	"}":   RBRACE,
-	"[":   LBRACKET,
-	"]":   RBRACKET,
-	",":   COMMA,
-	";":   SEMICOLON,
-	":":   COLON,
-	"->":  ARROW,
-	"/":   DIVIDE,
+
+	"@":  ANNOTSTART,
+	"(":  LPAREN,
+	")":  RPAREN,
+	"{":  LBRACE,
+	"}":  RBRACE,
+	"[":  LBRACKET,
+	"]":  RBRACKET,
+	",":  COMMA,
+	";":  SEMICOLON,
+	":":  COLON,
+	"->": ARROW,
 }

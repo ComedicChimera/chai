@@ -44,8 +44,8 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 func (p *Parser) parseOperator() (*Token, bool) {
 	opToken := p.tok
 	switch opToken.Kind {
-	case PLUS, MINUS, STAR, DIVIDE, FDIVIDE, MOD, RAISETO, AND, OR, AMP,
-		PIPE, CARRET, COMPL, NOT, EQ, GT, LT, GTEQ, LTEQ, NEQ:
+	case PLUS, MINUS, STAR, IDIV, FDIV, MOD, POWER, AND, OR, AMP,
+		PIPE, CARRET, COMPL, NOT, EQ, GT, LT, GTEQ, LTEQ, NEQ, BIND:
 		if p.next() {
 			return opToken, true
 		}
