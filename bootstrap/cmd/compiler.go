@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Compiler represents the global state of the compiler.
@@ -64,12 +65,15 @@ func (c *Compiler) Analyze() bool {
 	)
 	report.ReportBeginPhase("Analyzing...")
 
-	// initialize the root package
+	// initialize the root package (which will initialize all other packages
+	// that this project depends on)
 	c.initPkg(rootMod, rootMod.AbsPath)
 
-	// TODO: check for recursive types
+	// TODO: resolve global symbols and check for recursive types
 
-	// TODO: type checking and generic evaluation
+	// TODO: check for operator collisions
+
+	// TODO: type check expressions and evaluate generics
 
 	// if we reach here, we can end report the end of the analysis phase.
 	report.ReportEndPhase()
@@ -85,10 +89,8 @@ func (c *Compiler) Generate() {
 // -----------------------------------------------------------------------------
 
 // initPkg initializes a package: the package is lexed, parsed, and added to the
-// dependency graph.  Furthermore, since parsing implies partial semantic
-// analysis, symbol resolution, and import resolution, these steps are also
-// performed as part of initialization.  Type checking and generic evaluation
-// are not performed in this step.
+// dependency graph.  Furthermore, all imports in the package are resolved, but
+// symbols are NOT resolved at this stage -- only declared.
 func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	// determine and validate the package name
 	pkgName := filepath.Base(pkgAbsPath)
@@ -99,10 +101,25 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	// create the package struct.
 	pkgID := depm.GenerateIDFromPath(pkgAbsPath)
 	pkg := &depm.ChaiPackage{
-		ID:          pkgID,
-		Name:        pkgName,
-		Parent:      parentMod,
-		GlobalTable: depm.NewSymbolTable(pkgID),
+		ID:            pkgID,
+		Name:          pkgName,
+		Parent:        parentMod,
+		SymbolTable:   make(map[string]*depm.Symbol),
+		OperatorTable: make(map[int]*depm.Operator),
+	}
+
+	// add it to its parent module
+	if pkgAbsPath == parentMod.AbsPath {
+		// root package
+		parentMod.RootPackage = pkg
+	} else {
+		// sub package
+		pkgRelPath, err := filepath.Rel(parentMod.AbsPath, pkgAbsPath)
+		if err != nil {
+			report.ReportFatal(fmt.Sprintf("error computing package relative path: %s", err.Error()))
+		}
+
+		parentMod.SubPackages[strings.ReplaceAll(pkgRelPath, string(filepath.Separator), ".")] = pkg
 	}
 
 	// TODO: add package to dependency graph (before parsing to prevent import

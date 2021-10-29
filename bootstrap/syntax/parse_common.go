@@ -37,3 +37,19 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	p.reject()
 	return nil, false
 }
+
+// -----------------------------------------------------------------------------
+
+// parseOperator parses any valid operator token and returns it.
+func (p *Parser) parseOperator() (*Token, bool) {
+	opToken := p.tok
+	switch opToken.Kind {
+	case PLUS, MINUS, STAR, DIVIDE, FDIVIDE, MOD, RAISETO, AND, OR, AMP,
+		PIPE, CARRET, COMPL, NOT, EQ, GT, LT, GTEQ, LTEQ, NEQ:
+		if p.next() {
+			return opToken, true
+		}
+	}
+
+	return nil, false
+}

@@ -98,7 +98,7 @@ const (
 	// bitwise operators
 	AMP
 	PIPE
-	BXOR
+	CARRET
 	LSHIFT
 	RSHIFT
 	COMPL
@@ -215,7 +215,7 @@ var symbolPatterns = map[string]int{
 	"||":  OR,
 	"&":   AMP,
 	"|":   PIPE,
-	"^":   BXOR,
+	"^":   CARRET,
 	"<<":  LSHIFT,
 	">>":  RSHIFT,
 	"~":   COMPL,

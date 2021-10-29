@@ -38,8 +38,11 @@ type ChaiPackage struct {
 	// Files is a list of all the Chai source files that belong to this package.
 	Files []*ChaiFile
 
-	// GlobalTable is the global symbol table for this package.
-	GlobalTable *SymbolTable
+	// SymbolTable is the global symbol table for this package.
+	SymbolTable map[string]*Symbol
+
+	// OperatorTable is the global table of operator definitions.
+	OperatorTable map[int]*Operator
 
 	// TODO: rest
 }

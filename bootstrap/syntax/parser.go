@@ -12,14 +12,16 @@ import (
 // semantic actions they perform during parsing.
 
 // Parser is the parser for a Chai source file. They perform three primary
-// tasks: syntax analysis, AST generation, and symbol/import resolution. The
-// parser itself acts as a state machine the moves over the file token by token
-// and deciding what to parse based on the token it currently positioned over
-// and its context (implicit from the callstack of parsing functions): it is a
-// recursive descent parser.  All parsing functions assume that they begin with
-// the parser centered on the first token of their production and must consume
-// all tokens (including the last) of their production, leaving the parser on
-// the next token.  Parsers are created once per file.
+// tasks: syntax analysis, AST generation, and import resolution. It will
+// declare global symbols as it parses, but it does NOT perform any symbol
+// lookups.  The parser itself acts as a state machine the moves over the file
+// token by token and deciding what to parse based on the token it currently
+// positioned over and its context (implicit from the callstack of parsing
+// functions): it is a recursive descent parser.  All parsing functions assume
+// that they begin with the parser centered on the first token of their
+// production and must consume all tokens (including the last) of their
+// production, leaving the parser on the next token.  Parsers are created once
+// per file.
 type Parser struct {
 	// chFile is the Chai source file being parsed.
 	chFile *depm.ChaiFile
@@ -105,6 +107,11 @@ func (p *Parser) assert(kind int) bool {
 	return false
 }
 
+// assertAndNext performs an assert operation and moves the parser forward.
+func (p *Parser) assertAndNext(kind int) bool {
+	return p.assert(kind) && p.next()
+}
+
 // want moves the parser forward one and then asserts that the token the parser
 // has moved to its of a given kind.  It returns a boolean indicating if the
 // move forward was successful and the assertion passed.
@@ -114,6 +121,11 @@ func (p *Parser) want(kind int) bool {
 	}
 
 	return false
+}
+
+// wantAndNext performs a want operation and moves the parser forward.
+func (p *Parser) wantAndNext(kind int) bool {
+	return p.want(kind) && p.next()
 }
 
 // newlines moves the parser forward until a non-newline token is encountered.
@@ -185,5 +197,16 @@ func (p *Parser) warnOn(tok *Token, msg string, a ...interface{}) {
 
 // defineGlobal defines a global symbol.
 func (p *Parser) defineGlobal(sym *depm.Symbol) bool {
-	return p.chFile.Parent.GlobalTable.Define(p.chFile.Context, sym)
+	if _, ok := p.chFile.Parent.SymbolTable[sym.Name]; ok {
+		report.ReportCompileError(
+			p.chFile.Context,
+			sym.DefPosition,
+			fmt.Sprintf("multiple symbols with name `%s` declared in scope", sym.Name),
+		)
+
+		return false
+	}
+
+	p.chFile.Parent.SymbolTable[sym.Name] = sym
+	return true
 }

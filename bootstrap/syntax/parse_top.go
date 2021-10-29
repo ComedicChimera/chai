@@ -40,12 +40,15 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 	return defs, true
 }
 
-// definition = func_def | type_def | space_def | var_def | const_def
+// definition = func_def | oper_def | type_def | space_def | var_def | const_def
 func (p *Parser) parseDefinition(public bool) (ast.Def, bool) {
 	switch p.tok.Kind {
 	case DEF:
 		// func_def
 		return p.parseFuncDef(public)
+	case OPER:
+		// oper_def
+		return p.parseOperDef(public)
 	case TYPE:
 		// TODO: type_def
 	case SPACE:
@@ -60,20 +63,21 @@ func (p *Parser) parseDefinition(public bool) (ast.Def, bool) {
 	return nil, false
 }
 
-// func_def = `def` `IDENTIFIER` [generic_tag] `(` args_decl `)` [type_label] func_body
-// Semantic Actions: declares function symbol, pushes and pops scope for
-// function arguments, evaluates type labels for arguments and return type,
-// [maybe] pushes and pops a generic context.
+// func_def = `def` `IDENTIFIER` [generic_tag] `(` [args_decl] `)` [type_label] func_body
+// Semantic Actions: declares function symbol
 func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
 	if !p.want(IDENTIFIER) {
 		return nil, false
 	}
 
 	funcID := p.tok
+	if !p.next() {
+		return nil, false
+	}
 
 	// TODO: generic tag
 
-	if !p.want(LPAREN) || !p.next() {
+	if !p.assertAndNext(LPAREN) {
 		return nil, false
 	}
 
@@ -88,7 +92,7 @@ func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
 		args = _args
 	}
 
-	if !p.assert(RPAREN) || !p.next() {
+	if !p.assertAndNext(RPAREN) {
 		return nil, false
 	}
 
@@ -127,26 +131,18 @@ func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
 	}
 
 	// func body
-	var funcBody ast.Expr
-	switch p.tok.Kind {
-	case END:
-		// no body
-		if !p.want(NEWLINE) || !p.next() {
-			return nil, false
-		}
-	case ASSIGN:
-		// TODO
-	case NEWLINE:
-		// TODO
+	funcBody, ok := p.parseFuncBody()
+	if !ok {
+		return nil, false
 	}
 
 	// make the function AST
 	return &ast.FuncDef{
 		Name: sym.Name,
 		// TODO: update to collect annotations from parser
-		Annots:   make(map[string]string),
-		FuncType: ft,
-		Body:     funcBody,
+		Annots:    make(map[string]string),
+		Signature: ft,
+		Body:      funcBody,
 	}, true
 }
 
@@ -228,4 +224,129 @@ func (p *Parser) parseArgID() (*Token, bool, bool) {
 	}
 
 	return idTok, byRef, true
+}
+
+// func_body = 'end' 'NEWLINE' | block | '=' expr 'NEWLINE'
+func (p *Parser) parseFuncBody() (ast.Expr, bool) {
+	switch p.tok.Kind {
+	case END:
+		// no body
+		if !p.wantAndNext(NEWLINE) {
+			return nil, false
+		}
+
+		return nil, true
+	case ASSIGN:
+		// TODO
+	case NEWLINE:
+		// TODO
+	}
+
+	p.reject()
+	return nil, false
+}
+
+// -----------------------------------------------------------------------------
+
+// oper_def = 'oper' '(' operator ')' [generic_tag] '(' args_decl ')' type_label func_body
+// Semantic Actions: define operator
+func (p *Parser) parseOperDef(public bool) (ast.Def, bool) {
+	// operator token
+	if !p.wantAndNext(LPAREN) {
+		return nil, false
+	}
+
+	opToken, ok := p.parseOperator()
+	if !ok {
+		return nil, false
+	}
+
+	if !p.assertAndNext(RPAREN) {
+		return nil, false
+	}
+
+	// TODO: generic tag
+
+	// arguments
+	if !p.assertAndNext(LPAREN) {
+		return nil, false
+	}
+
+	args, ok := p.parseArgsDecl()
+	if !ok {
+		return nil, false
+	}
+
+	if !p.assertAndNext(RPAREN) {
+		return nil, false
+	}
+
+	// return type
+	rtType, ok := p.parseTypeLabel()
+	if !ok {
+		return nil, false
+	}
+
+	// create the operator function type
+	ft := &typing.FuncType{
+		Args:       args,
+		ReturnType: rtType,
+	}
+
+	// check to see if the number of arguments is valid with the known arity of
+	// the operator.
+	switch opToken.Kind {
+	case MINUS:
+		if len(args) != 1 && len(args) != 2 {
+			p.errorOn(opToken, "the `-` operator accepts 1 or 2 operands not %d", len(args))
+			return nil, false
+		}
+	case COMPL, NOT:
+		if len(args) != 1 {
+			p.errorOn(opToken, "ths `%s` operator accepts 1 operand not %d", opToken.Value, len(args))
+			return nil, false
+		}
+	default:
+		// all other operators are binary
+		if len(args) != 2 {
+			p.errorOn(opToken, "the `%s` operator accepts 2 operands not %d", opToken.Value, len(args))
+			return nil, false
+		}
+	}
+
+	// create and define the operator overload
+	opOverload := &depm.OperatorOverload{
+		Signature: ft,
+		Context:   p.chFile.Context,
+		Position:  opToken.Position,
+		Public:    public,
+	}
+
+	if operator, ok := p.chFile.Parent.OperatorTable[opToken.Kind]; ok {
+		// NOTE: overload collisions will be checked later when all types are
+		// known (so the equivalency test can work properly)
+		operator.Overloads = append(operator.Overloads, opOverload)
+	} else {
+		operator := &depm.Operator{
+			OpName:    opToken.Value,
+			Overloads: []*depm.OperatorOverload{opOverload},
+		}
+
+		p.chFile.Parent.OperatorTable[opToken.Kind] = operator
+	}
+
+	// parse the operator function body
+	funcBody, ok := p.parseFuncBody()
+	if !ok {
+		return nil, false
+	}
+
+	// return the operator AST
+	return &ast.OperDef{
+		OpKind: opToken.Kind,
+		// TODO: update to use annotations from parser
+		Annots:    make(map[string]string),
+		Signature: ft,
+		Body:      funcBody,
+	}, true
 }

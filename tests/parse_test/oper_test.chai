@@ -1,0 +1,5 @@
+oper (+) (a: i32, b: i32) i32 end
+
+oper (*) (a: f64, b: f64) f64 end
+
+oper (!) (x: bool) bool end
