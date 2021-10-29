@@ -1,17 +1,19 @@
 def test() end
 
-def fib(n, a, b: i32) i32 end
+def fib(n, a, b: i32) i32 = 2
 
-def print(s: f32) end
+def print(s: f32) =
+    ()
 
-def nroot(f: f32, r: i32) f32 end 
+def nroot(f: f32, r: i32) f32 = (0.53)
 
-def roon_time(r: u32, a, b: u64) end
+def roon_time(r: u32, a, b: u64) (u32, u64, u64) = (r, a, b)
 
-def bold_of_you(s, a: nothing, dir: u8) u64 end
+def bold_of_you(s, a: nothing, dir: u8) u64 = x
 
-def by_ref_bash(&x: i32) i16 end 
+def by_ref_bash(&x: i32) i16 = 
+    null
 
-def by_ref_even_more(&y: string, &z: i32) i32 end
+def by_ref_even_more(&y: string, &z: i32) string = "test"
 
-def many_args(z: i32, &b: u16, p: f64) end
+def many_args(z: i32, &b: u16, p: f64) (i32, i32) = (0, 1)

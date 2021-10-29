@@ -127,6 +127,10 @@ func (cm *CompileMessage) displayCodeSelection() {
 
 	// print each line followed by the line of selecting underscores
 	for i, line := range lines {
+		if i == len(lines)-1 && cm.Position.EndCol == 1 {
+			break
+		}
+
 		// print the line number and the line itself (trimmed)
 		InfoColorFG.Print(fmt.Sprintf(lineNumberFmtStr, i+cm.Position.StartLn))
 		fmt.Print("|  ")
@@ -143,6 +147,8 @@ func (cm *CompileMessage) displayCodeSelection() {
 			if i == len(lines)-1 {
 				ErrorColorFG.Print(strings.Repeat("^", cm.Position.EndCol-cm.Position.StartCol))
 				fmt.Println()
+			} else if cm.Position.StartCol == len(line)+1 {
+				ErrorColorFG.Println("^")
 			} else {
 				ErrorColorFG.Println(strings.Repeat("^", len(line)-cm.Position.StartCol+1))
 			}

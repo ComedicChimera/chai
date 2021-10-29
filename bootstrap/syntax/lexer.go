@@ -41,8 +41,12 @@ func (l *Lexer) NextToken() (*Token, bool) {
 	for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
 		switch ahead {
 		// ignore non-meaningful characters (eg. BOM, tabs, spaces, etc.)
-		case '\r', '\f', '\v', ' ', '\t', 65279:
+		case '\f', '\v', ' ', '\t', 65279:
 			l.skip()
+		// carriage returns can't move the lexer forward in column counting so
+		// we just read and discard it
+		case '\r':
+			l.file.ReadRune()
 		// handle newlines
 		case '\n':
 			l.mark()

@@ -237,7 +237,22 @@ func (p *Parser) parseFuncBody() (ast.Expr, bool) {
 
 		return nil, true
 	case ASSIGN:
-		// TODO
+		// pure expression body
+		p.next()
+
+		// newlines can be placed after equals sign
+		if p.got(NEWLINE) {
+			if !p.next() {
+				return nil, false
+			}
+		}
+
+		expr, ok := p.parseExpr()
+		if !ok || !p.assertAndNext(NEWLINE) {
+			return nil, false
+		}
+
+		return expr, true
 	case NEWLINE:
 		// TODO
 	}

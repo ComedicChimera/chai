@@ -159,3 +159,60 @@ func (ft *FuncType) Repr() string {
 
 	return sb.String()
 }
+
+// -----------------------------------------------------------------------------
+
+// TupleType represents a tuple type.
+type TupleType []DataType
+
+func (tt TupleType) Equals(other DataType) bool {
+	if ott, ok := other.(TupleType); ok {
+		if len(tt) != len(ott) {
+			return false
+		}
+
+		for i, item := range tt {
+			if !item.Equals(ott[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func (tt TupleType) Equiv(other DataType) bool {
+	if ott, ok := other.(TupleType); ok {
+		if len(tt) != len(ott) {
+			return false
+		}
+
+		for i, item := range tt {
+			if !item.Equiv(ott[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func (tt TupleType) Repr() string {
+	sb := strings.Builder{}
+	sb.WriteRune('(')
+
+	for i, typ := range tt {
+		sb.WriteString(typ.Repr())
+
+		if i == len(tt)-1 {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteRune(')')
+	return sb.String()
+}

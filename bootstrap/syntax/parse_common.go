@@ -20,7 +20,7 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	case IDENTIFIER:
 		// TODO: named_type
 	case LPAREN:
-		// TODO: tuple_type
+		return p.parseTupleType()
 	default:
 		// prim_type
 		if U8 <= p.tok.Kind && p.tok.Kind <= NOTHING {
@@ -36,6 +36,42 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 
 	p.reject()
 	return nil, false
+}
+
+// tuple_type = '(' type_label ',' type_label {',' type_label} ')'
+func (p *Parser) parseTupleType() (typing.DataType, bool) {
+	if !p.next() {
+		return nil, false
+	}
+
+	firstTyp, ok := p.parseTypeLabel()
+	if !ok {
+		return nil, false
+	}
+
+	types := []typing.DataType{firstTyp}
+	for p.got(COMMA) {
+		if !p.next() {
+			return nil, false
+		}
+
+		if nextTyp, ok := p.parseTypeLabel(); ok {
+			types = append(types, nextTyp)
+		} else {
+			return nil, false
+		}
+	}
+
+	// single type tuples are not allowed
+	if len(types) == 1 {
+		p.reject()
+	}
+
+	if !p.assertAndNext(RPAREN) {
+		return nil, false
+	}
+
+	return typing.TupleType(types), true
 }
 
 // -----------------------------------------------------------------------------
