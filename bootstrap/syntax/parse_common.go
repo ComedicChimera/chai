@@ -45,7 +45,7 @@ func (p *Parser) parseOperator() (*Token, bool) {
 	opToken := p.tok
 	switch opToken.Kind {
 	case PLUS, MINUS, STAR, IDIV, FDIV, MOD, POWER, AND, OR, AMP,
-		PIPE, CARRET, COMPL, NOT, EQ, GT, LT, GTEQ, LTEQ, NEQ, BIND:
+		PIPE, CARRET, COMPL, NOT, EQ, GT, LT, GTEQ, LTEQ, NEQ:
 		if p.next() {
 			return opToken, true
 		}
