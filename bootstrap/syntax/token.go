@@ -108,8 +108,7 @@ const (
 	EXTRACT // <-
 
 	// monadic operators
-	BIND // >>=
-	ACC  // ?
+	ACC // ?
 
 	// dots
 	DOT
@@ -232,8 +231,7 @@ var symbolPatterns = map[string]int{
 	"=":  ASSIGN,
 	"<-": EXTRACT,
 
-	">>=": BIND,
-	"?":   ACC,
+	"?": ACC,
 
 	".":   DOT,
 	"..":  RANGETO,
