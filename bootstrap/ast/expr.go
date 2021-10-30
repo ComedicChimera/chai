@@ -5,7 +5,8 @@ import (
 	"chai/typing"
 )
 
-// Expr represents an expression simple or complex.
+// Expr represents an expression simple or complex. All expression nodes
+// implement the `Expr` interface.
 type Expr interface {
 	// Type is the yielded type of the expression.
 	Type() typing.DataType
@@ -51,6 +52,52 @@ func (eb *ExprBase) SetType(typ typing.DataType) {
 func (eb *ExprBase) Category() int {
 	return eb.cat
 }
+
+// -----------------------------------------------------------------------------
+
+// Oper is an operator used in the AST.
+type Oper struct {
+	Kind      int
+	Name      string
+	Pos       *report.TextPosition
+	Signature typing.DataType
+}
+
+// BinaryOp represents a binary operator application (specifically excluding the
+// "ternary" forms of comparison operators).
+type BinaryOp struct {
+	ExprBase
+
+	Op Oper
+
+	Lhs, Rhs Expr
+}
+
+func (bo *BinaryOp) Position() *report.TextPosition {
+	return report.TextPositionFromRange(
+		bo.Lhs.Position(),
+		bo.Rhs.Position(),
+	)
+}
+
+// MultiComparison is a multi operand comparison expression such as `a < b < c`
+// or `x <= y < z > b`.
+type MultiComparison struct {
+	ExprBase
+
+	Exprs []Expr
+
+	Ops []Oper
+}
+
+func (mc *MultiComparison) Position() *report.TextPosition {
+	return report.TextPositionFromRange(
+		mc.Exprs[0].Position(),
+		mc.Exprs[len(mc.Exprs)-1].Position(),
+	)
+}
+
+// -----------------------------------------------------------------------------
 
 // Tuple represents an n-tuple of elements.  These tuples can be length 1 in
 // which case they are simple compiled as sub-expressions.

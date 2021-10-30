@@ -83,6 +83,8 @@ func (c *Compiler) Analyze() bool {
 
 	// TODO: type check expressions and evaluate generics
 
+	// TODO: prune unused functions
+
 	// if we reach here, we can end report the end of the analysis phase.
 	report.ReportEndPhase()
 	return report.ShouldProceed()

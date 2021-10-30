@@ -54,6 +54,7 @@ const (
 	NULL
 	AS
 	IN
+	SIZEOF
 
 	// whitespace
 	NEWLINE
@@ -176,9 +177,10 @@ var keywordPatterns = map[string]int{
 	"pub":    PUB,
 	"from":   FROM,
 
-	"null": NULL,
-	"as":   AS,
-	"in":   IN,
+	"null":   NULL,
+	"as":     AS,
+	"in":     IN,
+	"sizeof": SIZEOF,
 
 	"u8":      U8,
 	"u16":     U16,
