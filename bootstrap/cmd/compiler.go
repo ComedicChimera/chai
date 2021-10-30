@@ -71,7 +71,15 @@ func (c *Compiler) Analyze() bool {
 
 	// TODO: resolve global symbols and check for recursive types
 
-	// TODO: check for operator collisions
+	// check for operator collisions
+	// TODO: check every module in the dep graph
+	for _, pkg := range rootMod.Packages() {
+		depm.CheckOperatorCollisions(pkg)
+	}
+
+	if !report.ShouldProceed() {
+		return false
+	}
 
 	// TODO: type check expressions and evaluate generics
 

@@ -24,13 +24,10 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	default:
 		// prim_type
 		if U8 <= p.tok.Kind && p.tok.Kind <= NOTHING {
-			if !p.next() {
-				return nil, false
-			}
-
 			// use the fact that the token kind is numerically aligned with the
 			// different primitive kinds -- just need to remove an offset.
-			return typing.PrimType(p.tok.Kind - U8), true
+			pt := typing.PrimType(p.tok.Kind - U8)
+			return pt, p.next()
 		}
 	}
 
