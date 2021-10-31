@@ -177,6 +177,20 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 	return nil, false
 }
 
+// lookupOperator retrieves the overloads for a particular operator. It reports
+// an error if the lookup fails.
+func (w *Walker) lookupOperator(aop *ast.Oper) (*depm.Operator, bool) {
+	// TODO: local operators
+
+	if op, ok := w.chFile.Parent.OperatorTable[aop.Kind]; ok {
+		return op, true
+	}
+
+	// TODO: get the operator name?
+	w.reportError(aop.Pos, "no defined overloads for operator: `%s`", aop.Name)
+	return nil, false
+}
+
 // -----------------------------------------------------------------------------
 
 // topScope gets the scope on the top of the scope stack assuming the stack is
