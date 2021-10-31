@@ -15,6 +15,23 @@ type Constraint struct {
 	Position *report.TextPosition
 }
 
+// OverloadSet represents the set of type overloads applied to a type variable.
+// In the context of type inferencing, overloads represent the different
+// possible values a type can take.  For example, in the float literal `2.2`
+// would have the overloads: `f32` and `f64`.
+type OverloadSet struct {
+	// Types is the list of overloaded types.
+	Types []DataType
+
+	// Corresponds is the list of other overloads that are affected when this
+	// overload is determined.
+	Corresponds []int
+
+	// Default is the index of the default type for this overload.  This will be
+	// `-1` if there is no default type.
+	Default int
+}
+
 // TypeVar represents a Hindley-Milner type variable.  It is an instance of the
 // DataType interface so that it can be used as a data type.  Each type
 // variable has an ID that is unique to its solution context.
@@ -22,6 +39,8 @@ type TypeVar struct {
 	ID       int
 	Value    DataType
 	Position *report.TextPosition
+
+	Overloads *OverloadSet
 }
 
 func (tv *TypeVar) Equals(other DataType) bool {
@@ -91,6 +110,19 @@ func (s *Solver) NewTypeVar(pos *report.TextPosition) *TypeVar {
 	return tv
 }
 
+// NewTypeVarWithOverloads creates a new overloaded type variable in the current
+// solution context.
+func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, os *OverloadSet) *TypeVar {
+	tv := &TypeVar{
+		ID:        len(s.vars),
+		Position:  pos,
+		Overloads: os,
+	}
+
+	s.vars = append(s.vars, tv)
+	return tv
+}
+
 // Constrain adds a new equivalency constraint between types.
 func (s *Solver) Constrain(lhs, rhs DataType, pos *report.TextPosition) {
 	s.constraints = append(s.constraints, &Constraint{
@@ -138,6 +170,9 @@ func (s *Solver) Solve() bool {
 
 // unify unifies a given pair of types -- asserting that they are equivalent.
 func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
+	// TODO: handle overloads -- do we need to reintroduce a context stack?
+	// Maybe there is another way to accomplish the same task...
+
 	// first check for type variables: start with RHS since we will switch over
 	// the type of LHS and check for its type variables then.
 	if rhTypeVar, ok := rhs.(*TypeVar); ok {
