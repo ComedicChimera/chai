@@ -4,9 +4,9 @@ import (
 	"sync"
 )
 
-// Reporter is a type that is responsible for storing and logging output from
+// reporter is a type that is responsible for storing and logging output from
 // the compiler as necessary: reporting information to the user.
-type Reporter struct {
+type reporter struct {
 	errorCount int // Total encountered errors
 	LogLevel   int
 
@@ -29,7 +29,7 @@ const (
 // coming in concurrently and so we need to make sure we are not printing
 // multiple things at the same time so we there is a mutex in place for this
 // function.
-func (r *Reporter) handleMsg(m Message) {
+func (r *reporter) handleMsg(m Message) {
 	r.m.Lock()
 
 	if m.isError() {
