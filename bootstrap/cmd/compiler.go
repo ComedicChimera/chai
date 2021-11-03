@@ -6,6 +6,7 @@ import (
 	"chai/depm"
 	"chai/report"
 	"chai/syntax"
+	"chai/walk"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -81,7 +82,8 @@ func (c *Compiler) Analyze() bool {
 		return false
 	}
 
-	// TODO: type check expressions and evaluate generics
+	// type check expressions and evaluate generics
+	c.typeCheck()
 
 	// TODO: prune unused functions
 
@@ -191,6 +193,22 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	if report.ShouldProceed() {
 		if len(pkg.Files) == 0 {
 			report.ReportFatal(fmt.Sprintf("[%s] package `%s` contains no compileable source files", parentMod.Name, pkg.Name))
+		}
+	}
+}
+
+// typeCheck types checks each file in each package of the project and
+// determines all the generic instances to be used in generic evaluation.  It
+// then evaluates all generics.
+func (c *Compiler) typeCheck() {
+	// TODO: traverse dep graph
+	for _, pkg := range c.rootModule.Packages() {
+		for _, file := range pkg.Files {
+			w := walk.NewWalker(file)
+
+			for _, def := range file.Defs {
+				w.WalkDef(def)
+			}
 		}
 	}
 }

@@ -130,7 +130,7 @@ func (ft *FuncType) Equiv(other DataType) bool {
 		for i, arg := range ft.Args {
 			oarg := oft.Args[i]
 
-			if arg.ByRef != oarg.ByRef || !arg.Type.Equiv(oarg.Type) {
+			if !arg.Type.Equiv(oarg.Type) {
 				return false
 			}
 		}

@@ -27,11 +27,21 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 			return false
 		}
 	case *ast.Tuple:
-		// just walk all the sub expressions
-		for _, expr := range v.Exprs {
+		// just walk all the sub expressions and collect types
+		tupleTypes := make([]typing.DataType, len(v.Exprs))
+		for i, expr := range v.Exprs {
 			if !w.walkExpr(expr) {
 				return false
 			}
+
+			tupleTypes[i] = expr.Type()
+		}
+
+		// set the return type of the tuple
+		if len(v.Exprs) == 1 {
+			v.SetType(tupleTypes[0])
+		} else {
+			v.SetType(typing.TupleType(tupleTypes))
 		}
 
 		return true
@@ -47,14 +57,48 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 
 // walkBinaryOp walks a binary operator applications
 func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
+	// walk the LHS and RHS
+	if !w.walkExpr(bop.Lhs) || !w.walkExpr(bop.Rhs) {
+		return false
+	}
+
 	op, ok := w.lookupOperator(&bop.Op)
 	if !ok {
 		return false
 	}
 
-	// TODO: rest of this
-	_ = op
-	return false
+	// create the operator overloaded function
+	var ftOverloads []typing.DataType
+	for _, overload := range op.Overloads {
+		if len(overload.Signature.Args) == 2 {
+			ftOverloads = append(ftOverloads, overload.Signature)
+		}
+	}
+
+	ftTypeVar := w.solver.NewTypeVarWithOverloads(bop.Op.Pos, bop.Op.Name, false, ftOverloads...)
+
+	// return type variable
+	rtv := w.solver.NewTypeVar(bop.Position(), "{_}")
+
+	// create operator template to constrain to overload operator type
+	operTemplate := &typing.FuncType{
+		Args: []typing.FuncArg{
+			{
+				Type: bop.Lhs.Type(),
+			},
+			{
+				Type: bop.Rhs.Type(),
+			},
+		},
+		ReturnType: rtv,
+	}
+
+	// set the return type of the operator equal to type of the expression
+	bop.SetType(rtv)
+
+	// apply the equality constraint between operator and the template
+	w.solver.Constrain(ftTypeVar, operTemplate, bop.Position())
+	return true
 }
 
 // -----------------------------------------------------------------------------
@@ -63,11 +107,12 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 func (w *Walker) walkLiteral(lit *ast.Literal) {
 	switch lit.Kind {
 	case syntax.NULL:
-		t := w.solver.NewTypeVar(lit.Pos)
+		t := w.solver.NewTypeVar(lit.Pos, "{_}")
 		lit.SetType(t)
 	case syntax.NUMLIT:
 		t := w.solver.NewTypeVarWithOverloads(
 			lit.Pos,
+			"{number}",
 			true,
 			// the order determines the defaulting preference: eg. this number
 			// will default first to an `i32` and if that is not possible, then
@@ -87,6 +132,7 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 	case syntax.FLOATLIT:
 		t := w.solver.NewTypeVarWithOverloads(
 			lit.Pos,
+			"{float}",
 			true,
 			// default first to f32
 			typing.PrimType(typing.PrimF32),
@@ -102,6 +148,7 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 		} else if isLong {
 			t := w.solver.NewTypeVarWithOverloads(
 				lit.Pos,
+				"{long int}",
 				true,
 				// default first to i64
 				typing.PrimType(typing.PrimI64),
@@ -112,13 +159,12 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 		} else if isUnsigned {
 			t := w.solver.NewTypeVarWithOverloads(
 				lit.Pos,
+				"{unsigned int}",
 				true,
 				// default first to u32
 				typing.PrimType(typing.PrimU32),
 				typing.PrimType(typing.PrimU64),
-				typing.PrimType(typing.PrimI16),
 				typing.PrimType(typing.PrimU16),
-				typing.PrimType(typing.PrimI8),
 				typing.PrimType(typing.PrimU8),
 			)
 
@@ -126,13 +172,16 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 		} else {
 			t := w.solver.NewTypeVarWithOverloads(
 				lit.Pos,
+				"{int}",
 				true,
 				// default first to i32
 				typing.PrimType(typing.PrimI32),
 				typing.PrimType(typing.PrimU32),
 				typing.PrimType(typing.PrimI64),
 				typing.PrimType(typing.PrimU64),
+				typing.PrimType(typing.PrimI16),
 				typing.PrimType(typing.PrimU16),
+				typing.PrimType(typing.PrimI8),
 				typing.PrimType(typing.PrimU8),
 			)
 

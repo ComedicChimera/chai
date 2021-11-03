@@ -14,6 +14,10 @@ type TypeVar struct {
 	Value    DataType
 	Position *report.TextPosition
 
+	// displayName is the name that is displayed when `Repr` is called on this
+	// type.
+	displayName string
+
 	// shouldDefault indicates that this type variable should default to the
 	// first overload that remains after solving completes if there is no valid
 	// substitution remaining for it.
@@ -45,7 +49,7 @@ func (tv *TypeVar) Repr() string {
 		return tv.Value.Repr()
 	}
 
-	return fmt.Sprintf("T%d", tv.ID)
+	return tv.displayName
 }
 
 // -----------------------------------------------------------------------------
@@ -158,18 +162,19 @@ func NewSolver(ctx *report.CompilationContext) *Solver {
 }
 
 // NewTypeVar creates a new type variable in the given solution context.
-func (s *Solver) NewTypeVar(pos *report.TextPosition) *TypeVar {
-	tv := &TypeVar{ID: len(s.vars), Position: pos}
+func (s *Solver) NewTypeVar(pos *report.TextPosition, displayName string) *TypeVar {
+	tv := &TypeVar{ID: len(s.vars), Position: pos, displayName: displayName}
 	s.vars = append(s.vars, tv)
 	return tv
 }
 
 // NewTypeVarWithOverloads creates a new overloaded type variable in the current
 // solution context.
-func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, shouldDefault bool, overloads ...DataType) *TypeVar {
+func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName string, shouldDefault bool, overloads ...DataType) *TypeVar {
 	tv := &TypeVar{
 		ID:            len(s.vars),
 		Position:      pos,
+		displayName:   displayName,
 		shouldDefault: shouldDefault,
 	}
 
@@ -270,10 +275,6 @@ func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
 	switch v := lhs.(type) {
 	case *TypeVar:
 		return s.unifyTypeVar(v.ID, rhs, pos)
-	case PrimType:
-		if rpt, ok := rhs.(PrimType); ok {
-			return v == rpt
-		}
 	case TupleType:
 		if rtt, ok := rhs.(TupleType); ok && len(v) == len(rtt) {
 			for i, elemType := range v {
@@ -293,6 +294,10 @@ func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
 			}
 
 			return s.unify(v.ReturnType, rft.ReturnType, pos)
+		}
+	default:
+		if lhs.Equiv(rhs) {
+			return true
 		}
 	}
 
@@ -364,7 +369,7 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 			report.ReportCompileError(
 				s.ctx,
 				pos,
-				fmt.Sprintf("no type overload of `T%d` matches type `%s`", id, other.Repr()),
+				fmt.Sprintf("no type overload of `%s` matches type `%s`", s.vars[id].displayName, other.Repr()),
 			)
 		}
 
@@ -372,7 +377,7 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 	case 1:
 		// one matching overload => overload becomes substitution
 		s.localState.Substitutions[id] = validOverloads[0]
-		return true
+		return s.unify(validOverloads[0], other, pos)
 	default:
 		// multiple matching overloads => update local overloads to remove any
 		// invalid ones as necessary.
