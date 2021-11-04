@@ -256,7 +256,14 @@ func (p *Parser) parseFuncBody() (ast.Expr, bool) {
 
 		return expr, true
 	case NEWLINE:
-		// TODO
+		block, ok := p.parseBlock()
+
+		// functions require a newline after the last end
+		if !ok || !p.assertAndNext(NEWLINE) {
+			return nil, false
+		}
+
+		return block, true
 	}
 
 	p.reject()
