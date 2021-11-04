@@ -7,9 +7,14 @@ def print(s: f32) =
 
 def nroot(f: f32, r: i32) f32 = (0.53)
 
-def roon_time(r: u32, a, b: u64) (u32, u64, u64) = (r, a, b)
+def roon_time(r: u32, a, b: u64) (u32, u64, u64) = (
+    r,
+    a, 
+    b
+    )
 
-def bold_of_you(s, a: nothing, dir: u8) u64 = dir
+def bold_of_you(s, a: nothing,
+    dir: u8) u64 = dir
 
 def by_ref_bash(&x: i32) i16 = 
     null

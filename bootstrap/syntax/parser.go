@@ -46,8 +46,11 @@ func NewParser(chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
 // package.  This boolean does NOT necessarily indicate whether parsing
 // succeeded or failed.
 func (p *Parser) Parse() bool {
-	// move the parser onto the first token
-	if !p.next() {
+	// move the parser onto the first token; call the lexer directly here
+	// instead of `next` since `next` checks the token kind.
+	if tok, ok := p.lexer.NextToken(); ok {
+		p.tok = tok
+	} else {
 		return false
 	}
 
@@ -64,8 +67,26 @@ func (p *Parser) Parse() bool {
 
 // -----------------------------------------------------------------------------
 
-// next moves the parser forward one token.
+// next moves the parser forward one token.  It automatically skips newlines
+// after certain tokens: namely, `(`, `[`, `{`, `->`, and `,` -- ie. if the
+// parser is currently positioned on one of those tokens, newlines will be
+// skipped.  This allows newlines to be placed in convenient positions.
 func (p *Parser) next() bool {
+	// check for automatic newline skips
+	switch p.tok.Kind {
+	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA:
+		for {
+			if tok, ok := p.lexer.NextToken(); ok {
+				if tok.Kind != NEWLINE {
+					p.tok = tok
+					return true
+				}
+			} else {
+				return false
+			}
+		}
+	}
+
 	if tok, ok := p.lexer.NextToken(); ok {
 		p.tok = tok
 		return true

@@ -12,6 +12,12 @@ import (
 func (w *Walker) walkExpr(expr ast.Expr) bool {
 	// just switch over the different kinds of expressions
 	switch v := expr.(type) {
+	case *ast.BinaryOp:
+		return w.walkBinaryOp(v)
+	case *ast.MultiComparison:
+		// TODO
+	case *ast.Call:
+		return w.walkCall(v)
 	case *ast.Literal:
 		w.walkLiteral(v)
 
@@ -45,10 +51,6 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 		}
 
 		return true
-	case *ast.BinaryOp:
-		return w.walkBinaryOp(v)
-	case *ast.MultiComparison:
-		// TODO
 	}
 
 	// unreachable
@@ -98,6 +100,64 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 
 	// apply the equality constraint between operator and the template
 	w.solver.Constrain(ftTypeVar, operTemplate, bop.Position())
+	return true
+}
+
+// -----------------------------------------------------------------------------
+
+// walkCall walks a function call.
+func (w *Walker) walkCall(call *ast.Call) bool {
+	// walk the argument and function expressions
+	if !w.walkExpr(call.Func) {
+		return false
+	}
+
+	for _, arg := range call.Args {
+		if !w.walkExpr(arg) {
+			return false
+		}
+	}
+
+	// create a template function type to match against the actual function
+	// using our known arguments: this is how we will constrain the shapes of
+	// the two functions.
+	templateArgs := make([]typing.FuncArg, len(call.Args))
+	argVars := make([]typing.DataType, len(call.Args))
+	for i, arg := range call.Args {
+		argVar := w.solver.NewTypeVar(arg.Position(), arg.Type().Repr())
+
+		argVars[i] = argVar
+
+		templateArgs[i] = typing.FuncArg{
+			Type: argVar,
+		}
+	}
+
+	rtTypeVar := w.solver.NewTypeVar(call.Position(), "{_}")
+	funcTemplate := &typing.FuncType{
+		Args:       templateArgs,
+		ReturnType: rtTypeVar,
+	}
+
+	// apply the function constraint
+	w.solver.Constrain(call.Func.Type(), funcTemplate, call.Position())
+
+	// constrain the argument type variables to match the actual argument types
+	// so that we can type check arguments.  Doing this checking in this sort of
+	// "roundabout" way allows us to provide more descriptive error messages
+	// pointing to specific arguments as opposed to the whole call.  Note that
+	// the constaints must be applied AFTER the primary function constraint so
+	// that the argument type variables get given values based on those in
+	// actual function first so that failures happen on the individual arguments
+	// (we check the actual argument type v. the expected so we have determine
+	// the expected first).
+	for i, argVar := range argVars {
+		w.solver.Constrain(argVar, call.Args[i].Type(), call.Args[i].Position())
+	}
+
+	// set the yield type of the function
+	call.SetType(rtTypeVar)
+
 	return true
 }
 

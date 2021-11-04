@@ -195,9 +195,49 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 //	| '[' slice_or_index ']'
 //  |  '.' ('IDENTIFIER' | 'NUM_LIT' | generic_spec)
 func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
+	if atomExpr, ok := p.parseAtom(); ok {
+		switch p.tok.Kind {
+		case LPAREN:
+			// func call
+
+			// save the start token for position
+			startTok := p.tok
+			if !p.next() {
+				return nil, false
+			}
+
+			args, ok := p.parseExprList()
+			if !ok {
+				return nil, false
+			}
+
+			// skip newlines at end of a function call
+			p.newlines()
+
+			// save the end token for positioning
+			endTok := p.tok
+			if !p.assertAndNext(RPAREN) {
+				return nil, false
+			}
+
+			atomExpr = &ast.Call{
+				ExprBase: ast.NewExprBase(nil, ast.RValue),
+				Func:     atomExpr,
+				Args:     args,
+				Pos: report.TextPositionFromRange(
+					startTok.Position,
+					endTok.Position,
+				),
+			}
+		}
+
+		return atomExpr, true
+	}
 	// TODO: {trailer}
-	return p.parseAtom()
+	return nil, false
 }
+
+// -----------------------------------------------------------------------------
 
 // atom = 'INTLIT' | 'FLOATLIT' | 'NUMLIT' | 'STRINGLIT' | 'RUNELIT'
 //   | 'BOOLLIT' | 'IDENTIFIER' | 'NULL' | tupled_expr | sizeof_expr
@@ -250,30 +290,20 @@ func (p *Parser) parseTupledExpr() (ast.Expr, bool) {
 		return lit, true
 	}
 
-	expr, ok := p.parseExpr()
+	exprs, ok := p.parseExprList()
 	if !ok {
 		return nil, false
 	}
 
-	exprs := []ast.Expr{expr}
-	for p.got(COMMA) {
-		if !p.next() {
-			return nil, false
-		}
-
-		if nextExpr, ok := p.parseExpr(); ok {
-			exprs = append(exprs, nextExpr)
-		} else {
-			return nil, false
-		}
-	}
+	// skip any newlines at the end of a tuple
+	p.newlines()
 
 	endTok := p.tok
 	if !p.assertAndNext(RPAREN) {
 		return nil, false
 	}
 
-	cat := expr.Category()
+	cat := exprs[0].Category()
 	if len(exprs) > 1 {
 		cat = ast.RValue
 	}

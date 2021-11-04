@@ -3,3 +3,9 @@ oper (+) (a, b: i32) i32 end
 oper (+) (a, b: string) string end
 
 def func_rt_type(x: i32) i32 = 3 + x
+
+def func_1(a, b: i32, c: string) bool end
+
+def func_2(x, y: f32, z: u64) bool end
+
+def test_func() bool = func_2(3, 4.5, 67)

@@ -99,6 +99,22 @@ func (mc *MultiComparison) Position() *report.TextPosition {
 
 // -----------------------------------------------------------------------------
 
+// Call is a function call expression.
+type Call struct {
+	ExprBase
+
+	Func Expr
+	Args []Expr
+
+	Pos *report.TextPosition
+}
+
+func (c *Call) Position() *report.TextPosition {
+	return c.Pos
+}
+
+// -----------------------------------------------------------------------------
+
 // Tuple represents an n-tuple of elements.  These tuples can be length 1 in
 // which case they are simple compiled as sub-expressions.
 type Tuple struct {
