@@ -1,4 +1,7 @@
-def test() end
+def test()
+    let x = 5
+    x
+end
 
 def fib(n, a, b: i32) i32 = 2
 
@@ -22,3 +25,6 @@ def by_ref_bash(&x: i32) i16 =
 def by_ref_even_more(&y: string, &z: i32) string = "test"
 
 def many_args(z: i32, &b: u16, p: f64) (i32, i32) = (0, 1)
+
+@intrinsic
+def ref_func(z: &u8, b: &i32) &u32 end

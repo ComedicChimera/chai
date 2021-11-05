@@ -213,13 +213,7 @@ func (s *Solver) Solve() bool {
 		}
 
 		// merge the completed local state into the global state
-		for id, sub := range s.localState.Substitutions {
-			s.vars[id].Value = sub
-		}
-
-		for id, overloadSet := range s.localState.OverloadSets {
-			s.globalOverloadSets[id] = overloadSet
-		}
+		s.mergeState()
 	}
 
 	// apply any default substitutions for type variables before checking
@@ -233,9 +227,15 @@ func (s *Solver) Solve() bool {
 				// exit from a unification failure earlier.
 				overloads := s.globalOverloadSets[tv.ID]
 
+				// create a new local state for the unification
+				s.localState = newState()
+
 				// unification here should never fail because invalid overloads
 				// have already been pruned out.
 				s.unify(tv, overloads[0], nil)
+
+				// merge the completed local state into the global state
+				s.mergeState()
 			}
 		}
 	}
@@ -415,4 +415,15 @@ func (s *Solver) getOverloads(id int) ([]DataType, bool) {
 	}
 
 	return nil, false
+}
+
+// mergeState merges the local state into the global state.
+func (s *Solver) mergeState() {
+	for id, sub := range s.localState.Substitutions {
+		s.vars[id].Value = sub
+	}
+
+	for id, overloadSet := range s.localState.OverloadSets {
+		s.globalOverloadSets[id] = overloadSet
+	}
 }

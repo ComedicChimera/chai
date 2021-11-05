@@ -8,8 +8,7 @@ import (
 )
 
 // NOTE: All parsing functions (that are not utility/API functions) are
-// commented with the EBNF notation of the grammar they parse as well as any
-// semantic actions they perform during parsing.
+// commented with the EBNF notation of the grammar they parse.
 
 // Parser is the parser for a Chai source file. They perform three primary
 // tasks: syntax analysis, AST generation, and import resolution. It will

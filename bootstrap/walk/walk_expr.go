@@ -2,6 +2,7 @@ package walk
 
 import (
 	"chai/ast"
+	"chai/depm"
 	"chai/syntax"
 	"chai/typing"
 	"strings"
@@ -28,6 +29,12 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 	case *ast.Identifier:
 		// just lookup the identifier for now
 		if sym, ok := w.lookup(v.Name, v.Pos); ok {
+			// check that the definition kinds match up
+			// TODO: handle constants
+			if sym.DefKind != depm.DKValueDef {
+				w.reportError(v.Pos, "cannot use %s as value", depm.ReprDefKind(sym.DefKind))
+			}
+
 			// update the type with the type of the matching symbol :)
 			v.ExprBase.SetType(sym.Type)
 			return true
@@ -177,18 +184,22 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 			"{number}",
 			true,
 			// the order determines the defaulting preference: eg. this number
-			// will default first to an `i32` and if that is not possible, then
-			// to an `f32`, etc.
-			typing.PrimType(typing.PrimI32),
-			typing.PrimType(typing.PrimF32),
+			// will default first to an `i64` and if that is not possible, then
+			// to an `u64`, etc.
 			typing.PrimType(typing.PrimI64),
-			typing.PrimType(typing.PrimF64),
-			typing.PrimType(typing.PrimU32),
 			typing.PrimType(typing.PrimU64),
+			typing.PrimType(typing.PrimI32),
+			typing.PrimType(typing.PrimU32),
 			typing.PrimType(typing.PrimI16),
 			typing.PrimType(typing.PrimU16),
 			typing.PrimType(typing.PrimI8),
 			typing.PrimType(typing.PrimU8),
+
+			// floats can be at the bottom because the compiler should only
+			// select floats if they are the only option (generally, the user is
+			// going want to their number to be an integer)
+			typing.PrimType(typing.PrimF64),
+			typing.PrimType(typing.PrimF32),
 		)
 		lit.SetType(t)
 	case syntax.FLOATLIT:
@@ -196,9 +207,9 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 			lit.Pos,
 			"{float}",
 			true,
-			// default first to f32
-			typing.PrimType(typing.PrimF32),
+			// default first to highest precision
 			typing.PrimType(typing.PrimF64),
+			typing.PrimType(typing.PrimF32),
 		)
 		lit.SetType(t)
 	case syntax.INTLIT:
@@ -212,7 +223,7 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 				lit.Pos,
 				"{long int}",
 				true,
-				// default first to i64
+				// default first to signed
 				typing.PrimType(typing.PrimI64),
 				typing.PrimType(typing.PrimU64),
 			)
@@ -223,9 +234,9 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 				lit.Pos,
 				"{unsigned int}",
 				true,
-				// default first to u32
-				typing.PrimType(typing.PrimU32),
+				// default first to largest size
 				typing.PrimType(typing.PrimU64),
+				typing.PrimType(typing.PrimU32),
 				typing.PrimType(typing.PrimU16),
 				typing.PrimType(typing.PrimU8),
 			)
@@ -236,11 +247,11 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 				lit.Pos,
 				"{int}",
 				true,
-				// default first to i32
-				typing.PrimType(typing.PrimI32),
-				typing.PrimType(typing.PrimU32),
+				// default first to signed in order by size
 				typing.PrimType(typing.PrimI64),
 				typing.PrimType(typing.PrimU64),
+				typing.PrimType(typing.PrimI32),
+				typing.PrimType(typing.PrimU32),
 				typing.PrimType(typing.PrimI16),
 				typing.PrimType(typing.PrimU16),
 				typing.PrimType(typing.PrimI8),

@@ -14,11 +14,26 @@ func (p *Parser) parseTypeExt() (typing.DataType, bool) {
 	return p.parseTypeLabel()
 }
 
-// type_label = prim_type | ref_type | named_type | tuple_type
-// ref_type = '&' (prim_type | named_type | tuple_type)
+// type_label = ['&'] value_type
 func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
-	// TODO: check for reference types
+	// check for reference types
+	if p.got(AMP) {
+		if !p.next() {
+			return nil, false
+		}
 
+		if vt, ok := p.parseValueType(); ok {
+			return &typing.RefType{ElemType: vt}, true
+		} else {
+			return nil, false
+		}
+	}
+
+	return p.parseValueType()
+}
+
+// value_type = prim_type | named_type | tuple_type
+func (p *Parser) parseValueType() (typing.DataType, bool) {
 	switch p.tok.Kind {
 	case IDENTIFIER:
 		// TODO: named_type

@@ -216,3 +216,30 @@ func (tt TupleType) Repr() string {
 	sb.WriteRune(')')
 	return sb.String()
 }
+
+// -----------------------------------------------------------------------------
+
+// RefType is a reference type.
+type RefType struct {
+	ElemType DataType
+}
+
+func (rt *RefType) Equals(other DataType) bool {
+	if ort, ok := other.(*RefType); ok {
+		return rt.ElemType.Equals(ort.ElemType)
+	}
+
+	return false
+}
+
+func (rt *RefType) Equiv(other DataType) bool {
+	if ort, ok := other.(*RefType); ok {
+		return rt.ElemType.Equiv(ort.ElemType)
+	}
+
+	return false
+}
+
+func (rt *RefType) Repr() string {
+	return "&" + rt.ElemType.Repr()
+}

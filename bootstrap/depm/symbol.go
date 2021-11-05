@@ -39,8 +39,8 @@ const (
 	DKUnknown
 )
 
-// reprDefKind generates a representative string for a definition kind.
-func reprDefKind(dkind int) string {
+// ReprDefKind generates a representative string for a definition kind.
+func ReprDefKind(dkind int) string {
 	switch dkind {
 	case DKValueDef:
 		return "value"

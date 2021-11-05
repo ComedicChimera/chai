@@ -18,15 +18,26 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 
 	// parse definitions until we get an EOF
 	var defs []ast.Def
+	annotations := make(map[string]string)
 	for !p.got(EOF) {
 		switch p.tok.Kind {
+		case ANNOTSTART:
+			// annotations
+			if _annots, ok := p.parseAnnotations(); ok {
+				annotations = _annots
+			} else {
+				return nil, false
+			}
+
+			// annotations => publics => definition
+			fallthrough
 		case PUB:
 			// TODO: publics
-		case ANNOTSTART:
-			// TODO: annotations
+			// publics => definition
+			fallthrough
 		default:
 			// assume definition
-			if def, ok := p.parseDefinition(false); ok {
+			if def, ok := p.parseDefinition(annotations, false); ok {
 				defs = append(defs, def)
 			} else {
 				return nil, false
@@ -35,20 +46,146 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 			// skip newlines after a definition
 			p.newlines()
 		}
+
+		// reset annotations
+		if len(annotations) != 0 {
+			annotations = make(map[string]string)
+		}
 	}
 
 	return defs, true
 }
 
+// -----------------------------------------------------------------------------
+
+// annotations = '@' (annot_elem | '[' annot_elem ']') 'NEWLINE'
+// annotation = 'IDENTIFIER' ['(' 'STRING_LIT' ')']
+func (p *Parser) parseAnnotations() (map[string]string, bool) {
+	if !p.assertAndNext(ANNOTSTART) {
+		return nil, false
+	}
+
+	annotations := make(map[string]string)
+	expectingMultiple := false
+
+	if p.got(LBRACKET) {
+		expectingMultiple = true
+		if !p.next() {
+			return nil, false
+		}
+	}
+
+	// parse annotations
+	for {
+		// collect annotation pieces
+		if !p.assert(IDENTIFIER) {
+			return nil, false
+		}
+
+		idTok := p.tok
+		if !p.next() {
+			return nil, false
+		}
+
+		value := ""
+		var valueTok *Token
+		if p.got(LPAREN) {
+			if !p.want(STRINGLIT) {
+				return nil, false
+			}
+
+			value = p.tok.Value
+			valueTok = p.tok
+
+			if !p.wantAndNext(RPAREN) {
+				return nil, false
+			}
+		}
+
+		// check that the annotation is not duplicated
+		if _, ok := annotations[idTok.Value]; ok {
+			p.errorOn(idTok, "multiple values specified for annotation `%s`", idTok.Value)
+			return nil, false
+		}
+
+		// validate special annotation arity
+		if specialCfg, ok := specialAnnotations[idTok.Value]; ok {
+			if specialCfg.ExpectsValue && value == "" {
+				p.errorOn(idTok, "the special annotation `%s` requires a value", idTok.Value)
+				return nil, false
+			} else if !specialCfg.ExpectsValue && value != "" {
+				p.errorOn(valueTok, "the special annotation `%s` doesn't take a value", idTok.Value)
+				return nil, false
+			}
+		}
+
+		// store new annotation
+		annotations[idTok.Value] = value
+
+		if expectingMultiple && p.got(COMMA) {
+			if !p.next() {
+				return nil, false
+			}
+		} else {
+			break
+		}
+	}
+
+	// make sure multi-annotation are closed and end the annotation
+	if expectingMultiple && !p.assertAndNext(RBRACKET) || !p.assertAndNext(NEWLINE) {
+		return nil, false
+	}
+
+	return annotations, true
+}
+
+// specialAnnotConfig specifies what usages are legal for special annotations.
+type specialAnnotConfig struct {
+	// Usage is a string indicating what type of code object can use this
+	// annotation.  Valid values are: `function`, `operator`
+	Usage string
+
+	ExpectsValue bool
+}
+
+var specialAnnotations = map[string]specialAnnotConfig{
+	"dllimport": {Usage: "function", ExpectsValue: true},
+	"callconv":  {Usage: "function", ExpectsValue: true},
+	"intrinsic": {Usage: "function", ExpectsValue: false},
+	"entry":     {Usage: "function", ExpectsValue: false},
+	"extern":    {Usage: "function", ExpectsValue: false},
+
+	"intrinsicop": {Usage: "operator", ExpectsValue: true},
+}
+
+// validateAnnotUsage checks that the given list of annotations is being used on
+// the correct type of code object (eg. you can use `intrinsic` on an operator).
+// It assumes the parser is currently positioned on a suitable token to error
+// upon.
+func (p *Parser) validateAnnotUsage(annotations map[string]string, usage string) bool {
+	for name := range annotations {
+		if specialCfg, ok := specialAnnotations[name]; ok {
+			if specialCfg.Usage != usage {
+				p.rejectWithMsg("the special annotation `%s` can only be applied to %s", name, specialCfg.Usage)
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// -----------------------------------------------------------------------------
+
 // definition = func_def | oper_def | type_def | space_def | var_def | const_def
-func (p *Parser) parseDefinition(public bool) (ast.Def, bool) {
+func (p *Parser) parseDefinition(annotations map[string]string, public bool) (ast.Def, bool) {
 	switch p.tok.Kind {
 	case DEF:
 		// func_def
-		return p.parseFuncDef(public)
+		return p.parseFuncDef(annotations, public)
 	case OPER:
 		// oper_def
-		return p.parseOperDef(public)
+		return p.parseOperDef(annotations, public)
 	case TYPE:
 		// TODO: type_def
 	case SPACE:
@@ -64,8 +201,12 @@ func (p *Parser) parseDefinition(public bool) (ast.Def, bool) {
 }
 
 // func_def = `def` `IDENTIFIER` [generic_tag] `(` [args_decl] `)` [type_label] func_body
-// Semantic Actions: declares function symbol
-func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
+func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.Def, bool) {
+	if !p.validateAnnotUsage(annotations, "function") {
+		return nil, false
+	}
+
+	// parse the function name
 	if !p.want(IDENTIFIER) {
 		return nil, false
 	}
@@ -131,16 +272,15 @@ func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
 	}
 
 	// func body
-	funcBody, ok := p.parseFuncBody()
+	funcBody, ok := p.parseFuncBody(annotations)
 	if !ok {
 		return nil, false
 	}
 
 	// make the function AST
 	return &ast.FuncDef{
-		Name: sym.Name,
-		// TODO: update to collect annotations from parser
-		Annots:    make(map[string]string),
+		Name:      sym.Name,
+		Annots:    annotations,
 		Signature: ft,
 		Body:      funcBody,
 	}, true
@@ -148,7 +288,6 @@ func (p *Parser) parseFuncDef(public bool) (ast.Def, bool) {
 
 // args_decl = arg_decl {',' arg_decl}
 // arg_decl = arg_id {',' arg_id} type_ext
-// Semantic Actions: check for argument name conflicts
 func (p *Parser) parseArgsDecl() ([]typing.FuncArg, bool) {
 	takenArgNames := make(map[string]struct{})
 	var args []typing.FuncArg
@@ -227,9 +366,24 @@ func (p *Parser) parseArgID() (*Token, bool, bool) {
 }
 
 // func_body = 'end' 'NEWLINE' | block | '=' expr 'NEWLINE'
-func (p *Parser) parseFuncBody() (ast.Expr, bool) {
+func (p *Parser) parseFuncBody(annotations map[string]string) (ast.Expr, bool) {
+	// determine if the function should or should not have a body based on the
+	// provided annotations.
+	needsBody := true
+	for _, specialName := range []string{"extern", "intrinsic", "dllimport", "intrinsicop"} {
+		if _, ok := annotations[specialName]; ok {
+			needsBody = false
+			break
+		}
+	}
+
 	switch p.tok.Kind {
 	case END:
+		if needsBody {
+			p.reject()
+			return nil, false
+		}
+
 		// no body
 		if !p.wantAndNext(NEWLINE) {
 			return nil, false
@@ -237,6 +391,11 @@ func (p *Parser) parseFuncBody() (ast.Expr, bool) {
 
 		return nil, true
 	case ASSIGN:
+		if !needsBody {
+			p.reject()
+			return nil, false
+		}
+
 		// pure expression body
 		if !p.next() {
 			return nil, false
@@ -256,6 +415,11 @@ func (p *Parser) parseFuncBody() (ast.Expr, bool) {
 
 		return expr, true
 	case NEWLINE:
+		if !needsBody {
+			p.reject()
+			return nil, false
+		}
+
 		block, ok := p.parseBlock()
 
 		// functions require a newline after the last end
@@ -273,8 +437,11 @@ func (p *Parser) parseFuncBody() (ast.Expr, bool) {
 // -----------------------------------------------------------------------------
 
 // oper_def = 'oper' '(' operator ')' [generic_tag] '(' args_decl ')' type_label func_body
-// Semantic Actions: define operator
-func (p *Parser) parseOperDef(public bool) (ast.Def, bool) {
+func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.Def, bool) {
+	if !p.validateAnnotUsage(annotations, "operator") {
+		return nil, false
+	}
+
 	// operator token
 	if !p.wantAndNext(LPAREN) {
 		return nil, false
@@ -360,16 +527,15 @@ func (p *Parser) parseOperDef(public bool) (ast.Def, bool) {
 	}
 
 	// parse the operator function body
-	funcBody, ok := p.parseFuncBody()
+	funcBody, ok := p.parseFuncBody(annotations)
 	if !ok {
 		return nil, false
 	}
 
 	// return the operator AST
 	return &ast.OperDef{
-		OpKind: opToken.Kind,
-		// TODO: update to use annotations from parser
-		Annots:    make(map[string]string),
+		OpKind:    opToken.Kind,
+		Annots:    annotations,
 		Signature: ft,
 		Body:      funcBody,
 	}, true

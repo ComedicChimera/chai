@@ -1,0 +1,7 @@
+@extern
+def putc(c: u8) i32 end
+
+@entry
+def _start() 
+    0
+end
