@@ -3,7 +3,7 @@ package syntax
 import "chai/ast"
 
 // block = 'NEWLINE' {stmt 'NEWLINE'} 'end'
-// stmt = var_decl | const_decl | block_expr | expr_stmt
+// stmt = var_decl | const_decl | block_expr | tupled_expr | expr_stmt
 func (p *Parser) parseBlock() (ast.Expr, bool) {
 	if !p.assertAndNext(NEWLINE) {
 		return nil, false
@@ -27,8 +27,20 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 			// TODO: const_decl
 		case IF, MATCH, FOR, WHILE, DO:
 			// TODO: block_expr
+		case LPAREN:
+			// tupled_expr
+			if tupledExpr, ok := p.parseTupledExpr(); ok {
+				stmts = append(stmts, tupledExpr)
+			} else {
+				return nil, false
+			}
 		default:
-			// TODO: expr_stmt
+			// expr_stmt
+			if exprStmt, ok := p.parseExprStmt(); ok {
+				stmts = append(stmts, exprStmt)
+			} else {
+				return nil, false
+			}
 		}
 
 		if p.assertAndNext(NEWLINE) {
@@ -51,28 +63,4 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 	return &ast.Block{
 		Stmts: stmts,
 	}, true
-}
-
-// var_decl = 'let' var {',' var}
-// var = id_list (type_ext [initializer] | initializer)
-func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
-	if !p.assertAndNext(LET) {
-		return nil, false
-	}
-
-	for {
-		// TODO: parse `var`
-
-		// `,` between successive statements
-		if p.got(COMMA) {
-			if !p.next() {
-				return nil, false
-			}
-		} else {
-			break
-		}
-	}
-
-	// TODO: return produced variable declaration
-	return nil, false
 }

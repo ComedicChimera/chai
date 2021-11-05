@@ -1,0 +1,34 @@
+def block_func(x, y: i32) i32
+    let a = x + y
+    (a * 2)
+end
+
+def block_func_2(u: string) (string, i32)
+    (u + "test")
+
+    let v = u + "!"
+
+    let c = v + "?", d: i32
+
+    let g: i32, b, f = (87, 1)
+
+    (u + v + c, d - b * f)
+end
+
+def block_func_3() 
+    println("Hello, world!")
+end
+
+def block_func_4()
+    let a = 0, b = 1
+
+    a, b = b, a + b
+
+    a += 5
+
+    b++
+
+    24
+
+    (a + b)
+end

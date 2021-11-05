@@ -1,6 +1,9 @@
 package syntax
 
-import "chai/typing"
+import (
+	"chai/ast"
+	"chai/typing"
+)
 
 // type_ext = ':' type_label
 func (p *Parser) parseTypeExt() (typing.DataType, bool) {
@@ -85,4 +88,44 @@ func (p *Parser) parseOperator() (*Token, bool) {
 	}
 
 	return nil, false
+}
+
+// initializer = '=' expr
+func (p *Parser) parseInitializer() (ast.Expr, bool) {
+	if !p.assertAndNext(ASSIGN) {
+		return nil, false
+	}
+
+	return p.parseExpr()
+}
+
+// parseIdentList parses a series of identifiers separated by a given separator.
+func (p *Parser) parseIdentList(sep int) ([]*ast.Identifier, bool) {
+	var idents []*ast.Identifier
+
+	for {
+		if !p.assert(IDENTIFIER) {
+			return nil, false
+		}
+
+		idents = append(idents, &ast.Identifier{
+			ExprBase: ast.NewExprBase(nil, ast.LValue),
+			Name:     p.tok.Value,
+			Pos:      p.tok.Position,
+		})
+
+		if !p.next() {
+			return nil, false
+		}
+
+		if p.got(sep) {
+			if !p.next() {
+				return nil, false
+			}
+		} else {
+			break
+		}
+	}
+
+	return idents, true
 }

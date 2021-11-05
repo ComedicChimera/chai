@@ -74,7 +74,7 @@ func (p *Parser) Parse() bool {
 func (p *Parser) next() bool {
 	// check for automatic newline skips
 	switch p.tok.Kind {
-	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA:
+	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON:
 		for {
 			if tok, ok := p.lexer.NextToken(); ok {
 				if tok.Kind != NEWLINE {
@@ -210,6 +210,15 @@ func (p *Parser) warnOn(tok *Token, msg string, a ...interface{}) {
 	report.ReportCompileWarning(
 		p.chFile.Context,
 		tok.Position,
+		fmt.Sprintf(msg, a...),
+	)
+}
+
+// reportError reports an error message at a given position.  It formats automatically.
+func (p *Parser) reportError(pos *report.TextPosition, msg string, a ...interface{}) {
+	report.ReportCompileError(
+		p.chFile.Context,
+		pos,
 		fmt.Sprintf(msg, a...),
 	)
 }
