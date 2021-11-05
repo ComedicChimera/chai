@@ -208,7 +208,7 @@ func (tt TupleType) Repr() string {
 	for i, typ := range tt {
 		sb.WriteString(typ.Repr())
 
-		if i == len(tt)-1 {
+		if i < len(tt)-1 {
 			sb.WriteString(", ")
 		}
 	}

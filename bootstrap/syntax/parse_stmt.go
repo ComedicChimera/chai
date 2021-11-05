@@ -9,6 +9,8 @@ import (
 // var_decl = 'let' var {',' var}
 // var = id_list (type_ext [initializer] | initializer)
 func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
+	letTokPos := p.tok.Position
+
 	if !p.assertAndNext(LET) {
 		return nil, false
 	}
@@ -67,10 +69,20 @@ func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
 		}
 	}
 
+	// calculate the end of the variable declaration
+	lastList := varLists[len(varLists)-1]
+	var lastPos *report.TextPosition
+	if lastList.Initializer != nil {
+		lastPos = lastList.Initializer.Position()
+	} else {
+		lastPos = lastList.NamePositions[len(lastList.NamePositions)-1]
+	}
+
 	// return produced variable declaration
 	return &ast.VarDecl{
 		ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
 		VarLists: varLists,
+		Pos:      report.TextPositionFromRange(letTokPos, lastPos),
 	}, true
 }
 

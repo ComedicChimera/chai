@@ -12,6 +12,8 @@ import (
 func (w *Walker) walkExpr(expr ast.Expr) bool {
 	// just switch over the different kinds of expressions
 	switch v := expr.(type) {
+	case *ast.Block:
+		return w.walkBlock(v)
 	case *ast.BinaryOp:
 		return w.walkBinaryOp(v)
 	case *ast.MultiComparison:

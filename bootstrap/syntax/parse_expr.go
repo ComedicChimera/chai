@@ -200,19 +200,21 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 		case LPAREN:
 			// func call
 
-			// save the start token for position
-			startTok := p.tok
 			if !p.next() {
 				return nil, false
 			}
 
-			args, ok := p.parseExprList()
-			if !ok {
-				return nil, false
-			}
+			// handle arguments (including options)
+			var args []ast.Expr
+			if !p.got(RPAREN) {
+				args, ok = p.parseExprList()
+				if !ok {
+					return nil, false
+				}
 
-			// skip newlines at end of a function call
-			p.newlines()
+				// skip newlines at end of a function call
+				p.newlines()
+			}
 
 			// save the end token for positioning
 			endTok := p.tok
@@ -225,7 +227,7 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 				Func:     atomExpr,
 				Args:     args,
 				Pos: report.TextPositionFromRange(
-					startTok.Position,
+					atomExpr.Position(),
 					endTok.Position,
 				),
 			}
