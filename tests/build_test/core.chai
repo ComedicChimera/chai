@@ -1,0 +1,10 @@
+@intrinsicop("neg")
+oper (-) (i: i32) i32 end
+
+# These intrinsics are temporary because I am lazy.
+
+@intrinsic
+def __strlen(s: string) u32 end
+
+@intrinsic
+def __strbytes(s: string) &u8 end

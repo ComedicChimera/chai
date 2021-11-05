@@ -176,6 +176,8 @@ func (w *Walker) walkCall(call *ast.Call) bool {
 func (w *Walker) walkLiteral(lit *ast.Literal) {
 	switch lit.Kind {
 	case syntax.NULL:
+		// TODO: null checking (but not until there is an official way to get a
+		// `nullptr` for system APIs)
 		t := w.solver.NewTypeVar(lit.Pos, "{_}")
 		lit.SetType(t)
 	case syntax.NUMLIT:
