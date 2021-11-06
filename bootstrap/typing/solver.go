@@ -92,17 +92,6 @@ func (ss *solutionState) copyState() *solutionState {
 	return newSS
 }
 
-// mergeIntoState merges the contents of one solution state into another.
-func (ss *solutionState) mergeIntoState(dest *solutionState) {
-	for tvid, sub := range ss.Substitutions {
-		dest.Substitutions[tvid] = sub
-	}
-
-	for tvid, overloads := range ss.OverloadSets {
-		dest.OverloadSets[tvid] = overloads
-	}
-}
-
 // constraint represents a Hindley-Milner type constraint: it asserts that two
 // types are equivalent to each other.
 type constraint struct {
@@ -148,7 +137,8 @@ type Solver struct {
 	// only considered during constraint unification.
 	shouldError bool
 
-	// TODO: assertions
+	// asserts is the list of assertions to be applied after type solving.
+	asserts []typeAssert
 }
 
 // NewSolver creates a new type solver.
@@ -251,6 +241,21 @@ func (s *Solver) Solve() bool {
 			)
 
 			allSolved = false
+		}
+	}
+
+	// check type assertions
+	if allSolved {
+		for _, assert := range s.asserts {
+			if !assert.Apply() {
+				report.ReportCompileError(
+					s.ctx,
+					assert.Position(),
+					assert.FailMsg(),
+				)
+
+				allSolved = false
+			}
 		}
 	}
 

@@ -15,6 +15,13 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 	switch v := expr.(type) {
 	case *ast.Block:
 		return w.walkBlock(v)
+	case *ast.Cast:
+		if !w.walkExpr(v.Src) {
+			return false
+		}
+
+		w.solver.AssertCast(v.Src.Type(), v.Type(), v.Position())
+		return true
 	case *ast.BinaryOp:
 		return w.walkBinaryOp(v)
 	case *ast.MultiComparison:

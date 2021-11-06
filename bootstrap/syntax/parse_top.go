@@ -10,7 +10,9 @@ import (
 // symbol for the parser.
 func (p *Parser) parseFile() ([]ast.Def, bool) {
 	// skip leading newlines
-	p.newlines()
+	if !p.newlines() {
+		return nil, false
+	}
 
 	// TODO: metadata parsing
 
@@ -44,7 +46,9 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 			}
 
 			// skip newlines after a definition
-			p.newlines()
+			if !p.newlines() {
+				return nil, false
+			}
 		}
 
 		// reset annotations
@@ -78,14 +82,11 @@ func (p *Parser) parseAnnotations() (map[string]string, bool) {
 	// parse annotations
 	for {
 		// collect annotation pieces
-		if !p.assert(IDENTIFIER) {
+		if !p.assertAndNext(IDENTIFIER) {
 			return nil, false
 		}
 
-		idTok := p.tok
-		if !p.next() {
-			return nil, false
-		}
+		idTok := p.lookbehind
 
 		value := ""
 		var valueTok *Token
@@ -207,14 +208,11 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	}
 
 	// parse the function name
-	if !p.want(IDENTIFIER) {
+	if !p.wantAndNext(IDENTIFIER) {
 		return nil, false
 	}
 
-	funcID := p.tok
-	if !p.next() {
-		return nil, false
-	}
+	funcID := p.lookbehind
 
 	// TODO: generic tag
 
@@ -231,6 +229,10 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 		}
 
 		args = _args
+	}
+
+	if !p.newlines() {
+		return nil, false
 	}
 
 	if !p.assertAndNext(RPAREN) {
@@ -353,16 +355,11 @@ func (p *Parser) parseArgID() (*Token, bool, bool) {
 		}
 	}
 
-	if !p.assert(IDENTIFIER) {
+	if !p.assertAndNext(IDENTIFIER) {
 		return nil, false, false
 	}
 
-	idTok := p.tok
-	if !p.next() {
-		return nil, false, false
-	}
-
-	return idTok, byRef, true
+	return p.lookbehind, byRef, true
 }
 
 // func_body = 'end' 'NEWLINE' | block | '=' expr 'NEWLINE'

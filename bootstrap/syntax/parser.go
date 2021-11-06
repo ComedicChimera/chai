@@ -30,6 +30,9 @@ type Parser struct {
 
 	// tok is the current token the parser is positioned on.
 	tok *Token
+
+	// lookbehind is the token before the current token.
+	lookbehind *Token
 }
 
 // NewParser creates a new parser for the given file and file reader.
@@ -74,10 +77,14 @@ func (p *Parser) next() bool {
 	// check for automatic newline skips
 	switch p.tok.Kind {
 	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON:
+		lookbehind := p.tok
+
 		for {
 			if tok, ok := p.lexer.NextToken(); ok {
 				if tok.Kind != NEWLINE {
+					p.lookbehind = lookbehind
 					p.tok = tok
+
 					return true
 				}
 			} else {
@@ -87,7 +94,9 @@ func (p *Parser) next() bool {
 	}
 
 	if tok, ok := p.lexer.NextToken(); ok {
+		p.lookbehind = p.tok
 		p.tok = tok
+
 		return true
 	}
 

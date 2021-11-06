@@ -1,14 +1,17 @@
+@intrinsicop("iadd")
 oper (+) (a, b: i32) i32 end
 
+@intrinsicop("sconcat")
 oper (+) (a, b: string) string end
 
+@intrinsicop("imul")
 oper (*) (a, b: i32) i32 end
 
 def func_rt_type(x: i32) i32 = 3 + x
 
-def func_1(a, b: i32, c: string) bool end
+def func_1(a, b: i32, c: string) bool = true
 
-def func_2(x, y: f32, z: u64) bool end
+def func_2(x, y: f32, z: u64) bool = true
 
 def test_func() bool = func_2(3, 4.5, 67)
 
@@ -21,7 +24,7 @@ def block_func_1(a: i32) i32
     (y + z * x)
 end
 
-def tuple_func() (i32, string) end
+def tuple_func() (i32, string) = (0, "")
 
 def block_func_2(a, b: i32) 
     let x, y = tuple_func()
@@ -29,4 +32,10 @@ def block_func_2(a, b: i32)
     let z = x + a * b
 
     z
+end
+
+def check_cast(a, b: i32, s: string)
+    let c = a + b as u64
+
+    (s as f32)
 end

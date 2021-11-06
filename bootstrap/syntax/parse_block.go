@@ -45,7 +45,9 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 
 		if p.assertAndNext(NEWLINE) {
 			// skip newlines between statements
-			p.newlines()
+			if !p.newlines() {
+				return nil, false
+			}
 
 			// exit condition: `end`
 			if p.got(END) {

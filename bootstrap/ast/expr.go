@@ -55,6 +55,20 @@ func (eb *ExprBase) Category() int {
 
 // -----------------------------------------------------------------------------
 
+// Cast represents a type cast.  The destination type is stored in the ExprBase.
+type Cast struct {
+	ExprBase
+
+	Src Expr
+	Pos *report.TextPosition
+}
+
+func (c *Cast) Position() *report.TextPosition {
+	return c.Pos
+}
+
+// -----------------------------------------------------------------------------
+
 // Oper is an operator used in the AST.
 type Oper struct {
 	Kind      int

@@ -29,6 +29,4 @@ def block_func_4()
     b++
 
     24
-
-    (a + b)
 end

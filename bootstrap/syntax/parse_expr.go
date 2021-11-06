@@ -31,7 +31,35 @@ func (p *Parser) parseExprList() ([]ast.Expr, bool) {
 // expr = simple_expr | block_expr
 func (p *Parser) parseExpr() (ast.Expr, bool) {
 	// TODO: simple_expr | block_expr
-	return p.parseBinOpExpr()
+	return p.parseSimpleExpr()
+}
+
+// simple_expr = or_expr 'as' type_label
+func (p *Parser) parseSimpleExpr() (ast.Expr, bool) {
+	if expr, ok := p.parseBinOpExpr(); ok {
+		if p.got(AS) {
+			if !p.next() {
+				return nil, false
+			}
+
+			if dest, ok := p.parseTypeLabel(); ok {
+				expr = &ast.Cast{
+					ExprBase: ast.NewExprBase(dest, expr.Category()),
+					Src:      expr,
+					Pos: report.TextPositionFromRange(
+						expr.Position(),
+						p.lookbehind.Position,
+					),
+				}
+			} else {
+				return nil, false
+			}
+		}
+
+		return expr, true
+	}
+
+	return nil, false
 }
 
 // -----------------------------------------------------------------------------
@@ -193,7 +221,7 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 // trailer = '(' expr_list ')'
 // 	| '{' struct_init '}'
 //	| '[' slice_or_index ']'
-//  |  '.' ('IDENTIFIER' | 'NUM_LIT' | generic_spec)
+//  | '.' ('IDENTIFIER' | 'NUM_LIT' | generic_spec)
 func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 	if atomExpr, ok := p.parseAtom(); ok {
 		switch p.tok.Kind {
@@ -213,11 +241,12 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 				}
 
 				// skip newlines at end of a function call
-				p.newlines()
+				if !p.newlines() {
+					return nil, false
+				}
 			}
 
-			// save the end token for positioning
-			endTok := p.tok
+			// assert the closing paren
 			if !p.assertAndNext(RPAREN) {
 				return nil, false
 			}
@@ -228,7 +257,7 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 				Args:     args,
 				Pos: report.TextPositionFromRange(
 					atomExpr.Position(),
-					endTok.Position,
+					p.lookbehind.Position,
 				),
 			}
 		}
@@ -245,23 +274,21 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 //   | 'BOOLLIT' | 'IDENTIFIER' | 'NULL' | tupled_expr | sizeof_expr
 //   | ...
 func (p *Parser) parseAtom() (ast.Expr, bool) {
-	startTok := p.tok
-
 	switch p.tok.Kind {
 	case INTLIT, FLOATLIT, NUMLIT, STRINGLIT, RUNELIT, BOOLLIT, NULL:
 		p.next()
 		return &ast.Literal{
 			ExprBase: ast.NewExprBase(nil, ast.RValue),
-			Kind:     startTok.Kind,
-			Value:    startTok.Value,
-			Pos:      startTok.Position,
+			Kind:     p.lookbehind.Kind,
+			Value:    p.lookbehind.Value,
+			Pos:      p.lookbehind.Position,
 		}, true
 	case IDENTIFIER:
 		p.next()
 		return &ast.Identifier{
 			ExprBase: ast.NewExprBase(nil, ast.LValue),
-			Name:     startTok.Value,
-			Pos:      startTok.Position,
+			Name:     p.lookbehind.Value,
+			Pos:      p.lookbehind.Position,
 		}, true
 	case LPAREN:
 		return p.parseTupledExpr()
@@ -298,7 +325,9 @@ func (p *Parser) parseTupledExpr() (ast.Expr, bool) {
 	}
 
 	// skip any newlines at the end of a tuple
-	p.newlines()
+	if !p.newlines() {
+		return nil, false
+	}
 
 	endTok := p.tok
 	if !p.assertAndNext(RPAREN) {
