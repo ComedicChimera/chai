@@ -296,7 +296,7 @@ func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
 	case *FuncType:
 		if rft, ok := rhs.(*FuncType); ok && len(v.Args) == len(rft.Args) {
 			for i, arg := range v.Args {
-				if !s.unify(arg.Type, rft.Args[i].Type, pos) {
+				if !s.unify(arg, rft.Args[i], pos) {
 					return false
 				}
 			}

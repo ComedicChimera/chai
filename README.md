@@ -150,10 +150,41 @@ TODO
 The compilation pipeline, that is the stages of compilation depend on the
 iteration of the compiler but in general the flow is as follows:
 
-1. Source Text
-2. Untyped AST
-3. Typed AST
-4. LLVM IR
+    [Source Text]
+       |
+       V
+    > Lexer
+       |
+       * - Tokens
+       |
+    > Parser
+       |
+       * - Untyped AST + Symbol Definitions
+       |
+    > Walker + Solver + Resolver
+       |
+       * - Typed AST
+       |
+    > Bundler + Lowerer
+       |
+       * - Chai MIR Bundles
+       |
+    > Generator
+       |
+       * - LLVM IR
+       |
+    > LLVM (llc)
+       |
+       * - Assembly
+       |
+    > Native Assembler
+       |
+       * - Object Files
+       |
+    > Native Linker
+       |
+       V
+    [Executable]
 
 ## <a name="development"> Development
 

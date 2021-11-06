@@ -5,6 +5,7 @@ import (
 	"chai/depm"
 	"chai/typing"
 	"fmt"
+	"log"
 )
 
 // walkBlock walks a ast.Block node.
@@ -16,7 +17,9 @@ func (w *Walker) walkBlock(b *ast.Block) bool {
 				return false
 			}
 		case *ast.Assign:
-			// TODO
+			if !w.walkAssign(v) {
+				return false
+			}
 		case *ast.UnaryUpdate:
 			// TODO
 		default:
@@ -122,4 +125,10 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) bool {
 	}
 
 	return true
+}
+
+// walkAssign walks an assignment expression
+func (w *Walker) walkAssign(asn *ast.Assign) bool {
+	log.Fatalln("not implemented")
+	return false
 }

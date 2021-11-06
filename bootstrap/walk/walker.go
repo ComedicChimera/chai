@@ -33,9 +33,13 @@ type Scope struct {
 	// below this one.
 	Vars map[string]*depm.Symbol
 
-	// Func is the enclosing function of the scope.  Its arguments are considered
-	// to be in a psuedoscope above the variables defined in this scope.
+	// Func is the enclosing function type of the scope.
 	Func *typing.FuncType
+
+	// LocalArgs is the list of argument symbols corresponding to Func if it
+	// exists.  These symbols are considered to be in pseudoscope above the
+	// local symbols of the function.
+	LocalArgs []*depm.Symbol
 
 	// IsFuncTopScope indicates whether or not this scope is the top most scope
 	// of its enclosing function.  It is used to denote when function arguments
@@ -59,9 +63,9 @@ func NewWalker(chFile *depm.ChaiFile) *Walker {
 func (w *Walker) WalkDef(def ast.Def) bool {
 	switch v := def.(type) {
 	case *ast.FuncDef:
-		return w.walkFuncLike(v.Signature, v.Body)
+		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	case *ast.OperDef:
-		return w.walkFuncLike(v.Signature, v.Body)
+		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	}
 
 	// TODO: other definitions
@@ -70,14 +74,14 @@ func (w *Walker) WalkDef(def ast.Def) bool {
 
 // walkFuncLike walks a function like (ie. a function or an operator: semantics
 // are the same for both from an analysis perspective at this point).
-func (w *Walker) walkFuncLike(signature *typing.FuncType, body ast.Expr) bool {
+func (w *Walker) walkFuncLike(signature *typing.FuncType, args []ast.FuncArg, body ast.Expr) bool {
 	// nil body => nothing to walk => all good
 	if body == nil {
 		return true
 	}
 
 	// push a scope for the function
-	w.pushFuncScope(signature)
+	w.pushFuncScope(signature, args)
 
 	// make sure the scope is popped before we exit
 	defer w.popScope()
@@ -96,6 +100,13 @@ func (w *Walker) walkFuncLike(signature *typing.FuncType, body ast.Expr) bool {
 	// type solve the function body
 	if !w.solver.Solve() {
 		return false
+	}
+
+	// update the constancy of the function arguments
+	for i, argSym := range w.topScope().LocalArgs {
+		// cannot become `Immutable`, but if they are never mutated, then they
+		// become constant.
+		args[i].Constant = argSym.Mutability == depm.NeverMutated
 	}
 
 	// body has been checked -- good to go
@@ -142,18 +153,9 @@ func (w *Walker) lookup(name string, pos *report.TextPosition) (*depm.Symbol, bo
 
 		// check for function arguments
 		if scope.IsFuncTopScope {
-			for _, arg := range scope.Func.Args {
-				if arg.Name == name {
-					return &depm.Symbol{
-						Name:        name,
-						PkgID:       w.chFile.Parent.ID,
-						DefPosition: nil, // not needed for argument symbols
-						Type:        arg.Type,
-						DefKind:     depm.DKValueDef,
-						// TODO: find a way to share this mutability with the
-						// backend for implicit constancy optimization
-						Mutability: depm.NeverMutated,
-					}, true
+			for _, argSym := range scope.LocalArgs {
+				if argSym.Name == name {
+					return argSym, true
 				}
 			}
 		}
@@ -214,11 +216,25 @@ func (w *Walker) pushScope() {
 }
 
 // pushFuncScope pushes a new local scope as the top scope of a function.
-func (w *Walker) pushFuncScope(f *typing.FuncType) {
+func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
+	localArgs := make([]*depm.Symbol, len(args))
+	for i, arg := range localArgs {
+		localArgs[i] = &depm.Symbol{
+			Name:        arg.Name,
+			PkgID:       w.chFile.Parent.ID,
+			DefPosition: nil, // never errored upon
+			Type:        arg.Type,
+			DefKind:     depm.DKValueDef,
+			Mutability:  depm.NeverMutated,
+			Public:      false,
+		}
+	}
+
 	// no other data is copied down
 	w.scopes = append(w.scopes, &Scope{
 		Vars:           make(map[string]*depm.Symbol),
 		Func:           f,
+		LocalArgs:      localArgs,
 		IsFuncTopScope: true,
 	})
 }

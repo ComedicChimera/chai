@@ -100,14 +100,7 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 
 	// create operator template to constrain to overload operator type
 	operTemplate := &typing.FuncType{
-		Args: []typing.FuncArg{
-			{
-				Type: bop.Lhs.Type(),
-			},
-			{
-				Type: bop.Rhs.Type(),
-			},
-		},
+		Args:       []typing.DataType{bop.Lhs.Type(), bop.Rhs.Type()},
 		ReturnType: rtv,
 	}
 
@@ -137,21 +130,16 @@ func (w *Walker) walkCall(call *ast.Call) bool {
 	// create a template function type to match against the actual function
 	// using our known arguments: this is how we will constrain the shapes of
 	// the two functions.
-	templateArgs := make([]typing.FuncArg, len(call.Args))
 	argVars := make([]typing.DataType, len(call.Args))
 	for i, arg := range call.Args {
 		argVar := w.solver.NewTypeVar(arg.Position(), arg.Type().Repr())
 
 		argVars[i] = argVar
-
-		templateArgs[i] = typing.FuncArg{
-			Type: argVar,
-		}
 	}
 
 	rtTypeVar := w.solver.NewTypeVar(call.Position(), "{_}")
 	funcTemplate := &typing.FuncType{
-		Args:       templateArgs,
+		Args:       argVars,
 		ReturnType: rtTypeVar,
 	}
 

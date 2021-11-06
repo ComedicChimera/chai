@@ -90,15 +90,8 @@ func (pt PrimType) Repr() string {
 
 // FuncType represents a function type.
 type FuncType struct {
-	Args       []FuncArg
+	Args       []DataType
 	ReturnType DataType
-}
-
-// FuncArg is a function argument (used in a function type).
-type FuncArg struct {
-	Name  string
-	Type  DataType
-	ByRef bool
 }
 
 func (ft *FuncType) Equals(other DataType) bool {
@@ -110,7 +103,7 @@ func (ft *FuncType) Equals(other DataType) bool {
 		for i, arg := range ft.Args {
 			oarg := oft.Args[i]
 
-			if arg.ByRef != oarg.ByRef || !arg.Type.Equals(oarg.Type) {
+			if !arg.Equals(oarg) {
 				return false
 			}
 		}
@@ -130,7 +123,7 @@ func (ft *FuncType) Equiv(other DataType) bool {
 		for i, arg := range ft.Args {
 			oarg := oft.Args[i]
 
-			if !arg.Type.Equiv(oarg.Type) {
+			if !arg.Equiv(oarg) {
 				return false
 			}
 		}
@@ -147,7 +140,7 @@ func (ft *FuncType) Repr() string {
 	sb.WriteRune('(')
 
 	for i, arg := range ft.Args {
-		sb.WriteString(arg.Type.Repr())
+		sb.WriteString(arg.Repr())
 
 		if i < len(ft.Args)-1 {
 			sb.WriteString(", ")

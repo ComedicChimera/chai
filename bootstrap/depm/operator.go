@@ -38,7 +38,7 @@ func CheckOperatorCollisions(pkg *ChaiPackage) {
 				if i != j {
 					if len(overload.Signature.Args) == len(o2.Signature.Args) {
 						for k, arg := range overload.Signature.Args {
-							if !arg.Type.Equiv(o2.Signature.Args[k].Type) {
+							if !arg.Equiv(o2.Signature.Args[k]) {
 								continue searchloop
 							}
 						}

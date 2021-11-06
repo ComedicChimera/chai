@@ -18,7 +18,16 @@ type FuncDef struct {
 	Name      string
 	Annots    map[string]string
 	Signature *typing.FuncType
+	Args      []FuncArg
 	Body      Expr
+}
+
+// FuncArg represents a function argument.
+type FuncArg struct {
+	Name     string
+	Type     typing.DataType
+	ByRef    bool
+	Constant bool
 }
 
 func (fd *FuncDef) Names() []string {
@@ -38,6 +47,7 @@ type OperDef struct {
 
 	Annots    map[string]string
 	Signature *typing.FuncType
+	Args      []FuncArg
 	Body      Expr
 }
 

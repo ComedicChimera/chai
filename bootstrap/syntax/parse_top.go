@@ -221,7 +221,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	}
 
 	// parse args_decl
-	var args []typing.FuncArg
+	var args []ast.FuncArg
 	if !p.got(RPAREN) {
 		_args, ok := p.parseArgsDecl()
 		if !ok {
@@ -253,8 +253,13 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	}
 
 	// make the function type
+	argTypes := make([]typing.DataType, len(args))
+	for i, arg := range args {
+		argTypes[i] = arg.Type
+	}
+
 	ft := &typing.FuncType{
-		Args:       args,
+		Args:       argTypes,
 		ReturnType: rtType,
 	}
 
@@ -284,18 +289,19 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 		Name:      sym.Name,
 		Annots:    annotations,
 		Signature: ft,
+		Args:      args,
 		Body:      funcBody,
 	}, true
 }
 
 // args_decl = arg_decl {',' arg_decl}
 // arg_decl = arg_id {',' arg_id} type_ext
-func (p *Parser) parseArgsDecl() ([]typing.FuncArg, bool) {
+func (p *Parser) parseArgsDecl() ([]ast.FuncArg, bool) {
 	takenArgNames := make(map[string]struct{})
-	var args []typing.FuncArg
+	var args []ast.FuncArg
 
 	for {
-		var groupedArgs []typing.FuncArg
+		var groupedArgs []ast.FuncArg
 
 		for {
 			argId, byRef, ok := p.parseArgID()
@@ -309,7 +315,7 @@ func (p *Parser) parseArgsDecl() ([]typing.FuncArg, bool) {
 				takenArgNames[argId.Value] = struct{}{}
 			}
 
-			groupedArgs = append(groupedArgs, typing.FuncArg{
+			groupedArgs = append(groupedArgs, ast.FuncArg{
 				Name:  argId.Value,
 				ByRef: byRef,
 			})
@@ -476,8 +482,13 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 	}
 
 	// create the operator function type
+	argTypes := make([]typing.DataType, len(args))
+	for i, arg := range args {
+		argTypes[i] = arg.Type
+	}
+
 	ft := &typing.FuncType{
-		Args:       args,
+		Args:       argTypes,
 		ReturnType: rtType,
 	}
 
@@ -534,6 +545,7 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 		OpKind:    opToken.Kind,
 		Annots:    annotations,
 		Signature: ft,
+		Args:      args,
 		Body:      funcBody,
 	}, true
 }
