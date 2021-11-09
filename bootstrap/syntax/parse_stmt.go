@@ -162,7 +162,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		return &ast.UnaryUpdate{
-			ExprBase: ast.NewExprBase(nil, ast.RValue),
+			ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
 			Operand:  lhsExprs[0],
 			Oper: &ast.Oper{
 				Kind: asnOp.Kind,
@@ -198,7 +198,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		return &ast.Assign{
-			ExprBase: ast.NewExprBase(nil, ast.RValue),
+			ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
 			LHSExprs: lhsExprs,
 			RHSExprs: rhsExprs,
 			Oper:     compoundASTOper,
