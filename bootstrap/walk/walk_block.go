@@ -5,7 +5,6 @@ import (
 	"chai/depm"
 	"chai/typing"
 	"fmt"
-	"log"
 )
 
 // walkBlock walks a ast.Block node.
@@ -137,6 +136,7 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 	}
 
 	// and assert that all LHS expressions are mutable
+	// TODO: handle `_` on the LHS
 	for _, lexpr := range asn.LHSExprs {
 		if !w.walkExpr(lexpr) {
 			return false
@@ -163,11 +163,10 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 		}
 
 		// constrain to fit pattern
-		w.solver.Constrain(typing.TupleType(tupleTemplate), asn.RHSExprs[0].Type(), asn.RHSExprs[0].Position())
+		w.solver.Constrain(typing.TupleType(tupleTemplate), asn.RHSExprs[0].Type(), asn.Position())
 	}
 
-	log.Fatalln("not implemented")
-	return false
+	return true
 }
 
 // assertMutable asserts that a given LHS expression is mutable.

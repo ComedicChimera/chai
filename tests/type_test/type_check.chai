@@ -37,7 +37,7 @@ end
 def check_cast(a, b: i32, s: string)
     let c = a + b as u64
 
-    (s as f32)
+    # (s as f32)
 end
 
 def assignment_test(a, b: i32) 
@@ -45,5 +45,5 @@ def assignment_test(a, b: i32)
 
     x = 5
 
-    5 = b
+    x, _ = tuple_func()
 end

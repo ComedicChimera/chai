@@ -218,7 +218,7 @@ func (w *Walker) pushScope() {
 // pushFuncScope pushes a new local scope as the top scope of a function.
 func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
 	localArgs := make([]*depm.Symbol, len(args))
-	for i, arg := range localArgs {
+	for i, arg := range args {
 		localArgs[i] = &depm.Symbol{
 			Name:        arg.Name,
 			PkgID:       w.chFile.Parent.ID,
