@@ -49,6 +49,14 @@ type Scope struct {
 	// of its enclosing function.  It is used to denote when function arguments
 	// should be looked up.
 	IsFuncTopScope bool
+
+	// LocalMuts is a map of local mutabilities: pointers to fields on the AST
+	// to be updated with their symbol's mutability.  The key is the name of the
+	// symbol to fetch the mutability from.
+	// NOTE: This entire construct exists because I can't actually store the
+	// symbols themselves on the AST because of Go's weird import rules so I
+	// have to update them late.
+	LocalMuts map[string]*int
 }
 
 // -----------------------------------------------------------------------------
@@ -224,7 +232,7 @@ func (w *Walker) pushScope() {
 			Func: w.scopes[len(w.scopes)-1].Func,
 		})
 	} else {
-		w.scopes = append(w.scopes, &Scope{Vars: make(map[string]*depm.Symbol)})
+		w.scopes = append(w.scopes, &Scope{Vars: make(map[string]*depm.Symbol), LocalMuts: make(map[string]*int)})
 	}
 }
 
@@ -246,6 +254,7 @@ func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
 	// no other data is copied down
 	w.scopes = append(w.scopes, &Scope{
 		Vars:           make(map[string]*depm.Symbol),
+		LocalMuts:      make(map[string]*int),
 		Func:           f,
 		LocalArgs:      localArgs,
 		IsFuncTopScope: true,
@@ -254,5 +263,10 @@ func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
 
 // popScope pops a scope off the scope stack (assuming there are scopes to pop).
 func (w *Walker) popScope() {
+	// update local mutabilities
+	for name, mutptr := range w.topScope().LocalMuts {
+		*mutptr = w.topScope().Vars[name].Mutability
+	}
+
 	w.scopes = w.scopes[:len(w.scopes)-1]
 }

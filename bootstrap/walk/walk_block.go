@@ -89,6 +89,9 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) bool {
 					}) {
 						return false
 					}
+
+					// add to local mutabilities (for implicit constancy updating)
+					w.topScope().LocalMuts[name] = &varList.Mutabilities[i]
 				}
 
 				// return early so we don't declare variables multiple times
@@ -120,6 +123,9 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) bool {
 			}) {
 				return false
 			}
+
+			// add to local mutabilities (for implicit constancy updating)
+			w.topScope().LocalMuts[name] = &varList.Mutabilities[i]
 		}
 	}
 

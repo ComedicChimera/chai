@@ -55,8 +55,10 @@ func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
 		varLists = append(varLists, &ast.VarList{
 			Names:         varNames,
 			NamePositions: varPositions,
-			Type:          varType,
-			Initializer:   initializer,
+			// these will be filled in during walking
+			Mutabilities: make([]int, len(varNames)),
+			Type:         varType,
+			Initializer:  initializer,
 		})
 
 		// `,` between successive statements

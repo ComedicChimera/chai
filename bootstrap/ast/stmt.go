@@ -22,6 +22,7 @@ func (vd *VarDecl) Position() *report.TextPosition {
 type VarList struct {
 	Names         []string
 	NamePositions []*report.TextPosition
+	Mutabilities  []int
 	Type          typing.DataType
 	Initializer   Expr
 }
