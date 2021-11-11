@@ -9,14 +9,39 @@ type Def interface {
 
 	// Annotations returns a map of the annotations applied to this definition.
 	Annotations() map[string]string
+
+	// Dependencies is the map of global names this definition depends on.
+	Dependencies() map[string]struct{}
+}
+
+// DefBase is the base type for all definition types.
+type DefBase struct {
+	annots map[string]string
+	deps   map[string]struct{}
+}
+
+func NewDefBase(annots map[string]string) DefBase {
+	return DefBase{
+		annots: annots,
+		deps:   make(map[string]struct{}),
+	}
+}
+
+func (db *DefBase) Annotations() map[string]string {
+	return db.annots
+}
+
+func (db *DefBase) Dependencies() map[string]struct{} {
+	return db.deps
 }
 
 // -----------------------------------------------------------------------------
 
 // FuncDef is an AST node for a function.
 type FuncDef struct {
+	DefBase
+
 	Name      string
-	Annots    map[string]string
 	Signature *typing.FuncType
 	Args      []FuncArg
 	Body      Expr
@@ -34,18 +59,15 @@ func (fd *FuncDef) Names() []string {
 	return []string{fd.Name}
 }
 
-func (fd *FuncDef) Annotations() map[string]string {
-	return fd.Annots
-}
-
 // -----------------------------------------------------------------------------
 
 // OperDef is an AST node for an operator definition.
 type OperDef struct {
+	DefBase
+
 	// OpKind corresponds to the token kind of the operator.
 	OpKind int
 
-	Annots    map[string]string
 	Signature *typing.FuncType
 	Args      []FuncArg
 	Body      Expr
@@ -53,8 +75,4 @@ type OperDef struct {
 
 func (od *OperDef) Names() []string {
 	return nil
-}
-
-func (od *OperDef) Annotations() map[string]string {
-	return od.Annots
 }

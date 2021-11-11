@@ -45,5 +45,5 @@ def assignment_test(a, b: i32)
 
     x = 5
 
-    x, _ = tuple_func()
+    # x, _ = tuple_func()
 end

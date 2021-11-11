@@ -286,8 +286,8 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 
 	// make the function AST
 	return &ast.FuncDef{
+		DefBase:   ast.NewDefBase(annotations),
 		Name:      sym.Name,
-		Annots:    annotations,
 		Signature: ft,
 		Args:      args,
 		Body:      funcBody,
@@ -542,8 +542,8 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 
 	// return the operator AST
 	return &ast.OperDef{
+		DefBase:   ast.NewDefBase(annotations),
 		OpKind:    opToken.Kind,
-		Annots:    annotations,
 		Signature: ft,
 		Args:      args,
 		Body:      funcBody,

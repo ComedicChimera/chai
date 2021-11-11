@@ -23,6 +23,10 @@ type Walker struct {
 
 	// solver is the type solver used for the file this walker is analyzing.
 	solver *typing.Solver
+
+	// deps is a map of the dependencies of the definition currently being
+	// walked.
+	deps map[string]struct{}
 }
 
 // Scope represents a local scope inside a function or expression.  This stores
@@ -61,12 +65,18 @@ func NewWalker(chFile *depm.ChaiFile) *Walker {
 // the caller to control when a given definition is evaluated as well as
 // what part of it to support generic evaluation.
 func (w *Walker) WalkDef(def ast.Def) bool {
+	// set the map of dependencies to match the definition being walked
+	w.deps = def.Dependencies()
+
 	switch v := def.(type) {
 	case *ast.FuncDef:
 		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	case *ast.OperDef:
 		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	}
+
+	// clear the map of dependencies
+	w.deps = nil
 
 	// TODO: other definitions
 	return false
@@ -172,6 +182,9 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 
 	// global symbol table
 	if sym, ok := w.chFile.Parent.SymbolTable[name]; ok {
+		// add the global symbol to the list of dependencies
+		w.deps[sym.Name] = struct{}{}
+
 		return sym, true
 	}
 
