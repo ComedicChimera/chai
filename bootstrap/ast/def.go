@@ -12,18 +12,23 @@ type Def interface {
 
 	// Dependencies is the map of global names this definition depends on.
 	Dependencies() map[string]struct{}
+
+	// Public returns if the definition is public.
+	Public() bool
 }
 
 // DefBase is the base type for all definition types.
 type DefBase struct {
 	annots map[string]string
 	deps   map[string]struct{}
+	public bool
 }
 
-func NewDefBase(annots map[string]string) DefBase {
+func NewDefBase(annots map[string]string, public bool) DefBase {
 	return DefBase{
 		annots: annots,
 		deps:   make(map[string]struct{}),
+		public: public,
 	}
 }
 
@@ -33,6 +38,10 @@ func (db *DefBase) Annotations() map[string]string {
 
 func (db *DefBase) Dependencies() map[string]struct{} {
 	return db.deps
+}
+
+func (db *DefBase) Public() bool {
+	return db.public
 }
 
 // -----------------------------------------------------------------------------
@@ -65,12 +74,9 @@ func (fd *FuncDef) Names() []string {
 type OperDef struct {
 	DefBase
 
-	// OpKind corresponds to the token kind of the operator.
-	OpKind int
-
-	Signature *typing.FuncType
-	Args      []FuncArg
-	Body      Expr
+	Op   *Oper
+	Args []FuncArg
+	Body Expr
 }
 
 func (od *OperDef) Names() []string {

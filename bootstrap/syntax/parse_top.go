@@ -155,6 +155,7 @@ var specialAnnotations = map[string]specialAnnotConfig{
 	"intrinsic": {Usage: "function", ExpectsValue: false},
 	"entry":     {Usage: "function", ExpectsValue: false},
 	"extern":    {Usage: "function", ExpectsValue: false},
+	"inline":    {Usage: "function", ExpectsValue: false},
 
 	"intrinsicop": {Usage: "operator", ExpectsValue: true},
 }
@@ -286,7 +287,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 
 	// make the function AST
 	return &ast.FuncDef{
-		DefBase:   ast.NewDefBase(annotations),
+		DefBase:   ast.NewDefBase(annotations, public),
 		Name:      sym.Name,
 		Signature: ft,
 		Args:      args,
@@ -542,10 +543,14 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 
 	// return the operator AST
 	return &ast.OperDef{
-		DefBase:   ast.NewDefBase(annotations),
-		OpKind:    opToken.Kind,
-		Signature: ft,
-		Args:      args,
-		Body:      funcBody,
+		DefBase: ast.NewDefBase(annotations, public),
+		Op: &ast.Oper{
+			Kind:      opToken.Kind,
+			Name:      opToken.Value,
+			Pos:       opToken.Position,
+			Signature: ft,
+		},
+		Args: args,
+		Body: funcBody,
 	}, true
 }

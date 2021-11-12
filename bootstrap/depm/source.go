@@ -20,8 +20,6 @@ type ChaiFile struct {
 
 	// Defs is the list of AST definitions that make up this source file.
 	Defs []ast.Def
-
-	// TODO: rest
 }
 
 // ChaiPackage represents a Chai source package.
@@ -35,6 +33,11 @@ type ChaiPackage struct {
 	// Parent is the parent module to this package.
 	Parent *ChaiModule
 
+	// ModSubPath is sub path to the package (the key that is used to store it
+	// in the `SubPackages` dictionary).  This may an empty string if the
+	// package is the root package of its parent module.
+	ModSubPath string
+
 	// Files is a list of all the Chai source files that belong to this package.
 	Files []*ChaiFile
 
@@ -43,8 +46,6 @@ type ChaiPackage struct {
 
 	// OperatorTable is the global table of operator definitions.
 	OperatorTable map[int]*Operator
-
-	// TODO: rest
 }
 
 // -----------------------------------------------------------------------------

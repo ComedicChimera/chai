@@ -74,7 +74,7 @@ type Oper struct {
 	Kind      int
 	Name      string
 	Pos       *report.TextPosition
-	Signature typing.DataType
+	Signature *typing.FuncType
 }
 
 // BinaryOp represents a binary operator application (specifically excluding the

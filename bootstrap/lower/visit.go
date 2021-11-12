@@ -3,17 +3,24 @@ package lower
 import (
 	"chai/ast"
 	"chai/mir"
+	"fmt"
 )
 
 // visit lowers a single definition by first recursively visiting all its
 // dependencies and then it adds the fully lowered definition to the MIR bundle.
 func (l *Lowerer) visit(def ast.Def) {
+	// intrinsics are not compiled as definitions: they use a separate
+	// instruction when encountered in MIR blocks
+	if _, ok := def.Annotations()["intrinsic"]; ok {
+		return
+	}
+
 	// if the definition has already been visited
 	if mdef, ok := l.alreadyVisited[def]; ok {
 		if mdef != nil {
 			// the definition is in the process of being added meaning it recursively
 			// depends on itself.  Therefore, we need to add it as a forward declaration
-			// to break the cycle and return.
+			// to break the cycle and return
 			l.bundle.Forwards = append(l.bundle.Forwards, mdef)
 		}
 
@@ -39,8 +46,32 @@ func (l *Lowerer) visit(def ast.Def) {
 	l.alreadyVisited[def] = nil
 }
 
-// lowerDef lowers a definition into a MIR definition *without* lowering its body.
-func (l *Lowerer) lowerDef(def ast.Def) mir.MIRDef {
-	// TODO
+// lowerDef lowers a definition into a MIR definition *without* lowering its
+// body.  This function assumes the definition is non-intrinsic.
+func (l *Lowerer) lowerDef(def ast.Def) mir.Def {
+	// TODO: other definitions
+	switch v := def.(type) {
+	case *ast.FuncDef:
+		_, inline := def.Annotations()["inline"]
+
+		return &mir.FuncDef{
+			Name:       l.globalPrefix + v.Name,
+			Args:       v.Args,
+			ReturnType: v.Signature.ReturnType,
+			Pub:        v.Public(),
+			Inline:     inline,
+		}
+	case *ast.OperDef:
+		// operators get converted into functions that are always inlined
+		return &mir.FuncDef{
+			Name:       fmt.Sprintf("%s.oper[%s: %s]", l.globalPrefix, v.Op.Name, v.Op.Signature.Repr()),
+			Args:       v.Args,
+			ReturnType: v.Op.Signature.ReturnType,
+			Pub:        v.Public(),
+			Inline:     true,
+		}
+	}
+
+	// unreachable
 	return nil
 }

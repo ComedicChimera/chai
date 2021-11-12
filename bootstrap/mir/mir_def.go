@@ -1,14 +1,15 @@
 package mir
 
 import (
+	"chai/ast"
 	"chai/typing"
 	"strings"
 )
 
-// MIRDef represents a MIR definition.  On its own, such definitions are
+// Def represents a MIR definition.  On its own, such definitions are
 // interpreted as mere forward declarations: they do not provided
 // implementations of the things they define.
-type MIRDef interface {
+type Def interface {
 	// Repr returns the textual representation of the definition.
 	Repr() string
 
@@ -18,25 +19,26 @@ type MIRDef interface {
 
 // -----------------------------------------------------------------------------
 
-// MIRFuncDef is a MIR function definition.
-type MIRFuncDef struct {
+// FuncDef is a MIR function definition.  Note that operators also get converted
+// into functions that are marked to be inlined automatically.  The naming
+// convention for operator functions is as follows:
+// `<global-prefix>.oper[<op-name>: <op-signature>]` followed by any other
+// trailing information.
+type FuncDef struct {
 	Name       string
-	Args       []MIRFuncArg
+	Args       []ast.FuncArg
 	ReturnType typing.DataType
 	Pub        bool
+	Inline     bool
 }
 
-// MIRFuncArg is the MIR data specific to a function argument.
-type MIRFuncArg struct {
-	Name     string
-	ByRef    bool
-	Constant bool
-	Type     typing.DataType
-}
-
-func (mfd *MIRFuncDef) Repr() string {
+func (mfd *FuncDef) Repr() string {
 	sb := strings.Builder{}
 	sb.WriteString("func ")
+
+	if mfd.Inline {
+		sb.WriteString("inline ")
+	}
 
 	sb.WriteRune('$')
 	sb.WriteString(mfd.Name)
@@ -68,6 +70,6 @@ func (mfd *MIRFuncDef) Repr() string {
 	return sb.String()
 }
 
-func (mfd *MIRFuncDef) Public() bool {
+func (mfd *FuncDef) Public() bool {
 	return mfd.Pub
 }

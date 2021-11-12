@@ -131,7 +131,9 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 			report.ReportFatal(fmt.Sprintf("error computing package relative path: %s", err.Error()))
 		}
 
-		parentMod.SubPackages[strings.ReplaceAll(pkgRelPath, string(filepath.Separator), ".")] = pkg
+		subPath := strings.ReplaceAll(pkgRelPath, string(filepath.Separator), ".")
+		parentMod.SubPackages[subPath] = pkg
+		pkg.ModSubPath = subPath
 	}
 
 	// TODO: add package to dependency graph (before parsing to prevent import

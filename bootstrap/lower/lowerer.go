@@ -21,14 +21,21 @@ type Lowerer struct {
 	// from being visited multiple times.  The stored value of this map is the
 	// MIR definition.  This will be `nil` if the body has *already* been
 	// processed.
-	alreadyVisited map[ast.Def]mir.MIRDef
+	alreadyVisited map[ast.Def]mir.Def
+
+	// globalPrefix is the prefix that is added before all global symbols to
+	// prevent name collisions.  It ends with a `.` and thus able to be directly
+	// concatenated to the front of all global symbols.
+	globalPrefix string
 }
 
 // NewLowerer creates a new lowerer for a given package.
-func NewLowerer() *Lowerer {
+func NewLowerer(pkg *depm.ChaiPackage) *Lowerer {
 	return &Lowerer{
+		pkg:            pkg,
 		defDepGraph:    make(map[string]ast.Def),
-		alreadyVisited: make(map[ast.Def]mir.MIRDef),
+		alreadyVisited: make(map[ast.Def]mir.Def),
+		globalPrefix:   pkg.Parent.Name + pkg.ModSubPath + ".",
 	}
 }
 

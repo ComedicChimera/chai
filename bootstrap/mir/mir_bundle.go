@@ -12,11 +12,11 @@ type MIRBundle struct {
 	// Externals is a list of the external function definitions used by this
 	// package.  These symbols may be defined in other MIR bundles (to be
 	// resolved later by linker) or may be found in some external library.
-	Externals []MIRDef
+	Externals []Def
 
 	// Forwards is a list of the forward declarations of the package.
-	Forwards []MIRDef
+	Forwards []Def
 
 	// Functions is a list a the function implementations of the package.
-	Functions []*MIRFuncImpl
+	Functions []*FuncImpl
 }
