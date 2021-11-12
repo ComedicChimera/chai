@@ -111,6 +111,16 @@ func (c *Compiler) Generate() {
 	for _, bundle := range mirBundles {
 		fmt.Println(bundle.Repr())
 	}
+
+	// output Chai MIR to files if that is the target format
+	if c.baseProfile.OutputFormat == depm.FormatMIR {
+		for _, bundle := range mirBundles {
+			c.writeOutputFile(bundle.Name+".chmir", bundle.Repr())
+		}
+
+		return
+	}
+
 }
 
 // -----------------------------------------------------------------------------
@@ -227,5 +237,39 @@ func (c *Compiler) typeCheck() {
 				w.WalkDef(def)
 			}
 		}
+	}
+}
+
+// writeOutputFile is used to write a compiler output to the file system. The
+// output name of the file being written is provided relative to the the output
+// directory.  This argument can be empty if the file be written is at that
+// output path (eg. an executable).
+func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
+	// determine actual output path and create all enclosing directories
+	fileOutPath := c.baseProfile.OutputPath
+	if fileOutRelPath == "" {
+		err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
+		if err != nil {
+			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+		}
+	} else {
+		err := os.MkdirAll(c.baseProfile.OutputPath, os.ModeDir)
+		if err != nil {
+			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+		}
+
+		fileOutPath = filepath.Join(fileOutPath, fileOutRelPath)
+	}
+
+	// open or create the file
+	file, err := os.OpenFile(fileOutPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0)
+	if err != nil {
+		report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+	}
+
+	// write the data
+	_, err = file.WriteString(fileText)
+	if err != nil {
+		report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
 	}
 }

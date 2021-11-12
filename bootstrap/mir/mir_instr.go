@@ -1,63 +1,55 @@
 package mir
 
-import "strings"
-
-// Instruction represents a standalone statement that performs an operation such
-// as a call.  The results of instructions can be stored into a bind or used in
-// an assignment.
-type Instruction struct {
-	// OpCode is the integer code used to designate the instruction.
-	OpCode int
-
-	// Operands are the values that this instruction operates upon.
-	Operands []Value
-}
-
-// Enumeration of instruction Op Codes
-const (
-	OpCall = iota
-	OpRet
-
-	// Intrinsic arithmetic
-	OpNeg
-
-	// Intrinsic Functions
-	OpStrBytes
-	OpStrLen
+import (
+	"chai/typing"
+	"fmt"
+	"strings"
 )
 
-// IntrinsicTable is a table of all valid intrinsic names and their mappings to
-// instructions.  All function instrinsics are prefixed with `__`.
-var IntrinsicTable = map[string]int{
-	"neg":        OpNeg,
-	"__strbytes": OpStrBytes,
-	"__strlen":   OpStrLen,
+// Instruction represents a standalone statement that performs an operation such
+// as a call and an addition.  The results of instructions can be stored into a
+// bind or used in an assignment.
+type Instruction interface {
+	// repr returns the unindent string representation of an instruction.
+	Repr() string
 }
 
-// displayTable converts an op code into a displayable string for the instruction.
-var displayTable = []string{
-	"call",     // OpCall
-	"ret",      // OpRet
-	"neg",      // OpNeg
-	"strbytes", // OpStrBytes
-	"strlen",   // OpStrLen
+// -----------------------------------------------------------------------------
+
+// Call is an instruction to call a function.
+type Call struct {
+	FuncName string
+	Args     []Value
 }
 
-func (instr *Instruction) Repr(preindent string) string {
+func (c *Call) Repr() string {
 	sb := strings.Builder{}
-	sb.WriteString(preindent)
+	sb.WriteString("call $")
+	sb.WriteString(c.FuncName)
 
-	sb.WriteString(displayTable[instr.OpCode])
+	sb.WriteRune('(')
 
-	sb.WriteRune(' ')
-	for i, operand := range instr.Operands {
-		sb.WriteString(operand.Repr())
+	for i, arg := range c.Args {
+		sb.WriteString(arg.Repr())
 
-		if i < len(instr.Operands)-1 {
+		if i < len(c.Args)-1 {
 			sb.WriteString(", ")
 		}
 	}
 
-	sb.WriteRune(';')
+	sb.WriteString(");")
 	return sb.String()
+}
+
+// Cast is an instruction to cast of a value to a different type.
+type Cast struct {
+	// Value is the value to type cast.
+	Value Value
+
+	// DestType is the type being casted to.
+	DestType typing.DataType
+}
+
+func (c *Cast) Repr() string {
+	return fmt.Sprintf("cast %s to %s;", c.Value.Repr(), c.DestType.Repr())
 }

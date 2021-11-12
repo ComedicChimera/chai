@@ -9,6 +9,11 @@ package mir
 // MIR bundles are considered distinct translation units -- all symbols that are
 // not immediately defined in the package are considered external.
 type MIRBundle struct {
+	// Name is the name of the bundle: this is the parent module name
+	// concatenated with the package sub path this bundle corresponds to.  This
+	// is used when writing output.
+	Name string
+
 	// Externals is a list of the external function definitions used by this
 	// package.  These symbols may be defined in other MIR bundles (to be
 	// resolved later by linker) or may be found in some external library.

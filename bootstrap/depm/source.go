@@ -115,4 +115,5 @@ const (
 	FormatObj
 	FormatASM
 	FormatLLVM
+	FormatMIR
 )

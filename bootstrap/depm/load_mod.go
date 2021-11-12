@@ -222,6 +222,7 @@ var formatNames = map[string]int{
 	"asm":  FormatASM,
 	"llvm": FormatLLVM,
 	"obj":  FormatObj,
+	"mir":  FormatMIR,
 }
 
 // convertProfile converts a TOML build profile into a `*BuildProfile`

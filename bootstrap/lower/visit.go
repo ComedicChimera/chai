@@ -73,10 +73,20 @@ func (l *Lowerer) lowerDef(def ast.Def) mir.Def {
 	// TODO: other definitions
 	switch v := def.(type) {
 	case *ast.FuncDef:
+		// check for the inline tag
 		_, inline := def.Annotations()["inline"]
 
+		// the entry point does not get mangled (so it can be seen by linker)
+		var fullName string
+		_, entry := def.Annotations()["entry"]
+		if entry {
+			fullName = v.Name
+		} else {
+			fullName = l.globalPrefix + v.Name
+		}
+
 		return &mir.FuncDef{
-			Name:       l.globalPrefix + v.Name,
+			Name:       fullName,
 			Args:       v.Args,
 			ReturnType: v.Signature.ReturnType,
 			Pub:        v.Public(),
@@ -99,5 +109,24 @@ func (l *Lowerer) lowerDef(def ast.Def) mir.Def {
 
 // lowerBody lowers the function or a operator.
 func (l *Lowerer) lowerBody(body ast.Expr) []mir.Stmt {
-	return nil
+	// TODO: push a local scope for the body and arguments
+
+	// reset the temporary counter
+	l.tempCounter = 0
+
+	var bodyStmts []mir.Stmt
+	rtVal := l.lowerExpr(&bodyStmts, body)
+
+	// TODO: handle returns at the end of blocks
+
+	// return needs to be added
+	if rtVal == nil {
+		// return value
+		bodyStmts = append(bodyStmts, &mir.Return{})
+	} else {
+		// return value
+		bodyStmts = append(bodyStmts, &mir.Return{RetVal: rtVal})
+	}
+
+	return bodyStmts
 }

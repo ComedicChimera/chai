@@ -1,7 +1,6 @@
 package mir
 
 import (
-	"chai/typing"
 	"fmt"
 )
 
@@ -26,26 +25,32 @@ type Stmt interface {
 // temporary value.  Bindings follow an SSA-like paradigm.
 type Binding struct {
 	Name string
-	RHS  *Instruction
+	RHS  Instruction
 }
 
 func (b *Binding) Repr(preindent string) string {
-	return fmt.Sprintf("%s$%s := %s", preindent, b.Name, b.RHS.Repr(""))
+	return fmt.Sprintf("%s$%s := %s", preindent, b.Name, b.RHS.Repr())
 }
 
-// Cast is a type cast of a value to a different type.  Type casts act both as
-// bindings and instructions.
-type Cast struct {
-	// DestName is the name to bind the result of the cast to.
-	DestName string
-
-	// Value is the value to type cast.
-	Value Value
-
-	// DestType is the type being casted to.
-	DestType typing.DataType
+// InstrStmt is an instruction used as a standalone statement with no binding.
+type InstrStmt struct {
+	Instr Instruction
 }
 
-func (c *Cast) Repr(preindent string) string {
-	return fmt.Sprintf("%s$%s := cast %s to %s;", preindent, c.DestName, c.Value.Repr(), c.DestType.Repr())
+func (is *InstrStmt) Repr(preindent string) string {
+	return preindent + is.Instr.Repr()
+}
+
+// Return is a return statement.
+type Return struct {
+	// RetVal may be `nil` if no value is returned.
+	RetVal Value
+}
+
+func (r *Return) Repr(preindent string) string {
+	if r.RetVal == nil {
+		return preindent + "ret;"
+	}
+
+	return fmt.Sprintf("%sret %s;", preindent, r.RetVal.Repr())
 }

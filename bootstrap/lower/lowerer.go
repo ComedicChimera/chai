@@ -4,6 +4,7 @@ import (
 	"chai/ast"
 	"chai/depm"
 	"chai/mir"
+	"strconv"
 )
 
 // Lowerer is the construct responsible for converting the AST into MIR.
@@ -25,13 +26,21 @@ type Lowerer struct {
 	// prevent name collisions.  It ends with a `.` and thus able to be directly
 	// concatenated to the front of all global symbols.
 	globalPrefix string
+
+	// scopes is the stack of local variable scopes which each local variable
+	// scope is map of the Chai name of the variable mapped to whether or not it
+	// is a constant.
+	scopes []map[string]bool
+
+	// tempCounter is a counter for temporary names used in functions.
+	tempCounter int
 }
 
 // NewLowerer creates a new lowerer for a given package.
 func NewLowerer(pkg *depm.ChaiPackage) *Lowerer {
 	return &Lowerer{
 		pkg:            pkg,
-		bundle:         &mir.MIRBundle{},
+		bundle:         &mir.MIRBundle{Name: pkg.Parent.Name + pkg.ModSubPath},
 		defDepGraph:    make(map[string]ast.Def),
 		alreadyVisited: make(map[ast.Def]mir.Def),
 		globalPrefix:   pkg.Parent.Name + pkg.ModSubPath + ".",
@@ -55,4 +64,12 @@ func (l *Lowerer) Lower() *mir.MIRBundle {
 	}
 
 	return l.bundle
+}
+
+// -----------------------------------------------------------------------------
+
+// getTempName gets a temporary name from the counter.
+func (l *Lowerer) getTempName() string {
+	l.tempCounter++
+	return strconv.Itoa(l.tempCounter)
 }
