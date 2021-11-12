@@ -40,7 +40,21 @@ func (l *Lowerer) visit(def ast.Def) {
 		l.visit(l.defDepGraph[name])
 	}
 
-	// TODO: lower function bodies and define MIR functions
+	// define global types and functions
+	switch v := def.(type) {
+	case *ast.FuncDef:
+		// lower the function body
+		l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
+			Def:  mdef.(*mir.FuncDef),
+			Body: l.lowerBody(v.Body),
+		})
+	case *ast.OperDef:
+		// lower the function body
+		l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
+			Def:  mdef.(*mir.FuncDef),
+			Body: l.lowerBody(v.Body),
+		})
+	}
 
 	// flag the definition as completed before returning
 	l.alreadyVisited[def] = nil
@@ -73,5 +87,10 @@ func (l *Lowerer) lowerDef(def ast.Def) mir.Def {
 	}
 
 	// unreachable
+	return nil
+}
+
+// lowerBody lowers the function or a operator.
+func (l *Lowerer) lowerBody(body ast.Expr) []mir.Stmt {
 	return nil
 }
