@@ -5,6 +5,7 @@ import (
 	"chai/depm"
 	"chai/syntax"
 	"chai/typing"
+	"log"
 	"strings"
 )
 
@@ -26,6 +27,9 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 		return w.walkBinaryOp(v)
 	case *ast.MultiComparison:
 		// TODO
+		log.Fatalln("walking for multicomparison not implemented")
+	case *ast.UnaryOp:
+		return w.walkUnaryOp(v)
 	case *ast.Call:
 		return w.walkCall(v)
 	case *ast.Literal:
@@ -73,27 +77,18 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 	return false
 }
 
-// walkBinaryOp walks a binary operator applications
+// walkBinaryOp walks a binary operator application
 func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 	// walk the LHS and RHS
 	if !w.walkExpr(bop.Lhs) || !w.walkExpr(bop.Rhs) {
 		return false
 	}
 
-	op, ok := w.lookupOperator(&bop.Op)
+	// create the operator overloaded function
+	ftTypeVar, ok := w.makeOverloadFunc(bop.Op, 2)
 	if !ok {
 		return false
 	}
-
-	// create the operator overloaded function
-	var ftOverloads []typing.DataType
-	for _, overload := range op.Overloads {
-		if len(overload.Signature.Args) == 2 {
-			ftOverloads = append(ftOverloads, overload.Signature)
-		}
-	}
-
-	ftTypeVar := w.solver.NewTypeVarWithOverloads(bop.Op.Pos, bop.Op.Name, false, ftOverloads...)
 
 	// return type variable
 	rtv := w.solver.NewTypeVar(bop.Position(), "{_}")
@@ -110,6 +105,53 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 	// apply the equality constraint between operator and the template
 	w.solver.Constrain(ftTypeVar, operTemplate, bop.Position())
 	return true
+}
+
+// walkUnaryOp walks a unary operator application (not special unary operators)
+func (w *Walker) walkUnaryOp(uop *ast.UnaryOp) bool {
+	// walk the operand
+	if !w.walkExpr(uop.Operand) {
+		return false
+	}
+
+	// create the operator overloaded function
+	ftTypeVar, ok := w.makeOverloadFunc(uop.Op, 1)
+	if !ok {
+		return false
+	}
+
+	// return type variable
+	rtv := w.solver.NewTypeVar(uop.Position(), "{_}")
+
+	// create operator template to constrain to overload operator type
+	operTemplate := &typing.FuncType{
+		Args:       []typing.DataType{uop.Operand.Type()},
+		ReturnType: rtv,
+	}
+
+	// set the return type of the operator equal to type of the expression
+	uop.SetType(rtv)
+
+	// apply the equality constraint between operator and the template
+	w.solver.Constrain(ftTypeVar, operTemplate, uop.Position())
+	return true
+}
+
+// makeOverloadFunc creates a new function type matching an operator overload.
+func (w *Walker) makeOverloadFunc(aop ast.Oper, arity int) (typing.DataType, bool) {
+	op, ok := w.lookupOperator(aop)
+	if !ok {
+		return nil, false
+	}
+
+	var ftOverloads []typing.DataType
+	for _, overload := range op.Overloads {
+		if len(overload.Signature.Args) == arity {
+			ftOverloads = append(ftOverloads, overload.Signature)
+		}
+	}
+
+	return w.solver.NewTypeVarWithOverloads(aop.Pos, aop.Name, false, ftOverloads...), true
 }
 
 // -----------------------------------------------------------------------------

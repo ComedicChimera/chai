@@ -191,6 +191,7 @@ func (s *Solver) Solve() bool {
 		s.vars = nil
 		s.globalOverloadSets = make(map[int][]DataType)
 		s.localState = nil
+		s.asserts = nil
 	}()
 
 	// unify constraints

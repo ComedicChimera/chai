@@ -211,8 +211,42 @@ func buildMultiCompare(root *ast.BinaryOp) ast.Expr {
 
 // unary_expr = ['*' | '&' | '-' | '~' | '!'] atom_expr ['?']
 func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
-	// TODO: prefix and postfix unary operators
-	return p.parseAtomExpr()
+	// check for prefix operators
+	var prefixOpTok *Token
+	switch p.tok.Kind {
+	// TODO: other supported prefix unary operators
+	case MINUS:
+		prefixOpTok = p.tok
+		if !p.next() {
+			return nil, false
+		}
+	}
+
+	// parse the atom expression
+	expr, ok := p.parseAtomExpr()
+	if !ok {
+		return nil, false
+	}
+
+	// TODO: postfix operators
+
+	// apply operators
+	if prefixOpTok != nil {
+		// TODO: handle any special operators like referencing and dereferncing
+		return &ast.UnaryOp{
+			ExprBase: ast.NewExprBase(nil, ast.RValue),
+			Operand:  expr,
+			Op: ast.Oper{
+				Kind: prefixOpTok.Kind,
+				Name: prefixOpTok.Value,
+				Pos:  prefixOpTok.Position,
+			},
+			Pos: report.TextPositionFromRange(prefixOpTok.Position, expr.Position()),
+		}, true
+	}
+
+	// no operator to apply
+	return expr, true
 }
 
 // -----------------------------------------------------------------------------

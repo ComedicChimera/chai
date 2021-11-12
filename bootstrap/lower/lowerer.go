@@ -8,9 +8,7 @@ import (
 
 // Lowerer is the construct responsible for converting the AST into MIR.
 type Lowerer struct {
-	pkg *depm.ChaiPackage
-
-	// bundle the MIR bundle currently being constructed.
+	pkg    *depm.ChaiPackage
 	bundle *mir.MIRBundle
 
 	// defDepGraph is a graph of definitions organized by the names they define.
@@ -33,6 +31,7 @@ type Lowerer struct {
 func NewLowerer(pkg *depm.ChaiPackage) *Lowerer {
 	return &Lowerer{
 		pkg:            pkg,
+		bundle:         &mir.MIRBundle{},
 		defDepGraph:    make(map[string]ast.Def),
 		alreadyVisited: make(map[ast.Def]mir.Def),
 		globalPrefix:   pkg.Parent.Name + pkg.ModSubPath + ".",

@@ -111,6 +111,19 @@ func (mc *MultiComparison) Position() *report.TextPosition {
 	)
 }
 
+// UnaryOp represents a unary operator application.
+type UnaryOp struct {
+	ExprBase
+
+	Operand Expr
+	Op      Oper
+	Pos     *report.TextPosition
+}
+
+func (uop *UnaryOp) Position() *report.TextPosition {
+	return uop.Pos
+}
+
 // -----------------------------------------------------------------------------
 
 // Call is a function call expression.

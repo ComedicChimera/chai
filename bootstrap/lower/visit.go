@@ -13,6 +13,8 @@ func (l *Lowerer) visit(def ast.Def) {
 	// instruction when encountered in MIR blocks
 	if _, ok := def.Annotations()["intrinsic"]; ok {
 		return
+	} else if _, ok := def.Annotations()["intrinsicop"]; ok {
+		return
 	}
 
 	// if the definition has already been visited
@@ -43,11 +45,16 @@ func (l *Lowerer) visit(def ast.Def) {
 	// define global types and functions
 	switch v := def.(type) {
 	case *ast.FuncDef:
-		// lower the function body
-		l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
-			Def:  mdef.(*mir.FuncDef),
-			Body: l.lowerBody(v.Body),
-		})
+		// handle externals and DLL imports
+		if v.Body == nil {
+			l.bundle.Externals = append(l.bundle.Externals, mdef)
+		} else {
+			// lower the function body
+			l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
+				Def:  mdef.(*mir.FuncDef),
+				Body: l.lowerBody(v.Body),
+			})
+		}
 	case *ast.OperDef:
 		// lower the function body
 		l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{

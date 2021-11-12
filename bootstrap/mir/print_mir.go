@@ -33,9 +33,13 @@ func (bundle *MIRBundle) Repr() string {
 
 		sb.WriteString(impl.Def.Repr())
 
-		// TODO: print body
+		sb.WriteString(" {\n")
+		for _, stmt := range impl.Body {
+			sb.WriteString(stmt.Repr("    "))
+			sb.WriteRune('\n')
+		}
 
-		sb.WriteString("\n\n")
+		sb.WriteString("}\n\n")
 	}
 
 	return sb.String()

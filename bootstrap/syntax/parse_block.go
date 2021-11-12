@@ -12,9 +12,11 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 	var stmts []ast.Expr
 
 	// skip leading newlines
+	if !p.newlines() {
+		return nil, false
+	}
 
 	for {
-
 		switch p.tok.Kind {
 		case LET:
 			// var_decl

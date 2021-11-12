@@ -41,12 +41,8 @@ func (l *Lexer) NextToken() (*Token, bool) {
 	for ahead, ok := l.peek(); ok; ahead, ok = l.peek() {
 		switch ahead {
 		// ignore non-meaningful characters (eg. BOM, tabs, spaces, etc.)
-		case '\f', '\v', ' ', '\t', 65279:
+		case '\f', '\v', ' ', '\t', '\r', 65279:
 			l.skip()
-		// carriage returns can't move the lexer forward in column counting so
-		// we just read and discard it
-		case '\r':
-			l.file.ReadRune()
 		// handle newlines
 		case '\n':
 			l.mark()
@@ -594,6 +590,8 @@ func (l *Lexer) updatePos(r rune) {
 		l.col = 1
 	case '\t':
 		l.col += 4
+	case '\r':
+		// carriage returns can't move the lexer forward in column counting
 	default:
 		l.col++
 	}

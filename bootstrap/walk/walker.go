@@ -92,7 +92,7 @@ func (w *Walker) WalkDef(def ast.Def) bool {
 
 // walkFuncLike walks a function like (ie. a function or an operator: semantics
 // are the same for both from an analysis perspective at this point).
-func (w *Walker) walkFuncLike(signature *typing.FuncType, args []ast.FuncArg, body ast.Expr) bool {
+func (w *Walker) walkFuncLike(signature *typing.FuncType, args []*ast.FuncArg, body ast.Expr) bool {
 	// nil body => nothing to walk => all good
 	if body == nil {
 		return true
@@ -202,7 +202,7 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 
 // lookupOperator retrieves the overloads for a particular operator. It reports
 // an error if the lookup fails.
-func (w *Walker) lookupOperator(aop *ast.Oper) (*depm.Operator, bool) {
+func (w *Walker) lookupOperator(aop ast.Oper) (*depm.Operator, bool) {
 	// TODO: local operators
 
 	if op, ok := w.chFile.Parent.OperatorTable[aop.Kind]; ok {
@@ -237,7 +237,7 @@ func (w *Walker) pushScope() {
 }
 
 // pushFuncScope pushes a new local scope as the top scope of a function.
-func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
+func (w *Walker) pushFuncScope(f *typing.FuncType, args []*ast.FuncArg) {
 	localArgs := make([]*depm.Symbol, len(args))
 	for i, arg := range args {
 		localArgs[i] = &depm.Symbol{
@@ -263,9 +263,11 @@ func (w *Walker) pushFuncScope(f *typing.FuncType, args []ast.FuncArg) {
 
 // popScope pops a scope off the scope stack (assuming there are scopes to pop).
 func (w *Walker) popScope() {
+	topScope := w.topScope()
+
 	// update local mutabilities
-	for name, mutptr := range w.topScope().LocalMuts {
-		*mutptr = w.topScope().Vars[name].Mutability
+	for name, mutptr := range topScope.LocalMuts {
+		*mutptr = topScope.Vars[name].Mutability
 	}
 
 	w.scopes = w.scopes[:len(w.scopes)-1]

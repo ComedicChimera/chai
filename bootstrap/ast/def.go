@@ -52,7 +52,7 @@ type FuncDef struct {
 
 	Name      string
 	Signature *typing.FuncType
-	Args      []FuncArg
+	Args      []*FuncArg
 	Body      Expr
 }
 
@@ -75,7 +75,7 @@ type OperDef struct {
 	DefBase
 
 	Op   *Oper
-	Args []FuncArg
+	Args []*FuncArg
 	Body Expr
 }
 

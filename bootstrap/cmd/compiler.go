@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"chai/common"
 	"chai/depm"
+	"chai/lower"
+	"chai/mir"
 	"chai/report"
 	"chai/syntax"
 	"chai/walk"
@@ -95,7 +97,20 @@ func (c *Compiler) Analyze() bool {
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
-	// TODO
+	// TODO: concurrent generation POG
+
+	// generate MIR bundles
+	var mirBundles []*mir.MIRBundle
+	// TODO: traverse depgraph
+	for _, pkg := range c.rootModule.Packages() {
+		l := lower.NewLowerer(pkg)
+		mirBundles = append(mirBundles, l.Lower())
+	}
+
+	// DEBUG: display MIR bundles
+	for _, bundle := range mirBundles {
+		fmt.Println(bundle.Repr())
+	}
 }
 
 // -----------------------------------------------------------------------------

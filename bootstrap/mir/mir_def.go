@@ -26,7 +26,7 @@ type Def interface {
 // trailing information.
 type FuncDef struct {
 	Name       string
-	Args       []ast.FuncArg
+	Args       []*ast.FuncArg
 	ReturnType typing.DataType
 	Pub        bool
 	Inline     bool
@@ -60,7 +60,7 @@ func (mfd *FuncDef) Repr() string {
 		sb.WriteString(arg.Type.Repr())
 
 		if i < len(mfd.Args)-1 {
-			sb.WriteRune(',')
+			sb.WriteString(", ")
 		}
 	}
 

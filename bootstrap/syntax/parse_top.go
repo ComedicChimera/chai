@@ -222,7 +222,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	}
 
 	// parse args_decl
-	var args []ast.FuncArg
+	var args []*ast.FuncArg
 	if !p.got(RPAREN) {
 		_args, ok := p.parseArgsDecl()
 		if !ok {
@@ -297,12 +297,12 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 
 // args_decl = arg_decl {',' arg_decl}
 // arg_decl = arg_id {',' arg_id} type_ext
-func (p *Parser) parseArgsDecl() ([]ast.FuncArg, bool) {
+func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 	takenArgNames := make(map[string]struct{})
-	var args []ast.FuncArg
+	var args []*ast.FuncArg
 
 	for {
-		var groupedArgs []ast.FuncArg
+		var groupedArgs []*ast.FuncArg
 
 		for {
 			argId, byRef, ok := p.parseArgID()
@@ -316,7 +316,7 @@ func (p *Parser) parseArgsDecl() ([]ast.FuncArg, bool) {
 				takenArgNames[argId.Value] = struct{}{}
 			}
 
-			groupedArgs = append(groupedArgs, ast.FuncArg{
+			groupedArgs = append(groupedArgs, &ast.FuncArg{
 				Name:  argId.Value,
 				ByRef: byRef,
 			})
