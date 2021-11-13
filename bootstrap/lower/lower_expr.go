@@ -4,6 +4,7 @@ import (
 	"chai/ast"
 	"chai/mir"
 	"chai/typing"
+	"log"
 )
 
 // lowerExpr lowers an expression and returns the a value referencing the last
@@ -13,8 +14,19 @@ import (
 func (l *Lowerer) lowerExpr(stmts *[]mir.Stmt, expr ast.Expr) mir.Value {
 	var result mir.Instruction
 	switch v := expr.(type) {
+	case *ast.Cast:
+		// you can't cast from nothing so no reason to nothing check here
+		result = &mir.Cast{
+			Value:    l.lowerExpr(stmts, v.Src),
+			DestType: v.Type(),
+		}
 	case *ast.Call:
 		result = l.lowerCall(stmts, v)
+	case *ast.Identifier:
+		return &mir.Identifier{
+			Name:    v.Name,
+			Mutable: l.isMutable(v.Name),
+		}
 	case *ast.Literal:
 		return &mir.Constant{
 			Value: v.Value,
@@ -22,6 +34,7 @@ func (l *Lowerer) lowerExpr(stmts *[]mir.Stmt, expr ast.Expr) mir.Value {
 		}
 	default:
 		// TODO: other expressions
+		log.Fatalln("unsupported expression")
 		return nil
 	}
 

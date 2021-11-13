@@ -52,14 +52,14 @@ func (l *Lowerer) visit(def ast.Def) {
 			// lower the function body
 			l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
 				Def:  mdef.(*mir.FuncDef),
-				Body: l.lowerBody(v.Body),
+				Body: l.lowerBody(v.Args, v.Body),
 			})
 		}
 	case *ast.OperDef:
 		// lower the function body
 		l.bundle.Functions = append(l.bundle.Functions, &mir.FuncImpl{
 			Def:  mdef.(*mir.FuncDef),
-			Body: l.lowerBody(v.Body),
+			Body: l.lowerBody(v.Args, v.Body),
 		})
 	}
 
@@ -108,8 +108,15 @@ func (l *Lowerer) lowerDef(def ast.Def) mir.Def {
 }
 
 // lowerBody lowers the function or a operator.
-func (l *Lowerer) lowerBody(body ast.Expr) []mir.Stmt {
-	// TODO: push a local scope for the body and arguments
+func (l *Lowerer) lowerBody(args []*ast.FuncArg, body ast.Expr) []mir.Stmt {
+	// push a local scope for the body and arguments
+	l.pushScope()
+	defer l.popScope()
+
+	// write the arguments into the local scope
+	for _, arg := range args {
+		l.setMutable(arg.Name, !arg.Constant)
+	}
 
 	// reset the temporary counter
 	l.tempCounter = 0

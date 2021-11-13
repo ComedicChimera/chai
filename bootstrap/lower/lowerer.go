@@ -73,3 +73,32 @@ func (l *Lowerer) getTempName() string {
 	l.tempCounter++
 	return strconv.Itoa(l.tempCounter)
 }
+
+// isMutable tests of a symbol with a given name is mutable.
+func (l *Lowerer) isMutable(name string) bool {
+	// scopes in reverse order to implement shadowing
+	for i := len(l.scopes) - 1; i >= 0; i-- {
+		if mut, ok := l.scopes[i][name]; ok {
+			return mut
+		}
+	}
+
+	// TODO: local symbol imports
+
+	return l.pkg.SymbolTable[name].Mutability == depm.Mutable
+}
+
+// setMutable defines a new mutability for a local variable.
+func (l *Lowerer) setMutable(name string, mut bool) {
+	l.scopes[len(l.scopes)-1][name] = mut
+}
+
+// pushScope pushes a scope onto the local scope stack.
+func (l *Lowerer) pushScope() {
+	l.scopes = append(l.scopes, make(map[string]bool))
+}
+
+// popScope pops a scope from the local scope stack.
+func (l *Lowerer) popScope() {
+	l.scopes = l.scopes[:len(l.scopes)-1]
+}

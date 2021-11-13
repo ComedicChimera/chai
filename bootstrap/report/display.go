@@ -178,63 +178,42 @@ func displayCompileHeader(target string, caching bool) {
 	if caching {
 		fmt.Println("compiling using cache")
 	}
-
-	fmt.Print("\n")
 }
 
 // phaseSpinner stores the current phase spinner
-var phaseSpinner *pterm.SpinnerPrinter
 var currentPhase string
 var phaseStartTime time.Time
 
-const maxPhaseLength = len("Generating")
+const phaseFormat = "%-10v"
 
 // displayBeginPhase displays the beginning of a compilation phase
 func displayBeginPhase(phase string) {
-	// currentPhase = phase
-	// phaseText := phase + "..." + strings.Repeat(" ", maxPhaseLength-len(phase)+2)
-	// phaseSpinner = pterm.DefaultSpinner.WithStyle(pterm.NewStyle(InfoColorFG))
-
-	// phaseSpinner.SuccessPrinter = &pterm.PrefixPrinter{
-	// 	MessageStyle: pterm.NewStyle(pterm.FgDefault),
-	// 	Prefix: pterm.Prefix{
-	// 		Style: SuccessStyleBG,
-	// 		Text:  "Done",
-	// 	},
-	// }
-
-	// phaseSpinner.FailPrinter = &pterm.PrefixPrinter{
-	// 	MessageStyle: pterm.NewStyle(pterm.FgDefault),
-	// 	Prefix: pterm.Prefix{
-	// 		Style: ErrorStyleBG,
-	// 		Text:  "Fail",
-	// 	},
-	// }
-
-	// phaseSpinner.Start(phaseText)
-	// phaseStartTime = time.Now()
+	fmt.Print("    [*] ", phase+"...")
+	currentPhase = phase
+	phaseStartTime = time.Now()
 }
 
 // displayEndPhase displays the end of a compilation phase
 func displayEndPhase(success bool) {
-	if phaseSpinner != nil {
-		if success {
-			phaseSpinner.Success(
-				currentPhase+strings.Repeat(" ", maxPhaseLength-len(currentPhase)+2),
-				fmt.Sprintf("(%.3fs)", time.Since(phaseStartTime).Seconds()),
-			)
-		} else {
-			phaseSpinner.Fail(currentPhase + strings.Repeat(" ", maxPhaseLength-len(currentPhase)+2))
-		}
+	fmt.Print("\r")
+	fmt.Print("    ")
+	if success {
+		SuccessStyleBG.Print("Done")
+		fmt.Print(" ")
 
-		phaseSpinner.Stop()
-		time.Sleep(phaseSpinner.Delay * 2)
-		phaseSpinner = nil
+		fmt.Printf(phaseFormat, currentPhase)
+
+		fmt.Print(" (")
+		SuccessColorFG.Printf("%.3fms", float64(time.Since(phaseStartTime).Microseconds())/1e3)
+		fmt.Println(")")
+	} else {
+		ErrorStyleBG.Print("Fail")
+		fmt.Println(" " + currentPhase)
 	}
 }
 
 // displayCompilationFinished displays a compilation finished message
-func displayCompilationFinished(success bool, errorCount, warningCount int) {
+func displayCompilationFinished(success bool, errorCount, warningCount int, outputDir string) {
 	fmt.Print("\n")
 
 	if success {
@@ -267,5 +246,19 @@ func displayCompilationFinished(success bool, errorCount, warningCount int) {
 	default:
 		WarnColorFG.Print(warningCount)
 		fmt.Println(" warnings)")
+	}
+
+	if success {
+		fmt.Print("Output written to: ")
+		wd, err := os.Getwd()
+		if err != nil {
+			ReportFatal("error getting working directory: " + err.Error())
+		}
+
+		relpath, err := filepath.Rel(wd, outputDir)
+		if err != nil {
+			ReportFatal("error calculating relative path to output dir:" + err.Error())
+		}
+		InfoColorFG.Println(relpath)
 	}
 }

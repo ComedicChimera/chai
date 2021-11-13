@@ -71,7 +71,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// end whatever the final compilation phase was and display the concluding
 	// message of compilation.
 	report.ReportEndPhase()
-	report.ReportCompilationFinished()
+	report.ReportCompilationFinished(c.baseProfile.OutputPath)
 }
 
 // execModCommand executes the `mod` subcommand and its subcommands.  It handles

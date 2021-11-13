@@ -106,7 +106,7 @@ func ReportEndPhase() {
 
 // ReportCompilationFinished reports the concluding message for compilation.
 // This displays information about the end of the compilation process.
-func ReportCompilationFinished() {
+func ReportCompilationFinished(outputDir string) {
 	// log all warnings
 	if rep.LogLevel >= LogLevelWarning {
 		for _, warning := range rep.warnings {
@@ -116,6 +116,6 @@ func ReportCompilationFinished() {
 
 	// log closing message
 	if rep.LogLevel == LogLevelVerbose {
-		displayCompilationFinished(ShouldProceed(), rep.errorCount, len(rep.warnings))
+		displayCompilationFinished(ShouldProceed(), rep.errorCount, len(rep.warnings), outputDir)
 	}
 }
