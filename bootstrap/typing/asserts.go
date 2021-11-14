@@ -49,7 +49,7 @@ func (ca *castAssert) Apply() bool {
 			}
 
 			// bool to int
-			if v == PrimBool && dpt < PrimBool {
+			if v == PrimBool && dpt < PrimF32 {
 				return true
 			}
 

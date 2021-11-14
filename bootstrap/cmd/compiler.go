@@ -4,8 +4,7 @@ import (
 	"bufio"
 	"chai/common"
 	"chai/depm"
-	"chai/lower"
-	"chai/mir"
+	"chai/generate"
 	"chai/report"
 	"chai/syntax"
 	"chai/walk"
@@ -15,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/llir/llvm/ir"
 )
 
 // Compiler represents the global state of the compiler.
@@ -102,24 +103,25 @@ func (c *Compiler) Generate() {
 
 	// TODO: concurrent generation POG
 
-	// generate MIR bundles
-	var mirBundles []*mir.MIRBundle
-	// TODO: traverse depgraph
+	// generate LLVM modules
+	// TODO: use depgraph
+	var modules []*ir.Module
 	for _, pkg := range c.rootModule.Packages() {
-		l := lower.NewLowerer(pkg)
-		mirBundles = append(mirBundles, l.Lower())
+		g := generate.NewGenerator(pkg)
+		modules = append(modules, g.Generate())
 	}
 
-	// DEBUG: display MIR bundles
-	for _, bundle := range mirBundles {
-		fmt.Println(bundle.Repr())
+	// DEBUG: print LLVM modules
+	for i, mod := range modules {
+		fmt.Println("Module:", i)
+		fmt.Println(mod.String())
 	}
 
 	// output Chai MIR to files if that is the target format
-	if c.baseProfile.OutputFormat == depm.FormatMIR {
-		for _, bundle := range mirBundles {
-			c.writeOutputFile(bundle.Name+".chmir", bundle.Repr())
-		}
+	if c.baseProfile.OutputFormat == depm.FormatLLVM {
+		// for _, bundle := range mirBundles {
+		// 	c.writeOutputFile(bundle.Name+".llvm", bundle.Repr())
+		// }
 
 		return
 	}

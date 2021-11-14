@@ -165,10 +165,6 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Typed AST
        |
-    > Bundler + Lowerer
-       |
-       * - Chai MIR Bundles
-       |
     > Generator
        |
        * - LLVM IR
