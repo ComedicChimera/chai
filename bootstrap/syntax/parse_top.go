@@ -151,6 +151,7 @@ type specialAnnotConfig struct {
 
 var specialAnnotations = map[string]specialAnnotConfig{
 	"dllimport": {Usage: "function", ExpectsValue: true},
+	"dllexport": {Usage: "function", ExpectsValue: false},
 	"callconv":  {Usage: "function", ExpectsValue: true},
 	"intrinsic": {Usage: "function", ExpectsValue: false},
 	"entry":     {Usage: "function", ExpectsValue: false},

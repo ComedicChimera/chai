@@ -53,6 +53,15 @@ func (g *Generator) genDef(def ast.Def) {
 	}
 }
 
+// noMangleAnnotations is a list of annotations that cause a function name not
+// be mangled (for linking purposes)
+var noMangleAnnotations = []string{
+	"entry",
+	"dllexport",
+	"dllimport",
+	"extern",
+}
+
 // genFunc generates an LLVM function definition.
 func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.DataType, body ast.Expr, public bool, annotations map[string]string) {
 	// check for intrinsics (they aren't actually generated)
@@ -76,16 +85,19 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		params = append(params, ir.NewParam(arg.Name, g.convType(arg.Type)))
 	}
 
-	// entry function is always unmangled to `_start`
+	// mangle name if necessary
 	mangledName := g.globalPrefix + name
-	if hasAnnot(annotations, "entry") {
-		mangledName = "_start"
+	for _, noMangleAnnot := range noMangleAnnotations {
+		if hasAnnot(annotations, noMangleAnnot) {
+			mangledName = name
+			break
+		}
 	}
 
 	llvmFunc := g.mod.NewFunc(mangledName, g.convType(rtType), params...)
 
 	// set linkage based on visibility
-	if public || hasAnnot(annotations, "extern") {
+	if public || hasAnnot(annotations, "extern") || hasAnnot(annotations, "entry") {
 		llvmFunc.Linkage = enum.LinkageExternal
 	} else {
 		llvmFunc.Linkage = enum.LinkageInternal
@@ -93,16 +105,16 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		// TODO: consider marking internal functions as fastcc
 	}
 
-	// Chai does not use exceptions in any form and thus all functions are
-	// marked `nounwind`
-	llvmFunc.FuncAttrs = []ir.FuncAttribute{enum.FuncAttrNoUnwind}
-
 	// annotated properties
+	// TODO: ensure the linkage is correct for DLL import and export
 	if hasAnnot(annotations, "dllimport") {
 		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLImport
 		llvmFunc.Linkage = enum.LinkageExternal
 		// TODO: add the dll to link in (whatever mechanism is necessary for
 		// this)
+	} else if hasAnnot(annotations, "dllexport") {
+		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLExport
+		llvmFunc.Linkage = enum.LinkageExternal
 	}
 
 	if hasAnnot(annotations, "callconv") {
@@ -130,6 +142,10 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 
 	// generate the body if a body is provided
 	if body != nil {
+		// Chai does not use exceptions in any form and thus all functions are
+		// marked `nounwind`
+		llvmFunc.FuncAttrs = []ir.FuncAttribute{enum.FuncAttrNoUnwind}
+
 		entry := llvmFunc.NewBlock("entry")
 
 		// set the parent function of the block
