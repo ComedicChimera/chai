@@ -121,9 +121,9 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		switch annotations["callconv"] {
 		case "win64":
 			llvmFunc.CallingConv = enum.CallingConvWin64
-		case "std":
+		case "stdcall":
 			llvmFunc.CallingConv = enum.CallingConvX86StdCall
-		case "this":
+		case "thiscall":
 			llvmFunc.CallingConv = enum.CallingConvX86ThisCall
 		case "c":
 			llvmFunc.CallingConv = enum.CallingConvC

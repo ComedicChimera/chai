@@ -21,6 +21,8 @@ func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
 		// there are no valid casts from nothing to another type so we don't
 		// have to do any nothing pruning checks here.
 		return g.genCast(block, g.genExpr(block, v.Src), v.Src.Type(), v.Type())
+	case *ast.Call:
+		return g.genCall(block, v)
 	case *ast.Identifier:
 		{
 			val, mut := g.lookup(v.Name)
@@ -98,6 +100,25 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 
 	log.Fatalln("cast not yet implemented")
 	return nil
+}
+
+// genOpCall
+
+// genCall generates a function call.
+func (g *Generator) genCall(block *ir.Block, call *ast.Call) value.Value {
+	llFunc := g.genExpr(block, call.Func)
+
+	var llExprs []value.Value
+
+	// we don't include arguments that compile to nothing in the function call.
+	// They are still evaluated since they may have side-effects.
+	for _, expr := range call.Args {
+		if val := g.genExpr(block, expr); val != nil {
+			llExprs = append(llExprs, val)
+		}
+	}
+
+	return block.NewCall(llFunc, llExprs...)
 }
 
 // genLiteral generates a literal constant.
