@@ -1,10 +1,2 @@
 name = "parse_test"
 chai-version = "0.1.0"
-
-[[profiles]]
-    name = "dev"
-    debug = true
-    target-os = "windows"
-    target-arch = "amd64"
-    format = "bin"
-    output-path = "C:/Users/forlo/dev/Projects/chai/tests/parse_test/out/parse_test.exe"

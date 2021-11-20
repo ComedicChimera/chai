@@ -91,28 +91,3 @@ func (m *ChaiModule) Packages() []*ChaiPackage {
 
 	return pkgs
 }
-
-// BuildProfile represents a loaded module build profile.  This profile only
-// contains the information necessary to produce the binary and identify the
-// correct build profiles of sub-modules according to the module schema.
-type BuildProfile struct {
-	Debug      bool
-	OutputPath string
-	TargetOS   string
-	TargetArch string
-
-	// OutputFormat should be one of the enumerated output formats.
-	OutputFormat int
-
-	// LinkObjects is the collection of path's to link with the final
-	// executable.
-	LinkObjects []string
-}
-
-// Enumeration of possible outform formats.
-const (
-	FormatBin = iota
-	FormatObj
-	FormatASM
-	FormatLLVM
-)

@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/llir/llvm/ir"
@@ -26,12 +25,12 @@ type Compiler struct {
 	// rootModule is the root module of the project being compiled.
 	rootModule *depm.ChaiModule
 
-	// baseProfile is the base profile of the project.
-	baseProfile *depm.BuildProfile
+	// profile is current build profile of the compiler.
+	profile *BuildProfile
 }
 
 // NewCompiler creates a new compiler.
-func NewCompiler(rootRelPath string) *Compiler {
+func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	// calculate the absolute path to the compilation root.
 	rootAbsPath, err := filepath.Abs(rootRelPath)
 	if err != nil {
@@ -41,21 +40,14 @@ func NewCompiler(rootRelPath string) *Compiler {
 
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
-		// default profile options, will be overridden if there the `--profile`
-		// argument is specified.
-		baseProfile: &depm.BuildProfile{
-			TargetOS:     runtime.GOOS,
-			TargetArch:   runtime.GOARCH,
-			Debug:        true,
-			OutputFormat: -1, // undetermined
-		},
+		profile:     profile,
 	}
 }
 
 // Analyze runs the analysis phase of the compiler.
 func (c *Compiler) Analyze() bool {
 	// load the root module
-	rootMod, ok := depm.LoadModule(c.rootAbsPath, "", c.baseProfile)
+	rootMod, ok := depm.LoadModule(c.rootAbsPath)
 	if !ok {
 		return false
 	}
@@ -64,7 +56,7 @@ func (c *Compiler) Analyze() bool {
 	// now that the base profile is loading, we can display the compilation
 	// header and report the start of analysis.
 	report.ReportCompileHeader(
-		fmt.Sprintf("%s/%s", c.baseProfile.TargetOS, c.baseProfile.TargetArch),
+		fmt.Sprintf("%s/%s", c.profile.TargetOS, c.profile.TargetArch),
 		rootMod.ShouldCache,
 	)
 	report.ReportBeginPhase("Analyzing")
@@ -115,15 +107,6 @@ func (c *Compiler) Generate() {
 	for i, mod := range modules {
 		fmt.Println("Module:", i)
 		fmt.Println(mod.String())
-	}
-
-	// output Chai MIR to files if that is the target format
-	if c.baseProfile.OutputFormat == depm.FormatLLVM {
-		// for _, bundle := range mirBundles {
-		// 	c.writeOutputFile(bundle.Name+".llvm", bundle.Repr())
-		// }
-
-		return
 	}
 }
 
@@ -250,14 +233,14 @@ func (c *Compiler) typeCheck() {
 // output path (eg. an executable).
 func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	// determine actual output path and create all enclosing directories
-	fileOutPath := c.baseProfile.OutputPath
+	fileOutPath := c.profile.OutputPath
 	if fileOutRelPath == "" {
 		err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
 		if err != nil {
 			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
 		}
 	} else {
-		err := os.MkdirAll(c.baseProfile.OutputPath, os.ModeDir)
+		err := os.MkdirAll(c.profile.OutputPath, os.ModeDir)
 		if err != nil {
 			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
 		}

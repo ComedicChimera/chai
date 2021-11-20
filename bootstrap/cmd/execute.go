@@ -5,6 +5,7 @@ import (
 	"chai/report"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/ComedicChimera/olive"
 )
@@ -23,7 +24,13 @@ func Execute() {
 
 	buildCmd := cli.AddSubcommand("build", "compile source code", true)
 	buildCmd.AddPrimaryArg("module-path", "the path to the module to build", true)
-	buildCmd.AddStringArg("profile", "p", "the name of the profile to build", false)
+
+	buildCmd.AddStringArg("output-path", "o", "the output path for the file", false)
+	tarchArg := buildCmd.AddSelectorArg("target-arch", "ta", "the target architecture", false, []string{"amd64"})
+	tarchArg.SetDefaultValue("amd64")
+	tosArg := buildCmd.AddSelectorArg("target-os", "tos", "the target OS", false, []string{"windows"})
+	tosArg.SetDefaultValue("windows")
+	buildCmd.AddFlag("release", "rm", "build in release mode")
 
 	modCmd := cli.AddSubcommand("mod", "manage modules", true)
 	modInitCmd := modCmd.AddSubcommand("init", "initialize a module", true)
@@ -59,8 +66,30 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// get the primary argument: the root path
 	rootPath, _ := result.PrimaryArg()
 
+	// construct the build profile
+	profile := &BuildProfile{
+		Debug:        !result.HasFlag("release"),
+		TargetOS:     result.Arguments["target-os"].(string),
+		TargetArch:   result.Arguments["target-arch"].(string),
+		OutputFormat: FormatBin,
+	}
+
+	if outputPath, ok := result.Arguments["output-path"]; ok {
+		profile.OutputPath = outputPath.(string)
+	} else {
+		// NOTE: we assume EXE since this bootstrapped compiler will only
+		// compile to windows
+		profile.OutputPath = filepath.Join(rootPath, "out.exe")
+	}
+
+	if filepath.Ext(profile.OutputPath) == ".o" {
+		profile.OutputFormat = FormatObj
+	}
+
+	// TODO: support other extensions
+
 	// create the compiler
-	c := NewCompiler(rootPath)
+	c := NewCompiler(rootPath, profile)
 
 	// run analysis
 	if c.Analyze() {
@@ -71,7 +100,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// end whatever the final compilation phase was and display the concluding
 	// message of compilation.
 	report.ReportEndPhase()
-	report.ReportCompilationFinished(c.baseProfile.OutputPath)
+	report.ReportCompilationFinished(c.profile.OutputPath)
 }
 
 // execModCommand executes the `mod` subcommand and its subcommands.  It handles
