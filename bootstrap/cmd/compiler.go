@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"chai/common"
 	"chai/depm"
-	"chai/generate"
 	"chai/report"
 	"chai/syntax"
 	"chai/walk"
@@ -13,8 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/llir/llvm/ir"
 )
 
 // Compiler represents the global state of the compiler.
@@ -84,24 +81,10 @@ func (c *Compiler) Analyze() bool {
 	return report.ShouldProceed()
 }
 
-// Generate runs the generation, LLVM, and linking phases of the compiler. The
-// Analysis phase must be run before this.
+// Generate runs the lowering, code generation, and linking phases. The Analysis
+// phase must be run before this.
 func (c *Compiler) Generate() {
-	// TODO: concurrent generation POG
 
-	// generate LLVM modules
-	// TODO: use depgraph
-	var modules []*ir.Module
-	for _, pkg := range c.rootModule.Packages() {
-		g := generate.NewGenerator(pkg)
-		modules = append(modules, g.Generate())
-	}
-
-	// DEBUG: print LLVM modules
-	for i, mod := range modules {
-		fmt.Println("Module:", i)
-		fmt.Println(mod.String())
-	}
 }
 
 // -----------------------------------------------------------------------------

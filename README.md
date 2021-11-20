@@ -28,6 +28,7 @@ documentation can be found in the
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)
   * [Current Approach](#current-approach)
+  * [Why Not LLVM?](#why-no-llvm)
   * [Whirlwind](#whirlwind)
 
 ## <a name="features"> Features
@@ -165,19 +166,19 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Typed AST
        |
+    > Lowerer
+       |
+       * - Chai IR
+       |
+    > Optimizer
+       |
+       * - Optimized Chai IR
+       |
     > Generator
        |
-       * - LLVM IR
+       * - Machine Code
        |
-    > LLVM (llc)
-       |
-       * - Assembly
-       |
-    > Native Assembler
-       |
-       * - Object Files
-       |
-    > Native Linker
+    > Linker
        |
        V
     [Executable]
@@ -197,16 +198,18 @@ nothing is happening!
 ### <a name="current-approach"> The Current Approach
 
 The compiler is being bootstrapped.  I am going to write a Go implementation of
-the compiler using the Go's LLVM IR generation library (this LLVM source text
-will then be piped to the LLVM compiler, Go's LLVM bindings don't work) -- this
-compiler will compile a simple subset of Chai called Alpha Chai.  Once that is
-finished, a full Chai compiler will be implemented in Chai rendering the
+the compiler which will compile a simple subset of Chai called Alpha Chai.  Once
+that is finished, a full Chai compiler will be implemented in Chai rendering the
 language full self-hosting. Eventually, the compiler will be able to compile
 itself.
 
 The `bootstrap` directory contains the Go implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
+
+### <a name="why-no-llvm"> Why Not LLVM?
+
+TODO: fill in logic once I have time to write it down.
 
 ### <a name="whirlwind"> Whirlwind
 
