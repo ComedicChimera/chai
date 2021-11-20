@@ -180,51 +180,25 @@ func displayCompileHeader(target string, caching bool) {
 	}
 }
 
-// phaseSpinner stores the current phase spinner
-var currentPhase string
-var phaseStartTime time.Time
-
-const phaseFormat = "%-10v"
-
-// displayBeginPhase displays the beginning of a compilation phase
-func displayBeginPhase(phase string) {
-	fmt.Print("    [*] ", phase+"...")
-	currentPhase = phase
-	phaseStartTime = time.Now()
-}
-
-// displayEndPhase displays the end of a compilation phase
-func displayEndPhase(success bool) {
-	fmt.Print("\r")
-	fmt.Print("    ")
-	if success {
-		SuccessStyleBG.Print("Done")
-		fmt.Print(" ")
-
-		fmt.Printf(phaseFormat, currentPhase)
-
-		fmt.Print(" (")
-		SuccessColorFG.Printf("%.3fms", float64(time.Since(phaseStartTime).Microseconds())/1e3)
-		fmt.Println(")")
-	} else {
-		ErrorStyleBG.Print("Fail")
-		fmt.Println(" " + currentPhase)
-	}
-}
-
 // displayCompilationFinished displays a compilation finished message
-func displayCompilationFinished(success bool, errorCount, warningCount int, outputDir string) {
-	fmt.Print("\n")
-
+func displayCompilationFinished(success bool, outputPath string) {
 	if success {
-		SuccessColorFG.Print("All done! ")
+		SuccessColorFG.Print("All Done!")
 	} else {
 		ErrorColorFG.Print("Oh no! ")
 	}
 
+	// display compilation time if successful
+	if success {
+		fmt.Print("[")
+		InfoColorFG.Printf("%.3fms", float64(time.Since(rep.startTime).Nanoseconds())/1e3)
+		fmt.Print("] ")
+	}
+
+	// display errors and warnings
 	fmt.Print("(")
 
-	switch errorCount {
+	switch rep.errorCount {
 	case 0:
 		SuccessColorFG.Print(0)
 		fmt.Print(" errors, ")
@@ -232,11 +206,11 @@ func displayCompilationFinished(success bool, errorCount, warningCount int, outp
 		ErrorColorFG.Print(1)
 		fmt.Print(" error, ")
 	default:
-		ErrorColorFG.Print(errorCount)
+		ErrorColorFG.Print(rep.errorCount)
 		fmt.Print(" errors, ")
 	}
 
-	switch warningCount {
+	switch len(rep.warnings) {
 	case 0:
 		SuccessColorFG.Print(0)
 		fmt.Println(" warnings)")
@@ -244,10 +218,11 @@ func displayCompilationFinished(success bool, errorCount, warningCount int, outp
 		WarnColorFG.Print(1)
 		fmt.Println(" warning)")
 	default:
-		WarnColorFG.Print(warningCount)
+		WarnColorFG.Print(len(rep.warnings))
 		fmt.Println(" warnings)")
 	}
 
+	// display output path
 	if success {
 		fmt.Print("Output written to: ")
 		wd, err := os.Getwd()
@@ -255,7 +230,7 @@ func displayCompilationFinished(success bool, errorCount, warningCount int, outp
 			ReportFatal("error getting working directory: " + err.Error())
 		}
 
-		relpath, err := filepath.Rel(wd, outputDir)
+		relpath, err := filepath.Rel(wd, outputPath)
 		if err != nil {
 			ReportFatal("error calculating relative path to output dir:" + err.Error())
 		}

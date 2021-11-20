@@ -3,6 +3,7 @@ package report
 import (
 	"os"
 	"sync"
+	"time"
 )
 
 // rep is a global reference to a shared rep.
@@ -11,8 +12,9 @@ var rep reporter
 // InitReporter initializes the global reporter with the provided log level.
 func InitReporter(loglevel int) {
 	rep = reporter{
-		LogLevel: loglevel,
-		m:        &sync.Mutex{},
+		LogLevel:  loglevel,
+		m:         &sync.Mutex{},
+		startTime: time.Now(),
 	}
 }
 
@@ -71,7 +73,6 @@ func ReportModuleWarning(modName string, msg string) {
 func ReportFatal(msg string) {
 	rep.errorCount++
 
-	ReportEndPhase()
 	displayFatalError(msg)
 
 	os.Exit(1)
@@ -90,23 +91,9 @@ func ReportCompileHeader(target string, caching bool) {
 	}
 }
 
-// ReportBeginPhase reports the beginning of a compilation phase.
-func ReportBeginPhase(phase string) {
-	if rep.LogLevel == LogLevelVerbose {
-		displayBeginPhase(phase)
-	}
-}
-
-// ReportEndPhase reports the conclusion of the current compilation phase.
-func ReportEndPhase() {
-	if rep.LogLevel == LogLevelVerbose {
-		displayEndPhase(ShouldProceed())
-	}
-}
-
 // ReportCompilationFinished reports the concluding message for compilation.
 // This displays information about the end of the compilation process.
-func ReportCompilationFinished(outputDir string) {
+func ReportCompilationFinished(outputPath string) {
 	// log all warnings
 	if rep.LogLevel >= LogLevelWarning {
 		for _, warning := range rep.warnings {
@@ -116,6 +103,6 @@ func ReportCompilationFinished(outputDir string) {
 
 	// log closing message
 	if rep.LogLevel == LogLevelVerbose {
-		displayCompilationFinished(ShouldProceed(), rep.errorCount, len(rep.warnings), outputDir)
+		displayCompilationFinished(ShouldProceed(), outputPath)
 	}
 }

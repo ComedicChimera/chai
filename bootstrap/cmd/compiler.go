@@ -59,7 +59,6 @@ func (c *Compiler) Analyze() bool {
 		fmt.Sprintf("%s/%s", c.profile.TargetOS, c.profile.TargetArch),
 		rootMod.ShouldCache,
 	)
-	report.ReportBeginPhase("Analyzing")
 
 	// initialize the root package (which will initialize all other packages
 	// that this project depends on)
@@ -82,17 +81,12 @@ func (c *Compiler) Analyze() bool {
 
 	// TODO: prune unused functions
 
-	// if we reach here, we can end report the end of the analysis phase.
-	report.ReportEndPhase()
 	return report.ShouldProceed()
 }
 
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
-	report.ReportBeginPhase("Generating")
-	defer report.ReportEndPhase()
-
 	// TODO: concurrent generation POG
 
 	// generate LLVM modules

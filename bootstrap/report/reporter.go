@@ -2,6 +2,7 @@ package report
 
 import (
 	"sync"
+	"time"
 )
 
 // reporter is a type that is responsible for storing and logging output from
@@ -15,6 +16,9 @@ type reporter struct {
 
 	// m is the mutex used to synchonize the printing of error messages
 	m *sync.Mutex
+
+	// startTime is the time when compilation began
+	startTime time.Time
 }
 
 // Enumeration of the different log levels.
@@ -36,7 +40,6 @@ func (r *reporter) handleMsg(m Message) {
 		r.errorCount++
 
 		if r.LogLevel > LogLevelSilent {
-			displayEndPhase(false)
 			m.display()
 		}
 	} else {

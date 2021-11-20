@@ -97,9 +97,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 		c.Generate()
 	}
 
-	// end whatever the final compilation phase was and display the concluding
-	// message of compilation.
-	report.ReportEndPhase()
+	// display the concluding message of compilation.
 	report.ReportCompilationFinished(c.profile.OutputPath)
 }
 
