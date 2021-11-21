@@ -25,6 +25,9 @@ type IRSymbol struct {
 	// combination of one of the linkage flags below.
 	Linkage int
 
+	// Typ is type of this symbol as a value.
+	Typ Type
+
 	// Decl is this symbol's declaration within this bundle.
 	Decl Decl
 }

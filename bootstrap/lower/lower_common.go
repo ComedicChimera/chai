@@ -23,8 +23,8 @@ func (l *Lowerer) lowerPrimType(pt typing.PrimType) ir.Type {
 	switch pt {
 	case typing.PrimString:
 		return &ir.PointerType{ElemType: ir.NewStruct([]ir.Type{
-			&ir.PointerType{ElemType: ir.PrimType(ir.PrimKindU8)},
-			ir.PrimType(ir.PrimKindU32),
+			&ir.PointerType{ElemType: ir.PrimType(ir.PrimU8)},
+			ir.PrimType(ir.PrimU32),
 		})}
 	case typing.PrimNothing:
 		// nothings should be completely pruned and should not end up in the

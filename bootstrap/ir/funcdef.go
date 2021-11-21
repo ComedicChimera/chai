@@ -60,9 +60,10 @@ func (fd *FuncDecl) Repr() string {
 	sb.WriteRune('(')
 
 	for i, arg := range fd.Args {
-		sb.WriteString(arg.Typ.Repr())
-		sb.WriteString(" $")
+		sb.WriteString("$")
 		sb.WriteString(arg.Name)
+		sb.WriteRune(' ')
+		sb.WriteString(arg.Typ.Repr())
 
 		if i < len(fd.Args)-1 {
 			sb.WriteString(", ")

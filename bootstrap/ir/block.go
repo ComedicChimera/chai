@@ -79,13 +79,16 @@ func (b *Binding) Repr() string {
 
 // Instruction represents a single operation within the IR.
 type Instruction struct {
+	StmtBase
+
 	// OpCode must be one of the enumerated instruction op codes.
 	OpCode int
 
-	// TypeSpec is the type specifier for the instruction: this is used to
-	// determine what code to generate for the instruction based on the type it
-	// operates on. For example, the `add` instruction's type specifier
-	// indicates what type of numbers it operates on.
+	// TypeSpec is the type specifier for the instruction: it specifies what
+	// type (if any) the instruction yields.  This is used to determine what
+	// machine code instruction to generate for this IR instruction: eg. `add
+	// i64 ...` generates a signed, 64-bit add, but `add f32 ...` generates
+	// 32-bit, floating-point add.
 	TypeSpec Type
 
 	// Operands are the list of operands that this instruction is applied to.
@@ -98,8 +101,17 @@ const (
 	OpCall = iota
 	OpRet
 
+	// Memory Operations
+	OpPush
+	OpLoad
+	OpStore
+	OpOffset
+
 	// Arithmetic
 	OpNeg
+
+	// Utility
+	OpCast
 )
 
 // Table of Op Code names
@@ -107,7 +119,14 @@ var opCodeNames = []string{
 	"call",
 	"ret",
 
+	"push",
+	"load",
+	"store",
+	"offset",
+
 	"neg",
+
+	"cast",
 }
 
 func (instr *Instruction) Repr() string {

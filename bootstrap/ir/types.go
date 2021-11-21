@@ -22,40 +22,40 @@ type PrimType int
 
 // Enumeration of IR PrimTypes
 const (
-	PrimKindU8 = iota
-	PrimKindU16
-	PrimKindU32
-	PrimKindU64
-	PrimKindI8
-	PrimKindI16
-	PrimKindI32
-	PrimKindI64
-	PrimKindF32
-	PrimKindF64
-	PrimKindBool
+	PrimU8 = iota
+	PrimU16
+	PrimU32
+	PrimU64
+	PrimI8
+	PrimI16
+	PrimI32
+	PrimI64
+	PrimF32
+	PrimF64
+	PrimBool
 )
 
 func (pt PrimType) Repr() string {
 	switch pt {
-	case PrimKindU8:
+	case PrimU8:
 		return "u8"
-	case PrimKindU16:
+	case PrimU16:
 		return "u16"
-	case PrimKindU32:
+	case PrimU32:
 		return "u32"
-	case PrimKindU64:
+	case PrimU64:
 		return "u64"
-	case PrimKindI8:
+	case PrimI8:
 		return "i8"
-	case PrimKindI16:
+	case PrimI16:
 		return "i16"
-	case PrimKindI32:
+	case PrimI32:
 		return "i32"
-	case PrimKindI64:
+	case PrimI64:
 		return "i64"
-	case PrimKindF32:
+	case PrimF32:
 		return "f32"
-	case PrimKindF64:
+	case PrimF64:
 		return "f64"
 	default: // PrimKindBool
 		return "bool"
@@ -64,11 +64,11 @@ func (pt PrimType) Repr() string {
 
 func (pt PrimType) Size() uint {
 	switch pt {
-	case PrimKindU8, PrimKindBool, PrimKindI8:
+	case PrimU8, PrimBool, PrimI8:
 		return 1
-	case PrimKindI16, PrimKindU16:
+	case PrimI16, PrimU16:
 		return 2
-	case PrimKindU32, PrimKindI32, PrimKindF32:
+	case PrimU32, PrimI32, PrimF32:
 		return 4
 	default: // u64, f64, i64
 		return 8

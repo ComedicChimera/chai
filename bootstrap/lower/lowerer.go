@@ -16,6 +16,27 @@ type Lowerer struct {
 
 	// currfile is the current file being lowered.
 	currfile *depm.ChaiFile
+
+	// localFunc is the reference to the current function being compiled.
+	localFunc *ir.FuncDecl
+
+	// scopes is the scope stack of local symbols.  This is the mechanism used
+	// to map the high-level scope structure of Chai onto the flat, low level
+	// scope structure of the IR.
+	scopes []map[string]symbolValue
+
+	// localIdentCounter is used to generate local identifier names.
+	localIdentCounter int
+}
+
+// symbolValue is a data type used to store the value of a locally or
+// globally defined symbol so that it can be accessed during IR generation.
+type symbolValue struct {
+	Value ir.Value
+
+	// IsMutable indicates whether or not this symbol value is a variable
+	// pointer that must be loaded before it can be used.
+	IsMutable bool
 }
 
 // NewLowerer creates a new lowerer for the given package.
@@ -38,4 +59,48 @@ func (l *Lowerer) Lower() *ir.Bundle {
 	}
 
 	return l.b
+}
+
+// -----------------------------------------------------------------------------
+
+// pushScope pushes a new local scope.
+func (l *Lowerer) pushScope() {
+	l.scopes = append(l.scopes, make(map[string]symbolValue))
+}
+
+// popScope pops a local scope.
+func (l *Lowerer) popScope() {
+	l.scopes = l.scopes[:len(l.scopes)-1]
+}
+
+// defineLocal defines a new local variable.
+func (l *Lowerer) defineLocal(name string, value ir.Value, mut bool) {
+	l.scopes[len(l.scopes)-1][name] = symbolValue{
+		Value:     value,
+		IsMutable: mut,
+	}
+}
+
+// lookup looks up a symbol value from the local scope.
+func (l *Lowerer) lookup(name string) symbolValue {
+	// start by traversing local scopes (in reverse order for shadowing)
+	for i := len(l.scopes) - 1; i > 0; i-- {
+		if sv, ok := l.scopes[i][name]; ok {
+			return sv
+		}
+	}
+
+	// TODO: symbol imports & global variables
+
+	// assume it is in the global symbol: return a global ident. we need to add
+	// a prefix here since the default lookup won't have one
+	gname := l.globalPrefix + name
+	gsym := l.b.SymTable[gname]
+	return symbolValue{
+		&ir.GlobalIdentifier{
+			ValueBase: ir.NewValueBase(gsym.Typ),
+			Name:      gname,
+		},
+		false, // TODO: amend to account for global variables
+	}
 }

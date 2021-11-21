@@ -91,6 +91,16 @@ func (l *Lowerer) lowerFunc(afunc *ast.FuncDef) {
 
 	// lower the function body and add a function definition as necessary
 	if afunc.Body != nil {
+		// set the local function
+		l.localFunc = fdecl
+
+		// reset the local identifier counter
+		l.localIdentCounter = 0
+
+		// push a new local scope and set it to pop once completed
+		l.pushScope()
+		defer l.popScope()
+
 		// TODO
 	}
 }

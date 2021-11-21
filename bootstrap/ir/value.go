@@ -24,14 +24,14 @@ func (vb *ValueBase) Type() Type {
 
 // -----------------------------------------------------------------------------
 
-// ConstInt is an integer or pointer constant.
+// ConstInt is an integer, boolean, or pointer constant.
 type ConstInt struct {
 	ValueBase
 	Val int64
 }
 
 func (ci *ConstInt) Repr() string {
-	return fmt.Sprintf("const %s %d", ci.typ.Repr(), ci.Val)
+	return fmt.Sprintf("const %d %s", ci.Val, ci.typ.Repr())
 }
 
 // ConstFloat is a floating-point constant.
@@ -41,7 +41,7 @@ type ConstFloat struct {
 }
 
 func (cf *ConstFloat) Repr() string {
-	return fmt.Sprintf("const %s %f", cf.typ.Repr(), cf.Val)
+	return fmt.Sprintf("const %f %s", cf.Val, cf.typ.Repr())
 }
 
 // -----------------------------------------------------------------------------
