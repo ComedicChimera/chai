@@ -64,7 +64,13 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	report.InitReporter(report.LogLevelVerbose)
 
 	// get the primary argument: the root path
-	rootPath, _ := result.PrimaryArg()
+	rootRelPath, _ := result.PrimaryArg()
+
+	// calculate the absolute path to the compilation root
+	rootAbsPath, err := filepath.Abs(rootRelPath)
+	if err != nil {
+		report.ReportFatal("error calculating absolute path to compilation root: " + err.Error())
+	}
 
 	// construct the build profile
 	profile := &BuildProfile{
@@ -74,12 +80,19 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 		OutputFormat: FormatBin,
 	}
 
-	if outputPath, ok := result.Arguments["output-path"]; ok {
-		profile.OutputPath = outputPath.(string)
+	if outputPathArg, ok := result.Arguments["output-path"]; ok {
+		// make sure path is absolute
+		outputPath := outputPathArg.(string)
+		outputAbsPath, err := filepath.Abs(outputPath)
+		if err != nil {
+			report.ReportFatal("failed to locate output path")
+		}
+
+		profile.OutputPath = outputAbsPath
 	} else {
 		// NOTE: we assume EXE since this bootstrapped compiler will only
 		// compile to windows
-		profile.OutputPath = filepath.Join(rootPath, "out.exe")
+		profile.OutputPath = filepath.Join(rootAbsPath, "out.exe")
 	}
 
 	if filepath.Ext(profile.OutputPath) == ".o" {
@@ -89,7 +102,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// TODO: support other extensions
 
 	// create the compiler
-	c := NewCompiler(rootPath, profile)
+	c := NewCompiler(rootAbsPath, profile)
 
 	// run analysis
 	if c.Analyze() {

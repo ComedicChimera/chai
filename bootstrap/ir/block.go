@@ -88,10 +88,54 @@ type Instruction struct {
 	// indicates what type of numbers it operates on.
 	TypeSpec Type
 
-	// TODO: Values
+	// Operands are the list of operands that this instruction is applied to.
+	Operands []Value
+}
+
+// Enumeration of instruction op codes.
+const (
+	// Function Calling
+	OpCall = iota
+	OpRet
+
+	// Arithmetic
+	OpNeg
+)
+
+// Table of Op Code names
+var opCodeNames = []string{
+	"call",
+	"ret",
+
+	"neg",
 }
 
 func (instr *Instruction) Repr() string {
-	// TODO
-	return ""
+	sb := strings.Builder{}
+
+	sb.WriteString(opCodeNames[instr.OpCode])
+	sb.WriteRune(' ')
+
+	if instr.TypeSpec != nil {
+		sb.WriteString(instr.TypeSpec.Repr())
+		sb.WriteRune(' ')
+	}
+
+	if len(instr.Operands) == 1 {
+		sb.WriteString(instr.Operands[0].Repr())
+	} else if len(instr.Operands) > 1 {
+		sb.WriteRune('(')
+
+		for i, op := range instr.Operands {
+			sb.WriteString(op.Repr())
+
+			if i < len(instr.Operands)-1 {
+				sb.WriteString(", ")
+			}
+		}
+
+		sb.WriteRune(')')
+	}
+
+	return sb.String()
 }

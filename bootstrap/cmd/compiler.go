@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"chai/common"
 	"chai/depm"
+	"chai/ir"
+	"chai/lower"
 	"chai/report"
 	"chai/syntax"
 	"chai/walk"
@@ -27,14 +29,7 @@ type Compiler struct {
 }
 
 // NewCompiler creates a new compiler.
-func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
-	// calculate the absolute path to the compilation root.
-	rootAbsPath, err := filepath.Abs(rootRelPath)
-	if err != nil {
-		report.ReportFatal("error calculating absolute path: " + err.Error())
-		return nil
-	}
-
+func NewCompiler(rootAbsPath string, profile *BuildProfile) *Compiler {
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
@@ -84,7 +79,21 @@ func (c *Compiler) Analyze() bool {
 // Generate runs the lowering, code generation, and linking phases. The Analysis
 // phase must be run before this.
 func (c *Compiler) Generate() {
+	// TODO: concurrency?
 
+	// TODO: use dependency graph instead of root package
+
+	// generate the IR bundles for the project
+	var bundles []*ir.Bundle
+	for _, pkg := range c.rootModule.Packages() {
+		l := lower.NewLowerer(pkg)
+		bundles = append(bundles, l.Lower())
+	}
+
+	// DEBUG: display the IR bundles
+	for _, bundle := range bundles {
+		fmt.Println(bundle.Repr())
+	}
 }
 
 // -----------------------------------------------------------------------------

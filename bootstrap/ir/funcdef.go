@@ -71,7 +71,15 @@ func (fd *FuncDecl) Repr() string {
 
 	sb.WriteString(") ")
 
-	sb.WriteString(fd.ReturnType.Repr())
+	if fd.ReturnType == nil {
+		sb.WriteString("void")
+	} else {
+		sb.WriteString(fd.ReturnType.Repr())
+	}
 
 	return sb.String()
+}
+
+func (fd *FuncDecl) Section() int {
+	return SectionText
 }

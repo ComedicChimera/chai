@@ -126,8 +126,8 @@ func NewStruct(fields []Type) *StructType {
 	var sfields []StructField
 	for _, field := range fields {
 		// to determine the offset of a field, we first need to ensure that the
-		// field is inserted at an offset that is a multiple of its alignment
-		if alignMod := field.Align() % offset; alignMod != 0 {
+		// field is inserted at an offset that is a multiple of its alignment.
+		if alignMod := offset % field.Align(); alignMod != 0 {
 			offset += field.Align() - alignMod
 		}
 
@@ -135,6 +135,11 @@ func NewStruct(fields []Type) *StructType {
 
 		// increment the offset by the size of the type inserted
 		offset += field.Size()
+
+		// update the maximum alignment
+		if field.Align() > maxAlign {
+			maxAlign = field.Align()
+		}
 	}
 
 	// the size of a struct is: the offset of its last field + the size of that

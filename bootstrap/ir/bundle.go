@@ -1,5 +1,7 @@
 package ir
 
+import "strings"
+
 // Bundle represents a single unit of Chai IR.  Such a bundle can be compiled
 // into a single object file or merged with other bundles and compiled together
 // into one larger object file.  Bundles generally represent a single Chai
@@ -17,8 +19,6 @@ type Bundle struct {
 // much closer to symbols used by the linker and are used to determine the final
 // symbol table of the bundle.
 type IRSymbol struct {
-	Typ Type
-
 	// Linkage indicates how this symbol is to be linked and what storage class,
 	// value, etc. is placed with this symbol's definition in the final symbol
 	// table of the resulting object file from this bundle. It is should be a
@@ -35,7 +35,7 @@ const (
 	Public    = 0x2  // Symbol is public to its bundle (public, visible externally)
 	External  = 0x4  // Symbol is externally defined (extern)
 	DllImport = 0x8  // Symbol is defined in a DLL depended on by this bundle (dllimport)
-	DllExport = 0x16 // Symbol is exported as part of a DLL
+	DllExport = 0x16 // Symbol is exported as part of a DLL (dllexport)
 )
 
 // Decl represents a declaration in the IR.
@@ -44,16 +44,58 @@ type Decl interface {
 	Repr() string
 
 	// Section returns the section that where this symbol will be found in the
-	// object file.  It must be one of the enumerated sections below.  This may
-	// be SectionNone if this symbol is not defined in the object file.
+	// object file if it exists.  If it doesn't exist in the current object
+	// file, then this function's return value is meaningless.  It must be one
+	// of the enumerated sections below.
 	Section() int
 }
 
 // Enumeration of sections
 const (
-	SectionNone = iota // Section not defined in object file
-	SectionText
+	SectionText = iota
 	SectionData
 	SectionBSS
 	SectionGlobal // Uninitialized global/external variables (most often equivalent to SectionNone)
 )
+
+// -----------------------------------------------------------------------------
+
+func NewBundle() *Bundle {
+	return &Bundle{SymTable: make(map[string]*IRSymbol)}
+}
+
+// -----------------------------------------------------------------------------
+
+func (b *Bundle) Repr() string {
+	sb := strings.Builder{}
+
+	// write the external symbols
+	for _, sym := range b.SymTable {
+		// write the symbol linkage
+		if sym.Linkage&External > 0 {
+			sb.WriteString("extern ")
+		} else {
+			// we don't put the defined symbols at the top of the source file
+			continue
+		}
+
+		if sym.Linkage&DllImport > 0 {
+			sb.WriteString("dllimport ")
+		}
+
+		sb.WriteString(sym.Decl.Repr())
+		sb.WriteRune('\n')
+	}
+
+	sb.WriteRune('\n')
+
+	// TODO: global symbols
+
+	// function definitions
+	for _, fd := range b.Functions {
+		sb.WriteString(fd.Repr())
+		sb.WriteString("\n\n")
+	}
+
+	return sb.String()
+}

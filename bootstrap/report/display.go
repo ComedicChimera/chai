@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"chai/common"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -190,8 +191,8 @@ func displayCompilationFinished(success bool, outputPath string) {
 
 	// display compilation time if successful
 	if success {
-		fmt.Print("[")
-		InfoColorFG.Printf("%.3fms", float64(time.Since(rep.startTime).Nanoseconds())/1e3)
+		fmt.Print(" [")
+		InfoColorFG.Printf("%.3fms", float64(time.Since(rep.startTime).Microseconds())/1e3)
 		fmt.Print("] ")
 	}
 
@@ -227,12 +228,12 @@ func displayCompilationFinished(success bool, outputPath string) {
 		fmt.Print("Output written to: ")
 		wd, err := os.Getwd()
 		if err != nil {
-			ReportFatal("error getting working directory: " + err.Error())
+			log.Fatalln("error getting working directory: " + err.Error())
 		}
 
 		relpath, err := filepath.Rel(wd, outputPath)
 		if err != nil {
-			ReportFatal("error calculating relative path to output dir:" + err.Error())
+			log.Fatalln("error calculating relative path to output dir: " + err.Error())
 		}
 		InfoColorFG.Println(relpath)
 	}
