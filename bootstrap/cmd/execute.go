@@ -3,7 +3,6 @@ package cmd
 import (
 	"chai/common"
 	"chai/report"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -63,8 +62,14 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// initialize the reporter
 	report.InitReporter(report.LogLevelVerbose)
 
-	// get the primary argument: the root path
-	rootPath, _ := result.PrimaryArg()
+	// get the primary argument: the root relative path
+	rootRelPath, _ := result.PrimaryArg()
+
+	// make the root path absolute
+	rootAbsPath, err := filepath.Abs(rootRelPath)
+	if err != nil {
+		report.ReportFatal("failed to calculate absolute path to root package: %s", err.Error())
+	}
 
 	// construct the build profile
 	profile := &BuildProfile{
@@ -74,12 +79,19 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 		OutputFormat: FormatBin,
 	}
 
-	if outputPath, ok := result.Arguments["output-path"]; ok {
-		profile.OutputPath = outputPath.(string)
+	if outputRelPathArg, ok := result.Arguments["output-path"]; ok {
+		outputRelPath := outputRelPathArg.(string)
+
+		outputAbsPath, err := filepath.Abs(outputRelPath)
+		if err != nil {
+			report.ReportFatal("failed to calculate absolute output path: %s", err.Error())
+		}
+
+		profile.OutputPath = outputAbsPath
 	} else {
 		// NOTE: we assume EXE since this bootstrapped compiler will only
 		// compile to windows
-		profile.OutputPath = filepath.Join(rootPath, "out.exe")
+		profile.OutputPath = filepath.Join(rootAbsPath, "out.exe")
 	}
 
 	if filepath.Ext(profile.OutputPath) == ".o" {
@@ -89,7 +101,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	// TODO: support other extensions
 
 	// create the compiler
-	c := NewCompiler(rootPath, profile)
+	c := NewCompiler(rootAbsPath, profile)
 
 	// run analysis
 	if c.Analyze() {
@@ -115,7 +127,7 @@ func initChaiPath() bool {
 		finfo, err := os.Stat(chaiPath)
 
 		if err != nil {
-			report.ReportFatal(fmt.Sprintf("error loading chai_path: %s", err.Error()))
+			report.ReportFatal("error loading chai_path: %s", err.Error())
 		}
 
 		if !finfo.IsDir() {

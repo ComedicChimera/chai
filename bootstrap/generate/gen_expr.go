@@ -47,6 +47,10 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 		return srcVal
 	}
 
+	// make sure to extract the inner type -- that is all we care about
+	srcType = typing.InnerType(srcType)
+	dstType = typing.InnerType(dstType)
+
 	switch v := srcType.(type) {
 	case typing.PrimType:
 		// only valid casts from primitive types are to other primitive types
@@ -92,7 +96,15 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 
 		// TODO: rune to string
 
-		// TODO: int to int casting
+		// int to int casting
+		if v < typing.PrimF32 && dpt < typing.PrimF32 {
+			// signed to unsigned or unsigned to signed => nop
+			if v-dpt == 4 || v-dpt == -4 {
+				return srcVal
+			}
+
+			// TODO: rest
+		}
 	case *typing.RefType:
 		// TEMPORARY: remove this cheeky bitcast once `core.unsafe` is implemented
 		return block.NewBitCast(srcVal, g.convType(dstType))

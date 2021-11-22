@@ -4,7 +4,6 @@ import (
 	"chai/ast"
 	"chai/report"
 	"chai/typing"
-	"fmt"
 	"log"
 
 	"github.com/llir/llvm/ir"
@@ -128,7 +127,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		case "c":
 			llvmFunc.CallingConv = enum.CallingConvC
 		default:
-			report.ReportFatal(fmt.Sprintf("unsupported calling convention: %s", annotations["callconv"]))
+			report.ReportFatal("unsupported calling convention: %s", annotations["callconv"])
 			return
 		}
 	}

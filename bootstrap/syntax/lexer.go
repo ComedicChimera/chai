@@ -535,7 +535,7 @@ func (l *Lexer) read() (rune, bool) {
 
 	if err != nil {
 		if err != io.EOF {
-			report.ReportFatal(fmt.Sprintf("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error()))
+			report.ReportFatal("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error())
 		}
 
 		return 0, false
@@ -554,7 +554,7 @@ func (l *Lexer) skip() bool {
 
 	if err != nil {
 		if err != io.EOF {
-			report.ReportFatal(fmt.Sprintf("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error()))
+			report.ReportFatal("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error())
 		}
 
 		return false
@@ -571,7 +571,7 @@ func (l *Lexer) peek() (rune, bool) {
 
 	if err != nil {
 		if err != io.EOF {
-			report.ReportFatal(fmt.Sprintf("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error()))
+			report.ReportFatal("error reading file `%s`: %s", l.ctx.FileRelPath, err.Error())
 		}
 
 		return 0, false

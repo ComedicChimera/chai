@@ -183,7 +183,7 @@ func displayCompileHeader(target string, caching bool) {
 // displayCompilationFinished displays a compilation finished message
 func displayCompilationFinished(success bool, outputPath string) {
 	if success {
-		SuccessColorFG.Print("All Done!")
+		SuccessColorFG.Print("All Done! ")
 	} else {
 		ErrorColorFG.Print("Oh no! ")
 	}
@@ -191,7 +191,7 @@ func displayCompilationFinished(success bool, outputPath string) {
 	// display compilation time if successful
 	if success {
 		fmt.Print("[")
-		InfoColorFG.Printf("%.3fms", float64(time.Since(rep.startTime).Nanoseconds())/1e3)
+		InfoColorFG.Printf("%.3fms", float64(time.Since(rep.startTime).Nanoseconds())/1e6)
 		fmt.Print("] ")
 	}
 
@@ -227,12 +227,12 @@ func displayCompilationFinished(success bool, outputPath string) {
 		fmt.Print("Output written to: ")
 		wd, err := os.Getwd()
 		if err != nil {
-			ReportFatal("error getting working directory: " + err.Error())
+			ReportFatal("error getting working directory: %s", err.Error())
 		}
 
 		relpath, err := filepath.Rel(wd, outputPath)
 		if err != nil {
-			ReportFatal("error calculating relative path to output dir:" + err.Error())
+			ReportFatal("error calculating relative path to output dir: %s", err.Error())
 		}
 		InfoColorFG.Println(relpath)
 	}

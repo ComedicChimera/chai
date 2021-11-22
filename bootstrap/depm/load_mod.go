@@ -40,7 +40,7 @@ func LoadModule(abspath string) (*ChaiModule, bool) {
 	// open file
 	f, err := os.Open(filepath.Join(abspath, common.ChaiModuleFileName))
 	if err != nil {
-		report.ReportFatal(fmt.Sprintf("unable to open module file at `%s`: %s", abspath, err.Error()))
+		report.ReportFatal("unable to open module file at `%s`: %s", abspath, err.Error())
 		return nil, false
 	}
 	defer f.Close()
@@ -48,13 +48,13 @@ func LoadModule(abspath string) (*ChaiModule, bool) {
 	// unmarshal the contents
 	buff, err := ioutil.ReadAll(f)
 	if err != nil {
-		report.ReportFatal(fmt.Sprintf("error reading module file at `%s`: %s", abspath, err.Error()))
+		report.ReportFatal("error reading module file at `%s`: %s", abspath, err.Error())
 		return nil, false
 	}
 
 	tomlMod := &tomlModule{}
 	if err := toml.Unmarshal(buff, tomlMod); err != nil {
-		report.ReportFatal(fmt.Sprintf("error parsing module file at `%s`: %s", abspath, err.Error()))
+		report.ReportFatal("error parsing module file at `%s`: %s", abspath, err.Error())
 		return nil, false
 	}
 

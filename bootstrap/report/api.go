@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -69,11 +70,12 @@ func ReportModuleWarning(modName string, msg string) {
 	})
 }
 
-// ReportFatal reports a fatal error and exits the program.
-func ReportFatal(msg string) {
+// ReportFatal reports a fatal error and exits the program.  It also
+// automatically formats error messages as necessary.
+func ReportFatal(msg string, args ...interface{}) {
 	rep.errorCount++
 
-	displayFatalError(msg)
+	displayFatalError(fmt.Sprintf(msg, args...))
 
 	os.Exit(1)
 }

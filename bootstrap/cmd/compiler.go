@@ -34,7 +34,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	// calculate the absolute path to the compilation root.
 	rootAbsPath, err := filepath.Abs(rootRelPath)
 	if err != nil {
-		report.ReportFatal("error calculating absolute path: " + err.Error())
+		report.ReportFatal("error calculating absolute path: %s", err.Error())
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	// determine and validate the package name
 	pkgName := filepath.Base(pkgAbsPath)
 	if !depm.IsValidIdentifier(pkgName) {
-		report.ReportFatal(fmt.Sprintf("package at %s does not have a valid directory name: `%s`", pkgAbsPath, pkgName))
+		report.ReportFatal("package at %s does not have a valid directory name: `%s`", pkgAbsPath, pkgName)
 	}
 
 	// create the package struct.
@@ -134,7 +134,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 		// sub package
 		pkgRelPath, err := filepath.Rel(parentMod.AbsPath, pkgAbsPath)
 		if err != nil {
-			report.ReportFatal(fmt.Sprintf("error computing package relative path: %s", err.Error()))
+			report.ReportFatal("error computing package relative path: %s", err.Error())
 		}
 
 		subPath := strings.ReplaceAll(pkgRelPath, string(filepath.Separator), ".")
@@ -148,7 +148,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	// list the elements of the package directory
 	finfos, err := ioutil.ReadDir(pkgAbsPath)
 	if err != nil {
-		report.ReportFatal(fmt.Sprintf("[%s] failed to read directory of package `%s`: %s", parentMod.Name, pkgName, err.Error()))
+		report.ReportFatal("[%s] failed to read directory of package `%s`: %s", parentMod.Name, pkgName, err.Error())
 	}
 
 	// walk through the files and parse them all
@@ -161,7 +161,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 			// calculate module relative file path
 			fileRelPath, err := filepath.Rel(parentMod.AbsPath, fileAbsPath)
 			if err != nil {
-				report.ReportFatal(fmt.Sprintf("failed to calculate module relative path to file %s: %s", fileAbsPath, err.Error()))
+				report.ReportFatal("failed to calculate module relative path to file %s: %s", fileAbsPath, err.Error())
 			}
 
 			// calcuate the file context
@@ -181,7 +181,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 			// open the file and create the reader for it
 			file, err := os.Open(fileAbsPath)
 			if err != nil {
-				report.ReportFatal(fmt.Sprintf("[%s] failed to open source file at %s: %s", parentMod.Name, fileRelPath, err.Error()))
+				report.ReportFatal("[%s] failed to open source file at %s: %s", parentMod.Name, fileRelPath, err.Error())
 			}
 			defer file.Close()
 
@@ -200,7 +200,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 	// make sure the package is not empty if there were no other errors
 	if report.ShouldProceed() {
 		if len(pkg.Files) == 0 {
-			report.ReportFatal(fmt.Sprintf("[%s] package `%s` contains no compileable source files", parentMod.Name, pkg.Name))
+			report.ReportFatal("[%s] package `%s` contains no compileable source files", parentMod.Name, pkg.Name)
 		}
 	}
 }
@@ -231,12 +231,12 @@ func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	if fileOutRelPath == "" {
 		err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
 		if err != nil {
-			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+			report.ReportFatal("failed to write output: %s\n", err.Error())
 		}
 	} else {
 		err := os.MkdirAll(c.profile.OutputPath, os.ModeDir)
 		if err != nil {
-			report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+			report.ReportFatal("failed to write output: %s\n", err.Error())
 		}
 
 		fileOutPath = filepath.Join(fileOutPath, fileOutRelPath)
@@ -245,7 +245,7 @@ func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	// open or create the file
 	file, err := os.OpenFile(fileOutPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0)
 	if err != nil {
-		report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+		report.ReportFatal("failed to write output: %s\n", err.Error())
 	}
 
 	// write the data

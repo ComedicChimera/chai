@@ -1,12 +1,12 @@
 # TODO: add metadata
 
-@[dllimport("kernel32.dll"), callconv("stdcall")]
+@[dllimport("kernel32.dll"), callconv("win64")]
 def ExitProcess(code: u32) end
 
-@[dllimport("kernel32.dll"), callconv("stdcall")]
+@[dllimport("kernel32.dll"), callconv("win64")]
 def GetStdHandle(nStdHandle: u32) &u8 end
 
-@[dllimport("kernel32.dll"), callconv("stdcall")]
+@[dllimport("kernel32.dll"), callconv("win64")]
 def WriteConsole(
     hConsoleOutput, lpBuffer: &u8, 
     nNumberOfCharsToWrite: u32, 
