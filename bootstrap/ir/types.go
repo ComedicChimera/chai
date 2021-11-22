@@ -1,6 +1,9 @@
 package ir
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Type represents a type that can be used in IR.  The IR type system is a more
 // simplified, "machine-like" version of Chai's type system.
@@ -86,16 +89,16 @@ type PointerType struct {
 	ElemType Type
 }
 
-func (pt *PointerType) Repr() string {
+func (pt PointerType) Repr() string {
 	return "ptr[" + pt.ElemType.Repr() + "]"
 }
 
-func (pt *PointerType) Size() uint {
+func (pt PointerType) Size() uint {
 	// we are only targeting amd64 => ptr size = 8
 	return 8
 }
 
-func (pt *PointerType) Align() uint {
+func (pt PointerType) Align() uint {
 	return pt.Size()
 }
 
@@ -177,4 +180,29 @@ func (st StructType) Size() uint {
 
 func (st StructType) Align() uint {
 	return st.align
+}
+
+// -----------------------------------------------------------------------------
+
+// ArrayType represents a contiguous block of memory of the same time.  It has a
+// fixed length but is not able (or needed) to be used as a vector.  Note that
+// this ArrayType is NOT the same as the high-level `Array` type although
+// `Array` will occasionally be compiled as an ArrayType.  An example usage of
+// such a type would a string literal.
+type ArrayType struct {
+	ElemType Type
+	Len      uint
+}
+
+func (at *ArrayType) Repr() string {
+	return fmt.Sprintf("[%s * %d]", at.ElemType.Repr(), at.Len)
+}
+
+func (at *ArrayType) Size() uint {
+	return at.ElemType.Size() * at.Len
+}
+
+func (at *ArrayType) Align() uint {
+	// arrays need only be aligned based on their element type alignment
+	return at.ElemType.Align()
 }

@@ -18,14 +18,16 @@ func (l *Lowerer) lowerType(typ typing.DataType) ir.Type {
 	return nil
 }
 
+var stringType = ir.PointerType{ElemType: ir.NewStruct([]ir.Type{
+	ir.PointerType{ElemType: ir.PrimType(ir.PrimU8)},
+	ir.PrimType(ir.PrimU32),
+})}
+
 // lowerPrimType lowers a primitive type
 func (l *Lowerer) lowerPrimType(pt typing.PrimType) ir.Type {
 	switch pt {
 	case typing.PrimString:
-		return &ir.PointerType{ElemType: ir.NewStruct([]ir.Type{
-			&ir.PointerType{ElemType: ir.PrimType(ir.PrimU8)},
-			ir.PrimType(ir.PrimU32),
-		})}
+		return stringType
 	case typing.PrimNothing:
 		// nothings should be completely pruned and should not end up in the
 		// resulting IR

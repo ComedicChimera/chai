@@ -12,7 +12,10 @@ import (
 // the result if the `useResult` flag is set to true.  Otherwise, `nil` is
 // returned, and the program can proceed as if the result was discarded.
 func (l *Lowerer) lowerExpr(block *ir.Block, expr ast.Expr, useResult bool) ir.Value {
+	var instr *ir.Instruction
 	switch v := expr.(type) {
+	case *ast.Call:
+		// TODO
 	case *ast.Identifier:
 		if useResult {
 			return l.lowerIdent(block, v)
@@ -27,7 +30,10 @@ func (l *Lowerer) lowerExpr(block *ir.Block, expr ast.Expr, useResult bool) ir.V
 		}
 	}
 
-	// TODO
+	if useResult {
+		return l.bindResult(block, instr)
+	}
+
 	return nil
 }
 
@@ -144,10 +150,8 @@ func (l *Lowerer) lowerLiteral(block *ir.Block, lit *ast.Literal) ir.Value {
 			// nothings should all be pruned
 			return nil
 		case typing.PrimString:
-			{
-				// TODO: string literals
-
-			}
+			// string literals
+			return l.internString(lit.Value)
 		}
 	}
 

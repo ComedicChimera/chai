@@ -18,7 +18,7 @@ func NewValueBase(typ Type) ValueBase {
 	return ValueBase{typ: typ}
 }
 
-func (vb *ValueBase) Type() Type {
+func (vb ValueBase) Type() Type {
 	return vb.typ
 }
 
@@ -30,7 +30,7 @@ type ConstInt struct {
 	Val int64
 }
 
-func (ci *ConstInt) Repr() string {
+func (ci ConstInt) Repr() string {
 	return fmt.Sprintf("const %d %s", ci.Val, ci.typ.Repr())
 }
 
@@ -40,8 +40,25 @@ type ConstFloat struct {
 	Val float64
 }
 
-func (cf *ConstFloat) Repr() string {
+func (cf ConstFloat) Repr() string {
 	return fmt.Sprintf("const %f %s", cf.Val, cf.typ.Repr())
+}
+
+// ConstString represents a constant array of bytes.  It is primarily used in
+// global variables (for string interning).
+type ConstString struct {
+	Val string
+}
+
+func (cs ConstString) Repr() string {
+	return fmt.Sprintf("const %s %s", cs.Val, cs.Type().Repr())
+}
+
+func (cs ConstString) Type() Type {
+	return &ArrayType{
+		ElemType: PrimType(PrimU8),
+		Len:      uint(len(cs.Val)),
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -52,7 +69,7 @@ type GlobalIdentifier struct {
 	Name string
 }
 
-func (id *GlobalIdentifier) Repr() string {
+func (id GlobalIdentifier) Repr() string {
 	return "@" + id.Name
 }
 
@@ -62,6 +79,6 @@ type LocalIdentifier struct {
 	ID int
 }
 
-func (id *LocalIdentifier) Repr() string {
+func (id LocalIdentifier) Repr() string {
 	return fmt.Sprintf("$%d", id.ID)
 }

@@ -41,6 +41,14 @@ const (
 	DllExport = 0x16 // Symbol is exported as part of a DLL (dllexport)
 )
 
+// IsDefined returns whether or not this symbol is externally defined: ie. will
+// not be defined in the object file.
+func (isym *IRSymbol) IsDefined() bool {
+	return (isym.Linkage&External) > 0 || (isym.Linkage&DllImport) > 0
+}
+
+// -----------------------------------------------------------------------------
+
 // Decl represents a declaration in the IR.
 type Decl interface {
 	// Repr returns the string representation of the declaration.
@@ -58,7 +66,6 @@ const (
 	SectionText = iota
 	SectionData
 	SectionBSS
-	SectionGlobal // Uninitialized global/external variables (most often equivalent to SectionNone)
 )
 
 // -----------------------------------------------------------------------------
