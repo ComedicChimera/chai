@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -27,6 +28,10 @@ type Compiler struct {
 
 	// profile is current build profile of the compiler.
 	profile *BuildProfile
+
+	// tempPath is the path to output temporary files to during compilation
+	// (typically `.chai`).
+	tempPath string
 }
 
 // NewCompiler creates a new compiler.
@@ -41,6 +46,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
+		tempPath:    filepath.Join(filepath.Dir(profile.OutputPath), ".chai"),
 	}
 }
 
@@ -84,6 +90,9 @@ func (c *Compiler) Analyze() bool {
 	return report.ShouldProceed()
 }
 
+// vsDevPrompt is the path to the script to execute commands from the Windows developer prompt
+const vsDevPrompt = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat"
+
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
@@ -100,6 +109,37 @@ func (c *Compiler) Generate() {
 	// DEBUG: write LLVM modules to text file
 	for i, mod := range modules {
 		c.writeOutputFile(fmt.Sprintf("mod%d.ll", i), mod.String())
+	}
+
+	// TEMPORARY: compile LLVM modules
+	var objFilePaths []string
+	for i := range modules {
+		objFilePath := filepath.Join(c.tempPath, fmt.Sprintf("mod%d.o", i))
+		llc := exec.Command("llc", "-filetype", "obj", "-o",
+			objFilePath,
+			filepath.Join(c.tempPath, fmt.Sprintf("mod%d.ll", i)),
+		)
+		output, err := llc.Output()
+		if err != nil {
+			fmt.Println("[LLC]:\n", string(output))
+			report.ReportFatal("failed to run llc: %s", err.Error())
+		}
+
+		objFilePaths = append(objFilePaths, objFilePath)
+	}
+
+	// TEMPORARY: link output executable
+	args := append([]string{"&", "link", "/entry:_start", "/subsystem:console", fmt.Sprintf("/out:%s", c.profile.OutputPath), "kernel32.lib"}, objFilePaths...)
+	link := exec.Command(vsDevPrompt, args...)
+	output, err := link.Output()
+	if err != nil {
+		fmt.Println("[LINK]:\n", string(output))
+		report.ReportFatal("failed to run link.exe: %s", err.Error())
+	}
+
+	// delete the .chai directory
+	if err := os.RemoveAll(c.tempPath); err != nil {
+		report.ReportFatal("failed to clean up temporary directory: %s", err.Error())
 	}
 }
 
@@ -220,17 +260,12 @@ func (c *Compiler) typeCheck() {
 	}
 }
 
-// writeOutputFile is used to write a compiler output to the file system. The
-// output name of the file being written is provided relative to the the output
-// directory.  This argument can be empty if the file be written is at that
-// output path (eg. an executable).
+// writeOutputFile is used to write a temporary compiler output to the file
+// system. The output name of the file being written is provided relative to the
+// the temporary output directory (normally .chai).
 func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	// determine actual output path and create all enclosing directories
-	fileOutPath := c.profile.OutputPath
-	if fileOutRelPath != "" {
-		fileOutPath = filepath.Join(fileOutPath, fileOutRelPath)
-
-	}
+	fileOutPath := filepath.Join(c.tempPath, fileOutRelPath)
 
 	err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
 	if err != nil {
@@ -242,6 +277,7 @@ func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	if err != nil {
 		report.ReportFatal("failed to open output file: %s\n", err.Error())
 	}
+	defer file.Close()
 
 	// write the data
 	_, err = file.WriteString(fileText)

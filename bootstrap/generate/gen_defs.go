@@ -114,7 +114,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	// TODO: ensure the linkage is correct for DLL import and export
 	if hasAnnot(annotations, "dllimport") {
 		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLImport
-		llvmFunc.Linkage = enum.LinkageExternal
+		llvmFunc.Linkage = enum.LinkageNone
 
 		// we are on windows so name mangling time
 		llvmFunc.SetName(mangledName + "%" + strconv.Itoa(len(params)))

@@ -1,13 +1,13 @@
 # TODO: add metadata
 
-@[dllimport, callconv("win64")]
+@[extern, callconv("win64")]
 def ExitProcess(code: u32) end
 
-@[dllimport, callconv("win64")]
+@[extern, callconv("win64")]
 def GetStdHandle(nStdHandle: u32) &u8 end
 
-@[dllimport, callconv("win64")]
-def WriteConsole(
+@[extern, callconv("win64")]
+def WriteConsoleA(
     hConsoleOutput, lpBuffer: &u8, 
     nNumberOfCharsToWrite: u32, 
     lpNumberOfCharsWritten: &u32, 
@@ -20,7 +20,7 @@ def get_stdout() &u8 =
 def puts(h: &u8, str: string)
     # This code is very suspect and not actually legal Chai, but I am too lazy
     # to implement the requisite features to make it work right now so *shrug*
-    WriteConsole(h, __strbytes(str), __strlen(str), null, null)
+    WriteConsoleA(h, __strbytes(str), __strlen(str), null, null)
 end
 
 @entry
