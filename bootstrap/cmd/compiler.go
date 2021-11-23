@@ -97,10 +97,9 @@ func (c *Compiler) Generate() {
 		modules = append(modules, g.Generate())
 	}
 
-	// DEBUG: print LLVM modules
+	// DEBUG: write LLVM modules to text file
 	for i, mod := range modules {
-		fmt.Println("Module:", i)
-		fmt.Println(mod.String())
+		c.writeOutputFile(fmt.Sprintf("mod%d.ll", i), mod.String())
 	}
 }
 
@@ -228,24 +227,20 @@ func (c *Compiler) typeCheck() {
 func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
 	// determine actual output path and create all enclosing directories
 	fileOutPath := c.profile.OutputPath
-	if fileOutRelPath == "" {
-		err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
-		if err != nil {
-			report.ReportFatal("failed to write output: %s\n", err.Error())
-		}
-	} else {
-		err := os.MkdirAll(c.profile.OutputPath, os.ModeDir)
-		if err != nil {
-			report.ReportFatal("failed to write output: %s\n", err.Error())
-		}
-
+	if fileOutRelPath != "" {
 		fileOutPath = filepath.Join(fileOutPath, fileOutRelPath)
+
+	}
+
+	err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
+	if err != nil {
+		report.ReportFatal("failed to create directories: %s\n", err.Error())
 	}
 
 	// open or create the file
-	file, err := os.OpenFile(fileOutPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0)
+	file, err := os.OpenFile(fileOutPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	if err != nil {
-		report.ReportFatal("failed to write output: %s\n", err.Error())
+		report.ReportFatal("failed to open output file: %s\n", err.Error())
 	}
 
 	// write the data

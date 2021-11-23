@@ -1,2 +1,4 @@
 **/__pycache__/
 .vscode/
+bin/
+tests/build_test/out/*.o

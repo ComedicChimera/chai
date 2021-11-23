@@ -3,6 +3,7 @@ package generate
 import (
 	"chai/ast"
 	"chai/typing"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -17,14 +18,25 @@ import (
 // nothing, `nil` is returned.
 func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
 	switch v := expr.(type) {
+	case *ast.Block:
+		return g.genBlock(block, v)
 	case *ast.Cast:
 		// there are no valid casts from nothing to another type so we don't
 		// have to do any nothing pruning checks here.
 		return g.genCast(block, g.genExpr(block, v.Src), v.Src.Type(), v.Type())
 	case *ast.Call:
 		return g.genCall(block, v)
+	case *ast.BinaryOp:
+		return g.genOpCall(block, v.Op, v.Lhs, v.Rhs)
+	case *ast.UnaryOp:
+		return g.genOpCall(block, v.Op, v.Operand)
 	case *ast.Identifier:
 		{
+			// test for pruned identifiers
+			if v.Type().Equiv(typing.PrimType(typing.PrimNothing)) {
+				return nil
+			}
+
 			val, mut := g.lookup(v.Name)
 			if mut {
 				// load mutable values since they are always wrapped in pointers
@@ -37,6 +49,7 @@ func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
 		return g.genLiteral(block, v)
 	}
 
+	log.Fatalln("AST node generation not yet supported")
 	return nil
 }
 
@@ -114,10 +127,27 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 	return nil
 }
 
-// genOpCall
+// -----------------------------------------------------------------------------
+
+// genOpCall generates an operator application.
+func (g *Generator) genOpCall(block *ir.Block, op ast.Oper, operands ...ast.Expr) value.Value {
+	// test for intrinsics
+	if iname := typing.InnerType(op.Signature).(*typing.FuncType).IntrinsicName; iname != "" {
+		return g.genIntrinsic(block, iname, operands)
+	}
+
+	// TODO: non-intrinsic operator definitions
+	log.Fatalln("non-intrinsic operators not yet supported")
+	return nil
+}
 
 // genCall generates a function call.
 func (g *Generator) genCall(block *ir.Block, call *ast.Call) value.Value {
+	// test for intrinsics
+	if iname := call.Func.Type().(*typing.FuncType).IntrinsicName; iname != "" {
+		return g.genIntrinsic(block, iname, call.Args)
+	}
+
 	llFunc := g.genExpr(block, call.Func)
 
 	var llExprs []value.Value
@@ -133,16 +163,53 @@ func (g *Generator) genCall(block *ir.Block, call *ast.Call) value.Value {
 	return block.NewCall(llFunc, llExprs...)
 }
 
+// genIntrinsic generates an intrinsic instruction based on an intrinsic name
+// and some operands to the intrinsic.
+func (g *Generator) genIntrinsic(block *ir.Block, iname string, operands []ast.Expr) value.Value {
+	// no intrinsic accepts `nothing` types so we can just naively convert our
+	// operands to LLVM values.
+	llOperands := make([]value.Value, len(operands))
+	for i, op := range operands {
+		llOperands[i] = g.genExpr(block, op)
+	}
+
+	// match of the name of the intrinsic and generate he corresponding
+	// instruction
+	switch iname {
+	case "__strbytes":
+		strBytesPtr := block.NewBitCast(llOperands[0], types.NewPointer(types.I8Ptr))
+		return block.NewLoad(types.I8Ptr, strBytesPtr)
+	case "__strlen":
+		{
+			lenFieldPtr := block.NewGetElementPtr(
+				g.stringType,
+				llOperands[0],
+				constant.NewInt(types.I32, 0),
+				constant.NewInt(types.I32, 1),
+			)
+
+			return block.NewLoad(types.I32, lenFieldPtr)
+		}
+	case "ineg":
+		// -int => 0 - int
+		return block.NewSub(constant.NewInt(llOperands[0].Type().(*types.IntType), 0), llOperands[0])
+	}
+
+	log.Fatalln("intrinsic not implemented yet")
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+
 // genLiteral generates a literal constant.
 func (g *Generator) genLiteral(block *ir.Block, lit *ast.Literal) value.Value {
 	// handle null
 	if lit.Value == "null" {
-		// TODO
-		return nil
+		return g.genNull(lit.Type())
 	}
 
 	// all other literals should be primitive types
-	pt := lit.Type().(typing.PrimType)
+	pt := typing.InnerType(lit.Type()).(typing.PrimType)
 	switch pt {
 	case typing.PrimBool:
 		if lit.Value == "true" {
@@ -174,19 +241,24 @@ func (g *Generator) genLiteral(block *ir.Block, lit *ast.Literal) value.Value {
 	case typing.PrimString:
 		{
 			// this code just generates a new structure allocation for the
-			// string struct
+			// string struct.  NOTE: this currently allocates the string struct
+			// itself on the stack, but this may not be the best way to handle
+			// string literals (the data is, of course, interned globally).
+			// Improvements: TBD
 			str := block.NewAlloca(g.stringType)
 
-			strBytes := g.mod.NewGlobalDef(strconv.Itoa(g.globalCounter), constant.NewCharArrayFromString(lit.Value))
+			strBytes := g.mod.NewGlobalDef(fmt.Sprintf("__strlit.%d", g.globalCounter), constant.NewCharArrayFromString(lit.Value))
+			g.globalCounter++
 			strBytesField := block.NewGetElementPtr(
-				types.I8Ptr, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 0),
+				g.stringType, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 0),
 			)
-			block.NewStore(strBytes, strBytesField)
+			strBytesPtr := block.NewBitCast(strBytes, types.I8Ptr)
+			block.NewStore(strBytesPtr, strBytesField)
 
 			strLenField := block.NewGetElementPtr(
-				types.I32, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 1),
+				g.stringType, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 1),
 			)
-			block.NewStore(strLenField, constant.NewInt(types.I32, int64(len(lit.Value))))
+			block.NewStore(constant.NewInt(types.I32, int64(len(lit.Value))), strLenField)
 
 			return str
 		}
@@ -207,4 +279,17 @@ func (g *Generator) genIntLit(value string, llType types.Type, bitsize int) valu
 	// Note: should always succeed
 	x, _ := strconv.ParseInt(value, 0, bitsize)
 	return constant.NewInt(llType.(*types.IntType), x)
+}
+
+// getNull generates an appropriate `null` value for a type.
+func (g *Generator) genNull(typ typing.DataType) value.Value {
+	// NOTE: references are not supposed to be nullable: this is here
+	// temporarily to let me get a hello world demo up and running but will be
+	// removed in favor of a more sensible intrinsic later.
+	if rt, ok := typing.InnerType(typ).(*typing.RefType); ok {
+		return constant.NewNull(g.convType(rt).(*types.PointerType))
+	}
+
+	log.Fatalln("null is not yet implemented for this type")
+	return nil
 }

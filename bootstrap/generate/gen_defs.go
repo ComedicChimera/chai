@@ -4,7 +4,9 @@ import (
 	"chai/ast"
 	"chai/report"
 	"chai/typing"
+	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/enum"
@@ -49,6 +51,10 @@ func (g *Generator) genDef(def ast.Def) {
 	switch v := def.(type) {
 	case *ast.FuncDef:
 		g.genFunc(v.Name, v.Args, v.Signature.ReturnType, v.Body, v.Public(), v.Annotations())
+	case *ast.OperDef:
+		// operators just compile to specially named functions:
+		// `oper[<operator>]`
+		g.genFunc(fmt.Sprintf("oper[%s]", v.Op.Name), v.Args, v.Op.Signature.(*typing.FuncType).ReturnType, v.Body, v.Public(), v.Annotations())
 	}
 }
 
@@ -109,8 +115,9 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	if hasAnnot(annotations, "dllimport") {
 		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLImport
 		llvmFunc.Linkage = enum.LinkageExternal
-		// TODO: add the dll to link in (whatever mechanism is necessary for
-		// this)
+
+		// we are on windows so name mangling time
+		llvmFunc.SetName(mangledName + "%" + strconv.Itoa(len(params)))
 	} else if hasAnnot(annotations, "dllexport") {
 		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLExport
 		llvmFunc.Linkage = enum.LinkageExternal
@@ -179,6 +186,11 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 
 		// parse the body
 		result := g.genExpr(entry, body)
+
+		// set result to `nil` (ie. discard it) if the function returns void
+		if rtType.Equiv(typing.PrimType(typing.PrimNothing)) {
+			result = nil
+		}
 
 		// generate the implicit return statement at the end.  Note that even
 		// through `genExpr` may return `nil`, if the result is indeed `nil`,

@@ -178,10 +178,14 @@ func displayCompileHeader(target string, caching bool) {
 	if caching {
 		fmt.Println("compiling using cache")
 	}
+
+	fmt.Println()
 }
 
 // displayCompilationFinished displays a compilation finished message
 func displayCompilationFinished(success bool, outputPath string) {
+	fmt.Print("\n")
+
 	if success {
 		SuccessColorFG.Print("All Done! ")
 	} else {

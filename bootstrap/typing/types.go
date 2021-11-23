@@ -92,6 +92,12 @@ func (pt PrimType) Repr() string {
 type FuncType struct {
 	Args       []DataType
 	ReturnType DataType
+
+	// IntrinsicName is a field that doesn't actually determine anything related
+	// to the type but makes generation of target code easier: the generator can
+	// quickly determine the intrinsic to generate if the function is intrinsic.
+	// If this field is empty, the function (or operator), is not intrinsic.
+	IntrinsicName string
 }
 
 func (ft *FuncType) Equals(other DataType) bool {

@@ -1,4 +1,4 @@
-@intrinsicop("neg")
+@intrinsicop("ineg")
 oper (-) (i: i32) i32 end
 
 # These intrinsics are temporary because I am lazy.

@@ -91,7 +91,7 @@ func execBuildCommand(result *olive.ArgParseResult, loglevel string) {
 	} else {
 		// NOTE: we assume EXE since this bootstrapped compiler will only
 		// compile to windows
-		profile.OutputPath = filepath.Join(rootAbsPath, "out.exe")
+		profile.OutputPath = filepath.Join(rootAbsPath, "out")
 	}
 
 	if filepath.Ext(profile.OutputPath) == ".o" {

@@ -80,7 +80,7 @@ func (w *Walker) WalkDef(def ast.Def) bool {
 	case *ast.FuncDef:
 		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	case *ast.OperDef:
-		return w.walkFuncLike(v.Op.Signature, v.Args, v.Body)
+		return w.walkFuncLike(v.Op.Signature.(*typing.FuncType), v.Args, v.Body)
 	}
 
 	// clear the map of dependencies

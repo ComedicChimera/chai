@@ -150,7 +150,7 @@ type specialAnnotConfig struct {
 }
 
 var specialAnnotations = map[string]specialAnnotConfig{
-	"dllimport": {Usage: "function", ExpectsValue: true},
+	"dllimport": {Usage: "function", ExpectsValue: false},
 	"dllexport": {Usage: "function", ExpectsValue: false},
 	"callconv":  {Usage: "function", ExpectsValue: true},
 	"intrinsic": {Usage: "function", ExpectsValue: false},
@@ -260,9 +260,15 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 		argTypes[i] = arg.Type
 	}
 
+	intrinsicName := ""
+	if _, ok := annotations["intrinsic"]; ok {
+		intrinsicName = funcID.Value
+	}
+
 	ft := &typing.FuncType{
-		Args:       argTypes,
-		ReturnType: rtType,
+		Args:          argTypes,
+		ReturnType:    rtType,
+		IntrinsicName: intrinsicName,
 	}
 
 	// prepare and declare function symbol
@@ -489,9 +495,15 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 		argTypes[i] = arg.Type
 	}
 
+	intrinsicName := ""
+	if opIname, ok := annotations["intrinsicop"]; ok {
+		intrinsicName = opIname
+	}
+
 	ft := &typing.FuncType{
-		Args:       argTypes,
-		ReturnType: rtType,
+		Args:          argTypes,
+		ReturnType:    rtType,
+		IntrinsicName: intrinsicName,
 	}
 
 	// check to see if the number of arguments is valid with the known arity of

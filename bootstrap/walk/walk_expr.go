@@ -104,6 +104,10 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 
 	// apply the equality constraint between operator and the template
 	w.solver.Constrain(ftTypeVar, operTemplate, bop.Position())
+
+	// set the operator signature equal to the ftTypeVariable
+	bop.Op.Signature = ftTypeVar
+
 	return true
 }
 
@@ -134,6 +138,10 @@ func (w *Walker) walkUnaryOp(uop *ast.UnaryOp) bool {
 
 	// apply the equality constraint between operator and the template
 	w.solver.Constrain(ftTypeVar, operTemplate, uop.Position())
+
+	// set the operator signature equal to the ftTypeVariable
+	uop.Op.Signature = ftTypeVar
+
 	return true
 }
 
