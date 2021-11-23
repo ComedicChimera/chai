@@ -2,13 +2,14 @@ package syntax
 
 import (
 	"chai/ast"
+	"chai/depm"
 	"chai/report"
 	"chai/typing"
 )
 
 // var_decl = 'let' var {',' var}
 // var = id_list (type_ext [initializer] | initializer)
-func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
+func (p *Parser) parseVarDecl(global bool, annotations map[string]string, public bool) (ast.Expr, bool) {
 	letTokPos := p.tok.Position
 
 	if !p.assertAndNext(LET) {
@@ -24,15 +25,18 @@ func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
 			return nil, false
 		}
 
-		// optional type extension
+		// type extension: only optional if the variable is local
 		var varType typing.DataType
 		if p.got(COLON) {
 			varType, ok = p.parseTypeExt()
 			if !ok {
 				return nil, false
 			}
+		} else if global {
+			p.rejectWithMsg("global variables must have a type extension")
 		}
 
+		// initializer: only optional if there is already a variable type
 		var initializer ast.Expr
 		if p.got(ASSIGN) {
 			initializer, ok = p.parseInitializer()
@@ -45,6 +49,25 @@ func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
 			return nil, false
 		}
 
+		// declare the variable symbols if the variable is global
+		if global {
+			for _, ident := range idents {
+				if !p.defineGlobal(&depm.Symbol{
+					Name:        ident.Name,
+					PkgID:       p.chFile.Parent.ID,
+					DefPosition: ident.Pos,
+					Type:        varType, // will never be `nil`
+					DefKind:     depm.DKValueDef,
+					// global variables are always mutable since they need to be mutated by their initializer (run in `init`)
+					Mutability: depm.Mutable,
+					Public:     public,
+				}) {
+					return nil, false
+				}
+			}
+		}
+
+		// build the var list
 		varNames := make([]string, len(idents))
 		varPositions := make([]*report.TextPosition, len(idents))
 		for i, ident := range idents {
@@ -83,6 +106,7 @@ func (p *Parser) parseVarDecl(global bool) (ast.Expr, bool) {
 	// return produced variable declaration
 	return &ast.VarDecl{
 		ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
+		DefBase:  ast.NewDefBase(annotations, public),
 		VarLists: varLists,
 		Pos:      report.TextPositionFromRange(letTokPos, lastPos),
 	}, true

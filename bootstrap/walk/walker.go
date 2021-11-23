@@ -81,6 +81,8 @@ func (w *Walker) WalkDef(def ast.Def) bool {
 		return w.walkFuncLike(v.Signature, v.Args, v.Body)
 	case *ast.OperDef:
 		return w.walkFuncLike(v.Op.Signature.(*typing.FuncType), v.Args, v.Body)
+	case *ast.VarDecl:
+		return w.WalkGlobalVarDecl(v)
 	}
 
 	// clear the map of dependencies
@@ -89,6 +91,8 @@ func (w *Walker) WalkDef(def ast.Def) bool {
 	// TODO: other definitions
 	return false
 }
+
+// -----------------------------------------------------------------------------
 
 // walkFuncLike walks a function like (ie. a function or an operator: semantics
 // are the same for both from an analysis perspective at this point).
@@ -129,6 +133,52 @@ func (w *Walker) walkFuncLike(signature *typing.FuncType, args []*ast.FuncArg, b
 
 	// body has been checked -- good to go
 	return true
+}
+
+// walkGlobalVarDecl walks a global variable declaration.
+func (w *Walker) WalkGlobalVarDecl(vd *ast.VarDecl) bool {
+	// we don't actually care about the dependencies of
+	// the global variable since they are always declared
+	// first and initialized last.
+
+	for _, varList := range vd.VarLists {
+		// handle initializers
+		if varList.Initializer != nil {
+			if !w.walkExpr(varList.Initializer) {
+				return false
+			}
+
+			// if there are multiple names in the variable list, then we have
+			// tuple unpacking (need to use different checking semantics)
+			if len(varList.Names) > 1 {
+				// create a tuple type to match against the one returned from
+				// the initializer to appropriately extract types
+				varTupleTemplate := make(typing.TupleType, len(varList.Names))
+
+				// the type of the variable type label gets filled in for all
+				// the fields of our tuple template (we know the variable has
+				// type label)
+				for i := range varTupleTemplate {
+					varTupleTemplate[i] = varList.Type
+				}
+
+				// constrain the tuple returned to match the tuple template
+				w.solver.Constrain(varTupleTemplate, varList.Initializer.Type(), varList.Initializer.Position())
+
+				// return early so we don't declare variables multiple times
+				return true
+			} else {
+				// we know the variable has an type label
+				w.solver.Constrain(varList.Type, varList.Initializer.Type(), varList.Initializer.Position())
+			}
+		}
+	}
+
+	// solve variable context since this the end of the definition.  Note that
+	// we technically only need to do this if there is an initializer, but it is
+	// cheaper to just call an empty solver once than to call the solver
+	// multiple times for multiple initializers.
+	return w.solver.Solve()
 }
 
 // -----------------------------------------------------------------------------

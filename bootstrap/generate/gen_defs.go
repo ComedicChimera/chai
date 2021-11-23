@@ -201,12 +201,17 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	}
 }
 
+// -----------------------------------------------------------------------------
+
 // genForwardDecl generates a forward declaration for a definition.
 func (g *Generator) genForwardDecl(def ast.Def) {
 	switch v := def.(type) {
 	case *ast.FuncDef:
 		// forward declaration for function just generates a function with no body
-		g.genFunc(g.globalPrefix+v.Name, v.Args, v.Signature.ReturnType, nil, v.Public(), v.Annotations())
+		g.genFunc(v.Name, v.Args, v.Signature.ReturnType, nil, v.Public(), v.Annotations())
+	case *ast.OperDef:
+		// same logic as functions but with operator naming scheme
+		g.genFunc(fmt.Sprintf("oper[%s]", v.Op.Name), v.Args, v.Op.Signature.(*typing.FuncType).ReturnType, nil, v.Public(), v.Annotations())
 	}
 }
 

@@ -96,7 +96,9 @@ const vsDevPrompt = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Bui
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
-	// TODO: concurrent generation POG
+	// TODO: refactor to produce a single LLVM module instead of multiple: don't
+	// want to have to make more calls to `llc` or create more work for the
+	// linker than necessary.
 
 	// generate LLVM modules
 	// TODO: use depgraph

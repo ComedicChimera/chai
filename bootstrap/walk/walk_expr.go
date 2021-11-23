@@ -27,7 +27,7 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 		return w.walkBinaryOp(v)
 	case *ast.MultiComparison:
 		// TODO
-		log.Fatalln("walking for multicomparison not implemented")
+		log.Fatalln("multicomparison not implemented yet")
 	case *ast.UnaryOp:
 		return w.walkUnaryOp(v)
 	case *ast.Call:

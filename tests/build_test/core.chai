@@ -1,6 +1,9 @@
 @intrinsicop("ineg")
 oper (-) (i: i32) i32 end
 
+@intrinsic
+def __init() end
+
 # These intrinsics are temporary because I am lazy.
 
 @intrinsic

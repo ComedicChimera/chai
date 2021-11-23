@@ -194,7 +194,11 @@ func (p *Parser) parseDefinition(annotations map[string]string, public bool) (as
 	case SPACE:
 		// TODO: space_def
 	case LET:
-		// TODO: var_def
+		// global_var_def
+		{
+			vd, ok := p.parseVarDecl(true, annotations, public)
+			return vd.(*ast.VarDecl), ok
+		}
 	case CONST:
 		// TODO: const_def
 	}

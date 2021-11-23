@@ -8,9 +8,19 @@ import (
 // VarDecl is a variable declaration statement.
 type VarDecl struct {
 	ExprBase
+	DefBase
 
 	VarLists []*VarList
 	Pos      *report.TextPosition
+}
+
+func (vd *VarDecl) Names() []string {
+	var names []string
+	for _, vlist := range vd.VarLists {
+		names = append(names, vlist.Names...)
+	}
+
+	return names
 }
 
 func (vd *VarDecl) Position() *report.TextPosition {

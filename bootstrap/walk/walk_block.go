@@ -5,6 +5,7 @@ import (
 	"chai/depm"
 	"chai/typing"
 	"fmt"
+	"log"
 )
 
 // walkBlock walks a ast.Block node.
@@ -12,7 +13,7 @@ func (w *Walker) walkBlock(b *ast.Block) bool {
 	for i, stmt := range b.Stmts {
 		switch v := stmt.(type) {
 		case *ast.VarDecl:
-			if !w.walkVarDecl(v) {
+			if !w.walkLocalVarDecl(v) {
 				return false
 			}
 		case *ast.Assign:
@@ -21,6 +22,7 @@ func (w *Walker) walkBlock(b *ast.Block) bool {
 			}
 		case *ast.UnaryUpdate:
 			// TODO
+			log.Fatalln("unary update is not supported yet")
 		default:
 			if !w.walkExpr(stmt) {
 				return false
@@ -35,8 +37,8 @@ func (w *Walker) walkBlock(b *ast.Block) bool {
 	return true
 }
 
-// walkVarDecl walks a variable declaration.
-func (w *Walker) walkVarDecl(vd *ast.VarDecl) bool {
+// walkLocalVarDecl walks a local variable declaration.
+func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 	for _, varList := range vd.VarLists {
 		// handle initializers
 		if varList.Initializer != nil {
@@ -154,6 +156,9 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 	}
 
 	// TODO: check compound operators
+	if asn.Oper.Name != "" {
+		log.Fatalln("compound assignment is not implemented yet")
+	}
 
 	// if number of variables match, no pattern matching
 	if len(asn.LHSExprs) == len(asn.RHSExprs) {

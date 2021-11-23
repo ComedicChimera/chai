@@ -20,7 +20,7 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 		switch p.tok.Kind {
 		case LET:
 			// var_decl
-			if stmt, ok := p.parseVarDecl(false); ok {
+			if stmt, ok := p.parseVarDecl(false, nil, false); ok {
 				stmts = append(stmts, stmt)
 			} else {
 				return nil, false
