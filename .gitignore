@@ -2,3 +2,4 @@
 .vscode/
 bin/
 tests/build_test/out/*.o
+vendor/llvm-build
