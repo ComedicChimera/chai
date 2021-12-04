@@ -49,6 +49,20 @@ type Generator struct {
 
 	// localScopes is the stack of local scopes used during generation.
 	localScopes []map[string]LLVMIdent
+
+	// initFunc is the global initialization function (called as the intrinsic
+	// `__init`).  It makes calls to all other initialization functions.
+	initFunc *ir.Func
+
+	// globalInits is the list of global globalInits to be generated.
+	globalInits []GlobalInit
+}
+
+// GlobalInit represents a global initializer (for any number of variables
+// which are initialized to the same value)
+type GlobalInit struct {
+	Globals []value.Value
+	Expr    ast.Expr
 }
 
 // LLVMIdent is the type used for LLVM identifiers.  It stores the value
@@ -76,6 +90,10 @@ func NewGenerator(pkg *depm.ChaiPackage) *Generator {
 func (g *Generator) Generate() *ir.Module {
 	// TODO: imports
 
+	// generate the global `__init` function
+	g.initFunc = g.mod.NewFunc("__init", types.Void)
+	g.initFunc.NewBlock("entry")
+
 	// add all the definitions in the package to the dependency graph
 	for _, file := range g.pkg.Files {
 		for _, def := range file.Defs {
@@ -88,10 +106,27 @@ func (g *Generator) Generate() *ir.Module {
 	// TEMPORARY: define the string type: {*i8, u32}
 	g.stringType = g.mod.NewTypeDef("string", types.NewStruct(types.I8Ptr, types.I32))
 
-	// generate the module
+	// generate the package
 	for _, def := range g.defDepGraph {
 		g.visitDef(def)
 	}
+
+	// generate global initializers at the very end
+	initBlock := g.initFunc.Blocks[0]
+	for _, ginit := range g.globalInits {
+		// generate the initialization expression itself
+		initExpr := g.genExpr(initBlock, ginit.Expr)
+
+		// store it in all the variables
+		for _, global := range ginit.Globals {
+			initBlock.NewStore(initExpr, global)
+		}
+	}
+
+	// TODO: add in calls to package `init` functions
+
+	// terminate the `__init` function
+	initBlock.NewRet(nil)
 
 	// return the completed module
 	return g.mod

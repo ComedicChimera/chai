@@ -137,9 +137,12 @@ func (w *Walker) walkFuncLike(signature *typing.FuncType, args []*ast.FuncArg, b
 
 // walkGlobalVarDecl walks a global variable declaration.
 func (w *Walker) WalkGlobalVarDecl(vd *ast.VarDecl) bool {
-	// we don't actually care about the dependencies of
-	// the global variable since they are always declared
-	// first and initialized last.
+	// TODO: make sure global variables properly update any type definition
+	// dependencies
+
+	// we don't care about the dependencies of the initializers since they
+	// are always run after the global variables themselves.
+	w.deps = make(map[string]struct{})
 
 	for _, varList := range vd.VarLists {
 		// handle initializers

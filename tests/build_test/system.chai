@@ -2,6 +2,8 @@
 
 # System Bindings
 
+# TODO: fix these bindings to actually work
+
 @[extern, callconv("win64")]
 def ExitProcess(code: u32) end
 

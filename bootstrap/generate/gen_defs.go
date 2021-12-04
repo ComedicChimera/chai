@@ -9,7 +9,9 @@ import (
 	"strconv"
 
 	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
+	"github.com/llir/llvm/ir/value"
 )
 
 // visitDef visits a definition and recursively evaluates its dependencies
@@ -55,6 +57,8 @@ func (g *Generator) genDef(def ast.Def) {
 		// operators just compile to specially named functions:
 		// `oper[<operator>]`
 		g.genFunc(fmt.Sprintf("oper[%s]", v.Op.Name), v.Args, v.Op.Signature.(*typing.FuncType).ReturnType, v.Body, v.Public(), v.Annotations())
+	case *ast.VarDecl:
+		g.genGlobalVar(v)
 	}
 }
 
@@ -201,6 +205,29 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	}
 }
 
+// genGlobalVar generates a global variable declaration.
+func (g *Generator) genGlobalVar(vd *ast.VarDecl) {
+	for _, vlist := range vd.VarLists {
+		// generate the global variables themselves
+		varIdents := make([]value.Value, len(vlist.Names))
+		for i, name := range vlist.Names {
+			glob := g.mod.NewGlobal(name, g.convType(vlist.Type))
+			varIdents[i] = glob
+			g.globalScope[name] = LLVMIdent{Val: glob, Mutable: true}
+
+			// add a default `null` initializer to the global variable
+			// TODO: amend to handle global variables that aren't null pointers
+			glob.Init = constant.NewNull(glob.Typ)
+		}
+
+		// generate the initializers as necessary
+		if vlist.Initializer != nil {
+			// add the global initializer
+			g.globalInits = append(g.globalInits, GlobalInit{varIdents, vlist.Initializer})
+		}
+	}
+}
+
 // -----------------------------------------------------------------------------
 
 // genForwardDecl generates a forward declaration for a definition.
@@ -212,6 +239,10 @@ func (g *Generator) genForwardDecl(def ast.Def) {
 	case *ast.OperDef:
 		// same logic as functions but with operator naming scheme
 		g.genFunc(fmt.Sprintf("oper[%s]", v.Op.Name), v.Args, v.Op.Signature.(*typing.FuncType).ReturnType, nil, v.Public(), v.Annotations())
+	case *ast.VarDecl:
+		// global variables should never be forward declared since they only
+		// depend on type definitions which do not depend on them
+		log.Fatalln("unable to forward declare a variable")
 	}
 }
 

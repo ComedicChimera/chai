@@ -193,6 +193,8 @@ func (g *Generator) genIntrinsic(block *ir.Block, iname string, operands []ast.E
 	case "ineg":
 		// -int => 0 - int
 		return block.NewSub(constant.NewInt(llOperands[0].Type().(*types.IntType), 0), llOperands[0])
+	case "__init":
+		return block.NewCall(g.initFunc)
 	}
 
 	log.Fatalln("intrinsic not implemented yet")

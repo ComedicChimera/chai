@@ -14,8 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/llir/llvm/ir"
 )
 
 // Compiler represents the global state of the compiler.
@@ -28,10 +26,6 @@ type Compiler struct {
 
 	// profile is current build profile of the compiler.
 	profile *BuildProfile
-
-	// tempPath is the path to output temporary files to during compilation
-	// (typically `.chai`).
-	tempPath string
 }
 
 // NewCompiler creates a new compiler.
@@ -46,7 +40,6 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
-		tempPath:    filepath.Join(filepath.Dir(profile.OutputPath), ".chai"),
 	}
 }
 
@@ -90,57 +83,63 @@ func (c *Compiler) Analyze() bool {
 	return report.ShouldProceed()
 }
 
-// vsDevPrompt is the path to the script to execute commands from the Windows developer prompt
-const vsDevPrompt = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat"
+// llvmBinPath the path to needed LLVM binaries relative to the Chai path.
+const llvmBinPath = "vendor/bin"
 
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
-	// TODO: refactor to produce a single LLVM module instead of multiple: don't
-	// want to have to make more calls to `llc` or create more work for the
-	// linker than necessary.
+	// TODO: decide whether or not refactor to produce a single LLVM module
+	// instead of multiple: don't want to have to make more calls to `llc` or
+	// create more work for the linker than necessary.  Or is it better to
+	// produce multiple LLVM modules, compile them, and link them all at the
+	// end?
 
-	// generate LLVM modules
-	// TODO: use depgraph
-	var modules []*ir.Module
-	for _, pkg := range c.rootModule.Packages() {
-		g := generate.NewGenerator(pkg)
-		modules = append(modules, g.Generate())
-	}
+	// generate the main LLVM module
+	// TODO: generate whole dependency graph
+	g := generate.NewGenerator(c.rootModule.RootPackage)
+	mod := g.Generate()
 
-	// DEBUG: write LLVM modules to text file
-	for i, mod := range modules {
-		c.writeOutputFile(fmt.Sprintf("mod%d.ll", i), mod.String())
-	}
+	// compute path to LLC and LLD
+	llcPath := filepath.Join(common.ChaiPath, llvmBinPath, "llc.exe")
+	lldPath := filepath.Join(common.ChaiPath, llvmBinPath, "lld-link.exe")
 
-	// TEMPORARY: compile LLVM modules
-	var objFilePaths []string
-	for i := range modules {
-		objFilePath := filepath.Join(c.tempPath, fmt.Sprintf("mod%d.o", i))
-		llc := exec.Command("llc", "-filetype", "obj", "-o",
-			objFilePath,
-			filepath.Join(c.tempPath, fmt.Sprintf("mod%d.ll", i)),
-		)
-		output, err := llc.Output()
-		if err != nil {
-			fmt.Println("[LLC]:\n", string(output))
-			report.ReportFatal("failed to run llc: %s", err.Error())
-		}
+	// create temporary directory to store output files
+	tempPath := filepath.Join(filepath.Dir(c.profile.OutputPath), ".chai")
+	os.MkdirAll(tempPath, os.ModeDir)
 
-		objFilePaths = append(objFilePaths, objFilePath)
-	}
+	// write LLVM module(s?) to text file
+	modFilePath := filepath.Join(tempPath, "mod.ll")
+	writeOutputFile(modFilePath, mod.String())
 
-	// TEMPORARY: link output executable
-	args := append([]string{"&", "link", "/entry:_start", "/subsystem:console", fmt.Sprintf("/out:%s", c.profile.OutputPath), "kernel32.lib"}, objFilePaths...)
-	link := exec.Command(vsDevPrompt, args...)
-	output, err := link.Output()
+	// compile LLVM module(s?) using LLC
+	objFilePath := filepath.Join(tempPath, "mod.o")
+	llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
+	llc.Stderr = os.Stdout
+
+	err := llc.Run()
 	if err != nil {
-		fmt.Println("[LINK]:\n", string(output))
-		report.ReportFatal("failed to run link.exe: %s", err.Error())
+		report.ReportFatal("failed to run llc: %s", err.Error())
 	}
 
-	// delete the .chai directory
-	if err := os.RemoveAll(c.tempPath); err != nil {
+	// because Windows is a pain, we have to get the path to the Windows SDK
+	// in order to be able to generate target code
+
+	// link objects using `lld`
+	// TODO: add in mechanism to link in other objects (passed to profile)
+	lld := exec.Command(
+		lldPath, "/entry:_start", "/subsystem:console",
+		fmt.Sprintf("/out:%s", c.profile.OutputPath), objFilePath,
+	)
+	lld.Stderr = os.Stdout
+
+	err = lld.Run()
+	if err != nil {
+		report.ReportFatal("failed to link program: %s", err.Error())
+	}
+
+	// remove temporary directory
+	if err := os.RemoveAll(tempPath); err != nil {
 		report.ReportFatal("failed to clean up temporary directory: %s", err.Error())
 	}
 }
@@ -262,28 +261,20 @@ func (c *Compiler) typeCheck() {
 	}
 }
 
-// writeOutputFile is used to write a temporary compiler output to the file
-// system. The output name of the file being written is provided relative to the
-// the temporary output directory (normally .chai).
-func (c *Compiler) writeOutputFile(fileOutRelPath string, fileText string) {
-	// determine actual output path and create all enclosing directories
-	fileOutPath := filepath.Join(c.tempPath, fileOutRelPath)
+// -----------------------------------------------------------------------------
 
-	err := os.MkdirAll(filepath.Dir(fileOutPath), os.ModeDir)
-	if err != nil {
-		report.ReportFatal("failed to create directories: %s\n", err.Error())
-	}
-
+// writeOutputFile is used to quickly write an output file for the compiler.
+func writeOutputFile(fpath, content string) {
 	// open or create the file
-	file, err := os.OpenFile(fileOutPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
+	file, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	if err != nil {
-		report.ReportFatal("failed to open output file: %s\n", err.Error())
+		report.ReportFatal("failed to open output file `%s`: %s", fpath, err.Error())
 	}
 	defer file.Close()
 
 	// write the data
-	_, err = file.WriteString(fileText)
+	_, err = file.WriteString(content)
 	if err != nil {
-		report.ReportFatal(fmt.Sprintf("failed to write output: %s\n", err.Error()))
+		report.ReportFatal("failed to write output to file `%s`: %s", fpath, err.Error())
 	}
 }
