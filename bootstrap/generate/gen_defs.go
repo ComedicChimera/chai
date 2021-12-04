@@ -6,7 +6,6 @@ import (
 	"chai/typing"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -115,18 +114,6 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	}
 
 	// annotated properties
-	// TODO: ensure the linkage is correct for DLL import and export
-	if hasAnnot(annotations, "dllimport") {
-		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLImport
-		llvmFunc.Linkage = enum.LinkageNone
-
-		// we are on windows so name mangling time
-		llvmFunc.SetName(mangledName + "%" + strconv.Itoa(len(params)))
-	} else if hasAnnot(annotations, "dllexport") {
-		llvmFunc.DLLStorageClass = enum.DLLStorageClassDLLExport
-		llvmFunc.Linkage = enum.LinkageExternal
-	}
-
 	if hasAnnot(annotations, "callconv") {
 		switch annotations["callconv"] {
 		case "win64":

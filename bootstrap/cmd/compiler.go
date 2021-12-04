@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"chai/common"
 	"chai/depm"
 	"chai/generate"
@@ -83,8 +84,8 @@ func (c *Compiler) Analyze() bool {
 	return report.ShouldProceed()
 }
 
-// llvmBinPath the path to needed LLVM binaries relative to the Chai path.
-const llvmBinPath = "vendor/bin"
+// binPath the path to needed binaries relative to the Chai path.
+const binPath = "vendor/bin"
 
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
@@ -100,9 +101,8 @@ func (c *Compiler) Generate() {
 	g := generate.NewGenerator(c.rootModule.RootPackage)
 	mod := g.Generate()
 
-	// compute path to LLC and LLD
-	llcPath := filepath.Join(common.ChaiPath, llvmBinPath, "llc.exe")
-	lldPath := filepath.Join(common.ChaiPath, llvmBinPath, "lld-link.exe")
+	// compute path to LLC
+	llcPath := filepath.Join(common.ChaiPath, binPath, "llc.exe")
 
 	// create temporary directory to store output files
 	tempPath := filepath.Join(filepath.Dir(c.profile.OutputPath), ".chai")
@@ -115,27 +115,48 @@ func (c *Compiler) Generate() {
 	// compile LLVM module(s?) using LLC
 	objFilePath := filepath.Join(tempPath, "mod.o")
 	llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
-	llc.Stderr = os.Stdout
+	stderrBuff := bytes.Buffer{}
+	llc.Stderr = &stderrBuff
 
 	err := llc.Run()
 	if err != nil {
-		report.ReportFatal("failed to run llc: %s", err.Error())
+		report.ReportFatal("failed to run llc:\n %s", stderrBuff.String())
 	}
 
-	// because Windows is a pain, we have to get the path to the Windows SDK
-	// in order to be able to generate target code
-
-	// link objects using `lld`
-	// TODO: add in mechanism to link in other objects (passed to profile)
-	lld := exec.Command(
-		lldPath, "/entry:_start", "/subsystem:console",
-		fmt.Sprintf("/out:%s", c.profile.OutputPath), objFilePath,
-	)
-	lld.Stderr = os.Stdout
-
-	err = lld.Run()
+	// find the path to the VS developer prompt (to execute link.exe) using
+	// `vswhere.exe` which will give us the path to the Visual Studio
+	// installation.
+	vswherePath := filepath.Join(common.ChaiPath, binPath, "vswhere.exe")
+	vswhere := exec.Command(vswherePath, "-latest", "-products", "*", "-property", "installationPath")
+	output, err := vswhere.Output()
 	if err != nil {
-		report.ReportFatal("failed to link program: %s", err.Error())
+		// TODO: make sure this accurately reports what happens when the tools
+		// aren't located
+		report.ReportFatal("error running locating VS build tools: %s", string(output))
+	}
+	vsDevCmdPath := filepath.Join(string(output[:len(output)-2]), "VC/Auxiliary/Build/vcvars64.bat")
+
+	// determine all the objects that need to be linked.  We first link to
+	// several import libraries that are used by all applications.  Then we add
+	// in the user specified link objects followed by the generated object files
+	// of the compiler.
+	linkObjects := append([]string{"kernel32.lib"}, c.profile.LinkObjects...)
+	linkObjects = append(linkObjects, objFilePath)
+
+	// link objects using `link.exe` executed from the VS developer prompt
+	vsDevCmdArgs := []string{
+		"&", "link.exe", "/entry:_start", "/subsystem:console", "/nologo",
+		fmt.Sprintf("/out:%s", c.profile.OutputPath),
+	}
+	vsDevCmdArgs = append(vsDevCmdArgs, linkObjects...)
+	link := exec.Command(vsDevCmdPath, vsDevCmdArgs...)
+
+	output, err = link.Output()
+	if err != nil {
+		if output == nil {
+			output = []byte(err.Error())
+		}
+		report.ReportFatal("failed to link program:\n%s", string(output))
 	}
 
 	// remove temporary directory
