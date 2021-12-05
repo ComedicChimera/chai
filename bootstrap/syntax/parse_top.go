@@ -41,11 +41,16 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 			// assume definition
 			if def, ok := p.parseDefinition(annotations, false); ok {
 				defs = append(defs, def)
+
+				// assert newlines after definitions
+				if !p.got(EOF) && !p.assertAndNext(NEWLINE) {
+					return nil, false
+				}
 			} else {
 				return nil, false
 			}
 
-			// skip newlines after a definition
+			// skip additional newlines after a definition
 			if !p.newlines() {
 				return nil, false
 			}
