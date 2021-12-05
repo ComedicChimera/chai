@@ -155,18 +155,48 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 		}
 	}
 
-	// TODO: check compound operators
-	if asn.Oper.Name != "" {
-		log.Fatalln("compound assignment is not implemented yet")
-	}
-
 	// if number of variables match, no pattern matching
 	if len(asn.LHSExprs) == len(asn.RHSExprs) {
-		// constrain LHS and RHS
-		for i, rexpr := range asn.RHSExprs {
-			w.solver.Constrain(asn.LHSExprs[i].Type(), rexpr.Type(), rexpr.Position())
+		// check compound operators
+		if asn.Oper != nil {
+			for i, rexpr := range asn.RHSExprs {
+				lexpr := asn.LHSExprs[i]
+
+				// first perform the operator constraint itself
+				// create the operator overloaded function
+				ftTypeVar, ok := w.makeOverloadFunc(*asn.Oper, 2)
+				if !ok {
+					return false
+				}
+
+				// return type variable
+				rtv := w.solver.NewTypeVar(rexpr.Position(), "{_}")
+
+				// create operator template to constrain to overload operator type
+				operTemplate := &typing.FuncType{
+					Args:       []typing.DataType{lexpr.Type(), rexpr.Type()},
+					ReturnType: rtv,
+				}
+
+				// apply the equality constraint between operator and the template
+				w.solver.Constrain(ftTypeVar, operTemplate, rexpr.Position())
+
+				// constrain the return type variable to be equal to the type of
+				// the LHS expression (since that is what we are assigning into)
+				w.solver.Constrain(lexpr.Type(), rtv, rexpr.Position())
+			}
+		} else {
+			// constrain LHS and RHS
+			for i, rexpr := range asn.RHSExprs {
+				w.solver.Constrain(asn.LHSExprs[i].Type(), rexpr.Type(), rexpr.Position())
+			}
 		}
 	} else {
+		// TODO: check compound operators
+		if asn.Oper != nil {
+			log.Fatalln("compound assignment for tuple unpacking is not implemented yet")
+		}
+
 		// pattern matching => one RHS variable
 		tupleTemplate := make([]typing.DataType, len(asn.LHSExprs))
 		for i, lexpr := range asn.LHSExprs {

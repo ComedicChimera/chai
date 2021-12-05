@@ -176,7 +176,8 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		}
 
 		// parse the body
-		result := g.genExpr(entry, body)
+		g.block = entry
+		result := g.genExpr(body)
 
 		// set result to `nil` (ie. discard it) if the function returns void
 		if rtType.Equiv(typing.PrimType(typing.PrimNothing)) {

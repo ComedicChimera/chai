@@ -1,0 +1,23 @@
+# TODO: add metadata
+
+@[extern, callconv("win64")]
+def ExitProcess(code: u32) end
+
+@entry
+def _start()
+    # TODO: handle argc and argv
+
+    # TODO: other runtime shenanigans
+
+    # global, static initialization
+    __init()
+
+    # TODO: replace with intrinsic to link to main from any package and allow
+    # for the main form agnostic passing arguments and expecting of exit codes
+    main()
+
+    # TODO: runtime cleanup
+
+    # gracefully exit
+    ExitProcess(0)
+end

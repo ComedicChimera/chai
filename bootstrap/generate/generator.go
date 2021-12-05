@@ -3,11 +3,42 @@ package generate
 import (
 	"chai/ast"
 	"chai/depm"
+	"chai/report"
+	"fmt"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
+
+// GlobalInit represents a global initializer (for any number of variables
+// which are initialized to the same value)
+type GlobalInit struct {
+	Globals []value.Value
+	Expr    ast.Expr
+}
+
+// LLVMIdent is the type used for LLVM identifiers.  It stores the value
+// as well as whether or not the value has to loaded explicitly to be used.
+type LLVMIdent struct {
+	Val     value.Value
+	Mutable bool
+}
+
+// ASTWrappedLLVMVal is special AST node that wraps an already defined LLVM
+// value as an AST expression.  This is used when the compiler wants to "inject"
+// a value that it has calculated into the user AST (such as in compound
+// assignment) often to avoid redundant computation.
+type ASTWrappedLLVMVal struct {
+	ast.ExprBase
+	Val value.Value
+}
+
+func (awlv *ASTWrappedLLVMVal) Position() *report.TextPosition {
+	return nil
+}
+
+// -----------------------------------------------------------------------------
 
 // Generator is responsible for converting the Chai Typed AST into LLVM IR. It
 // converts each package into a single LLVM module.
@@ -56,20 +87,9 @@ type Generator struct {
 
 	// globalInits is the list of global globalInits to be generated.
 	globalInits []GlobalInit
-}
 
-// GlobalInit represents a global initializer (for any number of variables
-// which are initialized to the same value)
-type GlobalInit struct {
-	Globals []value.Value
-	Expr    ast.Expr
-}
-
-// LLVMIdent is the type used for LLVM identifiers.  It stores the value
-// as well as whether or not the value has to loaded explicitly to be used.
-type LLVMIdent struct {
-	Val     value.Value
-	Mutable bool
+	// block stores the current block begin generated.
+	block *ir.Block
 }
 
 // NewGenerator creates a new generator for the given package.
@@ -115,7 +135,8 @@ func (g *Generator) Generate() *ir.Module {
 	initBlock := g.initFunc.Blocks[0]
 	for _, ginit := range g.globalInits {
 		// generate the initialization expression itself
-		initExpr := g.genExpr(initBlock, ginit.Expr)
+		g.block = initBlock
+		initExpr := g.genExpr(ginit.Expr)
 
 		// store it in all the variables
 		for _, global := range ginit.Globals {
@@ -161,4 +182,12 @@ func (g *Generator) lookup(name string) (value.Value, bool) {
 
 	globalIdent := g.globalScope[name]
 	return globalIdent.Val, globalIdent.Mutable
+}
+
+// -----------------------------------------------------------------------------
+
+// appendBlock adds a new basic block to the current function.  It does *not*
+// set the current block to this new block.
+func (g *Generator) appendBlock() *ir.Block {
+	return g.enclosingFunc.NewBlock(fmt.Sprintf("bb%d", len(g.enclosingFunc.Blocks)))
 }

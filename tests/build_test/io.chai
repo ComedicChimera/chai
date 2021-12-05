@@ -1,0 +1,60 @@
+# System Bindings
+
+@[extern, callconv("win64")]
+def GetStdHandle(nStdHandle: u32) &u8 end
+
+@[extern, callconv("win64")]
+def WriteConsoleA(
+    hConsoleOutput, lpBuffer: &u8, 
+    nNumberOfCharsToWrite: u32, 
+    lpNumberOfCharsWritten: &u32, 
+    lpReserved: &u8
+    ) bool end
+
+# IO API
+
+# stdout is the standard output handle.
+let stdout: &u8 = GetStdHandle(-11 as u32)   
+
+# puts prints a single string to the console.
+def puts(str: string)
+    # This code is very suspect and not actually legal Chai, but I am too lazy
+    # to implement the requisite features to make it work right now so *shrug*
+    WriteConsoleA(stdout, __strbytes(str), __strlen(str), null, null)
+end
+
+# putb prints a single byte (ASCII) character to the console.
+def putb(b: u8)
+    # Also somewhat suspect code: no buffered IO just yet :)
+    WriteConsoleA(stdout, &b, 1, null, null)
+end
+
+# putd prints a single digit to the console.
+def putd(d: i32)
+    putb(d + '0' as u8)
+end
+
+# puti prints an signed integer to the console.
+def puti(a: i32)
+    # A crude implementation to print an integer.  This will obviously be
+    # refined for the final version, but it works for right now.
+
+    if a < 0
+        a = -a
+    end
+
+    let pow = 1_000_000_000
+    let has_put_non_zero = false
+    while pow > 0
+        let x = a % pow
+
+        if x > 0
+            putd(x)
+            has_put_non_zero = true
+        elif pow == 1 || has_put_non_zero
+            putd(0)
+        end
+
+        pow /= 10
+    end
+end

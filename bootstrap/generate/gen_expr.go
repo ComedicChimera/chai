@@ -9,6 +9,7 @@ import (
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -16,20 +17,20 @@ import (
 // genExpr generates an expression.  It takes a basic block to append onto and
 // returns the last value of block if the value if not nothing.  If the value is
 // nothing, `nil` is returned.
-func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
+func (g *Generator) genExpr(expr ast.Expr) value.Value {
 	switch v := expr.(type) {
 	case *ast.Block:
-		return g.genBlock(block, v)
+		return g.genBlock(v)
 	case *ast.Cast:
 		// there are no valid casts from nothing to another type so we don't
 		// have to do any nothing pruning checks here.
-		return g.genCast(block, g.genExpr(block, v.Src), v.Src.Type(), v.Type())
+		return g.genCast(g.genExpr(v.Src), v.Src.Type(), v.Type())
 	case *ast.Call:
-		return g.genCall(block, v)
+		return g.genCall(v)
 	case *ast.BinaryOp:
-		return g.genOpCall(block, v.Op, v.Lhs, v.Rhs)
+		return g.genOpCall(v.Op, v.Lhs, v.Rhs)
 	case *ast.UnaryOp:
-		return g.genOpCall(block, v.Op, v.Operand)
+		return g.genOpCall(v.Op, v.Operand)
 	case *ast.Identifier:
 		{
 			// test for pruned identifiers
@@ -40,13 +41,15 @@ func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
 			val, mut := g.lookup(v.Name)
 			if mut {
 				// load mutable values since they are always wrapped in pointers
-				return block.NewLoad(val.Type().(*types.PointerType).ElemType, val)
+				return g.block.NewLoad(val.Type().(*types.PointerType).ElemType, val)
 			}
 
 			return val
 		}
 	case *ast.Literal:
-		return g.genLiteral(block, v)
+		return g.genLiteral(v)
+	case *ASTWrappedLLVMVal:
+		return v.Val
 	}
 
 	log.Fatalln("AST node generation not yet supported")
@@ -54,7 +57,7 @@ func (g *Generator) genExpr(block *ir.Block, expr ast.Expr) value.Value {
 }
 
 // genCast generates a type cast.
-func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstType typing.DataType) value.Value {
+func (g *Generator) genCast(srcVal value.Value, srcType, dstType typing.DataType) value.Value {
 	// types are equal: no cast necessary
 	if srcType.Equiv(dstType) {
 		return srcVal
@@ -71,22 +74,22 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 
 		// float to double
 		if v == typing.PrimF32 && dpt == typing.PrimF64 {
-			return block.NewFPExt(srcVal, types.Double)
+			return g.block.NewFPExt(srcVal, types.Double)
 		}
 
 		// double to float
 		if v == typing.PrimF64 && dpt == typing.PrimF32 {
-			return block.NewFPTrunc(srcVal, types.Float)
+			return g.block.NewFPTrunc(srcVal, types.Float)
 		}
 
 		// int to float/double
 		if v < typing.PrimF32 && dpt == typing.PrimF32 || dpt == typing.PrimF64 {
 			// unsigned int to float/double
 			if v < typing.PrimI8 {
-				return block.NewUIToFP(srcVal, g.convPrimType(dpt))
+				return g.block.NewUIToFP(srcVal, g.convPrimType(dpt))
 			} else {
 				// signed int to float/double
-				return block.NewSIToFP(srcVal, g.convPrimType(dpt))
+				return g.block.NewSIToFP(srcVal, g.convPrimType(dpt))
 			}
 		}
 
@@ -94,17 +97,17 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 		if v == typing.PrimF32 || v == typing.PrimF64 && dpt < typing.PrimF32 {
 			if dpt < typing.PrimI8 {
 				// float/double to unsigned int
-				return block.NewFPToUI(srcVal, g.convPrimType(dpt))
+				return g.block.NewFPToUI(srcVal, g.convPrimType(dpt))
 			} else {
 				// float/double to signed int
-				return block.NewFPToSI(srcVal, g.convPrimType(dpt))
+				return g.block.NewFPToSI(srcVal, g.convPrimType(dpt))
 			}
 		}
 
 		// bool to int
 		if v == typing.PrimBool {
 			// always zext (booleans are never signed)
-			return block.NewZExt(srcVal, g.convPrimType(dpt))
+			return g.block.NewZExt(srcVal, g.convPrimType(dpt))
 		}
 
 		// TODO: rune to string
@@ -120,7 +123,7 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 		}
 	case *typing.RefType:
 		// TEMPORARY: remove this cheeky bitcast once `core.unsafe` is implemented
-		return block.NewBitCast(srcVal, g.convType(dstType))
+		return g.block.NewBitCast(srcVal, g.convType(dstType))
 	}
 
 	log.Fatalln("cast not yet implemented")
@@ -130,10 +133,10 @@ func (g *Generator) genCast(block *ir.Block, srcVal value.Value, srcType, dstTyp
 // -----------------------------------------------------------------------------
 
 // genOpCall generates an operator application.
-func (g *Generator) genOpCall(block *ir.Block, op ast.Oper, operands ...ast.Expr) value.Value {
+func (g *Generator) genOpCall(op ast.Oper, operands ...ast.Expr) value.Value {
 	// test for intrinsics
 	if iname := typing.InnerType(op.Signature).(*typing.FuncType).IntrinsicName; iname != "" {
-		return g.genIntrinsic(block, iname, operands)
+		return g.genIntrinsic(iname, operands)
 	}
 
 	// TODO: non-intrinsic operator definitions
@@ -142,59 +145,107 @@ func (g *Generator) genOpCall(block *ir.Block, op ast.Oper, operands ...ast.Expr
 }
 
 // genCall generates a function call.
-func (g *Generator) genCall(block *ir.Block, call *ast.Call) value.Value {
+func (g *Generator) genCall(call *ast.Call) value.Value {
 	// test for intrinsics
 	if iname := call.Func.Type().(*typing.FuncType).IntrinsicName; iname != "" {
-		return g.genIntrinsic(block, iname, call.Args)
+		return g.genIntrinsic(iname, call.Args)
 	}
 
-	llFunc := g.genExpr(block, call.Func)
+	llFunc := g.genExpr(call.Func)
 
 	var llExprs []value.Value
 
 	// we don't include arguments that compile to nothing in the function call.
 	// They are still evaluated since they may have side-effects.
 	for _, expr := range call.Args {
-		if val := g.genExpr(block, expr); val != nil {
+		if val := g.genExpr(expr); val != nil {
 			llExprs = append(llExprs, val)
 		}
 	}
 
-	return block.NewCall(llFunc, llExprs...)
+	return g.block.NewCall(llFunc, llExprs...)
 }
 
 // genIntrinsic generates an intrinsic instruction based on an intrinsic name
 // and some operands to the intrinsic.
-func (g *Generator) genIntrinsic(block *ir.Block, iname string, operands []ast.Expr) value.Value {
-	// no intrinsic accepts `nothing` types so we can just naively convert our
-	// operands to LLVM values.
+func (g *Generator) genIntrinsic(iname string, operands []ast.Expr) value.Value {
+	// handle intrinsics that need special generation of their operands
+	switch iname {
+	// short circuit evaluators generate their operands in weird order
+	// (as opposed to all before the operation) so we put them here.
+	case "lor":
+		// the short circuit evaluation code for logical OR appears roughly as
+		// follows (notice the absence of an actual usage of the `or`
+		// instruction since it is encoded in the logic of the logical OR short
+		// circuit evaluation)
+		//
+		// orbegin:
+		//   %a = ...
+		//   br i1 %a, label %orend, label %orfalse
+		// orfalse:
+		//   %b = ...
+		//   br label %orend
+		// orend:
+		//   %result = phi i1 [ 1, %orbegin ], [ %b, %orfalse ]
+
+		a := g.genExpr(operands[0])
+
+		beginBlock := g.block
+		falseBlock := g.appendBlock()
+		endBlock := g.appendBlock()
+
+		g.block.NewCondBr(a, endBlock, falseBlock)
+
+		g.block = falseBlock
+		b := g.genExpr(operands[1])
+
+		g.block = endBlock
+		return g.block.NewPhi(ir.NewIncoming(constant.NewBool(true), beginBlock), ir.NewIncoming(b, falseBlock))
+	}
+
+	// Note: no intrinsic (except `eq` and `neq`, handled above) accepts
+	// `nothing` types so we can just naively convert our operands to LLVM
+	// values
+
+	// all other intrinsics convert their operands first and then operate upon
+	// them
 	llOperands := make([]value.Value, len(operands))
 	for i, op := range operands {
-		llOperands[i] = g.genExpr(block, op)
+		llOperands[i] = g.genExpr(op)
 	}
 
 	// match of the name of the intrinsic and generate he corresponding
 	// instruction
 	switch iname {
 	case "__strbytes":
-		strBytesPtr := block.NewBitCast(llOperands[0], types.NewPointer(types.I8Ptr))
-		return block.NewLoad(types.I8Ptr, strBytesPtr)
+		strBytesPtr := g.block.NewBitCast(llOperands[0], types.NewPointer(types.I8Ptr))
+		return g.block.NewLoad(types.I8Ptr, strBytesPtr)
 	case "__strlen":
 		{
-			lenFieldPtr := block.NewGetElementPtr(
+			lenFieldPtr := g.block.NewGetElementPtr(
 				g.stringType,
 				llOperands[0],
 				constant.NewInt(types.I32, 0),
 				constant.NewInt(types.I32, 1),
 			)
 
-			return block.NewLoad(types.I32, lenFieldPtr)
+			return g.block.NewLoad(types.I32, lenFieldPtr)
 		}
 	case "ineg":
 		// -int => 0 - int
-		return block.NewSub(constant.NewInt(llOperands[0].Type().(*types.IntType), 0), llOperands[0])
+		return g.block.NewSub(constant.NewInt(llOperands[0].Type().(*types.IntType), 0), llOperands[0])
+	case "iadd":
+		return g.block.NewAdd(llOperands[0], llOperands[1])
+	case "isub":
+		return g.block.NewSub(llOperands[0], llOperands[1])
+	case "sdiv":
+		return g.block.NewSDiv(llOperands[0], llOperands[1])
+	case "smod":
+		return g.block.NewSRem(llOperands[0], llOperands[1])
+	case "ilt":
+		return g.block.NewICmp(enum.IPredSLT, llOperands[0], llOperands[1])
 	case "__init":
-		return block.NewCall(g.initFunc)
+		return g.block.NewCall(g.initFunc)
 	}
 
 	log.Fatalln("intrinsic not implemented yet")
@@ -204,7 +255,7 @@ func (g *Generator) genIntrinsic(block *ir.Block, iname string, operands []ast.E
 // -----------------------------------------------------------------------------
 
 // genLiteral generates a literal constant.
-func (g *Generator) genLiteral(block *ir.Block, lit *ast.Literal) value.Value {
+func (g *Generator) genLiteral(lit *ast.Literal) value.Value {
 	// handle null
 	if lit.Value == "null" {
 		return g.genNull(lit.Type())
@@ -247,20 +298,20 @@ func (g *Generator) genLiteral(block *ir.Block, lit *ast.Literal) value.Value {
 			// itself on the stack, but this may not be the best way to handle
 			// string literals (the data is, of course, interned globally).
 			// Improvements: TBD
-			str := block.NewAlloca(g.stringType)
+			str := g.block.NewAlloca(g.stringType)
 
 			strBytes := g.mod.NewGlobalDef(fmt.Sprintf("__strlit.%d", g.globalCounter), constant.NewCharArrayFromString(lit.Value))
 			g.globalCounter++
-			strBytesField := block.NewGetElementPtr(
+			strBytesField := g.block.NewGetElementPtr(
 				g.stringType, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 0),
 			)
-			strBytesPtr := block.NewBitCast(strBytes, types.I8Ptr)
-			block.NewStore(strBytesPtr, strBytesField)
+			strBytesPtr := g.block.NewBitCast(strBytes, types.I8Ptr)
+			g.block.NewStore(strBytesPtr, strBytesField)
 
-			strLenField := block.NewGetElementPtr(
+			strLenField := g.block.NewGetElementPtr(
 				g.stringType, str, constant.NewInt(types.I32, 0), constant.NewInt(types.I32, 1),
 			)
-			block.NewStore(constant.NewInt(types.I32, int64(len(lit.Value))), strLenField)
+			g.block.NewStore(constant.NewInt(types.I32, int64(len(lit.Value))), strLenField)
 
 			return str
 		}

@@ -1,3 +1,8 @@
 def main()
     puts("Hello, world!")
+
+    puti(247)
+    puti(-45)
+    puti(5_002_481)
+    puti(50)
 end
