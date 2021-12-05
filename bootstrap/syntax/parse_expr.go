@@ -30,7 +30,11 @@ func (p *Parser) parseExprList() ([]ast.Expr, bool) {
 
 // expr = simple_expr | block_expr
 func (p *Parser) parseExpr() (ast.Expr, bool) {
-	// TODO: simple_expr | block_expr
+	switch p.tok.Kind {
+	case IF, MATCH, FOR, WHILE, DO:
+		return p.parseBlockExpr()
+	}
+
 	return p.parseSimpleExpr()
 }
 
