@@ -61,9 +61,9 @@ documentation can be found in the
     * Arrays (like mathematical vectors)
     * Multi-Dimensional Arrays (like mathematical matrices)
 - Intuitive Vectorization
-    * Built-in `Array` type that allows for elementwise arithmetic operations
+    * Built-in `Vec` and `Mat` types that allows for elementwise arithmetic operations
     that are [vectorized](https://en.wikipedia.org/wiki/SIMD)
-    * Array types can be multi-dimensional allowing them to act like matrices
+    * `Mat` types are multi-dimensional (ie. Matrices)
 - Garbage Collection
 - Directory-Based Package System 
     * All files in a directory are part of one shared namespace (called a package)
@@ -101,16 +101,18 @@ perfectly up to date but should help to give some idea of where we are.
 *These are only the planned features of Alpha Chai*
 
 - [ ] Builtin Types
-  * [ ] `Array`
+  * [ ] `Buff`
   * [ ] String
   * [ ] `List`
   * [ ] `Dict`
   * [ ] `Iter` 
 - [ ] Runtime
   * [ ] Program Startup
-  * [ ] Graceful Exit
-  * [ ] Global Initializers
+  * [x] Graceful Exit
+  * [x] Global Initializers
+  * [ ] `init` functions
   * [ ] Signaling
+  * [ ] Panics
   * [ ] Allocator
   * [ ] Garbage Collector
   * [ ] Argc and Argv
@@ -127,6 +129,9 @@ perfectly up to date but should help to give some idea of where we are.
   * [ ] `trim_right`
   * [ ] `parse_int`
   * [ ] `parse_float`
+  * [ ] `parse_int`
+  * [ ] `pad_right`
+  * [ ] `pad_left`
   * [ ] `to_string`
 - [ ] File I/O
   * [ ] Open and Close
@@ -171,11 +176,7 @@ iteration of the compiler but in general the flow is as follows:
        |
     > LLVM (llc)
        |
-       * - Assembly
-       |
-    > Native Assembler
-       |
-       * - Object Files
+       * - Object Code
        |
     > Native Linker
        |
