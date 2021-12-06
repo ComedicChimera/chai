@@ -12,3 +12,20 @@ func InnerType(dt DataType) DataType {
 		return v
 	}
 }
+
+// -----------------------------------------------------------------------------
+
+// NothingType returns a new `nothing` type.
+func NothingType() PrimType {
+	return PrimType(PrimNothing)
+}
+
+// IsNothing returns if the given data type is equivalent to `nothing`.
+func IsNothing(dt DataType) bool {
+	return dt.Equiv(NothingType())
+}
+
+// boolType returns a new `bool` type.
+func BoolType() PrimType {
+	return PrimType(PrimBool)
+}

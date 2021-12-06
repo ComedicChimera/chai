@@ -105,7 +105,7 @@ func (p *Parser) parseVarDecl(global bool, annotations map[string]string, public
 
 	// return produced variable declaration
 	return &ast.VarDecl{
-		ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
+		ExprBase: ast.NewExprBase(typing.NothingType(), ast.RValue),
 		DefBase:  ast.NewDefBase(annotations, public),
 		VarLists: varLists,
 		Pos:      report.TextPositionFromRange(letTokPos, lastPos),
@@ -188,7 +188,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		return &ast.UnaryUpdate{
-			ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
+			ExprBase: ast.NewExprBase(typing.NothingType(), ast.RValue),
 			Operand:  lhsExprs[0],
 			Oper: &ast.Oper{
 				Kind: asnOp.Kind,
@@ -224,7 +224,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		return &ast.Assign{
-			ExprBase: ast.NewExprBase(typing.PrimType(typing.PrimNothing), ast.RValue),
+			ExprBase: ast.NewExprBase(typing.NothingType(), ast.RValue),
 			LHSExprs: lhsExprs,
 			RHSExprs: rhsExprs,
 			Oper:     compoundASTOper,

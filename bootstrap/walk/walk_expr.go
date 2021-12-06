@@ -11,13 +11,17 @@ import (
 
 // walkExpr walks an AST expression.  It updates the AST with types (mostly type
 // variables to be determined by the solver).
-func (w *Walker) walkExpr(expr ast.Expr) bool {
+func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 	// just switch over the different kinds of expressions
 	switch v := expr.(type) {
 	case *ast.Block:
-		return w.walkBlock(v)
+		return w.walkBlock(v, yieldsValue)
+	case *ast.IfExpr:
+		return w.walkIfExpr(v, yieldsValue)
+	case *ast.WhileExpr:
+		return w.walkWhileExpr(v, yieldsValue)
 	case *ast.Cast:
-		if !w.walkExpr(v.Src) {
+		if !w.walkExpr(v.Src, true) {
 			return false
 		}
 
@@ -56,7 +60,10 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 		// just walk all the sub expressions and collect types
 		tupleTypes := make([]typing.DataType, len(v.Exprs))
 		for i, expr := range v.Exprs {
-			if !w.walkExpr(expr) {
+			// tuples will always require their elements to yield a value;
+			// however, parenthesized sub-expressions only require it if the
+			// enclosing expression yields a value.
+			if !w.walkExpr(expr, yieldsValue || len(v.Exprs) > 1) {
 				return false
 			}
 
@@ -80,7 +87,7 @@ func (w *Walker) walkExpr(expr ast.Expr) bool {
 // walkBinaryOp walks a binary operator application
 func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 	// walk the LHS and RHS
-	if !w.walkExpr(bop.Lhs) || !w.walkExpr(bop.Rhs) {
+	if !w.walkExpr(bop.Lhs, true) || !w.walkExpr(bop.Rhs, true) {
 		return false
 	}
 
@@ -114,7 +121,7 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 // walkUnaryOp walks a unary operator application (not special unary operators)
 func (w *Walker) walkUnaryOp(uop *ast.UnaryOp) bool {
 	// walk the operand
-	if !w.walkExpr(uop.Operand) {
+	if !w.walkExpr(uop.Operand, true) {
 		return false
 	}
 
@@ -167,12 +174,12 @@ func (w *Walker) makeOverloadFunc(aop ast.Oper, arity int) (typing.DataType, boo
 // walkCall walks a function call.
 func (w *Walker) walkCall(call *ast.Call) bool {
 	// walk the argument and function expressions
-	if !w.walkExpr(call.Func) {
+	if !w.walkExpr(call.Func, true) {
 		return false
 	}
 
 	for _, arg := range call.Args {
-		if !w.walkExpr(arg) {
+		if !w.walkExpr(arg, true) {
 			return false
 		}
 	}
@@ -314,8 +321,8 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 	case syntax.RUNELIT:
 		lit.SetType(typing.PrimType(typing.PrimU32))
 	case syntax.BOOLLIT:
-		lit.SetType(typing.PrimType(typing.PrimBool))
+		lit.SetType(typing.BoolType())
 	case syntax.NOTHING:
-		lit.SetType(typing.PrimType(typing.PrimNothing))
+		lit.SetType(typing.NothingType())
 	}
 }

@@ -9,7 +9,7 @@ import (
 )
 
 // walkBlock walks a ast.Block node.
-func (w *Walker) walkBlock(b *ast.Block) bool {
+func (w *Walker) walkBlock(b *ast.Block, yieldsValue bool) bool {
 	for i, stmt := range b.Stmts {
 		switch v := stmt.(type) {
 		case *ast.VarDecl:
@@ -24,7 +24,9 @@ func (w *Walker) walkBlock(b *ast.Block) bool {
 			// TODO
 			log.Fatalln("unary update is not supported yet")
 		default:
-			if !w.walkExpr(stmt) {
+			// expression statements only yield a value if they are at the end
+			// of a block that yields a value
+			if !w.walkExpr(stmt, yieldsValue && i == len(b.Stmts)-1) {
 				return false
 			}
 		}
@@ -42,7 +44,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 	for _, varList := range vd.VarLists {
 		// handle initializers
 		if varList.Initializer != nil {
-			if !w.walkExpr(varList.Initializer) {
+			if !w.walkExpr(varList.Initializer, true) {
 				return false
 			}
 
@@ -138,7 +140,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 func (w *Walker) walkAssign(asn *ast.Assign) bool {
 	// walk all expressions
 	for _, rexpr := range asn.RHSExprs {
-		if !w.walkExpr(rexpr) {
+		if !w.walkExpr(rexpr, true) {
 			return false
 		}
 	}
@@ -146,7 +148,7 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 	// and assert that all LHS expressions are mutable
 	// TODO: handle `_` on the LHS
 	for _, lexpr := range asn.LHSExprs {
-		if !w.walkExpr(lexpr) {
+		if !w.walkExpr(lexpr, true) {
 			return false
 		}
 

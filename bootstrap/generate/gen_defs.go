@@ -81,7 +81,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	var params []*ir.Param
 	for _, arg := range args {
 		// prune nothing types from the arguments
-		if arg.Type.Equals(typing.PrimType(typing.PrimNothing)) {
+		if typing.IsNothing(arg.Type) {
 			continue
 		}
 
@@ -155,7 +155,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		n := 0
 		for _, arg := range args {
 			// nothing pruning
-			if arg.Type.Equals(typing.PrimType(typing.PrimNothing)) {
+			if typing.IsNothing(arg.Type) {
 				continue
 			}
 
@@ -180,7 +180,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		result := g.genExpr(body)
 
 		// set result to `nil` (ie. discard it) if the function returns void
-		if rtType.Equiv(typing.PrimType(typing.PrimNothing)) {
+		if typing.IsNothing(rtType) {
 			result = nil
 		}
 

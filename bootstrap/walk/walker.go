@@ -108,14 +108,15 @@ func (w *Walker) walkFuncLike(signature *typing.FuncType, args []*ast.FuncArg, b
 	// make sure the scope is popped before we exit
 	defer w.popScope()
 
-	// walk the function body expression
-	if !w.walkExpr(body) {
+	// walk the function body expression (functions that return nothing do not
+	// yield a value)
+	if !w.walkExpr(body, typing.IsNothing(signature.ReturnType)) {
 		return false
 	}
 
 	// add a constraint to the body's return value to ensure that is matches
 	// the function's return value if the function actually returns a value.
-	if !signature.ReturnType.Equiv(typing.PrimType(typing.PrimNothing)) {
+	if !typing.IsNothing(signature.ReturnType) {
 		w.solver.Constrain(signature.ReturnType, body.Type(), body.Position())
 	}
 
@@ -147,7 +148,7 @@ func (w *Walker) WalkGlobalVarDecl(vd *ast.VarDecl) bool {
 	for _, varList := range vd.VarLists {
 		// handle initializers
 		if varList.Initializer != nil {
-			if !w.walkExpr(varList.Initializer) {
+			if !w.walkExpr(varList.Initializer, true) {
 				return false
 			}
 

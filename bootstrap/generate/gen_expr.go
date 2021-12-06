@@ -34,7 +34,7 @@ func (g *Generator) genExpr(expr ast.Expr) value.Value {
 	case *ast.Identifier:
 		{
 			// test for pruned identifiers
-			if v.Type().Equiv(typing.PrimType(typing.PrimNothing)) {
+			if typing.IsNothing(v.Type()) {
 				return nil
 			}
 
