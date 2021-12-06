@@ -20,6 +20,8 @@ import (
 func (g *Generator) genExpr(expr ast.Expr) value.Value {
 	switch v := expr.(type) {
 	case *ast.Block:
+		g.pushScope()
+		defer g.popScope()
 		return g.genBlock(v)
 	case *ast.IfExpr:
 		return g.genIfExpr(v)
@@ -128,7 +130,12 @@ func (g *Generator) genCast(srcVal value.Value, srcType, dstType typing.DataType
 				return srcVal
 			}
 
-			// TODO: rest
+			// downcasting
+			if v%4 > dpt%4 {
+				return g.block.NewTrunc(srcVal, g.convPrimType(dpt))
+			} else /* upcasting */ {
+				// TODO
+			}
 		}
 	case *typing.RefType:
 		// TEMPORARY: remove this cheeky bitcast once `core.unsafe` is implemented
@@ -226,6 +233,7 @@ func (g *Generator) genIntrinsic(iname string, operands []ast.Expr) value.Value 
 
 		g.block = falseBlock
 		b := g.genExpr(operands[1])
+		g.block.NewBr(endBlock)
 
 		g.block = endBlock
 		return g.block.NewPhi(ir.NewIncoming(constant.NewBool(true), beginBlock), ir.NewIncoming(b, falseBlock))
@@ -270,8 +278,13 @@ func (g *Generator) genIntrinsic(iname string, operands []ast.Expr) value.Value 
 		return g.block.NewSDiv(llOperands[0], llOperands[1])
 	case "smod":
 		return g.block.NewSRem(llOperands[0], llOperands[1])
-	case "ilt":
+	case "slt":
 		return g.block.NewICmp(enum.IPredSLT, llOperands[0], llOperands[1])
+	case "sgt":
+		return g.block.NewICmp(enum.IPredSGT, llOperands[0], llOperands[1])
+	case "eq":
+		// TODO: amend to support other types
+		return g.block.NewICmp(enum.IPredEQ, llOperands[0], llOperands[1])
 	case "__init":
 		return g.block.NewCall(g.initFunc)
 	}
@@ -369,6 +382,18 @@ func (g *Generator) genNull(typ typing.DataType) value.Value {
 	// removed in favor of a more sensible intrinsic later.
 	if rt, ok := typing.InnerType(typ).(*typing.RefType); ok {
 		return constant.NewNull(g.convType(rt).(*types.PointerType))
+	}
+
+	if pt, ok := typing.InnerType(typ).(typing.PrimType); ok {
+		switch pt {
+		case typing.PrimU8, typing.PrimU16, typing.PrimU32, typing.PrimU64,
+			typing.PrimI8, typing.PrimI16, typing.PrimI32, typing.PrimI64:
+			return constant.NewInt(g.convPrimType(pt).(*types.IntType), 0)
+		case typing.PrimF32:
+			return constant.NewFloat(types.Float, 0)
+		case typing.PrimF64:
+			return constant.NewFloat(types.Double, 0)
+		}
 	}
 
 	log.Fatalln("null is not yet implemented for this type")

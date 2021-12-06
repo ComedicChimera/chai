@@ -188,8 +188,7 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		// through `genExpr` may return `nil`, if the result is indeed `nil`,
 		// then `NewRet` is defined to generate a ret void which is the desired
 		// behavior.
-		lastBlock := llvmFunc.Blocks[len(llvmFunc.Blocks)-1]
-		lastBlock.NewRet(result)
+		g.block.NewRet(result)
 	}
 }
 

@@ -15,6 +15,8 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 	// just switch over the different kinds of expressions
 	switch v := expr.(type) {
 	case *ast.Block:
+		w.pushScope()
+		defer w.popScope()
 		return w.walkBlock(v, yieldsValue)
 	case *ast.IfExpr:
 		return w.walkIfExpr(v, yieldsValue)
@@ -348,7 +350,7 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 	case syntax.STRINGLIT:
 		lit.SetType(typing.PrimType(typing.PrimString))
 	case syntax.RUNELIT:
-		lit.SetType(typing.PrimType(typing.PrimU32))
+		lit.SetType(typing.PrimType(typing.PrimI32))
 	case syntax.BOOLLIT:
 		lit.SetType(typing.BoolType())
 	case syntax.NOTHING:

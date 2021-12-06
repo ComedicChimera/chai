@@ -140,7 +140,7 @@ func (c *Compiler) Generate() {
 	// several import libraries that are used by all applications.  Then we add
 	// in the user specified link objects followed by the generated object files
 	// of the compiler.
-	linkObjects := append([]string{"kernel32.lib"}, c.profile.LinkObjects...)
+	linkObjects := append([]string{"kernel32.lib", "ntdllp.lib"}, c.profile.LinkObjects...)
 	linkObjects = append(linkObjects, objFilePath)
 
 	// link objects using `link.exe` executed from the VS developer prompt

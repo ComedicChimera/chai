@@ -111,9 +111,6 @@ func (w *Walker) walkWhileExpr(whileExpr *ast.WhileExpr, yieldsValue bool) bool 
 		return false
 	}
 
-	// constrain the condition to be a boolean type
-	w.solver.Constrain(whileExpr.Cond.Type(), typing.BoolType(), whileExpr.Cond.Position())
-
 	// push a new scope for the body
 	w.pushScope()
 	defer w.popScope()
@@ -122,6 +119,13 @@ func (w *Walker) walkWhileExpr(whileExpr *ast.WhileExpr, yieldsValue bool) bool 
 	if whileExpr.HeaderVarDecl != nil && !w.walkLocalVarDecl(whileExpr.HeaderVarDecl) {
 		return false
 	}
+
+	// walk and constrain the condition
+	if !w.walkExpr(whileExpr.Cond, true) {
+		return false
+	}
+
+	w.solver.Constrain(whileExpr.Cond.Type(), typing.BoolType(), whileExpr.Cond.Position())
 
 	// walk the body
 	if !w.walkExpr(whileExpr.Body, true) {

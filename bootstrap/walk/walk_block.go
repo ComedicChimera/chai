@@ -183,6 +183,9 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 				// apply the equality constraint between operator and the template
 				w.solver.Constrain(ftTypeVar, operTemplate, rexpr.Position())
 
+				// set the operator type
+				asn.Oper.Signature = ftTypeVar
+
 				// constrain the return type variable to be equal to the type of
 				// the LHS expression (since that is what we are assigning into)
 				w.solver.Constrain(lexpr.Type(), rtv, rexpr.Position())

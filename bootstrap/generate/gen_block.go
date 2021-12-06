@@ -5,6 +5,7 @@ import (
 	"chai/depm"
 	"log"
 
+	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
 
@@ -43,7 +44,8 @@ func (g *Generator) genVarDecl(vd *ast.VarDecl) {
 		// variables with
 		var init value.Value
 		if vlist.Initializer == nil {
-			log.Fatalln("null initialization not supported yet")
+			init = g.genNull(vlist.Type)
+			// log.Fatalln("null initialization not supported yet")
 		} else {
 			init = g.genExpr(vlist.Initializer)
 		}
@@ -94,7 +96,7 @@ func (g *Generator) genAssign(as *ast.Assign) {
 				rhsVals[i] = g.genOpCall(
 					*as.Oper, &ASTWrappedLLVMVal{
 						ExprBase: ast.NewExprBase(as.LHSExprs[i].Type(), ast.LValue),
-						Val:      g.block.NewLoad(lhsVar.Type(), lhsVar),
+						Val:      g.block.NewLoad(lhsVar.Type().(*types.PointerType).ElemType, lhsVar),
 					}, as.RHSExprs[i],
 				)
 			}

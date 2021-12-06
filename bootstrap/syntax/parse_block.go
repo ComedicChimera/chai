@@ -5,7 +5,7 @@ import (
 	"chai/report"
 )
 
-// block = 'NEWLINE' {stmt 'NEWLINE'} 'end'
+// block = 'NEWLINE' {stmt 'NEWLINE'}
 // stmt = var_decl | const_decl | block_expr | tupled_expr | expr_stmt | control_stmt
 // control_stmt = 'break' | 'continue' | 'fallthrough' | 'return' [expr {',' expr}]
 func (p *Parser) parseBlock() (ast.Expr, bool) {
@@ -53,6 +53,12 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 			// TODO
 		case RETURN:
 			// TODO
+		case END, ELIF, ELSE, CASE, AFTER:
+			// closers: we do NOT want to the consume these: leave them for the
+			// caller to consume as needed
+			return &ast.Block{
+				Stmts: stmts,
+			}, true
 		default:
 			// expr_stmt
 			if exprStmt, ok := p.parseExprStmt(); ok {
@@ -67,23 +73,10 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 			if !p.newlines() {
 				return nil, false
 			}
-
-			// exit condition: `end`
-			if p.got(END) {
-				if !p.next() {
-					return nil, false
-				}
-
-				break
-			}
 		} else {
 			return nil, false
 		}
 	}
-
-	return &ast.Block{
-		Stmts: stmts,
-	}, true
 }
 
 // -----------------------------------------------------------------------------
@@ -96,7 +89,12 @@ func (p *Parser) parseBlockExpr() (ast.Expr, bool) {
 			return nil, false
 		}
 
-		return p.parseBlock()
+		result, ok := p.parseBlock()
+		if ok {
+			return result, p.assertAndNext(END)
+		} else {
+			return nil, false
+		}
 	case IF:
 		return p.parseIfExpr()
 	case WHILE:

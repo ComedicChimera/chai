@@ -440,12 +440,12 @@ func (p *Parser) parseFuncBody(annotations map[string]string) (ast.Expr, bool) {
 
 		block, ok := p.parseBlock()
 
-		// functions require a newline after the last end
-		if !ok || !p.assertAndNext(NEWLINE) {
-			return nil, false
+		// the closing end + final newline
+		if ok && p.assertAndNext(END) && p.assertAndNext(NEWLINE) {
+			return block, true
 		}
 
-		return block, true
+		return nil, false
 	}
 
 	p.reject()

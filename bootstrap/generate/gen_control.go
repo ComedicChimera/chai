@@ -23,7 +23,7 @@ func (g *Generator) genIfExpr(ifExpr *ast.IfExpr) value.Value {
 
 		// if there is no else, then the final "else" block is the ending block.
 		var elseBlock *ir.Block
-		if i < len(ifExpr.CondBranches) && ifExpr.ElseBranch == nil {
+		if i == len(ifExpr.CondBranches)-1 && ifExpr.ElseBranch == nil {
 			elseBlock = endBlock
 		} else {
 			elseBlock = g.appendBlock()
@@ -86,9 +86,13 @@ func (g *Generator) genIfExpr(ifExpr *ast.IfExpr) value.Value {
 func (g *Generator) genWhileExpr(whileExpr *ast.WhileExpr) {
 	// TODO: loop patterns and update clause, after blocks
 
-	loopHeader := g.block
+	loopHeader := g.appendBlock()
 	bodyBlock := g.appendBlock()
 	endBlock := g.appendBlock()
+
+	// jump into the loop header
+	g.block.NewBr(loopHeader)
+	g.block = loopHeader
 
 	// push a scope for the loop body
 	g.pushScope()
