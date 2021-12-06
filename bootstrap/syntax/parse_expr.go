@@ -219,7 +219,7 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 	var prefixOpTok *Token
 	switch p.tok.Kind {
 	// TODO: other supported prefix unary operators
-	case MINUS:
+	case MINUS, AMP:
 		prefixOpTok = p.tok
 		if !p.next() {
 			return nil, false
@@ -236,17 +236,30 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 
 	// apply operators
 	if prefixOpTok != nil {
-		// TODO: handle any special operators like referencing and dereferncing
-		return &ast.UnaryOp{
-			ExprBase: ast.NewExprBase(nil, ast.RValue),
-			Operand:  expr,
-			Op: ast.Oper{
-				Kind: prefixOpTok.Kind,
-				Name: prefixOpTok.Value,
-				Pos:  prefixOpTok.Position,
-			},
-			Pos: report.TextPositionFromRange(prefixOpTok.Position, expr.Position()),
-		}, true
+		switch prefixOpTok.Kind {
+		// handle any special operators like referencing and dereferncing
+		case AMP:
+			// indirection
+			return &ast.Indirect{
+				ExprBase: ast.NewExprBase(nil, ast.RValue),
+				Operand:  expr,
+				Pos:      report.TextPositionFromRange(prefixOpTok.Position, expr.Position()),
+			}, true
+		case STAR:
+			// TODO: dereference
+		default:
+			// regular unary operator
+			return &ast.UnaryOp{
+				ExprBase: ast.NewExprBase(nil, ast.RValue),
+				Operand:  expr,
+				Op: ast.Oper{
+					Kind: prefixOpTok.Kind,
+					Name: prefixOpTok.Value,
+					Pos:  prefixOpTok.Position,
+				},
+				Pos: report.TextPositionFromRange(prefixOpTok.Position, expr.Position()),
+			}, true
+		}
 	}
 
 	// no operator to apply

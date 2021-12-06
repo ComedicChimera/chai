@@ -34,6 +34,8 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 		log.Fatalln("multicomparison not implemented yet")
 	case *ast.UnaryOp:
 		return w.walkUnaryOp(v)
+	case *ast.Indirect:
+		return w.walkIndirect(v)
 	case *ast.Call:
 		return w.walkCall(v)
 	case *ast.Literal:
@@ -167,6 +169,22 @@ func (w *Walker) makeOverloadFunc(aop ast.Oper, arity int) (typing.DataType, boo
 	}
 
 	return w.solver.NewTypeVarWithOverloads(aop.Pos, aop.Name, false, ftOverloads...), true
+}
+
+// -----------------------------------------------------------------------------
+
+// walkIndirect walks an indirection (referencing).
+func (w *Walker) walkIndirect(ind *ast.Indirect) bool {
+	// walk the operand
+	if !w.walkExpr(ind.Operand, true) {
+		return false
+	}
+
+	// TODO: indirection kinds, non-reference assertion
+
+	// set the resulting type of the indirection
+	ind.SetType(&typing.RefType{ElemType: ind.Operand.Type()})
+	return true
 }
 
 // -----------------------------------------------------------------------------

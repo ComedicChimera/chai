@@ -129,6 +129,22 @@ func (uop *UnaryOp) Position() *report.TextPosition {
 
 // -----------------------------------------------------------------------------
 
+// Indirect is a reference/indirection expression (ie. `&x`).
+type Indirect struct {
+	ExprBase
+
+	Operand Expr
+	// TODO: some way to distinguish different kinds of indirection to backend
+
+	Pos *report.TextPosition
+}
+
+func (ind *Indirect) Position() *report.TextPosition {
+	return ind.Pos
+}
+
+// -----------------------------------------------------------------------------
+
 // Call is a function call expression.
 type Call struct {
 	ExprBase
