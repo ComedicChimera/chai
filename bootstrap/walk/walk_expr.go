@@ -180,6 +180,17 @@ func (w *Walker) walkIndirect(ind *ast.Indirect) bool {
 		return false
 	}
 
+	// if the operand is an L-value, we need to mark it as mutable because even
+	// if it isn't actually mutated through the reference, an allocation is
+	// still necessary for the reference to be usable on the backend (need a
+	// pointer, not just a value).
+	if ind.Operand.Category() == ast.LValue {
+		// TODO: handle L-value references to immutable values (eg. constants)
+		if !w.assertMutable(ind.Operand) {
+			return false
+		}
+	}
+
 	// TODO: indirection kinds, non-reference assertion
 
 	// set the resulting type of the indirection

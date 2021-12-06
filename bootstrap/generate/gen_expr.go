@@ -21,10 +21,19 @@ func (g *Generator) genExpr(expr ast.Expr) value.Value {
 	switch v := expr.(type) {
 	case *ast.Block:
 		return g.genBlock(v)
+	case *ast.IfExpr:
+		return g.genIfExpr(v)
+	case *ast.WhileExpr:
+		// in Alpha Chai, loop generators are not supported so while loops
+		// always return `nil`
+		g.genWhileExpr(v)
+		return nil
 	case *ast.Cast:
 		// there are no valid casts from nothing to another type so we don't
 		// have to do any nothing pruning checks here.
 		return g.genCast(g.genExpr(v.Src), v.Src.Type(), v.Type())
+	case *ast.Indirect:
+		return g.genIndirect(v)
 	case *ast.Call:
 		return g.genCall(v)
 	case *ast.BinaryOp:
@@ -128,6 +137,25 @@ func (g *Generator) genCast(srcVal value.Value, srcType, dstType typing.DataType
 
 	log.Fatalln("cast not yet implemented")
 	return nil
+}
+
+// -----------------------------------------------------------------------------
+
+// genIndirect generates an indirection.
+func (g *Generator) genIndirect(ind *ast.Indirect) value.Value {
+	// TODO: This indirection code is not at all valid in the general case: even
+	// L-values may need to be moved onto the heap or otherwise transformed to
+	// ensure this indirection works properly and doesn't lead to memory errors.
+
+	if ind.Operand.Category() == ast.LValue {
+		// we can just use genLHSExpr since all L-values are produced by LHS
+		// expressions.  Such a walk returns the pointer to the L-value not the
+		// L-value itself.
+		return g.genLHSExpr(ind.Operand)
+	} else {
+		log.Fatalln("indirection of R-values is not yet supported")
+		return nil
+	}
 }
 
 // -----------------------------------------------------------------------------
