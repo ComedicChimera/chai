@@ -7,6 +7,10 @@ import (
 	"fmt"
 )
 
+// ImportFunc is callback to import a package based on a parent module, a module
+// path, and a package subpath.
+type ImportFunc func(*depm.ChaiModule, string, string) (*depm.ChaiPackage, bool)
+
 // NOTE: All parsing functions (that are not utility/API functions) are
 // commented with the EBNF notation of the grammar they parse.
 
@@ -33,13 +37,24 @@ type Parser struct {
 
 	// lookbehind is the token before the current token.
 	lookbehind *Token
+
+	// importFunc is the function used to import a package.  It is really just
+	// callback to the compiler's `c.importPackage`, but since Go won't allow me
+	// to give the compiler reference to Parser (cyclic import), I have to do
+	// this instead.  You could argue that importing could be done by the
+	// compiler after parsing, but I would argue that that only adds unnecessary
+	// complexity since after each parse the compiler would have to determine
+	// what packages to import, and it would just complicate the process vs.
+	// simply importing recursively during parsing.
+	importFunc ImportFunc
 }
 
 // NewParser creates a new parser for the given file and file reader.
-func NewParser(chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
+func NewParser(ifunc ImportFunc, chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
 	return &Parser{
-		chFile: chFile,
-		lexer:  NewLexer(chFile.Context, r),
+		chFile:     chFile,
+		lexer:      NewLexer(chFile.Context, r),
+		importFunc: ifunc,
 	}
 }
 

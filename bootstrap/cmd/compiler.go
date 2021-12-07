@@ -27,6 +27,11 @@ type Compiler struct {
 
 	// profile is current build profile of the compiler.
 	profile *BuildProfile
+
+	// depGraph is the global package dependency graph.  It cannot be organized
+	// by module name because module names are not guaranteed by unique within a
+	// single compilation.
+	depGraph map[int]*depm.ChaiModule
 }
 
 // NewCompiler creates a new compiler.
@@ -249,7 +254,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 			r := bufio.NewReader(file)
 
 			// create the parser for the file
-			p := syntax.NewParser(chFile, r)
+			p := syntax.NewParser(c.importPackgage, chFile, r)
 
 			// parse the file and determine if it should be added
 			if p.Parse() {

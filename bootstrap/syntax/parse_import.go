@@ -3,6 +3,7 @@ package syntax
 import (
 	"chai/depm"
 	"chai/report"
+	"strings"
 )
 
 // isymbol represents an imported symbol.
@@ -93,7 +94,34 @@ func (p *Parser) parseSymbolImport(importedSymbols map[isymbol]struct{}) (*depm.
 // pkg_path = 'IDENTIFIER' {'.' 'IDENTIFIER'}
 // NOTE: first ID should be parsed before this function is called and passed in.
 func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosition) (*depm.ChaiPackage, bool) {
-	// TODO
+	// parse the subpath itself
+	pkgSubPath := strings.Builder{}
+	pathEndPos := moduleNamePos
+
+	for p.got(COMMA) {
+		if !p.next() {
+			return nil, false
+		}
+
+		pkgSubPath.WriteRune('.')
+		pkgSubPath.WriteString(p.tok.Value)
+		pathEndPos = p.tok.Position
+
+		if !p.assertAndNext(IDENTIFIER) {
+			return nil, false
+		}
+	}
+
+	// import a package based on the subpath
+	if pkg, ok := p.importFunc(p.chFile.Parent.Parent, moduleName, pkgSubPath.String()); ok {
+		return pkg, true
+	}
+
+	p.reportError(
+		report.TextPositionFromRange(moduleNamePos, pathEndPos),
+		"unable to import package `%s%s`",
+		moduleName, pkgSubPath.String(),
+	)
 	return nil, false
 }
 
