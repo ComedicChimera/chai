@@ -14,9 +14,18 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 		return nil, false
 	}
 
-	// TODO: metadata parsing
+	// TODO: directive parsing
 
-	// TODO: import parsing
+	// import parsing
+	for p.got(IMPORT) {
+		if !p.parseImportStmt() {
+			return nil, false
+		}
+
+		if !p.newlines() {
+			return nil, false
+		}
+	}
 
 	// parse definitions until we get an EOF
 	var defs []ast.Def
