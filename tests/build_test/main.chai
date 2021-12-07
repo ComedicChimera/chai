@@ -1,8 +1,10 @@
 def main()
-    puts("Hello, world!")
+    let a = 1, b = 1
 
-    puti(247)
-    puti(-45)
-    puti(5_002_481)
-    puti(50)
+    while a < 1000
+        puti(a)
+        putr('\n')
+
+        a, b = b, a + b
+    end
 end

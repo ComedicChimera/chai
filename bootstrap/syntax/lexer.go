@@ -286,7 +286,7 @@ func (l *Lexer) lexEscapeSequence() bool {
 	l.skip()
 
 	// check to see if the code exists
-	code, ok := l.read()
+	code, ok := l.peek()
 	if !ok {
 		l.fail("expected escape sequence not end of file")
 		return false
@@ -316,6 +316,9 @@ func (l *Lexer) lexEscapeSequence() bool {
 		l.fail(fmt.Sprintf("unknown escape code: `%c`", code))
 		return false
 	}
+
+	// skip the actual character
+	l.skip()
 
 	return true
 }

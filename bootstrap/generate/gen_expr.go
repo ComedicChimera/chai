@@ -2,10 +2,12 @@ package generate
 
 import (
 	"chai/ast"
+	"chai/syntax"
 	"chai/typing"
 	"fmt"
 	"log"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -42,6 +44,12 @@ func (g *Generator) genExpr(expr ast.Expr) value.Value {
 		return g.genOpCall(v.Op, v.Lhs, v.Rhs)
 	case *ast.UnaryOp:
 		return g.genOpCall(v.Op, v.Operand)
+	case *ast.Tuple:
+		if len(v.Exprs) == 1 {
+			return g.genExpr(v.Exprs[0])
+		}
+
+		// TODO: actual tuples :)
 	case *ast.Identifier:
 		{
 			// test for pruned identifiers
@@ -282,6 +290,8 @@ func (g *Generator) genIntrinsic(iname string, operands []ast.Expr) value.Value 
 		return g.block.NewICmp(enum.IPredSLT, llOperands[0], llOperands[1])
 	case "sgt":
 		return g.block.NewICmp(enum.IPredSGT, llOperands[0], llOperands[1])
+	case "sgeq":
+		return g.block.NewICmp(enum.IPredSGE, llOperands[0], llOperands[1])
 	case "eq":
 		// TODO: amend to support other types
 		return g.block.NewICmp(enum.IPredEQ, llOperands[0], llOperands[1])
@@ -316,7 +326,12 @@ func (g *Generator) genLiteral(lit *ast.Literal) value.Value {
 	case typing.PrimU16, typing.PrimI16:
 		return g.genIntLit(lit.Value, types.I16, 16)
 	case typing.PrimU32, typing.PrimI32:
-		// TODO: handle rune literals
+		// handle rune literals
+		if lit.Kind == syntax.RUNELIT {
+			runeValue, _ := utf8.DecodeRuneInString(lit.Value)
+			return constant.NewInt(types.I32, int64(runeValue))
+		}
+
 		return g.genIntLit(lit.Value, types.I32, 32)
 	case typing.PrimU64, typing.PrimI64:
 		return g.genIntLit(lit.Value, types.I64, 64)

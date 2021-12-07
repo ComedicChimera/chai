@@ -29,10 +29,9 @@ def putb(b: u8)
     WriteConsoleA(stdout, &b, 1, null, null)
 end
 
-# putd prints a single digit to the console.
-def putd(d: i32)
-    putb(d + '0' as u8)
-end
+# putr prints a single rune to the console. 
+# TODO: handle non-ASCII runes
+def putr(r: i32) = putb(r as u8)
 
 # puti prints an signed integer to the console.
 def puti(a: i32)
@@ -41,18 +40,13 @@ def puti(a: i32)
 
     if a < 0
         a = -a
+        putr('-')
     end
 
     let pow = 1_000_000_000
-    let has_put_non_zero = false
     while pow > 0
-        let x = a % pow
-
-        if x > 0
-            putd(x)
-            has_put_non_zero = true
-        elif pow == 1 || has_put_non_zero
-            putd(0)
+        if a >= pow
+            putr(a / pow % 10 + '0')
         end
 
         pow /= 10
