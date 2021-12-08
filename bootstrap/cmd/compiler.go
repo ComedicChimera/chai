@@ -31,7 +31,7 @@ type Compiler struct {
 	// depGraph is the global package dependency graph.  It cannot be organized
 	// by module name because module names are not guaranteed by unique within a
 	// single compilation.
-	depGraph map[int]*depm.ChaiModule
+	depGraph map[uint]*depm.ChaiModule
 }
 
 // NewCompiler creates a new compiler.
@@ -46,6 +46,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
+		depGraph:    make(map[uint]*depm.ChaiModule),
 	}
 }
 
@@ -57,6 +58,9 @@ func (c *Compiler) Analyze() bool {
 		return false
 	}
 	c.rootModule = rootMod
+
+	// add the root module to the dependency graph
+	c.depGraph[rootMod.ID] = rootMod
 
 	// now that the base profile is loading, we can display the compilation
 	// header and report the start of analysis.
@@ -174,8 +178,9 @@ func (c *Compiler) Generate() {
 
 // initPkg initializes a package: the package is lexed, parsed, and added to the
 // dependency graph.  Furthermore, all imports in the package are resolved, but
-// symbols are NOT resolved at this stage -- only declared.
-func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
+// symbols are NOT resolved at this stage -- only declared.  It returns the
+// package it loads.  If this function fails, it reports a fatal error.
+func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.ChaiPackage {
 	// determine and validate the package name
 	pkgName := filepath.Base(pkgAbsPath)
 	if !depm.IsValidIdentifier(pkgName) {
@@ -269,6 +274,8 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) {
 			report.ReportFatal("[%s] package `%s` contains no compileable source files", parentMod.Name, pkg.Name)
 		}
 	}
+
+	return pkg
 }
 
 // typeCheck types checks each file in each package of the project and
