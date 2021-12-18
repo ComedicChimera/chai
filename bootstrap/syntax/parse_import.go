@@ -8,7 +8,8 @@ import (
 
 // isymbol represents an imported symbol.
 type isymbol struct {
-	// Name will be empty string if it is an operator symbol.
+	// Name will contain the operator string if this symbol is an imported
+	// operator.
 	Name string
 
 	// OpKind will be `-1` if this is an named symbol.
@@ -24,9 +25,10 @@ func (p *Parser) parseImportStmt() bool {
 	}
 
 	// parse and collect the import statement
-	importedSymbols := make(map[isymbol]struct{})
+	importedSymbols := make(map[string]isymbol)
 	var importedPkg *depm.ChaiPackage
 	pkgImportName := ""
+	var pkgImportNamePos *report.TextPosition
 
 	if p.got(IDENTIFIER) {
 		// save the first ID: don't know what it is yet
@@ -40,14 +42,15 @@ func (p *Parser) parseImportStmt() bool {
 		switch p.tok.Kind {
 		case COMMA, FROM:
 			// => symbol import
-			importedSymbols[isymbol{Name: firstId.Value, OpKind: -1, Pos: firstId.Position}] = struct{}{}
-			importedPkg, pkgImportName, ok = p.parseSymbolImport(importedSymbols)
+			importedSymbols[firstId.Value] = isymbol{Name: firstId.Value, OpKind: -1, Pos: firstId.Position}
+			importedPkg, pkgImportNamePos, ok = p.parseSymbolImport(importedSymbols)
+			pkgImportName = importedPkg.Name
 			if !ok {
 				return false
 			}
 		case NEWLINE, AS, DOT:
 			// => package import
-			importedPkg, pkgImportName, ok = p.parsePackageImport(firstId.Value, firstId.Position)
+			importedPkg, pkgImportName, pkgImportNamePos, ok = p.parsePackageImport(firstId.Value, firstId.Position)
 			if !ok {
 				return false
 			}
@@ -59,8 +62,9 @@ func (p *Parser) parseImportStmt() bool {
 		// only be symbol import: parse the first isymbol and then feed it to
 		// parse symbol_import
 		if isym, ok := p.parseISymbol(); ok {
-			importedSymbols[isym] = struct{}{}
-			importedPkg, pkgImportName, ok = p.parseSymbolImport(importedSymbols)
+			importedSymbols[isym.Name] = isym
+			importedPkg, pkgImportNamePos, ok = p.parseSymbolImport(importedSymbols)
+			pkgImportName = importedPkg.Name
 			if !ok {
 				return false
 			}
@@ -69,38 +73,112 @@ func (p *Parser) parseImportStmt() bool {
 		}
 	}
 
-	// TODO: add the package as a dependency and declare imported symbols
-	_ = importedPkg
-	_ = pkgImportName
+	// add the package as a dependency
+	var chPkgImport depm.ChaiPackageImport
+	if _cpi, ok := p.chFile.Parent.ImportedPackages[importedPkg.ID]; ok {
+		chPkgImport = _cpi
+	} else {
+		chPkgImport = depm.ChaiPackageImport{
+			Pkg:       importedPkg,
+			Symbols:   make(map[string]*depm.Symbol),
+			Operators: make(map[int]*depm.Operator),
+		}
+		p.chFile.Parent.ImportedPackages[importedPkg.ID] = chPkgImport
+	}
+
+	// handle imported symbols and operators
+	if len(importedSymbols) > 0 {
+		// TODO
+	} else {
+		// check for collisions between other visible packages and imported
+		// symbols.
+		if _, ok := p.chFile.VisiblePackages[pkgImportName]; ok {
+			p.reportError(pkgImportNamePos, "multiple packages imported with name: `%s`", pkgImportName)
+			return false
+		}
+
+		if _, ok := p.chFile.ImportedSymbols[pkgImportName]; ok {
+			p.reportError(pkgImportNamePos, "package name conflicts with imported symbol: `%s`", pkgImportName)
+			return false
+		}
+
+		// add as visible package
+		p.chFile.VisiblePackages[pkgImportName] = importedPkg
+	}
 
 	return true
 }
 
 // package_import = pkg_path ['as' 'IDENTIFIER']
 // NOTE: first ID should be parsed before this function is called and passed in.
-func (p *Parser) parsePackageImport(moduleName string, moduleNamePos *report.TextPosition) (*depm.ChaiPackage, string, bool) {
-	// TODO
-	return nil, "", false
+func (p *Parser) parsePackageImport(moduleName string, moduleNamePos *report.TextPosition) (*depm.ChaiPackage, string, *report.TextPosition, bool) {
+	// parse the package path
+	pkg, pkgNamePos, ok := p.parsePkgPath(moduleName, moduleNamePos)
+	if !ok {
+		return nil, "", nil, false
+	}
+
+	// read in a rename as necessary
+	if p.got(AS) {
+		if !p.next() {
+			return nil, "", nil, false
+		}
+
+		renameTok := p.tok
+		if !p.assertAndNext(IDENTIFIER) {
+			return nil, "", nil, false
+		}
+
+		return pkg, renameTok.Value, renameTok.Position, true
+	}
+
+	return pkg, pkg.Name, pkgNamePos, true
 }
 
 // symbol_import = isymbol {',' isymbol} 'from' pkg_path
 // NOTE: first `isymbol` should be parsed before this function is called and
 // passed in.
-func (p *Parser) parseSymbolImport(importedSymbols map[isymbol]struct{}) (*depm.ChaiPackage, string, bool) {
-	// TODO
-	return nil, "", false
+func (p *Parser) parseSymbolImport(importedSymbols map[string]isymbol) (*depm.ChaiPackage, *report.TextPosition, bool) {
+	// parse remaining symbol imports
+	for p.got(COMMA) {
+		if !p.next() {
+			return nil, nil, false
+		}
+
+		if isym, ok := p.parseISymbol(); ok {
+			p.reportError(isym.Pos, "symbol `%s` imported multiple times", isym.Name)
+			importedSymbols[isym.Name] = isym
+		}
+	}
+
+	// parse the package path
+	if !p.assertAndNext(FROM) {
+		return nil, nil, false
+	}
+
+	modNameTok := p.tok
+	if !p.assertAndNext(IDENTIFIER) {
+		return nil, nil, false
+	}
+
+	pkg, pkgNamePos, ok := p.parsePkgPath(modNameTok.Value, modNameTok.Position)
+	if !ok {
+		return nil, nil, false
+	}
+
+	return pkg, pkgNamePos, true
 }
 
 // pkg_path = 'IDENTIFIER' {'.' 'IDENTIFIER'}
 // NOTE: first ID should be parsed before this function is called and passed in.
-func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosition) (*depm.ChaiPackage, bool) {
+func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosition) (*depm.ChaiPackage, *report.TextPosition, bool) {
 	// parse the subpath itself
 	pkgSubPath := strings.Builder{}
 	pathEndPos := moduleNamePos
 
 	for p.got(COMMA) {
 		if !p.next() {
-			return nil, false
+			return nil, nil, false
 		}
 
 		pkgSubPath.WriteRune('.')
@@ -108,13 +186,13 @@ func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosit
 		pathEndPos = p.tok.Position
 
 		if !p.assertAndNext(IDENTIFIER) {
-			return nil, false
+			return nil, nil, false
 		}
 	}
 
 	// import a package based on the subpath
 	if pkg, ok := p.importFunc(p.chFile.Parent.Parent, moduleName, pkgSubPath.String()); ok {
-		return pkg, true
+		return pkg, pathEndPos, true
 	}
 
 	p.reportError(
@@ -122,7 +200,7 @@ func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosit
 		"unable to import package `%s%s`",
 		moduleName, pkgSubPath.String(),
 	)
-	return nil, false
+	return nil, nil, false
 }
 
 // isymbol = 'IDENTIFIER' | '(' operator ')'
@@ -136,7 +214,7 @@ func (p *Parser) parseISymbol() (isymbol, bool) {
 	}
 
 	if opTok, ok := p.parseOperator(); ok {
-		return isymbol{Name: "", OpKind: opTok.Kind, Pos: opTok.Position}, p.assertAndNext(RPAREN)
+		return isymbol{Name: opTok.Value, OpKind: opTok.Kind, Pos: opTok.Position}, p.assertAndNext(RPAREN)
 	}
 
 	return isymbol{}, false

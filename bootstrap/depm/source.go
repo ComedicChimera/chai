@@ -20,6 +20,19 @@ type ChaiFile struct {
 
 	// Defs is the list of AST definitions that make up this source file.
 	Defs []ast.Def
+
+	// ------------------------------------------------------------------------
+
+	// ImportedSymbols is the table of symbols specifically imported by this
+	// file.  This table is separated from that storing imported operators.
+	ImportedSymbols map[string]*Symbol
+
+	// ImportedOperators is the table of operators imported by this file.
+	ImportedOperators map[int]*Operator
+
+	// VisiblePackages is the a table of the package that this file imported by
+	// name (ie. no imported symbols).
+	VisiblePackages map[string]*ChaiPackage
 }
 
 // ChaiPackage represents a Chai source package.
@@ -46,6 +59,19 @@ type ChaiPackage struct {
 
 	// OperatorTable is the global table of operator definitions.
 	OperatorTable map[int]*Operator
+
+	// -------------------------------------------------------------------------
+
+	// ImportedPackages is the table of packages imported by files of this
+	// package along with a record of which symbols were imported.
+	ImportedPackages map[uint]ChaiPackageImport
+}
+
+// ChaiPackageImport details a package that was imported by another package.
+type ChaiPackageImport struct {
+	Pkg       *ChaiPackage
+	Symbols   map[string]*Symbol
+	Operators map[int]*Operator
 }
 
 // -----------------------------------------------------------------------------
