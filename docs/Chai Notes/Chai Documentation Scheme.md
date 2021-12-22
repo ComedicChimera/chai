@@ -20,7 +20,7 @@ This should mention the impetus for the design of the language as well as provid
 Specifies in detail the lexical semantics Chai including: what different lexemes are, how the language is represented, the usage and placement of newlines and split-joins, etc.
 
 **Program Structure**
-Describes the high level structure of Chai project, beginning with modules and working all the way down to expressions.  This places each element of the language in the context in which it can be used.  Discusses the `main` and `init` functions.
+Describes the high level structure of Chai project, beginning with modules and working all the way down to expressions.  This places each element of the language in the context in which it can be used.
 
 **Type System**
 Enumerates built-in types; discusses type equality and equivalency, nullability, and type casting; enumerates all valid casts.
@@ -44,7 +44,7 @@ Describes tuples, tuple unpacking, and tuple indexing; describes the constructio
 Describes lists, dictionaries, and arrays in full detail; introduces indexing, slicing, and reference operators; includes a digression on value semantics; discusses the construction and function of iterators (including those on strings); discusses loops, generators, loop control flow statements, and after blocks.
 
 **Functions**
-Describes top-level defined functions, arguments, and function calling in detail; discusses the return statement and variadic arguments; discusses first class functions, lambdas, partial applications, and operator functions; specifies operator definitions and overloading.
+Describes top-level defined functions, arguments, and function calling in detail; discusses the return statement and variadic arguments; discusses the `main` and `init` functions. 
 
 **References**
 Describes references, referencing, and dereferencing; expands upon heap allocation and garbage collection; explains pass-by-reference.
@@ -57,6 +57,12 @@ Discusses unconstrained and constrained type generics, size generics, and variad
 
 **Method Spaces**
 Discusses method spaces and method calling; describes type classes, class implementation, virtual methods, and type class constraints.
+
+**Lambdas**
+Discusses lambdas, closures, function types, and partial application.
+
+**Operators**
+Describes operator definitions and overloading; discusses partial operator application.
 
 **Monads**
 Discusses the `Option` and `Result` types; describes the `Monad` type class; enumerates all monadic operators, their behaviors, and their relation to program control flow.

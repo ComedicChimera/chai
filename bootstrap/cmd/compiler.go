@@ -94,7 +94,7 @@ func (c *Compiler) Analyze() bool {
 }
 
 // binPath the path to needed binaries relative to the Chai path.
-const binPath = "vendor/bin"
+const binPath = "tools/bin"
 
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.

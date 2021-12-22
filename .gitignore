@@ -1,7 +1,7 @@
 **/__pycache__/
 .vscode/
 bin/
-vendor/llvm-build
-vendor/bin
+tools/llvm-build
+tools/bin
 *.exe
 docs/Chai Notes/.obsidian
