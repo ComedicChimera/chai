@@ -41,14 +41,14 @@ func (c *Compiler) importPackgage(parentMod *depm.ChaiModule, moduleName, pkgSub
 			return mod.RootPackage, true
 		}
 
-		return c.initPkg(mod, mod.AbsPath), true
+		return c.initPkg(mod, mod.AbsPath)
 	} else {
 		if pkg, ok := mod.SubPackages[pkgSubPath]; ok {
 			return pkg, true
 		}
 
 		// convert the pkgSubPath into an actual usable file relative path
-		return c.initPkg(mod, filepath.Join(mod.AbsPath, strings.ReplaceAll(pkgSubPath[1:], ".", "/"))), true
+		return c.initPkg(mod, filepath.Join(mod.AbsPath, strings.ReplaceAll(pkgSubPath[1:], ".", "/")))
 	}
 }
 

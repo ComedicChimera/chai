@@ -36,9 +36,14 @@ func DisplayInfoMessage(dataName, msg string) {
 // errors that can be logged -- these functions are called to print the error to
 // the screen.
 
-func (me *ModuleMessage) display() {
-	ErrorStyleBG.Print("Module Error")
-	ErrorColorFG.Printf(" in module `%s`: %s\n", me.ModName, me.Message)
+func (mm *ModuleMessage) display() {
+	if mm.isError() {
+		ErrorStyleBG.Print("Module Error")
+		ErrorColorFG.Printf(" [%s]: %s\n", mm.ModName, mm.Message)
+	} else {
+		WarnStyleBG.Print("Module Warning")
+		WarnColorFG.Printf(" [%s]: %s\n", mm.ModName, mm.Message)
+	}
 }
 
 func (cm *CompileMessage) display() {
@@ -47,6 +52,11 @@ func (cm *CompileMessage) display() {
 	if cm.Position != nil {
 		cm.displayCodeSelection()
 	}
+}
+
+func (pe *PackageError) display() {
+	ErrorStyleBG.Print("Package Error")
+	ErrorColorFG.Print(" [%s]: %s\n", pe.ModRelPath, pe.Message)
 }
 
 func displayFatalError(msg string) {

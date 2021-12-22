@@ -179,12 +179,23 @@ func (c *Compiler) Generate() {
 // initPkg initializes a package: the package is lexed, parsed, and added to the
 // dependency graph.  Furthermore, all imports in the package are resolved, but
 // symbols are NOT resolved at this stage -- only declared.  It returns the
-// package it loads.  If this function fails, it reports a fatal error.
-func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.ChaiPackage {
+// package it loads.  If this function fails, it returns false.
+func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm.ChaiPackage, bool) {
+	// calculate the package's module relative path
+	modRelPath, err := filepath.Rel(parentMod.AbsPath, pkgAbsPath)
+	if err != nil {
+		report.ReportFatal("error calculated module-relative path to package: ", err.Error())
+	}
+
 	// determine and validate the package name
 	pkgName := filepath.Base(pkgAbsPath)
 	if !depm.IsValidIdentifier(pkgName) {
-		report.ReportFatal("package at %s does not have a valid directory name: `%s`", pkgAbsPath, pkgName)
+		report.ReportPackageError(
+			parentMod.Name,
+			fmt.Sprintf(".<%s>", modRelPath),
+			fmt.Sprintf("package does not have a valid directory name: `%s`", pkgName),
+		)
+		return nil, false
 	}
 
 	// create the package struct.
@@ -203,23 +214,16 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.
 		parentMod.RootPackage = pkg
 	} else {
 		// sub package
-		pkgRelPath, err := filepath.Rel(parentMod.AbsPath, pkgAbsPath)
-		if err != nil {
-			report.ReportFatal("error computing package relative path: %s", err.Error())
-		}
-
-		subPath := strings.ReplaceAll(pkgRelPath, string(filepath.Separator), ".")
+		subPath := strings.ReplaceAll(modRelPath, string(filepath.Separator), ".")
 		parentMod.SubPackages[subPath] = pkg
 		pkg.ModSubPath = subPath
 	}
 
-	// TODO: add package to dependency graph (before parsing to prevent import
-	// errors)
-
 	// list the elements of the package directory
 	finfos, err := ioutil.ReadDir(pkgAbsPath)
 	if err != nil {
-		report.ReportFatal("[%s] failed to read directory of package `%s`: %s", parentMod.Name, pkgName, err.Error())
+		report.ReportPackageError(parentMod.Name, pkg.ModSubPath, "failed to read directory of package: "+err.Error())
+		return nil, false
 	}
 
 	// walk through the files and parse them all
@@ -232,7 +236,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.
 			// calculate module relative file path
 			fileRelPath, err := filepath.Rel(parentMod.AbsPath, fileAbsPath)
 			if err != nil {
-				report.ReportFatal("failed to calculate module relative path to file %s: %s", fileAbsPath, err.Error())
+				report.ReportFatal("failed to calculate module relative path to file `%s`: %s", fileAbsPath, err.Error())
 			}
 
 			// calcuate the file context
@@ -252,7 +256,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.
 			// open the file and create the reader for it
 			file, err := os.Open(fileAbsPath)
 			if err != nil {
-				report.ReportFatal("[%s] failed to open source file at %s: %s", parentMod.Name, fileRelPath, err.Error())
+				report.ReportFatal("failed to open source file at `%s`: %s", fileRelPath, err.Error())
 			}
 			defer file.Close()
 
@@ -271,11 +275,12 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) *depm.
 	// make sure the package is not empty if there were no other errors
 	if report.ShouldProceed() {
 		if len(pkg.Files) == 0 {
-			report.ReportFatal("[%s] package `%s` contains no compileable source files", parentMod.Name, pkg.Name)
+			report.ReportPackageError(parentMod.Name, pkg.ModSubPath, "package contains no compileable source files")
+			return nil, false
 		}
 	}
 
-	return pkg
+	return pkg, true
 }
 
 // typeCheck types checks each file in each package of the project and

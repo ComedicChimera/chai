@@ -70,6 +70,14 @@ func ReportModuleWarning(modName string, msg string) {
 	})
 }
 
+// ReportPackageError reports an error initializing a package.
+func ReportPackageError(modName, pkgSubPath, msg string) {
+	rep.handleMsg(&PackageError{
+		ModRelPath: modName + pkgSubPath,
+		Message:    msg,
+	})
+}
+
 // ReportFatal reports a fatal error and exits the program.  It also
 // automatically formats error messages as necessary.
 func ReportFatal(msg string, args ...interface{}) {

@@ -35,6 +35,22 @@ type ChaiFile struct {
 	VisiblePackages map[string]*ChaiPackage
 }
 
+// ImportCollides returns true if an imported name collides with another
+// imported name.
+func (chFile *ChaiFile) ImportCollides(name string) bool {
+	if _, ok := chFile.VisiblePackages[name]; ok {
+		return true
+	}
+
+	if _, ok := chFile.ImportedSymbols[name]; ok {
+		return true
+	}
+
+	return false
+}
+
+// -----------------------------------------------------------------------------
+
 // ChaiPackage represents a Chai source package.
 type ChaiPackage struct {
 	// ID is the unique ID of this package.

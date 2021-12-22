@@ -46,6 +46,16 @@ type ModuleMessage struct {
 	IsError bool
 }
 
-func (me *ModuleMessage) isError() bool {
-	return me.IsError
+func (mm *ModuleMessage) isError() bool {
+	return mm.IsError
+}
+
+// PackageError is an error that occurs while initializing a package.
+type PackageError struct {
+	ModRelPath string
+	Message    string
+}
+
+func (pe *PackageError) isError() bool {
+	return true
 }

@@ -88,17 +88,60 @@ func (p *Parser) parseImportStmt() bool {
 
 	// handle imported symbols and operators
 	if len(importedSymbols) > 0 {
-		// TODO
-	} else {
-		// check for collisions between other visible packages and imported
-		// symbols.
-		if _, ok := p.chFile.VisiblePackages[pkgImportName]; ok {
-			p.reportError(pkgImportNamePos, "multiple packages imported with name: `%s`", pkgImportName)
-			return false
-		}
+		// add each imported symbol and check for name collisions
+		for _, isym := range importedSymbols {
+			if isym.OpKind == -1 {
+				// symbol imports
+				if p.chFile.ImportCollides(isym.Name) {
+					p.reportError(isym.Pos, "multiple symbols imported with name `%s`", isym.Name)
+					return false
+				}
 
-		if _, ok := p.chFile.ImportedSymbols[pkgImportName]; ok {
-			p.reportError(pkgImportNamePos, "package name conflicts with imported symbol: `%s`", pkgImportName)
+				p.chFile.ImportedSymbols[isym.Name] = &depm.Symbol{
+					Name:  isym.Name,
+					PkgID: importedPkg.ID,
+					// the DefPosition is set to the isymbol's position for
+					// error handling in resolver; this will be updated with the
+					// actual symbol's position later
+					DefPosition: isym.Pos,
+					DefKind:     depm.DKUnknown,
+					Mutability:  depm.NeverMutated,
+					Public:      true,
+				}
+			} else {
+				// operator imports
+
+				// for operators, we simply add a single, untyped overload for
+				// our respective package to tell the resolver where to load
+				// overloads from.  It is likely that there may be conflicts
+				// that arise later on, but we won't handle them now.
+				overload := &depm.OperatorOverload{
+					// Signature is `nil` to mark this as resolving
+					Context: &report.CompilationContext{
+						ModName:    importedPkg.Parent.Name,
+						ModAbsPath: importedPkg.Parent.AbsPath,
+						// FileRelPath will be determined later
+					},
+					// Similar to symbols, operators use the import position as
+					// their definition position until resolved
+					Position: isym.Pos,
+					Public:   true,
+				}
+
+				if op, ok := p.chFile.ImportedOperators[isym.OpKind]; ok {
+					op.Overloads = append(op.Overloads, overload)
+				} else {
+					p.chFile.ImportedOperators[isym.OpKind] = &depm.Operator{
+						OpName:    isym.Name,
+						Overloads: []*depm.OperatorOverload{overload},
+					}
+				}
+			}
+		}
+	} else {
+		// check for name collisions
+		if p.chFile.ImportCollides(pkgImportName) {
+			p.reportError(pkgImportNamePos, "multiple symbols imported with name `%s`", pkgImportName)
 			return false
 		}
 
@@ -146,7 +189,11 @@ func (p *Parser) parseSymbolImport(importedSymbols map[string]isymbol) (*depm.Ch
 		}
 
 		if isym, ok := p.parseISymbol(); ok {
-			p.reportError(isym.Pos, "symbol `%s` imported multiple times", isym.Name)
+			if _, ok := importedSymbols[isym.Name]; ok {
+				p.reportError(isym.Pos, "symbol `%s` imported multiple times", isym.Name)
+				return nil, nil, false
+			}
+
 			importedSymbols[isym.Name] = isym
 		}
 	}
