@@ -290,7 +290,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	// prepare and declare function symbol
 	sym := &depm.Symbol{
 		Name:        funcID.Value,
-		PkgID:       p.chFile.Parent.ID,
+		Pkg:         p.chFile.Parent,
 		DefPosition: funcID.Position,
 		Type:        ft,
 		DefKind:     depm.DKValueDef,

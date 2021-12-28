@@ -181,7 +181,7 @@ func (w *Walker) pushFuncScope(f *typing.FuncType, args []*ast.FuncArg) {
 	for i, arg := range args {
 		localArgs[i] = &depm.Symbol{
 			Name:        arg.Name,
-			PkgID:       w.chFile.Parent.ID,
+			Pkg:         w.chFile.Parent,
 			DefPosition: nil, // never errored upon
 			Type:        arg.Type,
 			DefKind:     depm.DKValueDef,

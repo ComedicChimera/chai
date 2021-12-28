@@ -7,6 +7,7 @@ import (
 	"chai/depm"
 	"chai/generate"
 	"chai/report"
+	"chai/resolve"
 	"chai/syntax"
 	"chai/walk"
 	"fmt"
@@ -71,14 +72,22 @@ func (c *Compiler) Analyze() bool {
 
 	// initialize the root package (which will initialize all other packages
 	// that this project depends on)
-	c.initPkg(rootMod, rootMod.AbsPath)
+	_, ok = c.initPkg(rootMod, rootMod.AbsPath)
+	if !ok {
+		return false
+	}
 
-	// TODO: resolve global symbols and check for recursive types
+	// resolve global symbols and check for recursive types
+	r := resolve.NewResolver(c.depGraph)
+	if !r.Resolve() {
+		return false
+	}
 
 	// check for operator collisions
-	// TODO: check every module in the dep graph
-	for _, pkg := range rootMod.Packages() {
-		depm.CheckOperatorCollisions(pkg)
+	for _, mod := range c.depGraph {
+		for _, pkg := range mod.Packages() {
+			depm.CheckOperatorCollisions(pkg)
+		}
 	}
 
 	if !report.ShouldProceed() {
@@ -287,13 +296,14 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 // determines all the generic instances to be used in generic evaluation.  It
 // then evaluates all generics.
 func (c *Compiler) typeCheck() {
-	// TODO: traverse dep graph
-	for _, pkg := range c.rootModule.Packages() {
-		for _, file := range pkg.Files {
-			w := walk.NewWalker(file)
+	for _, mod := range c.depGraph {
+		for _, pkg := range mod.Packages() {
+			for _, file := range pkg.Files {
+				w := walk.NewWalker(file)
 
-			for _, def := range file.Defs {
-				w.WalkDef(def)
+				for _, def := range file.Defs {
+					w.WalkDef(def)
+				}
 			}
 		}
 	}

@@ -9,8 +9,8 @@ import (
 type Symbol struct {
 	Name string
 
-	// PkgID is the ID of the package this symbol is defined in.
-	PkgID uint
+	// Pkg is the  package this symbol is defined in.
+	Pkg *ChaiPackage
 
 	// DefPosition is the position of the identifier that defines the symbol.
 	DefPosition *report.TextPosition

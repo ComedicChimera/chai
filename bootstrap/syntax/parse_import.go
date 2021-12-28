@@ -98,8 +98,8 @@ func (p *Parser) parseImportStmt() bool {
 				}
 
 				p.chFile.ImportedSymbols[isym.Name] = &depm.Symbol{
-					Name:  isym.Name,
-					PkgID: importedPkg.ID,
+					Name: isym.Name,
+					Pkg:  importedPkg,
 					// the DefPosition is set to the isymbol's position for
 					// error handling in resolver; this will be updated with the
 					// actual symbol's position later
