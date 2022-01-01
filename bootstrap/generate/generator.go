@@ -96,7 +96,7 @@ type Generator struct {
 func NewGenerator(pkg *depm.ChaiPackage) *Generator {
 	return &Generator{
 		pkg:            pkg,
-		globalPrefix:   pkg.Parent.Name + pkg.ModSubPath + ".",
+		globalPrefix:   fmt.Sprintf("%d.", pkg.ID),
 		mod:            ir.NewModule(),
 		defDepGraph:    make(map[string]ast.Def),
 		alreadyVisited: make(map[ast.Def]bool),

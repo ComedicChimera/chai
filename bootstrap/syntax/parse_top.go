@@ -30,8 +30,23 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 	// parse definitions until we get an EOF
 	var defs []ast.Def
 	annotations := make(map[string]string)
+	inPubBlock := false
 	for !p.got(EOF) {
+		pubDef := inPubBlock
+
 		switch p.tok.Kind {
+		case END:
+			// ending of public blocks
+			if inPubBlock {
+				if !p.next() {
+					return nil, false
+				}
+
+				inPubBlock = false
+			} else {
+				p.reject()
+				return nil, false
+			}
 		case ANNOTSTART:
 			// annotations
 			if _annots, ok := p.parseAnnotations(); ok {
@@ -40,15 +55,33 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 				return nil, false
 			}
 
-			// annotations => publics => definition
+			// annotations then visibility then definition
 			fallthrough
 		case PUB:
-			// TODO: publics
-			// publics => definition
+			// visibility
+			if !p.next() {
+				return nil, false
+			}
+
+			if p.got(NEWLINE) {
+				// public block
+				if !p.next() {
+					return nil, false
+				}
+
+				inPubBlock = true
+				continue
+			} else {
+				// single public definition => mark the next definition as
+				// public
+				pubDef = true
+			}
+
+			// visibility then definition
 			fallthrough
 		default:
 			// assume definition
-			if def, ok := p.parseDefinition(annotations, false); ok {
+			if def, ok := p.parseDefinition(annotations, pubDef); ok {
 				defs = append(defs, def)
 
 				// assert newlines after definitions
@@ -69,6 +102,12 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 		if len(annotations) != 0 {
 			annotations = make(map[string]string)
 		}
+	}
+
+	// check for missing closing ends on public blocks
+	if inPubBlock {
+		p.reject()
+		return nil, false
 	}
 
 	return defs, true

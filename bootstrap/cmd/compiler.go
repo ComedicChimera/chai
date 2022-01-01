@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // Compiler represents the global state of the compiler.
@@ -108,17 +109,6 @@ const binPath = "tools/bin"
 // Generate runs the generation, LLVM, and linking phases of the compiler. The
 // Analysis phase must be run before this.
 func (c *Compiler) Generate() {
-	// TODO: decide whether or not refactor to produce a single LLVM module
-	// instead of multiple: don't want to have to make more calls to `llc` or
-	// create more work for the linker than necessary.  Or is it better to
-	// produce multiple LLVM modules, compile them, and link them all at the
-	// end?
-
-	// generate the main LLVM module
-	// TODO: generate whole dependency graph
-	g := generate.NewGenerator(c.rootModule.RootPackage)
-	mod := g.Generate()
-
 	// compute path to LLC
 	llcPath := filepath.Join(common.ChaiPath, binPath, "llc.exe")
 
@@ -126,24 +116,50 @@ func (c *Compiler) Generate() {
 	tempPath := filepath.Join(filepath.Dir(c.profile.OutputPath), ".chai")
 	os.MkdirAll(tempPath, os.ModeDir)
 
-	// write LLVM module(s?) to text file
-	modFilePath := filepath.Join(tempPath, "mod.ll")
-	writeOutputFile(modFilePath, mod.String())
+	// compile each package in the dependency graph into an object file
+	// concurrently and write the object file paths to a channel to they can be
+	// linked together
+	objFilePathCh := make(chan string)
+	wg := sync.WaitGroup{}
+	nObjFiles := 0
+	objFileGenFailed := false
 
-	// compile LLVM module(s?) using LLC
-	objFilePath := filepath.Join(tempPath, "mod.o")
-	llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
-	stderrBuff := bytes.Buffer{}
-	llc.Stderr = &stderrBuff
+	for _, mod := range c.depGraph {
+		for _, pkg := range mod.Packages() {
+			wg.Add(1)
+			nObjFiles += 1
 
-	err := llc.Run()
-	if err != nil {
-		report.ReportFatal("failed to run llc:\n %s", stderrBuff.String())
+			go func(pkg *depm.ChaiPackage) {
+				// generate the main LLVM module
+				g := generate.NewGenerator(pkg)
+				mod := g.Generate()
+
+				// write LLVM module to text file
+				modFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.ll", pkg.ID))
+				writeOutputFile(modFilePath, mod.String())
+
+				// compile LLVM module using LLC
+				objFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.o", pkg.ID))
+				llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
+				stderrBuff := bytes.Buffer{}
+				llc.Stderr = &stderrBuff
+
+				err := llc.Run()
+				if err != nil {
+					objFileGenFailed = true
+					report.ReportFatal("failed to run llc:\n %s", stderrBuff.String())
+				}
+
+				// write the object file path and mark the goroutine as finished
+				objFilePathCh <- objFilePath
+				wg.Done()
+			}(pkg)
+		}
 	}
 
 	// find the path to the VS developer prompt (to execute link.exe) using
 	// `vswhere.exe` which will give us the path to the Visual Studio
-	// installation.
+	// installation while other packages are compileable
 	vswherePath := filepath.Join(common.ChaiPath, binPath, "vswhere.exe")
 	vswhere := exec.Command(vswherePath, "-latest", "-products", "*", "-property", "installationPath")
 	output, err := vswhere.Output()
@@ -154,12 +170,26 @@ func (c *Compiler) Generate() {
 	}
 	vsDevCmdPath := filepath.Join(string(output[:len(output)-2]), "VC/Auxiliary/Build/vcvars64.bat")
 
+	// wait for the object files to finish generating and collect the object
+	// file paths into slice
+	wg.Wait()
+
+	if objFileGenFailed {
+		// errors reported during object file generation (not here)
+		os.Exit(1)
+	}
+
+	var objFilePaths []string
+	for i := 0; i < nObjFiles; i++ {
+		objFilePaths = append(objFilePaths, <-objFilePathCh)
+	}
+
 	// determine all the objects that need to be linked.  We first link to
 	// several import libraries that are used by all applications.  Then we add
 	// in the user specified link objects followed by the generated object files
 	// of the compiler.
 	linkObjects := append([]string{"kernel32.lib", "libcmt.lib"}, c.profile.LinkObjects...)
-	linkObjects = append(linkObjects, objFilePath)
+	linkObjects = append(linkObjects, objFilePaths...)
 
 	// link objects using `link.exe` executed from the VS developer prompt
 	vsDevCmdArgs := []string{
