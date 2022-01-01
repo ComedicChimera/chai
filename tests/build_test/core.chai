@@ -34,9 +34,6 @@ oper (||) (a, b: bool) bool end
 
 # Compiler Intrinsics (see table of intrinsics for more info)
 
-@intrinsic
-def __init() end
-
 # These intrinsics are temporary until things like structs, generics, and
 # dynamic allocation are fully implemented.
 

@@ -3,6 +3,14 @@
 @[extern, callconv("win64")]
 def ExitProcess(code: u32) end
 
+# Static Initialization
+@extern
+def __chai_init() end
+
+# User's Main Function
+@extern
+def __chai_main() end
+
 @entry
 def _start()
     # TODO: handle argc and argv
@@ -10,11 +18,10 @@ def _start()
     # TODO: other runtime shenanigans
 
     # global, static initialization
-    __init()
+    __chai_init()
 
-    # TODO: replace with intrinsic to link to main from any package and allow
-    # for the main form agnostic passing arguments and expecting of exit codes
-    main()
+    # call to the user's main function
+    __chai_main()
 
     # TODO: runtime cleanup
 
