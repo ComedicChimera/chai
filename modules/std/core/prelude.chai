@@ -1,0 +1,10 @@
+# Compiler Intrinsics (see table of intrinsics for more info)
+
+# These intrinsics are temporary until things like structs, generics, and
+# dynamic allocation are fully implemented.
+
+@intrinsic
+pub def __strlen(s: string) u32 end
+
+@intrinsic
+pub def __strbytes(s: string) &u8 end

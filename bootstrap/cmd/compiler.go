@@ -17,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/llir/llvm/ir"
 )
@@ -36,7 +35,7 @@ type Compiler struct {
 	// depGraph is the global package dependency graph.  It cannot be organized
 	// by module name because module names are not guaranteed by unique within a
 	// single compilation.
-	depGraph map[uint]*depm.ChaiModule
+	depGraph map[uint64]*depm.ChaiModule
 }
 
 // NewCompiler creates a new compiler.
@@ -51,7 +50,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 	return &Compiler{
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
-		depGraph:    make(map[uint]*depm.ChaiModule),
+		depGraph:    make(map[uint64]*depm.ChaiModule),
 	}
 }
 
@@ -133,7 +132,7 @@ func (c *Compiler) Generate() {
 	os.MkdirAll(tempPath, os.ModeDir)
 
 	// create the global start builder
-	sb := generate.NewStartBuilder(c.depGraph, c.rootModule.RootPackage.ID)
+	sb := generate.NewStartBuilder(c.depGraph)
 
 	// compile each package in the dependency graph into an object file
 	// concurrently and write the object file paths to a channel to they can be
@@ -229,42 +228,10 @@ func (c *Compiler) Generate() {
 // symbols are NOT resolved at this stage -- only declared.  It returns the
 // package it loads.  If this function fails, it returns false.
 func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm.ChaiPackage, bool) {
-	// calculate the package's module relative path
-	modRelPath, err := filepath.Rel(parentMod.AbsPath, pkgAbsPath)
-	if err != nil {
-		report.ReportFatal("error calculated module-relative path to package: ", err.Error())
-	}
-
-	// determine and validate the package name
-	pkgName := filepath.Base(pkgAbsPath)
-	if !depm.IsValidIdentifier(pkgName) {
-		report.ReportPackageError(
-			parentMod.Name,
-			fmt.Sprintf(".<%s>", modRelPath),
-			fmt.Sprintf("package does not have a valid directory name: `%s`", pkgName),
-		)
+	// create a new package in the parent module
+	pkg, ok := depm.NewPackage(parentMod, pkgAbsPath)
+	if !ok {
 		return nil, false
-	}
-
-	// create the package struct.
-	pkgID := depm.GenerateIDFromPath(pkgAbsPath)
-	pkg := &depm.ChaiPackage{
-		ID:            pkgID,
-		Name:          pkgName,
-		Parent:        parentMod,
-		SymbolTable:   make(map[string]*depm.Symbol),
-		OperatorTable: make(map[int]*depm.Operator),
-	}
-
-	// add it to its parent module
-	if pkgAbsPath == parentMod.AbsPath {
-		// root package
-		parentMod.RootPackage = pkg
-	} else {
-		// sub package
-		subPath := strings.ReplaceAll(modRelPath, string(filepath.Separator), ".")
-		parentMod.SubPackages[subPath] = pkg
-		pkg.ModSubPath = subPath
 	}
 
 	// list the elements of the package directory
@@ -281,30 +248,13 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 			// calulate the file abs path
 			fileAbsPath := filepath.Join(pkgAbsPath, finfo.Name())
 
-			// calculate module relative file path
-			fileRelPath, err := filepath.Rel(parentMod.AbsPath, fileAbsPath)
-			if err != nil {
-				report.ReportFatal("failed to calculate module relative path to file `%s`: %s", fileAbsPath, err.Error())
-			}
-
-			// calcuate the file context
-			ctx := &report.CompilationContext{
-				ModName:     parentMod.Name,
-				ModAbsPath:  parentMod.AbsPath,
-				FileRelPath: fileRelPath,
-			}
-
 			// create the Chai source file
-			chFile := &depm.ChaiFile{
-				Context:  ctx,
-				Parent:   pkg,
-				Metadata: make(map[string]string),
-			}
+			chFile := depm.NewFile(pkg, fileAbsPath)
 
 			// open the file and create the reader for it
 			file, err := os.Open(fileAbsPath)
 			if err != nil {
-				report.ReportFatal("failed to open source file at `%s`: %s", fileRelPath, err.Error())
+				report.ReportFatal("failed to open source file at `%s`: %s", chFile.Context.FileRelPath, err.Error())
 			}
 			defer file.Close()
 

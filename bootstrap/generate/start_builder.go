@@ -23,7 +23,7 @@ type StartBuilder struct {
 }
 
 // NewStartBuilder returns a new StartBuilder for the project.
-func NewStartBuilder(depGraph map[uint]*depm.ChaiModule, rootPkgID uint) *StartBuilder {
+func NewStartBuilder(depGraph map[uint64]*depm.ChaiModule) *StartBuilder {
 	initFuncCount := 0
 	for _, mod := range depGraph {
 		for range mod.Packages() {

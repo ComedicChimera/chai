@@ -56,7 +56,7 @@ func (cm *CompileMessage) display() {
 
 func (pe *PackageError) display() {
 	ErrorStyleBG.Print("Package Error")
-	ErrorColorFG.Print(" [%s]: %s\n", pe.ModRelPath, pe.Message)
+	ErrorColorFG.Printf(" [%s]: %s\n", pe.ModRelPath, pe.Message)
 }
 
 func displayFatalError(msg string) {

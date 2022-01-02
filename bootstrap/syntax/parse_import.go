@@ -223,7 +223,7 @@ func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosit
 	pkgSubPath := strings.Builder{}
 	pathEndPos := moduleNamePos
 
-	for p.got(COMMA) {
+	for p.got(DOT) {
 		if !p.next() {
 			return nil, nil, false
 		}

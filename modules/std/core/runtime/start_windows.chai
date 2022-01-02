@@ -1,4 +1,4 @@
-# TODO: add metadata
+# TODO: add meta directives
 
 @[extern, callconv("win64")]
 def ExitProcess(code: u32) end
@@ -8,8 +8,8 @@ def ExitProcess(code: u32) end
 def __chai_init() end
 
 # User's Main Function
-# @extern
-# def __chai_main() end
+@extern
+def __chai_main() end
 
 @entry
 def _start()
@@ -21,7 +21,7 @@ def _start()
     __chai_init()
 
     # call to the user's main function
-    main()
+    __chai_main()
 
     # TODO: runtime cleanup
 

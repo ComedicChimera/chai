@@ -1,3 +1,5 @@
+# TODO: add meta directives
+
 # System Bindings
 
 @[extern, callconv("win64")]
@@ -11,7 +13,7 @@ def WriteConsoleA(
     lpReserved: &u8
     ) bool end
 
-# IO API
+# IO API (TODO: revise)
 
 # stdout is the standard output handle.
 let stdout: &u8 = GetStdHandle(-11 as u32)   
@@ -27,28 +29,4 @@ end
 def putb(b: u8)
     # Also somewhat suspect code: no buffered IO just yet :)
     WriteConsoleA(stdout, &b, 1, null, null)
-end
-
-# putr prints a single rune to the console. 
-# TODO: handle non-ASCII runes
-def putr(r: i32) = putb(r as u8)
-
-# puti prints an signed integer to the console.
-def puti(a: i32)
-    # A crude implementation to print an integer.  This will obviously be
-    # refined for the final version, but it works for right now.
-
-    if a < 0
-        a = -a
-        putr('-')
-    end
-
-    let pow = 1_000_000_000
-    while pow > 0
-        if a >= pow
-            putr(a / pow % 10 + '0')
-        end
-
-        pow /= 10
-    end
 end

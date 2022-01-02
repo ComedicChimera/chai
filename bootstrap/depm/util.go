@@ -1,8 +1,12 @@
 package depm
 
+import "hash/fnv"
+
 // GenerateIDFromPath generates an ID from an absolute path.
-func GenerateIDFromPath(abspath string) uint {
-	return 0
+func GenerateIDFromPath(abspath string) uint64 {
+	a := fnv.New64a()
+	a.Write([]byte(abspath))
+	return a.Sum64()
 }
 
 // IsValidIdentifier returns whether or not a given string would be a valid

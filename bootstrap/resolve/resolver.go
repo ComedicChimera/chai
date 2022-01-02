@@ -7,11 +7,11 @@ import "chai/depm"
 // recursive types.  This is run before type checking so local symbols are not
 // processed until after resolution is completed.
 type Resolver struct {
-	depGraph map[uint]*depm.ChaiModule
+	depGraph map[uint64]*depm.ChaiModule
 }
 
 // NewResolver creates a new resolver for the given dependency graph.
-func NewResolver(depg map[uint]*depm.ChaiModule) *Resolver {
+func NewResolver(depg map[uint64]*depm.ChaiModule) *Resolver {
 	return &Resolver{depGraph: depg}
 }
 
