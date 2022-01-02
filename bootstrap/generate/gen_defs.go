@@ -93,16 +93,29 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		params = append(params, ir.NewParam(arg.Name, g.convType(arg.Type)))
 	}
 
-	// mangle name if necessary
-	mangledName := g.globalPrefix + name
-	for _, noMangleAnnot := range noMangleAnnotations {
-		if hasAnnot(annotations, noMangleAnnot) {
-			mangledName = name
-			break
+	// handle special configuration for main function
+	var llvmName string
+	if g.isRoot && name == "main" {
+		// the name of the main function is always `__chai_main`
+		llvmName = "__chai_main"
+
+		// make it public so it is visible externally
+		public = true
+	} else {
+		// mangle name by adding prefix
+		llvmName = g.globalPrefix + name
+
+		// check for special annotations that cause function names not be
+		// mangled
+		for _, noMangleAnnot := range noMangleAnnotations {
+			if hasAnnot(annotations, noMangleAnnot) {
+				llvmName = name
+				break
+			}
 		}
 	}
 
-	llvmFunc := g.mod.NewFunc(mangledName, g.convType(rtType), params...)
+	llvmFunc := g.mod.NewFunc(llvmName, g.convType(rtType), params...)
 
 	// set linkage based on visibility
 	if public || hasAnnot(annotations, "extern") || hasAnnot(annotations, "entry") {
@@ -137,12 +150,14 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	// add the global declaration for the function
 	g.globalScope[name] = LLVMIdent{Val: llvmFunc, Mutable: false}
 
+	// Chai does not use exceptions in any form and thus all functions are
+	// marked `nounwind`.  NOTE: This should be okay for external functions
+	// since Chai has no error handling infrastructure of exceptions thrown
+	// from other languages.
+	llvmFunc.FuncAttrs = []ir.FuncAttribute{enum.FuncAttrNoUnwind}
+
 	// generate the body if a body is provided
 	if body != nil {
-		// Chai does not use exceptions in any form and thus all functions are
-		// marked `nounwind`
-		llvmFunc.FuncAttrs = []ir.FuncAttribute{enum.FuncAttrNoUnwind}
-
 		entry := llvmFunc.NewBlock("entry")
 
 		// set the parent function of the block

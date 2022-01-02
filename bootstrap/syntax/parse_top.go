@@ -58,23 +58,28 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 			// annotations then visibility then definition
 			fallthrough
 		case PUB:
-			// visibility
-			if !p.next() {
-				return nil, false
-			}
-
-			if p.got(NEWLINE) {
-				// public block
+			// we have to add this extra check in case we fall through from
+			// annotations
+			if p.got(PUB) {
+				// visibility
 				if !p.next() {
 					return nil, false
 				}
 
-				inPubBlock = true
-				continue
-			} else {
-				// single public definition => mark the next definition as
-				// public
-				pubDef = true
+				if p.got(NEWLINE) {
+					// public block
+					if !p.next() {
+						return nil, false
+					}
+
+					inPubBlock = true
+					continue
+				} else {
+					// single public definition => mark the next definition as
+					// public
+					pubDef = true
+				}
+
 			}
 
 			// visibility then definition
@@ -332,7 +337,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 		Pkg:         p.chFile.Parent,
 		DefPosition: funcID.Position,
 		Type:        ft,
-		DefKind:     depm.DKValueDef,
+		DefKind:     depm.DKFuncDef,
 		Mutability:  depm.Immutable,
 		Public:      public,
 	}

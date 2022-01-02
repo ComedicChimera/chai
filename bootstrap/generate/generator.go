@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -43,8 +44,14 @@ func (awlv *ASTWrappedLLVMVal) Position() *report.TextPosition {
 // Generator is responsible for converting the Chai Typed AST into LLVM IR. It
 // converts each package into a single LLVM module.
 type Generator struct {
+	// startBuilder is the global start builder for the project.
+	startBuilder *StartBuilder
+
 	// pkg is the source package being converted.
 	pkg *depm.ChaiPackage
+
+	// isRoot is a boolean indicating if this package is the root package.
+	isRoot bool
 
 	// globalPrefix is prefix prepended to all global symbols to prevent
 	// namespace collisions between the symbols of different packages during
@@ -81,8 +88,9 @@ type Generator struct {
 	// localScopes is the stack of local scopes used during generation.
 	localScopes []map[string]LLVMIdent
 
-	// initFunc is the global initialization function (called as the intrinsic
-	// `__init`).  It makes calls to all other initialization functions.
+	// initFunc is the global initialization function for the package. It
+	// initializes global variables and calls the package's `init` function as
+	// necessary.  It is called by the main initialization function.
 	initFunc *ir.Func
 
 	// globalInits is the list of global globalInits to be generated.
@@ -93,10 +101,12 @@ type Generator struct {
 }
 
 // NewGenerator creates a new generator for the given package.
-func NewGenerator(pkg *depm.ChaiPackage) *Generator {
+func NewGenerator(sb *StartBuilder, pkg *depm.ChaiPackage, isRoot bool) *Generator {
 	return &Generator{
+		startBuilder:   sb,
 		pkg:            pkg,
-		globalPrefix:   fmt.Sprintf("%d.", pkg.ID),
+		isRoot:         isRoot,
+		globalPrefix:   fmt.Sprintf("p%d.", pkg.ID),
 		mod:            ir.NewModule(),
 		defDepGraph:    make(map[string]ast.Def),
 		alreadyVisited: make(map[ast.Def]bool),
@@ -108,10 +118,23 @@ func NewGenerator(pkg *depm.ChaiPackage) *Generator {
 // generation process is assumed to always succeed: any errors here are
 // considered fatal.
 func (g *Generator) Generate() *ir.Module {
-	// TODO: imports
+	// declare all imports
+	for _, pkgImport := range g.pkg.ImportedPackages {
+		// calculate the global prefix for the imported package's symbols
+		importPrefix := fmt.Sprintf("%d.", pkgImport.Pkg.ID)
 
-	// generate the global `__init` function
-	g.initFunc = g.mod.NewFunc("__init", types.Void)
+		// imported symbols
+		for _, sym := range pkgImport.Symbols {
+			g.genSymbolImport(importPrefix, sym)
+		}
+
+		// TODO: imported operators
+	}
+
+	// generate the global package init function
+	g.initFunc = g.mod.NewFunc(g.globalPrefix+"$__init", types.Void)
+	g.initFunc.Linkage = enum.LinkageExternal
+	g.startBuilder.AddInitFunc(g.initFunc.GlobalName)
 	g.initFunc.NewBlock("entry")
 
 	// add all the definitions in the package to the dependency graph
@@ -144,9 +167,9 @@ func (g *Generator) Generate() *ir.Module {
 		}
 	}
 
-	// TODO: add in calls to package `init` functions
+	// TODO: add in call to `init` if the package has one.
 
-	// terminate the `__init` function
+	// terminate the global package init function
 	initBlock.NewRet(nil)
 
 	// return the completed module

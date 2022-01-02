@@ -9,14 +9,17 @@ import (
 	"chai/report"
 	"chai/resolve"
 	"chai/syntax"
+	"chai/typing"
 	"chai/walk"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
+
+	"github.com/llir/llvm/ir"
 )
 
 // Compiler represents the global state of the compiler.
@@ -100,7 +103,20 @@ func (c *Compiler) Analyze() bool {
 
 	// TODO: prune unused functions
 
-	return report.ShouldProceed()
+	// check for main function
+	if mainSym, ok := c.rootModule.RootPackage.SymbolTable["main"]; ok && mainSym.DefKind == depm.DKFuncDef {
+		if mainFt, ok := mainSym.Type.(*typing.FuncType); ok {
+			if mainFt.ReturnType.Equiv(typing.NothingType()) && len(mainFt.Args) == 0 && mainFt.IntrinsicName == "" {
+				return report.ShouldProceed()
+			}
+		}
+
+		report.ReportFatal("main function signature must be of the form: `() -> ()`")
+	} else {
+		report.ReportFatal("main package missing main function")
+	}
+
+	return false
 }
 
 // binPath the path to needed binaries relative to the Chai path.
@@ -116,43 +132,32 @@ func (c *Compiler) Generate() {
 	tempPath := filepath.Join(filepath.Dir(c.profile.OutputPath), ".chai")
 	os.MkdirAll(tempPath, os.ModeDir)
 
+	// create the global start builder
+	sb := generate.NewStartBuilder(c.depGraph, c.rootModule.RootPackage.ID)
+
 	// compile each package in the dependency graph into an object file
 	// concurrently and write the object file paths to a channel to they can be
 	// linked together
 	objFilePathCh := make(chan string)
-	wg := sync.WaitGroup{}
 	nObjFiles := 0
-	objFileGenFailed := false
 
 	for _, mod := range c.depGraph {
 		for _, pkg := range mod.Packages() {
-			wg.Add(1)
 			nObjFiles += 1
 
 			go func(pkg *depm.ChaiPackage) {
-				// generate the main LLVM module
-				g := generate.NewGenerator(pkg)
-				mod := g.Generate()
+				// generate the LLVM module
+				g := generate.NewGenerator(sb, pkg, pkg.ID == c.rootModule.RootPackage.ID)
+				llMod := g.Generate()
 
-				// write LLVM module to text file
-				modFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.ll", pkg.ID))
-				writeOutputFile(modFilePath, mod.String())
-
-				// compile LLVM module using LLC
+				// generate the object file
 				objFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.o", pkg.ID))
-				llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
-				stderrBuff := bytes.Buffer{}
-				llc.Stderr = &stderrBuff
-
-				err := llc.Run()
-				if err != nil {
-					objFileGenFailed = true
-					report.ReportFatal("failed to run llc:\n %s", stderrBuff.String())
+				if err := compileLLVMModule(llcPath, llMod, objFilePath); err != nil {
+					report.ReportFatal("failed to run llc on `%s`:\n %s", mod.Name+pkg.ModSubPath, err.Error())
 				}
 
 				// write the object file path and mark the goroutine as finished
 				objFilePathCh <- objFilePath
-				wg.Done()
 			}(pkg)
 		}
 	}
@@ -170,19 +175,23 @@ func (c *Compiler) Generate() {
 	}
 	vsDevCmdPath := filepath.Join(string(output[:len(output)-2]), "VC/Auxiliary/Build/vcvars64.bat")
 
-	// wait for the object files to finish generating and collect the object
-	// file paths into slice
-	wg.Wait()
-
-	if objFileGenFailed {
-		// errors reported during object file generation (not here)
-		os.Exit(1)
-	}
+	// collect the object file paths into slice (this also ensures we don't
+	// proceed until compilation is done)
 
 	var objFilePaths []string
 	for i := 0; i < nObjFiles; i++ {
 		objFilePaths = append(objFilePaths, <-objFilePathCh)
 	}
+
+	close(objFilePathCh)
+
+	// generate and compile the initialization module
+	sb.BuildMainInitFunc()
+	initObjPath := filepath.Join(tempPath, "init.o")
+	if err := compileLLVMModule(llcPath, sb.GetInitMod(), initObjPath); err != nil {
+		report.ReportFatal("failed to run llc on the init module:\n %s", err.Error())
+	}
+	objFilePaths = append(objFilePaths, initObjPath)
 
 	// determine all the objects that need to be linked.  We first link to
 	// several import libraries that are used by all applications.  Then we add
@@ -340,6 +349,26 @@ func (c *Compiler) typeCheck() {
 }
 
 // -----------------------------------------------------------------------------
+
+// compileLLVMModule takes an LLVM module and an output path and attempts to
+// compile it to an object file using LLC.  It returns an error if it fails.
+func compileLLVMModule(llcPath string, mod *ir.Module, objFilePath string) error {
+	// write LLVM module to text file
+	modFilePath := objFilePath[:len(objFilePath)-2] + ".ll"
+	writeOutputFile(modFilePath, mod.String())
+
+	// compile LLVM module using LLC
+	llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
+	stderrBuff := bytes.Buffer{}
+	llc.Stderr = &stderrBuff
+
+	err := llc.Run()
+	if err != nil {
+		return errors.New(stderrBuff.String())
+	}
+
+	return nil
+}
 
 // writeOutputFile is used to quickly write an output file for the compiler.
 func writeOutputFile(fpath, content string) {

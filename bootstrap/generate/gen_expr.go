@@ -295,8 +295,6 @@ func (g *Generator) genIntrinsic(iname string, operands []ast.Expr) value.Value 
 	case "eq":
 		// TODO: amend to support other types
 		return g.block.NewICmp(enum.IPredEQ, llOperands[0], llOperands[1])
-	case "__init":
-		return g.block.NewCall(g.initFunc)
 	}
 
 	log.Fatalln("intrinsic not implemented yet")

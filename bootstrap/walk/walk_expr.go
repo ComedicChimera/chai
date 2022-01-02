@@ -49,8 +49,8 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 		// just lookup the identifier for now
 		if sym, ok := w.lookup(v.Name, v.Pos); ok {
 			// check that the definition kinds match up
-			// TODO: handle constants
-			if sym.DefKind != depm.DKValueDef {
+			// TODO: handle constants and constraints
+			if sym.DefKind == depm.DKTypeDef {
 				w.reportError(v.Pos, "cannot use %s as value", depm.ReprDefKind(sym.DefKind))
 			}
 

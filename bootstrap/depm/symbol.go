@@ -34,8 +34,9 @@ type Symbol struct {
 
 // Enumeration of definition kinds.
 const (
-	DKValueDef = iota // Variables, Functions
-	DKTypeDef
+	DKValueDef = iota // Variables
+	DKFuncDef         // Functions
+	DKTypeDef         // Type Definitions
 	DKUnknown
 )
 
@@ -44,6 +45,8 @@ func ReprDefKind(dkind int) string {
 	switch dkind {
 	case DKValueDef:
 		return "value"
+	case DKFuncDef:
+		return "function"
 	case DKTypeDef:
 		return "type"
 	default:
