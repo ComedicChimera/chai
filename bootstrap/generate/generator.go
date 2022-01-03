@@ -121,7 +121,7 @@ func (g *Generator) Generate() *ir.Module {
 	// declare all imports
 	for _, pkgImport := range g.pkg.ImportedPackages {
 		// calculate the global prefix for the imported package's symbols
-		importPrefix := fmt.Sprintf("%d.", pkgImport.Pkg.ID)
+		importPrefix := fmt.Sprintf("p%d.", pkgImport.Pkg.ID)
 
 		// imported symbols
 		for _, sym := range pkgImport.Symbols {

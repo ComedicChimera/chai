@@ -97,7 +97,8 @@ func (p *Parser) parseImportStmt() bool {
 					return false
 				}
 
-				p.chFile.ImportedSymbols[isym.Name] = &depm.Symbol{
+				// add the symbol to the file's import table
+				sym := &depm.Symbol{
 					Name: isym.Name,
 					Pkg:  importedPkg,
 					// the DefPosition is set to the isymbol's position for
@@ -108,6 +109,10 @@ func (p *Parser) parseImportStmt() bool {
 					Mutability:  depm.NeverMutated,
 					Public:      true,
 				}
+				p.chFile.ImportedSymbols[isym.Name] = sym
+
+				// add it the global import table
+				p.chFile.Parent.ImportedPackages[importedPkg.ID].Symbols[isym.Name] = sym
 			} else {
 				// operator imports
 
@@ -128,6 +133,7 @@ func (p *Parser) parseImportStmt() bool {
 					Public:   true,
 				}
 
+				// add the overload to file's import table
 				if op, ok := p.chFile.ImportedOperators[isym.OpKind]; ok {
 					op.Overloads = append(op.Overloads, overload)
 				} else {
@@ -136,6 +142,8 @@ func (p *Parser) parseImportStmt() bool {
 						Overloads: []*depm.OperatorOverload{overload},
 					}
 				}
+
+				// TODO: add the operator overload to the global import table
 			}
 		}
 	} else {
@@ -253,7 +261,8 @@ func (p *Parser) parsePkgPath(moduleName string, moduleNamePos *report.TextPosit
 // isymbol = 'IDENTIFIER' | '(' operator ')'
 func (p *Parser) parseISymbol() (isymbol, bool) {
 	if p.got(IDENTIFIER) {
-		return isymbol{Name: p.tok.Value, OpKind: -1, Pos: p.tok.Position}, p.next()
+		isym := isymbol{Name: p.tok.Value, OpKind: -1, Pos: p.tok.Position}
+		return isym, p.next()
 	}
 
 	if !p.assertAndNext(LPAREN) {
@@ -261,7 +270,8 @@ func (p *Parser) parseISymbol() (isymbol, bool) {
 	}
 
 	if opTok, ok := p.parseOperator(); ok {
-		return isymbol{Name: opTok.Value, OpKind: opTok.Kind, Pos: opTok.Position}, p.assertAndNext(RPAREN)
+		isym := isymbol{Name: opTok.Value, OpKind: opTok.Kind, Pos: opTok.Position}
+		return isym, p.assertAndNext(RPAREN)
 	}
 
 	return isymbol{}, false

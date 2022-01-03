@@ -196,13 +196,14 @@ type ChaiModule struct {
 
 // Packages gets a list of the packages of this module.
 func (m *ChaiModule) Packages() []*ChaiPackage {
-	pkgs := make([]*ChaiPackage, len(m.SubPackages)+1)
-	pkgs[0] = m.RootPackage
+	var pkgs []*ChaiPackage
 
-	n := 1
+	if m.RootPackage != nil {
+		pkgs = []*ChaiPackage{m.RootPackage}
+	}
+
 	for _, pkg := range m.SubPackages {
-		pkgs[n] = pkg
-		n++
+		pkgs = append(pkgs, pkg)
 	}
 
 	return pkgs

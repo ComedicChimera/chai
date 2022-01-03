@@ -12,6 +12,8 @@ func (r *Resolver) resolveImports() bool {
 			for _, file := range pkg.Files {
 				// first lookup imported symbols
 				for _, isym := range file.ImportedSymbols {
+					importedPkgPath := isym.Pkg.Parent.Name + isym.Pkg.ModSubPath
+
 					if sym, ok := isym.Pkg.SymbolTable[isym.Name]; ok {
 						// symbols must be public
 						if sym.Public {
@@ -23,7 +25,7 @@ func (r *Resolver) resolveImports() bool {
 								file.Context,
 								// DefPosition here is position of the symbol import
 								isym.DefPosition,
-								fmt.Sprintf("symbol named `%s` is not public in package `%s`", sym.Name, mod.Name+pkg.ModSubPath),
+								fmt.Sprintf("symbol named `%s` is not public in package `%s`", sym.Name, importedPkgPath),
 							)
 						}
 					} else {
@@ -31,7 +33,7 @@ func (r *Resolver) resolveImports() bool {
 							file.Context,
 							// DefPosition here is position of the symbol import
 							isym.DefPosition,
-							fmt.Sprintf("no symbol named `%s` defined in package `%s`", sym.Name, mod.Name+pkg.ModSubPath),
+							fmt.Sprintf("no symbol named `%s` defined in package `%s`", isym.Name, importedPkgPath),
 						)
 					}
 				}

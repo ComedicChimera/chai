@@ -124,13 +124,18 @@ func (w *Walker) lookup(name string, pos *report.TextPosition) (*depm.Symbol, bo
 // lookupGlobal looks up a symbol exclusively in the global namespace and in the
 // list of imported symbols.  It throws an error if the symbol is not defined.
 func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symbol, bool) {
-	// TODO: local symbol imports
-
 	// global symbol table
 	if sym, ok := w.chFile.Parent.SymbolTable[name]; ok {
 		// add the global symbol to the list of dependencies
 		w.deps[sym.Name] = struct{}{}
 
+		return sym, true
+	}
+
+	// local symbol imports
+	if sym, ok := w.chFile.ImportedSymbols[name]; ok {
+		// no need to mark it as a dependency: always declared first and not
+		// defined within the package
 		return sym, true
 	}
 

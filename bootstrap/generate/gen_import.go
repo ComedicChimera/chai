@@ -29,12 +29,26 @@ func (g *Generator) genSymbolImport(importPrefix string, sym *depm.Symbol) {
 			llFunc := g.mod.NewFunc(importPrefix+sym.Name, g.convType(symFt.ReturnType), params...)
 			llFunc.Linkage = enum.LinkageExternal
 			llFunc.FuncAttrs = append(llFunc.FuncAttrs, enum.FuncAttrNoUnwind)
+
+			// TODO: amend this handle dot operator lookups
+			// add it to global scope so it can be looked up
+			g.globalScope[sym.Name] = LLVMIdent{
+				Val:     llFunc,
+				Mutable: false,
+			}
 		}
 	case depm.DKValueDef:
 		{
 			glob := g.mod.NewGlobal(importPrefix+sym.Name, g.convType(sym.Type))
 			glob.ExternallyInitialized = true
 			glob.Linkage = enum.LinkageExternal
+
+			// TODO: amend this handle dot operator lookups
+			// add it to global scope so it can be looked up
+			g.globalScope[sym.Name] = LLVMIdent{
+				Val:     glob,
+				Mutable: false,
+			}
 		}
 	default:
 		log.Fatalln("other kinds of imports not yet implemented")
