@@ -164,6 +164,12 @@ func NewPackage(parentMod *ChaiModule, abspath string) (*ChaiPackage, bool) {
 	return pkg, true
 }
 
+// Path returns the full package path string for the package for the purposes
+// of error reporting: eg. `io.std` or `core.runtime`.
+func (pkg *ChaiPackage) Path() string {
+	return pkg.Parent.Name + pkg.ModSubPath
+}
+
 // -----------------------------------------------------------------------------
 
 // ChaiModule represents a Chai module.
@@ -192,19 +198,4 @@ type ChaiModule struct {
 
 	// LastBuildTime is a field used by modules to support compilation caching.
 	LastBuildTime *time.Time
-}
-
-// Packages gets a list of the packages of this module.
-func (m *ChaiModule) Packages() []*ChaiPackage {
-	var pkgs []*ChaiPackage
-
-	if m.RootPackage != nil {
-		pkgs = []*ChaiPackage{m.RootPackage}
-	}
-
-	for _, pkg := range m.SubPackages {
-		pkgs = append(pkgs, pkg)
-	}
-
-	return pkgs
 }

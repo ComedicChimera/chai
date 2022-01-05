@@ -32,10 +32,20 @@ type Compiler struct {
 	// profile is current build profile of the compiler.
 	profile *BuildProfile
 
-	// depGraph is the global package dependency graph.  It cannot be organized
-	// by module name because module names are not guaranteed by unique within a
-	// single compilation.
+	// depGraph is the global dependency graph: a table of modules organized by
+	// ID.  It is used to locate packages by their package path (ie. resolve
+	// imports).  It cannot be organized by module name because module names are
+	// not guaranteed by unique within a single project.
 	depGraph map[uint64]*depm.ChaiModule
+
+	// pkgList is an unorganized list of all the individual packages to be
+	// compiled into the resulting binary output.  While it is possible to
+	// determine a listing a packages using the dependency graph, doing so
+	// requires a non-trivial amount of computation.  Since this operation is
+	// performed many times during compilation, the admittedly slight
+	// performance boost and added convenience of this auxilliary list is well
+	// worth the small memory cost.
+	pkgList []*depm.ChaiPackage
 }
 
 // NewCompiler creates a new compiler.
@@ -81,16 +91,14 @@ func (c *Compiler) Analyze() bool {
 	}
 
 	// resolve global symbols and check for recursive types
-	r := resolve.NewResolver(c.depGraph)
+	r := resolve.NewResolver(c.pkgList)
 	if !r.Resolve() {
 		return false
 	}
 
 	// check for operator collisions
-	for _, mod := range c.depGraph {
-		for _, pkg := range mod.Packages() {
-			depm.CheckOperatorCollisions(pkg)
-		}
+	for _, pkg := range c.pkgList {
+		depm.CheckOperatorCollisions(pkg)
 	}
 
 	if !report.ShouldProceed() {
@@ -132,7 +140,7 @@ func (c *Compiler) Generate() {
 	os.MkdirAll(tempPath, os.ModeDir)
 
 	// create the global start builder
-	sb := generate.NewStartBuilder(c.depGraph)
+	sb := generate.NewStartBuilder(len(c.pkgList))
 
 	// compile each package in the dependency graph into an object file
 	// concurrently and write the object file paths to a channel to they can be
@@ -140,25 +148,23 @@ func (c *Compiler) Generate() {
 	objFilePathCh := make(chan string)
 	nObjFiles := 0
 
-	for _, mod := range c.depGraph {
-		for _, pkg := range mod.Packages() {
-			nObjFiles += 1
+	for _, pkg := range c.pkgList {
+		nObjFiles += 1
 
-			go func(pkg *depm.ChaiPackage) {
-				// generate the LLVM module
-				g := generate.NewGenerator(sb, pkg, pkg.ID == c.rootModule.RootPackage.ID)
-				llMod := g.Generate()
+		go func(pkg *depm.ChaiPackage) {
+			// generate the LLVM module
+			g := generate.NewGenerator(sb, pkg, pkg.ID == c.rootModule.RootPackage.ID)
+			llMod := g.Generate()
 
-				// generate the object file
-				objFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.o", pkg.ID))
-				if err := compileLLVMModule(llcPath, llMod, objFilePath); err != nil {
-					report.ReportFatal("failed to run llc on `%s`:\n %s", mod.Name+pkg.ModSubPath, err.Error())
-				}
+			// generate the object file
+			objFilePath := filepath.Join(tempPath, fmt.Sprintf("pkg%d.o", pkg.ID))
+			if err := compileLLVMModule(llcPath, llMod, objFilePath); err != nil {
+				report.ReportFatal("failed to run llc on `%s`:\n %s", pkg.Path(), err.Error())
+			}
 
-				// write the object file path and mark the goroutine as finished
-				objFilePathCh <- objFilePath
-			}(pkg)
-		}
+			// write the object file path and mark the goroutine as finished
+			objFilePathCh <- objFilePath
+		}(pkg)
 	}
 
 	// find the path to the VS developer prompt (to execute link.exe) using
@@ -234,6 +240,9 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 		return nil, false
 	}
 
+	// add the package to the package list
+	c.pkgList = append(c.pkgList, pkg)
+
 	// list the elements of the package directory
 	finfos, err := ioutil.ReadDir(pkgAbsPath)
 	if err != nil {
@@ -285,14 +294,12 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 // determines all the generic instances to be used in generic evaluation.  It
 // then evaluates all generics.
 func (c *Compiler) typeCheck() {
-	for _, mod := range c.depGraph {
-		for _, pkg := range mod.Packages() {
-			for _, file := range pkg.Files {
-				w := walk.NewWalker(file)
+	for _, pkg := range c.pkgList {
+		for _, file := range pkg.Files {
+			w := walk.NewWalker(file)
 
-				for _, def := range file.Defs {
-					w.WalkDef(def)
-				}
+			for _, def := range file.Defs {
+				w.WalkDef(def)
 			}
 		}
 	}

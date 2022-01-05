@@ -1,8 +1,6 @@
 package generate
 
 import (
-	"chai/depm"
-
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
@@ -23,17 +21,11 @@ type StartBuilder struct {
 }
 
 // NewStartBuilder returns a new StartBuilder for the project.
-func NewStartBuilder(depGraph map[uint64]*depm.ChaiModule) *StartBuilder {
-	initFuncCount := 0
-	for _, mod := range depGraph {
-		for range mod.Packages() {
-			initFuncCount++
-		}
-	}
-
+func NewStartBuilder(pkgListLen int) *StartBuilder {
 	return &StartBuilder{
-		initMod:         ir.NewModule(),
-		initFuncNamesCh: make(chan string, initFuncCount),
+		initMod: ir.NewModule(),
+		// the maximum number of init functions equals to the number of packages
+		initFuncNamesCh: make(chan string, pkgListLen),
 	}
 }
 
