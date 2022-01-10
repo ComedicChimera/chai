@@ -1,6 +1,7 @@
 package resolve
 
 import (
+	"chai/depm"
 	"chai/report"
 	"fmt"
 )
@@ -37,11 +38,63 @@ func (r *Resolver) resolveImports() bool {
 				}
 			}
 
-			// TODO: then add operators: collisions checked later
-			for _, op := range file.ImportedOperators {
-				// TODO
-				_ = op
+			// then add operators: collisions checked later
+			importedOperators := make(map[int]*depm.Operator)
+			for opKind, op := range file.ImportedOperators {
+				importedPkgPath := op.Pkg.Path()
+				importPosition := op.Overloads[0].Position
+
+				// first, check that the package defines an operator matching
+				// the operator kind.
+				if impOp, ok := op.Pkg.OperatorTable[opKind]; ok {
+					// go through the list of overloads and copy over only the
+					// public overloads
+					var overloads []*depm.OperatorOverload
+					for _, overload := range impOp.Overloads {
+						if overload.Public {
+							// change the position to reflect that of the
+							// imported operator (so that errors can be handled
+							// appropriately)
+							overloads = append(overloads, &depm.OperatorOverload{
+								Signature: overload.Signature,
+								Context:   file.Context,
+								Position:  importPosition,
+								Public:    false,
+							})
+						}
+					}
+
+					// no overloads => no public operators to import
+					if len(overloads) == 0 {
+						report.ReportCompileError(
+							file.Context,
+							importPosition,
+							fmt.Sprintf("no public overloads for operator `%s` defined in package `%s`", op.OpName, importedPkgPath),
+						)
+
+						return false
+					}
+
+					// operator exists and has public overloads => add it
+					importedOperators[opKind] = &depm.Operator{
+						Pkg:       op.Pkg,
+						OpName:    op.OpName,
+						Overloads: overloads,
+					}
+				} else {
+					report.ReportCompileError(
+						file.Context,
+						// first overload is position of imported operator
+						importPosition,
+						fmt.Sprintf("no definitions for operator `%s` defined in package `%s`", op.OpName, importedPkgPath),
+					)
+
+					return false
+				}
+
 			}
+
+			file.ImportedOperators = importedOperators
 		}
 	}
 

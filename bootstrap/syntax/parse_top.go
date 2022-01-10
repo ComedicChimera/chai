@@ -601,6 +601,7 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 		operator.Overloads = append(operator.Overloads, opOverload)
 	} else {
 		operator := &depm.Operator{
+			Pkg:       p.chFile.Parent,
 			OpName:    opToken.Value,
 			Overloads: []*depm.OperatorOverload{opOverload},
 		}

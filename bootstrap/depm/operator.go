@@ -8,6 +8,9 @@ import (
 
 // Operator is a defined operator in a specific package.
 type Operator struct {
+	// Pkg is the package containing the operator.
+	Pkg *ChaiPackage
+
 	// OpName is the token name of the operaotr.
 	OpName string
 
@@ -55,4 +58,20 @@ func CheckOperatorCollisions(pkg *ChaiPackage) {
 	}
 
 	// TODO: check for imported operator conflicts
+}
+
+// operatorCollides checks if a specific overload collides with another
+// overload.
+func operatorCollides(overloadA, overloadB *OperatorOverload) bool {
+	if len(overloadA.Signature.Args) == len(overloadB.Signature.Args) {
+		for i, arg := range overloadA.Signature.Args {
+			if !arg.Equiv(overloadB.Signature.Args[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
 }

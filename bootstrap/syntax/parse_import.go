@@ -81,7 +81,7 @@ func (p *Parser) parseImportStmt() bool {
 		chPkgImport = depm.ChaiPackageImport{
 			Pkg:       importedPkg,
 			Symbols:   make(map[string]*depm.Symbol),
-			Operators: make(map[int]*depm.Operator),
+			Operators: make(map[int]struct{}),
 		}
 		p.chFile.Parent.ImportedPackages[importedPkg.ID] = chPkgImport
 	}
@@ -138,12 +138,14 @@ func (p *Parser) parseImportStmt() bool {
 					op.Overloads = append(op.Overloads, overload)
 				} else {
 					p.chFile.ImportedOperators[isym.OpKind] = &depm.Operator{
+						Pkg:       importedPkg,
 						OpName:    isym.Name,
 						Overloads: []*depm.OperatorOverload{overload},
 					}
 				}
 
-				// TODO: add the operator overload to the global import table
+				// add the operator overload to the global import table
+				p.chFile.Parent.ImportedPackages[importedPkg.ID].Operators[isym.OpKind] = struct{}{}
 			}
 		}
 	} else {
