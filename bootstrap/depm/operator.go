@@ -36,28 +36,56 @@ func CheckOperatorCollisions(pkg *ChaiPackage) {
 	// check globally defined operator collisions
 	for _, op := range pkg.OperatorTable {
 		for i, overload := range op.Overloads {
-		searchloop:
+			// no need to look through import collisions: imports collide with
+			// globals not the other way around
 			for j, o2 := range op.Overloads {
-				if i != j {
-					if len(overload.Signature.Args) == len(o2.Signature.Args) {
-						for k, arg := range overload.Signature.Args {
-							if !arg.Equiv(o2.Signature.Args[k]) {
-								continue searchloop
-							}
-						}
+				if i != j && operatorCollides(overload, o2) {
+					report.ReportCompileError(
+						overload.Context,
+						overload.Position,
+						fmt.Sprintf("conflicting definitions for `%s`: `%s` v `%s`", op.OpName, overload.Signature.Repr(), o2.Signature.Repr()),
+					)
+				}
+			}
+		}
+	}
 
+	// check for imported operator conflicts
+	for _, file := range pkg.Files {
+		for _, op := range file.ImportedOperators {
+			for i, overload := range op.Overloads {
+				// check for conflicts between imported and global operators
+				for _, o2 := range op.Overloads {
+					if operatorCollides(overload, o2) {
 						report.ReportCompileError(
 							overload.Context,
 							overload.Position,
-							fmt.Sprintf("conflicting definitions for `%s`: `%s` v `%s`", op.OpName, overload.Signature.Repr(), o2.Signature.Repr()),
+							fmt.Sprintf("imported operator definitions for `%s` conflict with global definitions: `%s` v `%s`",
+								op.OpName,
+								overload.Signature.Repr(),
+								o2.Signature.Repr(),
+							),
+						)
+					}
+				}
+
+				// check for conflicts between imported operators in the same file
+				for j, o2 := range op.Overloads {
+					if i != j && operatorCollides(overload, o2) {
+						report.ReportCompileError(
+							overload.Context,
+							overload.Position,
+							fmt.Sprintf("imported operator definitions for `%s` conflict with other imported definitions: `%s` v `%s`",
+								op.OpName,
+								overload.Signature.Repr(),
+								o2.Signature.Repr(),
+							),
 						)
 					}
 				}
 			}
 		}
 	}
-
-	// TODO: check for imported operator conflicts
 }
 
 // operatorCollides checks if a specific overload collides with another

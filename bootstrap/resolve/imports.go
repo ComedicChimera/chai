@@ -6,6 +6,27 @@ import (
 	"fmt"
 )
 
+// checkImportGlobalCollisions checks to make sure imported symbols don't
+// collide with global symbols.  This has to be done after all the global
+// symbols are already defined.
+func (r *Resolver) checkImportCollisions() bool {
+	for _, pkg := range r.pkgList {
+		for _, file := range pkg.Files {
+			for _, isym := range file.ImportedSymbols {
+				if _, ok := pkg.SymbolTable[isym.Name]; ok {
+					report.ReportCompileError(
+						file.Context,
+						isym.DefPosition,
+						fmt.Sprintf("imported name `%s` collides with global name", isym.Name),
+					)
+				}
+			}
+		}
+	}
+
+	return report.ShouldProceed()
+}
+
 // resolveImports resolves all imported symbols.
 func (r *Resolver) resolveImports() bool {
 	for _, pkg := range r.pkgList {

@@ -17,6 +17,11 @@ func NewResolver(pkgList []*depm.ChaiPackage) *Resolver {
 
 // Resolve runs the main resolution algorithm.
 func (r *Resolver) Resolve() bool {
+	// check for global import conflicts
+	if !r.checkImportCollisions() {
+		return false
+	}
+
 	// resolve imports
 	if !r.resolveImports() {
 		return false
