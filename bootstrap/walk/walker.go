@@ -13,6 +13,10 @@ import (
 // up symbols, checks mutability, and performs all other necessary checks.  One
 // walker should be created per source file.
 type Walker struct {
+	// uni is the shared universe for the project.
+	uni *depm.Universe
+
+	// chFile is the Chai file currently being walked.
 	chFile *depm.ChaiFile
 
 	// scopes the stack of scopes that are pushed and popped during semantic
@@ -62,8 +66,9 @@ type Scope struct {
 // -----------------------------------------------------------------------------
 
 // NewWalker creates a new walker for the given source file.
-func NewWalker(chFile *depm.ChaiFile) *Walker {
+func NewWalker(uni *depm.Universe, chFile *depm.ChaiFile) *Walker {
 	return &Walker{
+		uni:    uni,
 		chFile: chFile,
 		solver: typing.NewSolver(chFile.Context),
 	}
@@ -124,7 +129,7 @@ func (w *Walker) lookup(name string, pos *report.TextPosition) (*depm.Symbol, bo
 // lookupGlobal looks up a symbol exclusively in the global namespace and in the
 // list of imported symbols.  It throws an error if the symbol is not defined.
 func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symbol, bool) {
-	// global symbol table
+	// global symbols
 	if sym, ok := w.chFile.Parent.SymbolTable[name]; ok {
 		// add the global symbol to the list of dependencies
 		w.deps[sym.Name] = struct{}{}
@@ -132,10 +137,15 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 		return sym, true
 	}
 
-	// local symbol imports
+	// imported symbols
 	if sym, ok := w.chFile.ImportedSymbols[name]; ok {
 		// no need to mark it as a dependency: always declared first and not
 		// defined within the package
+		return sym, true
+	}
+
+	// universal symbols
+	if sym, ok := w.uni.GetSymbol(name); ok {
 		return sym, true
 	}
 
@@ -146,13 +156,18 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 // lookupOperator retrieves the overloads for a particular operator. It reports
 // an error if the lookup fails.
 func (w *Walker) lookupOperator(aop ast.Oper) (*depm.Operator, bool) {
-	// local operators
+	// global operators
+	if op, ok := w.chFile.Parent.OperatorTable[aop.Kind]; ok {
+		return op, true
+	}
+
+	// imported operators
 	if op, ok := w.chFile.ImportedOperators[aop.Kind]; ok {
 		return op, true
 	}
 
-	// global operator
-	if op, ok := w.chFile.Parent.OperatorTable[aop.Kind]; ok {
+	// universal operators
+	if op, ok := w.uni.GetOperator(aop.Kind); ok {
 		return op, true
 	}
 

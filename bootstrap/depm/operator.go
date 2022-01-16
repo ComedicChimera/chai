@@ -31,32 +31,34 @@ type OperatorOverload struct {
 	Public bool
 }
 
+// -----------------------------------------------------------------------------
+
 // CheckOperatorCollisions checks for colliding definitions of operators.
 func CheckOperatorCollisions(pkg *ChaiPackage) {
+	// TODO: handle universal operator collisions
+
 	// check globally defined operator collisions
 	for _, op := range pkg.OperatorTable {
-		for i, overload := range op.Overloads {
+		for _, overload := range op.Overloads {
 			// no need to look through import collisions: imports collide with
 			// globals not the other way around
-			for j, o2 := range op.Overloads {
-				if i != j && operatorCollides(overload, o2) {
-					report.ReportCompileError(
-						overload.Context,
-						overload.Position,
-						fmt.Sprintf("conflicting definitions for `%s`: `%s` v `%s`", op.OpName, overload.Signature.Repr(), o2.Signature.Repr()),
-					)
-				}
+			if o2 := searchForCollisions(overload, op.Overloads); o2 != nil {
+				report.ReportCompileError(
+					overload.Context,
+					overload.Position,
+					fmt.Sprintf("conflicting definitions for `%s`: `%s` v `%s`", op.OpName, overload.Signature.Repr(), o2.Signature.Repr()),
+				)
 			}
 		}
 	}
 
 	// check for imported operator conflicts
 	for _, file := range pkg.Files {
-		for _, op := range file.ImportedOperators {
-			for i, overload := range op.Overloads {
+		for opKind, op := range file.ImportedOperators {
+			for _, overload := range op.Overloads {
 				// check for conflicts between imported and global operators
-				for _, o2 := range op.Overloads {
-					if operatorCollides(overload, o2) {
+				if globalOperator, ok := pkg.OperatorTable[opKind]; ok {
+					if o2 := searchForCollisions(overload, globalOperator.Overloads); o2 != nil {
 						report.ReportCompileError(
 							overload.Context,
 							overload.Position,
@@ -70,27 +72,42 @@ func CheckOperatorCollisions(pkg *ChaiPackage) {
 				}
 
 				// check for conflicts between imported operators in the same file
-				for j, o2 := range op.Overloads {
-					if i != j && operatorCollides(overload, o2) {
-						report.ReportCompileError(
-							overload.Context,
-							overload.Position,
-							fmt.Sprintf("imported operator definitions for `%s` conflict with other imported definitions: `%s` v `%s`",
-								op.OpName,
-								overload.Signature.Repr(),
-								o2.Signature.Repr(),
-							),
-						)
-					}
+				if o2 := searchForCollisions(overload, op.Overloads); o2 != nil {
+					report.ReportCompileError(
+						overload.Context,
+						overload.Position,
+						fmt.Sprintf("imported operator definitions for `%s` conflict with other imported definitions: `%s` v `%s`",
+							op.OpName,
+							overload.Signature.Repr(),
+							o2.Signature.Repr(),
+						),
+					)
 				}
 			}
 		}
 	}
 }
 
-// operatorCollides checks if a specific overload collides with another
-// overload.
-func operatorCollides(overloadA, overloadB *OperatorOverload) bool {
+// searchForCollisions searches a list of overloads for collisions with a given
+// overload.  The overload can be contained within the overload list.  It
+// returns the colliding overload if one is found.
+func searchForCollisions(overload *OperatorOverload, overloadList []*OperatorOverload) *OperatorOverload {
+	for _, iOverload := range overloadList {
+		// check if the overloads point to the same definition before checking
+		// collision: an overload can't collide with itself
+		if overload != iOverload && opOverloadCollides(overload, iOverload) {
+			return iOverload
+		}
+	}
+
+	return nil
+}
+
+// opOverloadCollides checks if two overloads collide.
+func opOverloadCollides(overloadA, overloadB *OperatorOverload) bool {
+	// NOTE: A standard equivalency test won't work since two operators collide
+	// if and only if they have equivalent parameters: even if they have
+	// different return types.
 	if len(overloadA.Signature.Args) == len(overloadB.Signature.Args) {
 		for i, arg := range overloadA.Signature.Args {
 			if !arg.Equiv(overloadB.Signature.Args[i]) {

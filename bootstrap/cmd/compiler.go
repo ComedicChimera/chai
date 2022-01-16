@@ -7,7 +7,6 @@ import (
 	"chai/depm"
 	"chai/generate"
 	"chai/report"
-	"chai/resolve"
 	"chai/syntax"
 	"chai/typing"
 	"chai/walk"
@@ -46,6 +45,9 @@ type Compiler struct {
 	// performance boost and added convenience of this auxilliary list is well
 	// worth the small memory cost.
 	pkgList []*depm.ChaiPackage
+
+	// uni is the shared universe for the project.
+	uni *depm.Universe
 }
 
 // NewCompiler creates a new compiler.
@@ -61,6 +63,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 		rootAbsPath: rootAbsPath,
 		profile:     profile,
 		depGraph:    make(map[uint64]*depm.ChaiModule),
+		uni:         depm.NewUniverse(),
 	}
 }
 
@@ -91,7 +94,7 @@ func (c *Compiler) Analyze() bool {
 	}
 
 	// resolve global symbols and check for recursive types
-	r := resolve.NewResolver(c.pkgList)
+	r := depm.NewResolver(c.pkgList)
 	if !r.Resolve() {
 		return false
 	}
@@ -270,7 +273,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 			r := bufio.NewReader(file)
 
 			// create the parser for the file
-			p := syntax.NewParser(c.importPackgage, chFile, r)
+			p := syntax.NewParser(c.uni, c.importPackgage, chFile, r)
 
 			// parse the file and determine if it should be added
 			if p.Parse() {
@@ -296,7 +299,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 func (c *Compiler) typeCheck() {
 	for _, pkg := range c.pkgList {
 		for _, file := range pkg.Files {
-			w := walk.NewWalker(file)
+			w := walk.NewWalker(c.uni, file)
 
 			for _, def := range file.Defs {
 				w.WalkDef(def)

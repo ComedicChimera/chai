@@ -26,6 +26,21 @@ type ImportFunc func(*depm.ChaiModule, string, string) (*depm.ChaiPackage, bool)
 // production, leaving the parser on the next token.  Parsers are created once
 // per file.
 type Parser struct {
+	// uni is the shared universe for the project.
+	uni *depm.Universe
+
+	// importFunc is the function used to import a package.  It is really just
+	// callback to the compiler's `c.importPackage`, but since Go won't allow me
+	// to give the compiler reference to Parser (cyclic import), I have to do
+	// this instead.  You could argue that importing could be done by the
+	// compiler after parsing, but I would argue that that only adds unnecessary
+	// complexity since after each parse the compiler would have to determine
+	// what packages to import, and it would just complicate the process vs.
+	// simply importing recursively during parsing.
+	importFunc ImportFunc
+
+	// -------------------------------------------------------------------------
+
 	// chFile is the Chai source file being parsed.
 	chFile *depm.ChaiFile
 
@@ -37,24 +52,15 @@ type Parser struct {
 
 	// lookbehind is the token before the current token.
 	lookbehind *Token
-
-	// importFunc is the function used to import a package.  It is really just
-	// callback to the compiler's `c.importPackage`, but since Go won't allow me
-	// to give the compiler reference to Parser (cyclic import), I have to do
-	// this instead.  You could argue that importing could be done by the
-	// compiler after parsing, but I would argue that that only adds unnecessary
-	// complexity since after each parse the compiler would have to determine
-	// what packages to import, and it would just complicate the process vs.
-	// simply importing recursively during parsing.
-	importFunc ImportFunc
 }
 
 // NewParser creates a new parser for the given file and file reader.
-func NewParser(ifunc ImportFunc, chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
+func NewParser(uni *depm.Universe, ifunc ImportFunc, chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
 	return &Parser{
+		uni:        uni,
+		importFunc: ifunc,
 		chFile:     chFile,
 		lexer:      NewLexer(chFile.Context, r),
-		importFunc: ifunc,
 	}
 }
 
@@ -248,13 +254,15 @@ func (p *Parser) reportError(pos *report.TextPosition, msg string, a ...interfac
 
 // -----------------------------------------------------------------------------
 
-// defineGlobal defines a global symbol.
+// defineGlobal defines a global symbol.  It checks if the symbol conflicts with
+// any global definitions, but does NOT handle imported definitions.
 func (p *Parser) defineGlobal(sym *depm.Symbol) bool {
-	if _, ok := p.chFile.Parent.SymbolTable[sym.Name]; ok {
+	// check that it doesn't conflict with a global or universal symbol
+	if p.isGloballyDefined(sym.Name) {
 		report.ReportCompileError(
 			p.chFile.Context,
 			sym.DefPosition,
-			fmt.Sprintf("multiple symbols with name `%s` declared in scope", sym.Name),
+			fmt.Sprintf("multiple symbols named `%s` defined in scope", sym.Name),
 		)
 
 		return false
@@ -262,4 +270,19 @@ func (p *Parser) defineGlobal(sym *depm.Symbol) bool {
 
 	p.chFile.Parent.SymbolTable[sym.Name] = sym
 	return true
+}
+
+// isGloballyDefined returns if a symbol is already globally defined.
+func (p *Parser) isGloballyDefined(name string) bool {
+	// check that it doesn't conflict with a global symbol
+	if _, ok := p.chFile.Parent.SymbolTable[name]; ok {
+		return true
+	}
+
+	// check that it doesn't conflict with a symbol defined in the universe
+	if _, ok := p.uni.GetSymbol(name); ok {
+		return true
+	}
+
+	return false
 }

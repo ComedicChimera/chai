@@ -1,10 +1,41 @@
-package resolve
+package depm
 
 import (
-	"chai/depm"
 	"chai/report"
 	"fmt"
 )
+
+// Resolver is responsible for resolving all global symbol dependencies: namely,
+// those on imported symbols and globally-defined types.  It also checks for
+// recursive types.  This is run before type checking so local symbols are not
+// processed until after resolution is completed.
+type Resolver struct {
+	pkgList []*ChaiPackage
+}
+
+// NewResolver creates a new resolver for the given dependency graph.
+func NewResolver(pkgList []*ChaiPackage) *Resolver {
+	return &Resolver{pkgList: pkgList}
+}
+
+// Resolve runs the main resolution algorithm.
+func (r *Resolver) Resolve() bool {
+	// check for global import conflicts
+	if !r.checkImportCollisions() {
+		return false
+	}
+
+	// resolve imports
+	if !r.resolveImports() {
+		return false
+	}
+
+	// TODO: resolved named types and check for recursive types
+
+	return true
+}
+
+// -----------------------------------------------------------------------------
 
 // checkImportGlobalCollisions checks to make sure imported symbols don't
 // collide with global symbols.  This has to be done after all the global
@@ -60,7 +91,7 @@ func (r *Resolver) resolveImports() bool {
 			}
 
 			// then add operators: collisions checked later
-			importedOperators := make(map[int]*depm.Operator)
+			importedOperators := make(map[int]*Operator)
 			for opKind, op := range file.ImportedOperators {
 				importedPkgPath := op.Pkg.Path()
 				importPosition := op.Overloads[0].Position
@@ -70,13 +101,13 @@ func (r *Resolver) resolveImports() bool {
 				if impOp, ok := op.Pkg.OperatorTable[opKind]; ok {
 					// go through the list of overloads and copy over only the
 					// public overloads
-					var overloads []*depm.OperatorOverload
+					var overloads []*OperatorOverload
 					for _, overload := range impOp.Overloads {
 						if overload.Public {
 							// change the position to reflect that of the
 							// imported operator (so that errors can be handled
 							// appropriately)
-							overloads = append(overloads, &depm.OperatorOverload{
+							overloads = append(overloads, &OperatorOverload{
 								Signature: overload.Signature,
 								Context:   file.Context,
 								Position:  importPosition,
@@ -97,7 +128,7 @@ func (r *Resolver) resolveImports() bool {
 					}
 
 					// operator exists and has public overloads => add it
-					importedOperators[opKind] = &depm.Operator{
+					importedOperators[opKind] = &Operator{
 						Pkg:       op.Pkg,
 						OpName:    op.OpName,
 						Overloads: overloads,

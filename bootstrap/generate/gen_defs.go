@@ -72,10 +72,8 @@ var noMangleAnnotations = []string{
 
 // genFunc generates an LLVM function definition.
 func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.DataType, body ast.Expr, public bool, annotations map[string]string) {
-	// check for intrinsics (they aren't actually generated)
-	if hasAnnot(annotations, "intrinsic") || hasAnnot(annotations, "intrinsicop") {
-		return
-	}
+	// NOTE: There is no need to check for intrinsics: they are stored in the
+	// universe which is handled separately.
 
 	// build the base LLVM function
 	var params []*ir.Param
