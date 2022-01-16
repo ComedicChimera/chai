@@ -640,6 +640,6 @@ func (p *Parser) addToOperTable(table map[int]*depm.Operator, kind int, name str
 			Overloads: []*depm.OperatorOverload{overload},
 		}
 
-		p.chFile.Parent.OperatorTable[kind] = operator
+		table[kind] = operator
 	}
 }
