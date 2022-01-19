@@ -82,3 +82,5 @@ type OperDef struct {
 func (od *OperDef) Names() []string {
 	return nil
 }
+
+// -----------------------------------------------------------------------------
