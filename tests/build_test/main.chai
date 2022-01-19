@@ -1,5 +1,3 @@
-import core
-import core.runtime
 import puti, putr from io.std
 
 def main()

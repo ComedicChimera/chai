@@ -93,6 +93,9 @@ func (c *Compiler) Analyze() bool {
 		return false
 	}
 
+	// add the prelude packages and imports to the project
+	c.addPrelude()
+
 	// resolve global symbols and check for recursive types
 	r := depm.NewResolver(c.pkgList)
 	if !r.Resolve() {
