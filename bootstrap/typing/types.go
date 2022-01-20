@@ -242,3 +242,81 @@ func (rt *RefType) Equiv(other DataType) bool {
 func (rt *RefType) Repr() string {
 	return "&" + rt.ElemType.Repr()
 }
+
+// -----------------------------------------------------------------------------
+
+// NOTE: For all named types, the `Name` field is always prefixed by the name
+// of the package it is defined in.  However, it is not sufficient to compare
+// two named types solely using this name: two different packages may have the
+// smae name within one project.  The `ParentID` field should also be used.
+
+// NamedType is the base for all named types in Chai.
+type NamedType struct {
+	Name     string
+	ParentID uint64
+}
+
+func (nt *NamedType) Repr() string {
+	return nt.Name
+}
+
+// -----------------------------------------------------------------------------
+
+// AliasType is used to represent a defined type alias.
+type AliasType struct {
+	NamedType
+
+	Type DataType
+}
+
+func (at *AliasType) Equals(other DataType) bool {
+	if oat, ok := other.(*AliasType); ok {
+		return at.Name == oat.Name && at.ParentID == oat.ParentID
+	}
+
+	return false
+}
+
+func (at *AliasType) Equiv(other DataType) bool {
+	return InnerType(at.Type).Equiv(InnerType(other))
+}
+
+// -----------------------------------------------------------------------------
+
+// StructType represents a pure structure type.
+type StructType struct {
+	NamedType
+
+	// Fields enumerates the fields of the struct in order.
+	Fields []StructField
+
+	// FieldsByName is an auxilliary map used to look up structure fields by
+	// name instead of by position.
+	FieldsByName map[string]int
+}
+
+// StructField is a single field within a structure type.
+type StructField struct {
+	Name   string
+	Type   DataType
+	Public bool
+
+	// Initialized indicates whether this field has a default initializer within
+	// the struct definition.
+	Initialized bool
+
+	// TODO: field annotations?
+}
+
+func (st *StructType) Equals(other DataType) bool {
+	if ost, ok := other.(*StructType); ok {
+		return st.Name == ost.Name && st.ParentID == ost.ParentID
+	}
+
+	return false
+}
+
+func (st *StructType) Equiv(other DataType) bool {
+	// equivalency for structures is the same as equality
+	return st.Equals(other)
+}

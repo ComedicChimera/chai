@@ -1,6 +1,9 @@
 package ast
 
-import "chai/typing"
+import (
+	"chai/typing"
+	"go/ast"
+)
 
 // Def represents a top level definition in user source code.
 type Def interface {
@@ -84,3 +87,16 @@ func (od *OperDef) Names() []string {
 }
 
 // -----------------------------------------------------------------------------
+
+// StructDef is the AST node for a stucture type definition.
+type StructDef struct {
+	DefBase
+
+	Name       string
+	Type       *typing.StructType
+	FieldInits map[string]ast.Expr
+}
+
+func (sd *StructDef) Names() []string {
+	return []string{sd.Name}
+}

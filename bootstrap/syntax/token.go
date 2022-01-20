@@ -249,5 +249,5 @@ var symbolPatterns = map[string]int{
 	",":  COMMA,
 	";":  SEMICOLON,
 	":":  COLON,
-	"->": ARROW,
+	"=>": ARROW,
 }
