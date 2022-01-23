@@ -1,16 +1,12 @@
-## Idea
-We need to find a way to teach and document Chai in an efficient and engaging manner.  A definitive reference of some form is an absolute must, but such a reference, unless presented in a very organized and approachable manner, will be hard for beginners.
+# The Spec
+The Spec (specification) will be the definitive reference for the Chai programming language.  This will be the primary source of documentation until the Tour (discussed next) is completed.
 
-## Proposal
-We have two pieces of documentation:
-1. **The Book**: The book will be the definitive reference for the Chai programming language.  This will be the primary source of documentation until the Tour (discussed next) is completed.
-2. **The Tour**: This will be an interactive, online walkthrough (built around the playground) that gives a basic "tutorial introduction" to Chai and its features.  It will essentially be a series of panels documenting different features paired with an exercise to help the reader practice their skills.
+The Spec will be layed out in a series of chapters which are made up of sections.  It will be hosted digitally on [chai-lang.dev](https://chai-lang.dev). 
 
-## Book Layout
-The book will be layed out in a series of chapters which are made up of sections.  This book will be hosted digitally on [chai-lang.dev](https://chai-lang.dev).  The layout of this book will be as follows:
+## Spec Layout
 
 ### Introduction
-The purpose of this small chapter is to introduce the premise of the book.  This section must mention that this book is written with the *standard Chai compiler* in mind (`chaic`).
+The purpose of this small chapter is to introduce the premise of the Spec.  This section must mention that this book is written with the *standard Chai compiler* in mind (`chaic`).
 
 This should mention the impetus for the design of the language as well as provide a formal introduction to the notation scheme used in the book.
 

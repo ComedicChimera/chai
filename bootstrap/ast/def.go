@@ -2,7 +2,6 @@ package ast
 
 import (
 	"chai/typing"
-	"go/ast"
 )
 
 // Def represents a top level definition in user source code.
@@ -94,7 +93,7 @@ type StructDef struct {
 
 	Name       string
 	Type       *typing.StructType
-	FieldInits map[string]ast.Expr
+	FieldInits map[string]Expr
 }
 
 func (sd *StructDef) Names() []string {

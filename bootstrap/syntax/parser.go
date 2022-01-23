@@ -93,11 +93,13 @@ func (p *Parser) Parse() bool {
 // next moves the parser forward one token.  It automatically skips newlines
 // after certain tokens: namely, `(`, `[`, `{`, `->`, and `,` -- ie. if the
 // parser is currently positioned on one of those tokens, newlines will be
-// skipped.  This allows newlines to be placed in convenient positions.
+// skipped.  This allows newlines to be placed in convenient positions.  It also
+// automatically combines newlines: if one newline is expected, any that occur
+// after it are automatically skipped.
 func (p *Parser) next() bool {
 	// check for automatic newline skips
 	switch p.tok.Kind {
-	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON:
+	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON, NEWLINE:
 		lookbehind := p.tok
 
 		for {

@@ -256,6 +256,10 @@ type NamedType struct {
 	ParentID uint64
 }
 
+func NewNamedType(pkgName, name string, parentID uint64) NamedType {
+	return NamedType{Name: pkgName + "." + name, ParentID: parentID}
+}
+
 func (nt *NamedType) Repr() string {
 	return nt.Name
 }
