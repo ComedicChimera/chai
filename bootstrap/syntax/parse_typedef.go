@@ -47,8 +47,8 @@ func (p *Parser) parseStructBody(name string, namePos *report.TextPosition, anno
 
 	// collect the data from the body
 	st := &typing.StructType{
-		NamedType:    typing.NewNamedType(p.chFile.Parent.Name, name, p.chFile.Parent.ID),
-		FieldsByName: make(map[string]int),
+		NamedTypeBase: typing.NewNamedTypeBase(p.chFile.Parent.Name, name, p.chFile.Parent.ID),
+		FieldsByName:  make(map[string]int),
 	}
 	fieldInits := make(map[string]ast.Expr)
 

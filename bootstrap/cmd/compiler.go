@@ -119,7 +119,7 @@ func (c *Compiler) Analyze() bool {
 	// check for main function
 	if mainSym, ok := c.rootModule.RootPackage.SymbolTable["main"]; ok && mainSym.DefKind == depm.DKFuncDef {
 		if mainFt, ok := mainSym.Type.(*typing.FuncType); ok {
-			if mainFt.ReturnType.Equiv(typing.NothingType()) && len(mainFt.Args) == 0 && mainFt.IntrinsicName == "" {
+			if typing.Equiv(mainFt.ReturnType, typing.NothingType()) && len(mainFt.Args) == 0 && mainFt.IntrinsicName == "" {
 				return report.ShouldProceed()
 			}
 		}

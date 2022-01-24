@@ -110,7 +110,7 @@ func opOverloadCollides(overloadA, overloadB *OperatorOverload) bool {
 	// different return types.
 	if len(overloadA.Signature.Args) == len(overloadB.Signature.Args) {
 		for i, arg := range overloadA.Signature.Args {
-			if !arg.Equiv(overloadB.Signature.Args[i]) {
+			if !typing.Equiv(arg, overloadB.Signature.Args[i]) {
 				return false
 			}
 		}

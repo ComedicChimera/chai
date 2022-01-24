@@ -78,7 +78,7 @@ func (g *Generator) genExpr(expr ast.Expr) value.Value {
 // genCast generates a type cast.
 func (g *Generator) genCast(srcVal value.Value, srcType, dstType typing.DataType) value.Value {
 	// types are equal: no cast necessary
-	if srcType.Equiv(dstType) {
+	if typing.Equiv(srcType, dstType) {
 		return srcVal
 	}
 

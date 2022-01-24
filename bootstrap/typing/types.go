@@ -4,19 +4,16 @@ import "strings"
 
 // DataType is the parent interface for all types in Chai.
 type DataType interface {
-	// Equals returns if two types are exactly identical.  This operation is
-	// commutative.
-	Equals(DataType) bool
-
-	// Equiv returns if two types are semantic equivalent: eg. an alias is
-	// equivalent to the type that it is an alias of, but it is not equal to
-	// that type.  This operation is commutative.  Equivalency requires that the
-	// two types compile to the same output type in LLVM.
-	Equiv(DataType) bool
-
 	// Repr returns a representative string of the type for purposes of error
 	// reporting.
 	Repr() string
+
+	// equals and equiv are the internal, type-specific implementations of
+	// Equals and Equiv.  They should NEVER be called directly except by
+	// Equals and Equiv.  They do not handle special cases like comparisons
+	// to aliases or wrapped types.
+	equals(DataType) bool
+	equiv(DataType) bool
 }
 
 // -----------------------------------------------------------------------------
@@ -41,18 +38,6 @@ const (
 	PrimString
 	PrimNothing
 )
-
-func (pt PrimType) Equals(other DataType) bool {
-	if opt, ok := other.(PrimType); ok {
-		return pt == opt
-	}
-
-	return false
-}
-
-func (pt PrimType) Equiv(other DataType) bool {
-	return pt.Equals(other)
-}
 
 func (pt PrimType) Repr() string {
 	switch pt {
@@ -86,6 +71,18 @@ func (pt PrimType) Repr() string {
 	}
 }
 
+func (pt PrimType) equals(other DataType) bool {
+	if opt, ok := other.(PrimType); ok {
+		return pt == opt
+	}
+
+	return false
+}
+
+func (pt PrimType) equiv(other DataType) bool {
+	return Equals(pt, other)
+}
+
 // -----------------------------------------------------------------------------
 
 // FuncType represents a function type.
@@ -98,46 +95,6 @@ type FuncType struct {
 	// quickly determine the intrinsic to generate if the function is intrinsic.
 	// If this field is empty, the function (or operator), is not intrinsic.
 	IntrinsicName string
-}
-
-func (ft *FuncType) Equals(other DataType) bool {
-	if oft, ok := other.(*FuncType); ok {
-		if len(ft.Args) != len(oft.Args) {
-			return false
-		}
-
-		for i, arg := range ft.Args {
-			oarg := oft.Args[i]
-
-			if !arg.Equals(oarg) {
-				return false
-			}
-		}
-
-		return ft.ReturnType.Equals(oft.ReturnType)
-	}
-
-	return false
-}
-
-func (ft *FuncType) Equiv(other DataType) bool {
-	if oft, ok := other.(*FuncType); ok {
-		if len(ft.Args) != len(oft.Args) {
-			return false
-		}
-
-		for i, arg := range ft.Args {
-			oarg := oft.Args[i]
-
-			if !arg.Equiv(oarg) {
-				return false
-			}
-		}
-
-		return ft.ReturnType.Equiv(oft.ReturnType)
-	}
-
-	return false
 }
 
 func (ft *FuncType) Repr() string {
@@ -159,46 +116,50 @@ func (ft *FuncType) Repr() string {
 	return sb.String()
 }
 
+func (ft *FuncType) equals(other DataType) bool {
+	if oft, ok := other.(*FuncType); ok {
+		if len(ft.Args) != len(oft.Args) {
+			return false
+		}
+
+		for i, arg := range ft.Args {
+			oarg := oft.Args[i]
+
+			if !Equals(arg, oarg) {
+				return false
+			}
+		}
+
+		return Equals(ft.ReturnType, oft.ReturnType)
+	}
+
+	return false
+}
+
+func (ft *FuncType) equiv(other DataType) bool {
+	if oft, ok := other.(*FuncType); ok {
+		if len(ft.Args) != len(oft.Args) {
+			return false
+		}
+
+		for i, arg := range ft.Args {
+			oarg := oft.Args[i]
+
+			if !Equiv(arg, oarg) {
+				return false
+			}
+		}
+
+		return Equiv(ft.ReturnType, oft.ReturnType)
+	}
+
+	return false
+}
+
 // -----------------------------------------------------------------------------
 
 // TupleType represents a tuple type.
 type TupleType []DataType
-
-func (tt TupleType) Equals(other DataType) bool {
-	if ott, ok := other.(TupleType); ok {
-		if len(tt) != len(ott) {
-			return false
-		}
-
-		for i, item := range tt {
-			if !item.Equals(ott[i]) {
-				return false
-			}
-		}
-
-		return true
-	}
-
-	return false
-}
-
-func (tt TupleType) Equiv(other DataType) bool {
-	if ott, ok := other.(TupleType); ok {
-		if len(tt) != len(ott) {
-			return false
-		}
-
-		for i, item := range tt {
-			if !item.Equiv(ott[i]) {
-				return false
-			}
-		}
-
-		return true
-	}
-
-	return false
-}
 
 func (tt TupleType) Repr() string {
 	sb := strings.Builder{}
@@ -216,6 +177,42 @@ func (tt TupleType) Repr() string {
 	return sb.String()
 }
 
+func (tt TupleType) equals(other DataType) bool {
+	if ott, ok := other.(TupleType); ok {
+		if len(tt) != len(ott) {
+			return false
+		}
+
+		for i, item := range tt {
+			if !Equals(item, ott[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func (tt TupleType) equiv(other DataType) bool {
+	if ott, ok := other.(TupleType); ok {
+		if len(tt) != len(ott) {
+			return false
+		}
+
+		for i, item := range tt {
+			if !Equiv(item, ott[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
+}
+
 // -----------------------------------------------------------------------------
 
 // RefType is a reference type.
@@ -223,24 +220,24 @@ type RefType struct {
 	ElemType DataType
 }
 
-func (rt *RefType) Equals(other DataType) bool {
-	if ort, ok := other.(*RefType); ok {
-		return rt.ElemType.Equals(ort.ElemType)
-	}
-
-	return false
-}
-
-func (rt *RefType) Equiv(other DataType) bool {
-	if ort, ok := other.(*RefType); ok {
-		return rt.ElemType.Equiv(ort.ElemType)
-	}
-
-	return false
-}
-
 func (rt *RefType) Repr() string {
 	return "&" + rt.ElemType.Repr()
+}
+
+func (rt *RefType) equals(other DataType) bool {
+	if ort, ok := other.(*RefType); ok {
+		return Equals(rt.ElemType, ort.ElemType)
+	}
+
+	return false
+}
+
+func (rt *RefType) equiv(other DataType) bool {
+	if ort, ok := other.(*RefType); ok {
+		return Equiv(rt.ElemType, ort.ElemType)
+	}
+
+	return false
 }
 
 // -----------------------------------------------------------------------------
@@ -250,46 +247,95 @@ func (rt *RefType) Repr() string {
 // two named types solely using this name: two different packages may have the
 // smae name within one project.  The `ParentID` field should also be used.
 
-// NamedType is the base for all named types in Chai.
-type NamedType struct {
-	Name     string
-	ParentID uint64
+// NamedType is an interface implemented by all named types in Chai. It can be
+// implemented implicitly by embedding `namedType`.
+type NamedType interface {
+	Repr() string
+	ParentID() uint64
 }
 
-func NewNamedType(pkgName, name string, parentID uint64) NamedType {
-	return NamedType{Name: pkgName + "." + name, ParentID: parentID}
+// NamedTypeBase is the base for all named types in Chai.
+type NamedTypeBase struct {
+	name     string
+	parentID uint64
 }
 
-func (nt *NamedType) Repr() string {
-	return nt.Name
+func NewNamedTypeBase(pkgName, name string, parentID uint64) NamedTypeBase {
+	return NamedTypeBase{name: pkgName + "." + name, parentID: parentID}
+}
+
+func (nt *NamedTypeBase) Repr() string {
+	return nt.name
+}
+
+func (nt *NamedTypeBase) ParentID() uint64 {
+	return nt.parentID
+}
+
+// equals for named types need only compare the name and the parent package ID
+// since two named types which are not references to the same definition cannot
+// be defined with the same name in the same package.
+func (nt *NamedTypeBase) equals(other DataType) bool {
+	if ont, ok := other.(NamedType); ok {
+		return nt.name == ont.Repr() && nt.parentID == ont.ParentID()
+	}
+
+	return false
+}
+
+// equiv for most named types is simple equality.
+func (nt *NamedTypeBase) equiv(other DataType) bool {
+	// Since `equiv` is only called from `Equiv`, we know all necessary
+	// unwrapping has already been carried out so we can just call `equals`
+	// directly.
+	return nt.equals(other)
+}
+
+// -----------------------------------------------------------------------------
+
+// OpaqueType represents a reference to a named type.
+type OpaqueType struct {
+	Name string
+
+	// TypeRef is a shared pointer to the internal data type of the opaque type.
+	// This will be a pointer to nil (not a nil pointer) until it is resolved.
+	TypeRef *DataType
+}
+
+// NOTE: For all of these methods, we want them to throw a nil-pointer error if
+// the type is unresolved since these types should not be used or evaluated
+// until they are resolved.
+
+func (ot *OpaqueType) Repr() string {
+	return (*ot.TypeRef).Repr()
+}
+
+func (ot *OpaqueType) equals(other DataType) bool {
+	return Equals(*ot.TypeRef, other)
+}
+
+func (ot *OpaqueType) equiv(other DataType) bool {
+	return Equiv(*ot.TypeRef, other)
 }
 
 // -----------------------------------------------------------------------------
 
 // AliasType is used to represent a defined type alias.
 type AliasType struct {
-	NamedType
+	NamedTypeBase
 
 	Type DataType
 }
 
-func (at *AliasType) Equals(other DataType) bool {
-	if oat, ok := other.(*AliasType); ok {
-		return at.Name == oat.Name && at.ParentID == oat.ParentID
-	}
-
-	return false
-}
-
-func (at *AliasType) Equiv(other DataType) bool {
-	return InnerType(at.Type).Equiv(InnerType(other))
+func (at *AliasType) equiv(other DataType) bool {
+	return Equiv(at.Type, other)
 }
 
 // -----------------------------------------------------------------------------
 
 // StructType represents a pure structure type.
 type StructType struct {
-	NamedType
+	NamedTypeBase
 
 	// Fields enumerates the fields of the struct in order.
 	Fields []StructField
@@ -310,17 +356,4 @@ type StructField struct {
 	Initialized bool
 
 	// TODO: field annotations?
-}
-
-func (st *StructType) Equals(other DataType) bool {
-	if ost, ok := other.(*StructType); ok {
-		return st.Name == ost.Name && st.ParentID == ost.ParentID
-	}
-
-	return false
-}
-
-func (st *StructType) Equiv(other DataType) bool {
-	// equivalency for structures is the same as equality
-	return st.Equals(other)
 }

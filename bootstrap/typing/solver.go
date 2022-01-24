@@ -24,9 +24,17 @@ type TypeVar struct {
 	shouldDefault bool
 }
 
-func (tv *TypeVar) Equals(other DataType) bool {
+func (tv *TypeVar) Repr() string {
 	if tv.Value != nil {
-		return tv.Value.Equals(other)
+		return tv.Value.Repr()
+	}
+
+	return tv.displayName
+}
+
+func (tv *TypeVar) equals(other DataType) bool {
+	if tv.Value != nil {
+		return Equals(tv.Value, other)
 	}
 
 	// Equals cannot be used on a type variable until it is determined.
@@ -34,22 +42,14 @@ func (tv *TypeVar) Equals(other DataType) bool {
 	return false
 }
 
-func (tv *TypeVar) Equiv(other DataType) bool {
+func (tv *TypeVar) equiv(other DataType) bool {
 	if tv.Value != nil {
-		return tv.Value.Equiv(other)
+		return Equiv(tv.Value, other)
 	}
 
 	// Equiv cannot be used on a type variable until it is determined.
 	log.Fatalln("Equiv used on an undetermined type variable")
 	return false
-}
-
-func (tv *TypeVar) Repr() string {
-	if tv.Value != nil {
-		return tv.Value.Repr()
-	}
-
-	return tv.displayName
 }
 
 // -----------------------------------------------------------------------------
@@ -305,7 +305,7 @@ func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
 			return s.unify(v.ReturnType, rft.ReturnType, pos)
 		}
 	default:
-		if lhs.Equiv(rhs) {
+		if Equiv(lhs, rhs) {
 			return true
 		}
 	}
