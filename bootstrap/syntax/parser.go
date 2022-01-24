@@ -29,6 +29,9 @@ type Parser struct {
 	// uni is the shared universe for the project.
 	uni *depm.Universe
 
+	// res is the universal resolver.
+	res *depm.Resolver
+
 	// importFunc is the function used to import a package.  It is really just
 	// callback to the compiler's `c.importPackage`, but since Go won't allow me
 	// to give the compiler reference to Parser (cyclic import), I have to do
@@ -55,9 +58,10 @@ type Parser struct {
 }
 
 // NewParser creates a new parser for the given file and file reader.
-func NewParser(uni *depm.Universe, ifunc ImportFunc, chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
+func NewParser(uni *depm.Universe, res *depm.Resolver, ifunc ImportFunc, chFile *depm.ChaiFile, r *bufio.Reader) *Parser {
 	return &Parser{
 		uni:        uni,
+		res:        res,
 		importFunc: ifunc,
 		chFile:     chFile,
 		lexer:      NewLexer(chFile.Context, r),

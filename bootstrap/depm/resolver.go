@@ -2,37 +2,61 @@ package depm
 
 import (
 	"chai/report"
+	"chai/typing"
 	"fmt"
 )
 
+// TODO: decide whether recursive type checking should occur in the resolver or
+// through another mechanism.
+
 // Resolver is responsible for resolving all global symbol dependencies: namely,
-// those on imported symbols and globally-defined types.  It also checks for
-// recursive types.  This is run before type checking so local symbols are not
-// processed until after resolution is completed.
+// those on imported symbols and globally-defined types.  This is run before
+// type checking so local symbols are not processed until after resolution is
+// completed.
 type Resolver struct {
 	pkgList []*ChaiPackage
 }
 
-// NewResolver creates a new resolver for the given dependency graph.
-func NewResolver(pkgList []*ChaiPackage) *Resolver {
-	return &Resolver{pkgList: pkgList}
+// NewResolver creates a new resolver.
+func NewResolver() *Resolver {
+	return &Resolver{}
 }
 
 // Resolve runs the main resolution algorithm.
 func (r *Resolver) Resolve() bool {
-	// check for global import conflicts
 	if !r.checkImportCollisions() {
 		return false
 	}
 
-	// resolve imports
 	if !r.resolveImports() {
 		return false
 	}
 
-	// TODO: resolved named types and check for recursive types
+	if !r.resolveNamedTypes() {
+		return false
+	}
 
 	return true
+}
+
+// AddPackageList adds the globally determined package list to the resolver.
+func (r *Resolver) AddPackageList(pkgList []*ChaiPackage) {
+	r.pkgList = pkgList
+}
+
+// AddOpaqueTypeRef adds a reference to named, defined type.  This should be
+// called by the parser as named types are used as type labels.  A new opaque
+// type is returned to be used in place of the named type.
+func (r *Resolver) AddOpaqueTypeRef(file *ChaiFile, name string, pos *report.TextPosition) *typing.OpaqueType {
+	// TODO
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+
+func (r *Resolver) resolveNamedTypes() bool {
+	// TODO
+	return false
 }
 
 // -----------------------------------------------------------------------------

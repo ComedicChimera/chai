@@ -48,6 +48,9 @@ type Compiler struct {
 
 	// uni is the shared universe for the project.
 	uni *depm.Universe
+
+	// res is the universal resolver for the project.
+	res *depm.Resolver
 }
 
 // NewCompiler creates a new compiler.
@@ -64,6 +67,7 @@ func NewCompiler(rootRelPath string, profile *BuildProfile) *Compiler {
 		profile:     profile,
 		depGraph:    make(map[uint64]*depm.ChaiModule),
 		uni:         depm.NewUniverse(),
+		res:         depm.NewResolver(),
 	}
 }
 
@@ -97,8 +101,8 @@ func (c *Compiler) Analyze() bool {
 	c.addPrelude()
 
 	// resolve global symbols and check for recursive types
-	r := depm.NewResolver(c.pkgList)
-	if !r.Resolve() {
+	c.res.AddPackageList(c.pkgList)
+	if !c.res.Resolve() {
 		return false
 	}
 
@@ -276,7 +280,7 @@ func (c *Compiler) initPkg(parentMod *depm.ChaiModule, pkgAbsPath string) (*depm
 			r := bufio.NewReader(file)
 
 			// create the parser for the file
-			p := syntax.NewParser(c.uni, c.importPackgage, chFile, r)
+			p := syntax.NewParser(c.uni, c.res, c.importPackgage, chFile, r)
 
 			// parse the file and determine if it should be added
 			if p.Parse() {
