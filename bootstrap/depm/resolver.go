@@ -12,6 +12,17 @@ type typeRef struct {
 	Positions []*report.TextPosition
 }
 
+// symbolNode is a node in the symbol graph.
+type symbolNode struct {
+	// Color is the color of the node in the three color algorithm.
+	// white = 0, grey = 1, black = 2
+	Color int
+
+	Type    typing.DataType
+	Context *report.CompilationContext
+	Pos     *report.TextPosition
+}
+
 // Resolver is responsible for resolving all global symbol dependencies: namely,
 // those on imported symbols and globally-defined types.  It also performs
 // recursive type checking.  This is run before type checking so local symbols
@@ -21,12 +32,16 @@ type Resolver struct {
 
 	// typeRefs is the table of type references organized by file.
 	typeRefs map[*ChaiFile]map[string]typeRef
+
+	// symGraph is used to check for recursive type definitions.
+	symGraph map[uint64]map[string]*symbolNode
 }
 
 // NewResolver creates a new resolver.
 func NewResolver() *Resolver {
 	return &Resolver{
 		typeRefs: make(map[*ChaiFile]map[string]typeRef),
+		symGraph: make(map[uint64]map[string]*symbolNode),
 	}
 }
 
@@ -147,54 +162,75 @@ func lookupType(chFile *ChaiFile, name string) (*Symbol, bool) {
 
 // -----------------------------------------------------------------------------
 
-// symbolNode is a node in the symbol graph used to check for recursive types.
-type symbolNode struct {
-	// Color is the color of the node in the three color algorithm.
-	// white = 0, grey = 1, black = 2
-	Color int
-
-	Type    typing.DataType
-	Context *report.CompilationContext
-	Pos     *report.TextPosition
-}
-
 // checkRecursiveTypes checks for recursive type definitions.
 func (r *Resolver) checkRecursiveTypes() bool {
-	graph := r.buildSymbolGraph()
+	r.buildSymbolGraph()
 
 	// return if there is no symbol graph
-	if len(graph) == 0 {
+	if len(r.symGraph) == 0 {
 		return true
 	}
 
 	// get the first symbol in the graph
 	pkgID := r.pkgList[0].ID
 	var name string
-	for _name := range graph[pkgID] {
+	for _name := range r.symGraph[pkgID] {
 		name = _name
 		break
 	}
 
 	// use the "three color" algorithm to check for recursive types.
-	return r.threeColorDFS(graph, pkgID, name)
+	return r.threeColorDFS(pkgID, name, nil)
 }
 
 // threeColorDFS runs the three color algorithm on the symbol graph.
-func (r *Resolver) threeColorDFS(graph map[uint64]map[string]symbolNode, pkgID uint64, name string) bool {
-	// node := graph[pkgID][name]
+// The parentPos is used to report errors based on the previous node in the
+// graph rather than the definition itself: if there is a cycle, we mark the
+// node that makes it not the node that begins it.
+func (r *Resolver) threeColorDFS(pkgID uint64, name string, parentPos *report.TextPosition) bool {
+	node := r.symGraph[pkgID][name]
 
-	return true
+	switch node.Color {
+	case 0: // white => mark as grey, process node
+		node.Color = 1
+
+		ok := true
+		switch v := node.Type.(type) {
+		case *typing.AliasType:
+			for _, nt := range getNamedTypes(v.Type) {
+				ok = r.threeColorDFS(nt.ParentID(), nt.Name(), node.Pos) && ok
+			}
+		case *typing.StructType:
+			for _, field := range v.Fields {
+				for _, nt := range getNamedTypes(field.Type) {
+					ok = r.threeColorDFS(nt.ParentID(), nt.Name(), node.Pos) && ok
+				}
+			}
+		}
+
+		return ok
+	case 1: // grey => mark as black, report error
+		node.Color = 2
+
+		report.ReportCompileError(
+			node.Context,
+			// we report an error on the parent not the node
+			parentPos,
+			"illegal recursive type definition",
+		)
+
+		fallthrough // fail
+	default: // black => do nothing, fail
+		return false
+	}
 }
 
-// buildSymbolGraph constructs a graph of all global types so that we can
-// search for recursive types.
-func (r *Resolver) buildSymbolGraph() map[uint64]map[string]symbolNode {
-	graph := make(map[uint64]map[string]symbolNode)
-
+// buildSymbolGraph constructs the symbol graph.
+func (r *Resolver) buildSymbolGraph() {
 	for _, pkg := range r.pkgList {
 		for _, sym := range pkg.SymbolTable {
 			if sym.DefKind == DKTypeDef {
-				graph[pkg.ID][sym.Name] = symbolNode{
+				r.symGraph[pkg.ID][sym.Name] = &symbolNode{
 					Type:    sym.Type,
 					Context: sym.File.Context,
 					Pos:     sym.DefPosition,
@@ -202,8 +238,32 @@ func (r *Resolver) buildSymbolGraph() map[uint64]map[string]symbolNode {
 			}
 		}
 	}
+}
 
-	return graph
+// getNamedTypes extracts all the named types from a type.
+func getNamedTypes(dt typing.DataType) []typing.NamedType {
+	dt = typing.InnerType(dt)
+
+	var nts []typing.NamedType
+
+	switch v := dt.(type) {
+	case typing.NamedType:
+		nts = append(nts, v)
+	case typing.TupleType:
+		for _, tt := range v {
+			nts = append(nts, getNamedTypes(tt)...)
+		}
+	case *typing.FuncType:
+		for _, arg := range v.Args {
+			nts = append(nts, getNamedTypes(arg)...)
+		}
+
+		nts = append(nts, getNamedTypes(v.ReturnType)...)
+	case *typing.RefType:
+		return getNamedTypes(v.ElemType)
+	}
+
+	return nts
 }
 
 // -----------------------------------------------------------------------------

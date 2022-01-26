@@ -84,7 +84,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 
 					if !w.defineLocal(&depm.Symbol{
 						Name:        name,
-						Pkg:         w.chFile.Parent,
+						File:        w.chFile,
 						DefPosition: varList.NamePositions[i],
 						Type:        varTupleTemplate[i],
 						DefKind:     depm.DKValueDef,
@@ -118,7 +118,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 
 			if !w.defineLocal(&depm.Symbol{
 				Name:        name,
-				Pkg:         w.chFile.Parent,
+				File:        w.chFile,
 				DefPosition: varList.NamePositions[i],
 				Type:        varList.Type,
 				DefKind:     depm.DKValueDef,

@@ -250,22 +250,28 @@ func (rt *RefType) equiv(other DataType) bool {
 // NamedType is an interface implemented by all named types in Chai. It can be
 // implemented implicitly by embedding `namedType`.
 type NamedType interface {
+	Name() string
 	Repr() string
 	ParentID() uint64
 }
 
 // NamedTypeBase is the base for all named types in Chai.
 type NamedTypeBase struct {
+	pkgName  string
 	name     string
 	parentID uint64
 }
 
 func NewNamedTypeBase(pkgName, name string, parentID uint64) NamedTypeBase {
-	return NamedTypeBase{name: pkgName + "." + name, parentID: parentID}
+	return NamedTypeBase{pkgName: pkgName, name: name, parentID: parentID}
+}
+
+func (nt *NamedTypeBase) Name() string {
+	return nt.name
 }
 
 func (nt *NamedTypeBase) Repr() string {
-	return nt.name
+	return nt.pkgName + "." + nt.name
 }
 
 func (nt *NamedTypeBase) ParentID() uint64 {

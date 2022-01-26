@@ -100,7 +100,8 @@ func (p *Parser) parseImportStmt() bool {
 				// add the symbol to the file's import table
 				sym := &depm.Symbol{
 					Name: isym.Name,
-					Pkg:  importedPkg, // TODO: fix
+					// we create a "psuedo-file" to wrap the imported package
+					File: &depm.ChaiFile{Parent: importedPkg},
 					// the DefPosition is set to the isymbol's position for
 					// error handling in resolver; this will be updated with the
 					// actual symbol's position later
