@@ -71,7 +71,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 	// prepare and define function symbol
 	sym := &depm.Symbol{
 		Name:        funcID.Value,
-		Pkg:         p.chFile.Parent,
+		File:        p.chFile,
 		DefPosition: funcID.Position,
 		Type:        ft,
 		DefKind:     depm.DKFuncDef,

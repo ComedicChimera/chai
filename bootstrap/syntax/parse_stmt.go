@@ -54,7 +54,7 @@ func (p *Parser) parseVarDecl(global bool, annotations map[string]string, public
 			for _, ident := range idents {
 				if !p.defineGlobal(&depm.Symbol{
 					Name:        ident.Name,
-					Pkg:         p.chFile.Parent,
+					File:        p.chFile,
 					DefPosition: ident.Pos,
 					Type:        varType, // will never be `nil`
 					DefKind:     depm.DKValueDef,

@@ -113,7 +113,7 @@ func (p *Parser) parseStructBody(name string, namePos *report.TextPosition, anno
 	// create and declare the struct symbol
 	sym := &depm.Symbol{
 		Name:        name,
-		Pkg:         p.chFile.Parent,
+		File:        p.chFile,
 		DefPosition: namePos,
 		Type:        st,
 		DefKind:     depm.DKTypeDef,

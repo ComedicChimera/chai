@@ -30,7 +30,7 @@ func InnerType(dt DataType) DataType {
 	case *TypeVar:
 		return InnerType(v.Value)
 	case *OpaqueType:
-		return InnerType(*v.TypeRef)
+		return InnerType(*v.TypePtr)
 	default:
 		// no inner type to extract
 		return v

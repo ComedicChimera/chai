@@ -297,9 +297,9 @@ func (nt *NamedTypeBase) equiv(other DataType) bool {
 type OpaqueType struct {
 	Name string
 
-	// TypeRef is a shared pointer to the internal data type of the opaque type.
+	// TypePtr is a shared pointer to the internal data type of the opaque type.
 	// This will be a pointer to nil (not a nil pointer) until it is resolved.
-	TypeRef *DataType
+	TypePtr *DataType
 }
 
 // NOTE: For all of these methods, we want them to throw a nil-pointer error if
@@ -307,15 +307,15 @@ type OpaqueType struct {
 // until they are resolved.
 
 func (ot *OpaqueType) Repr() string {
-	return (*ot.TypeRef).Repr()
+	return (*ot.TypePtr).Repr()
 }
 
 func (ot *OpaqueType) equals(other DataType) bool {
-	return Equals(*ot.TypeRef, other)
+	return Equals(*ot.TypePtr, other)
 }
 
 func (ot *OpaqueType) equiv(other DataType) bool {
-	return Equiv(*ot.TypeRef, other)
+	return Equiv(*ot.TypePtr, other)
 }
 
 // -----------------------------------------------------------------------------
