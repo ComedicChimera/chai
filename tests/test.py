@@ -33,9 +33,9 @@ def run_test(test_name, test_dir):
                 nonlocal p
 
                 if passed:
-                    print(f"Test {case_n} Passed")
+                    print(f"Test Case {case_n} Passed")
                 else:
-                    print(f"Test {case_n} Failed")
+                    print(f"Test Case {case_n} Failed")
                     passed = True
 
                 for line in p.stdout:
