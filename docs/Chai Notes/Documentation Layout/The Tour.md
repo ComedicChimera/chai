@@ -1,4 +1,6 @@
 # The Tour
+**NOTE**: This may be implemented at some point but is likely not in the near future for the website given the additional challenges of setting up a playground and porting to web assembly.
+
 The Tour will be an interactive, online walkthrough (built around the playground) that gives a basic "tutorial introduction" to Chai and its features.  It will essentially be a series of panels documenting different features paired with an exercise to help the reader practice their skills.
 
 The Tour will be more practical than the Spec: it will skip over some details and cover features and Standard Library utilities.  

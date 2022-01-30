@@ -118,19 +118,6 @@ func NewGenerator(sb *StartBuilder, pkg *depm.ChaiPackage, isRoot bool) *Generat
 // generation process is assumed to always succeed: any errors here are
 // considered fatal.
 func (g *Generator) Generate() *ir.Module {
-	// declare all imports
-	for _, pkgImport := range g.pkg.ImportedPackages {
-		// calculate the global prefix for the imported package's symbols
-		importPrefix := fmt.Sprintf("p%d.", pkgImport.Pkg.ID)
-
-		// imported symbols
-		for _, sym := range pkgImport.Symbols {
-			g.genSymbolImport(importPrefix, sym)
-		}
-
-		// TODO: imported operators
-	}
-
 	// generate the global package init function
 	g.initFunc = g.mod.NewFunc(g.globalPrefix+"$__init", types.Void)
 	g.initFunc.Linkage = enum.LinkageExternal
@@ -148,6 +135,19 @@ func (g *Generator) Generate() *ir.Module {
 
 	// TEMPORARY: define the string type: {*i8, u32}
 	g.stringType = g.mod.NewTypeDef("string", types.NewStruct(types.I8Ptr, types.I32))
+
+	// declare all imports
+	for _, pkgImport := range g.pkg.ImportedPackages {
+		// calculate the global prefix for the imported package's symbols
+		importPrefix := fmt.Sprintf("p%d.", pkgImport.Pkg.ID)
+
+		// imported symbols
+		for _, sym := range pkgImport.Symbols {
+			g.genSymbolImport(importPrefix, sym)
+		}
+
+		// TODO: imported operators
+	}
 
 	// generate the package
 	for _, def := range g.defDepGraph {

@@ -55,6 +55,11 @@ func Execute() {
 	case "version":
 		report.DisplayInfoMessage("Chai Version", common.ChaiVersion)
 	}
+
+	// return code
+	if !report.ShouldProceed() {
+		os.Exit(1)
+	}
 }
 
 // execBuildCommand executes the build subcommand and handles all errors

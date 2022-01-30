@@ -21,3 +21,11 @@ pub def puti(a: i32)
         pow /= 10
     end
 end
+
+# Prints a string to the console followed by a newline.
+#
+# @param s The string to print.
+pub def println(str: string) 
+    puts(str)
+    putr('\n')
+end

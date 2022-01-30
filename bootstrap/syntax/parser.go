@@ -101,9 +101,12 @@ func (p *Parser) Parse() bool {
 // automatically combines newlines: if one newline is expected, any that occur
 // after it are automatically skipped.
 func (p *Parser) next() bool {
-	// check for automatic newline skips
+	// // check for automatic newline skips
+
+	// TODO: fix -- this breaks anything that expects a newline after one of
+	// these (eg. struct definitions).
 	switch p.tok.Kind {
-	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON, NEWLINE:
+	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON:
 		lookbehind := p.tok
 
 		for {
