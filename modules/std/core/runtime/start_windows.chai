@@ -17,14 +17,14 @@ def _start()
 
     # TODO: other runtime shenanigans
 
-    # global, static initialization
+    # Global, static initialization
     __chai_init()
 
-    # call to the user's main function
+    # Call to the user's main function
     __chai_main()
 
     # TODO: runtime cleanup
 
-    # gracefully exit
+    # Gracefully exit
     ExitProcess(0)
 end

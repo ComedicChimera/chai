@@ -1,8 +1,8 @@
-# putr prints a single rune to the console. 
+# Prints a single rune to standard out. 
 # TODO: handle non-ASCII runes
 pub def putr(r: i32) = putb(r as u8)
 
-# puti prints an signed integer to the console.
+# Prints an signed integer to standard out.
 pub def puti(a: i32)
     # A crude implementation to print an integer.  This will obviously be
     # refined for the final version, but it works for right now.
@@ -22,9 +22,7 @@ pub def puti(a: i32)
     end
 end
 
-# Prints a string to the console followed by a newline.
-#
-# @param s The string to print.
+# Prints a string to standart out followed by a newline.
 pub def println(str: string) 
     puts(str)
     putr('\n')

@@ -15,17 +15,17 @@ def WriteConsoleA(
 
 # IO API (TODO: revise)
 
-# stdout is the standard output handle.
+# stdout: The standard output handle.
 let stdout: &u8 = GetStdHandle(-11 as u32)   
 
-# puts prints a single string to the console.
+# Prints a single string to the console.
 def puts(str: string)
     # This code is very suspect and not actually legal Chai, but I am too lazy
     # to implement the requisite features to make it work right now so *shrug*
     WriteConsoleA(stdout, __strbytes(str), __strlen(str), null, null)
 end
 
-# putb prints a single byte (ASCII) character to the console.
+# Prints a single ASCII (byte) character to the console.
 def putb(b: u8)
     # Also somewhat suspect code: no buffered IO just yet :)
     WriteConsoleA(stdout, &b, 1, null, null)

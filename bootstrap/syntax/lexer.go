@@ -140,7 +140,7 @@ func (l *Lexer) skipComment() *Token {
 	}
 
 	// multi-line comment
-	if ahead == '!' {
+	if ahead == '{' {
 		for {
 			l.skip()
 
@@ -150,7 +150,7 @@ func (l *Lexer) skipComment() *Token {
 			}
 
 			// check for the ending sequence
-			if ahead == '!' {
+			if ahead == '}' {
 				l.skip()
 
 				ahead, ok = l.peek()
