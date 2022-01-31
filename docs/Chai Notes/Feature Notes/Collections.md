@@ -1,8 +1,10 @@
-Chai provides 6 fundamental collections as enumerated below.
+Chai provides 4 fundamental collections as enumerated below.
+
+**NOTE**: As of 1/30/22, vectors and matrices are no longer a part of the core language.  They may be readded with their own syntax as part of the math library at a later date.  They are not essential to the language's release and serve only to bloat and complicate the language (given the likely lack of adequate vector support upon release).  TLDR: we are not trying to compete with Matlab, and vectors and matrices have very little use to regular programmers on a day to day basis.
 
 ## List
 Lists are resizable, homogenous collections of elements.  They use the `List[T]` type.
-Their literal is written as: `{a, b, c, ...}` (using curly braces). 
+Their literal is written as: `[a, b, c, ...]` (using brackets). 
 
 Lists have standard value semantics.
 
@@ -28,31 +30,13 @@ Dictionaries have standard value semantics and are sequences.
 They are also ordered.
 
 ## Buff
-Buffers are fixed-size, homogenous collections of elements.  They use the `Buff[T]` type.  Their literal is written as: `<{a, b, c, ...}>` (using angle brackets and curly braces -- literals are not used often).
+Buffers are fixed-size, homogenous collections of elements.  They use the `Buff[T]` type.  Their literal is written as: `{a, b, c, ...}` (using curly braces).
 
 They are sequences and indexable by numbers.
 
 Unlike lists, they do *not* have value semantics.  They essentially work like arrays in C (with a bit more safety ie. memory safety, bounds checks, etc).  They are generally meant to be used in cases where you want to "fill" a buffer up with data such as chunks from a stream.  
 
 Although they are fixed size, their size is *not* encoded in their type (again, more like C array pointers).
-
-## Vec and Mat
-Vectors and matrices are fixed-size, homogenous collections of numbers.  They use the `Vec[T, n]` type and `Mat[T, m, n]` types respectively.  Vectors are defined as row matrices: `type Vec[T, n] = Mat[T, 1, n]`.  
-
-Their literals are written as follows:
-```
-[1, 2, 3]     # Vec[i64, 3]    (1D row vector of length 3)
-[1; 2; 3]     # Mat[i64, 3, 1] (1D column vector of length 3)
-[1, 2; 3, 4]  # Mat[i64, 2, 2] (2x2 matrix)
-```
-
-In short, the `;` separate rows and `,` separate elements ("columns").  Chai does *not* permit jagged matrices (eg. `[1, 2; 3]` is an invalid matrix).
-
-Both vectors and matrices have standard value semantics.
-
-They are sequences and indexable by numbers.
-
-Vectors and matrices will often be *vectorized* when generated for more efficient computations.
 
 ## Tuple
 Tuples are fixed-size, fixed-location, heterogenous "collections" of elements.  They use a type label of `(T1, T2, ...)` where `Ti` denotes the type of a specific element.  As mentioned above, elements have a specific position within the tuple.  

@@ -5,11 +5,18 @@ The guide is intended to be the principle resource for learning Chai.  It is str
 **Hello World**
 Covers the *Hello World* program, introduces modules and functions, and explains how to build and run programs.
 
-*Exercises*: Modify the *Hello World* program to print *Hello Chai!* instead of *Hello World!*
+*Exercises*: 
+1. Modify the *Hello World* program to print *Hello Chai!* instead of *Hello World!*
 
+**The Basics**
+Covers comments, types, numeric types, casting, arithmetic, variables, assignment, input and output.
 
-**Variables and Numbers**
-**Conditional Control Flow**
+*Exercises*:
+1. TODO
+2. TODO
+3. Write a program that prompts the user to enter two integers and prints their product.
+
+**Conditional Logic**
 **Collections and Loops**
 **Strings**
 **Functions**
@@ -32,7 +39,6 @@ Covers the *Hello World* program, introduces modules and functions, and explains
 **System Interfacing**
 
 ## Not Included
-- Matrices and Vectors
 - Complex Numbers
 - Rational Numbers
 - Type Unions
