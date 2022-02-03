@@ -159,6 +159,65 @@ func (c *Call) Position() *report.TextPosition {
 	return c.Pos
 }
 
+// Dot represents a dot expression (x.f)
+type Dot struct {
+	ExprBase
+
+	// Root represents the root expression from which the field is being
+	// accessed. For implicit method accesses and fields, this is simply a
+	// values.  For explicit method accesses, this is just an identifer with a
+	// type corresponding to the type of the space being accessed.  For
+	// packages, this is an identifier with a `nil` data type and a name
+	// corresponding to the visible package.
+	Root  Expr
+	Field string
+
+	// DotKind indicates what kind of dot expression this is. This is determined
+	// after walking it performed.  It must be one of the enumerated Dot*
+	// constants.
+	DotKind int
+
+	Pos *report.TextPosition
+}
+
+func (d *Dot) Position() *report.TextPosition {
+	return d.Pos
+}
+
+// Enumeration of different usages of the dot operator.
+const (
+	DotField   = iota // struct.field
+	DotDef            // pkg.def
+	DotEMethod        // Type.method
+	DotIMethod        // value.method
+)
+
+// TupleDot represents a tuple field access (tuple.n)
+type TupleDot struct {
+	ExprBase
+
+	Tuple  Expr
+	FieldN int
+	Pos    *report.TextPosition
+}
+
+func (td *TupleDot) Position() *report.TextPosition {
+	return td.Pos
+}
+
+// StructInit represents a struct initialization.
+type StructInit struct {
+	ExprBase
+
+	SpreadInit Expr
+	FieldInits map[string]Expr
+	Pos        *report.TextPosition
+}
+
+func (si *StructInit) Position() *report.TextPosition {
+	return si.Pos
+}
+
 // -----------------------------------------------------------------------------
 
 // Tuple represents an n-tuple of elements.  These tuples can be length 1 in

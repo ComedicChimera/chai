@@ -3,6 +3,8 @@ package syntax
 import (
 	"chai/ast"
 	"chai/report"
+	"log"
+	"strconv"
 )
 
 // expr_list = expr {',' expr}
@@ -270,9 +272,9 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 
 // atom_expr = atom {trailer}
 // trailer = '(' expr_list ')'
-// 	| '{' struct_init '}'
+// 	| struct_init
 //	| '[' slice_or_index ']'
-//  | '.' ('IDENTIFIER' | 'NUM_LIT' | generic_spec)
+//  | dot_expr
 func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 	if atomExpr, ok := p.parseAtom(); ok {
 		switch p.tok.Kind {
@@ -311,11 +313,55 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 					p.lookbehind.Position,
 				),
 			}
+		case DOT:
+			return p.parseDotExpr(atomExpr)
+		case LBRACE:
+			return p.parseStructInit(atomExpr)
 		}
 
 		return atomExpr, true
 	}
-	// TODO: {trailer}
+
+	return nil, false
+}
+
+// dot_expr = '.' ('IDENTIFIER' | 'INT_LIT' | 'generic_tag)
+func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
+	if !p.advance() {
+		return nil, false
+	}
+
+	// tuple dot
+	if p.got(INTLIT) {
+		nTok := p.tok
+
+		nValue, err := strconv.ParseInt(nTok.Value, 0, 32)
+		if err != nil {
+			log.Fatalln("Failed to convert tuple index:", err)
+		}
+
+		return &ast.TupleDot{
+			ExprBase: ast.NewExprBase(nil, ast.LValue),
+			Tuple:    rootExpr,
+			FieldN:   int(nValue),
+			Pos:      report.TextPositionFromRange(rootExpr.Position(), nTok.Position),
+		}, p.next()
+	} else if !p.assert(IDENTIFIER) /* named dot */ {
+		return nil, false
+	}
+
+	idTok := p.tok
+	return &ast.Dot{
+		ExprBase: ast.NewExprBase(nil, ast.LValue),
+		Root:     rootExpr,
+		Field:    idTok.Value,
+		Pos:      report.TextPositionFromRange(rootExpr.Position(), idTok.Position),
+	}, p.next()
+}
+
+// struct_init = '{' ['...' expr ','] initializer {',' initializer} '}'
+func (p *Parser) parseStructInit(rootExpr ast.Expr) (ast.Expr, bool) {
+	// TODO
 	return nil, false
 }
 
