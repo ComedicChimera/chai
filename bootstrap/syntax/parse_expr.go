@@ -17,7 +17,7 @@ func (p *Parser) parseExprList() ([]ast.Expr, bool) {
 		}
 
 		if p.got(COMMA) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {
@@ -42,7 +42,7 @@ func (p *Parser) parseExpr() (ast.Expr, bool) {
 func (p *Parser) parseSimpleExpr() (ast.Expr, bool) {
 	if expr, ok := p.parseBinOpExpr(); ok {
 		if p.got(AS) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 
@@ -122,7 +122,7 @@ func (p *Parser) precedenceParse(lhs ast.Expr, maxPrec int) (ast.Expr, bool) {
 			break
 		}
 
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 
@@ -221,7 +221,7 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, bool) {
 	// TODO: other supported prefix unary operators
 	case MINUS, AMP:
 		prefixOpTok = p.tok
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 	}
@@ -279,7 +279,7 @@ func (p *Parser) parseAtomExpr() (ast.Expr, bool) {
 		case LPAREN:
 			// func call
 
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 
@@ -352,7 +352,7 @@ func (p *Parser) parseAtom() (ast.Expr, bool) {
 // tupled_expr = '(' [expr {',' expr}] ')'
 func (p *Parser) parseTupledExpr() (ast.Expr, bool) {
 	startTok := p.tok
-	if !p.next() {
+	if !p.advance() {
 		return nil, false
 	}
 

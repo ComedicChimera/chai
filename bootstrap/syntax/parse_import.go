@@ -195,7 +195,7 @@ func (p *Parser) parsePackageImport(moduleName string, moduleNamePos *report.Tex
 func (p *Parser) parseSymbolImport(importedSymbols map[string]isymbol) (*depm.ChaiPackage, *report.TextPosition, bool) {
 	// parse remaining symbol imports
 	for p.got(COMMA) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, nil, false
 		}
 
@@ -210,7 +210,7 @@ func (p *Parser) parseSymbolImport(importedSymbols map[string]isymbol) (*depm.Ch
 	}
 
 	// parse the package path
-	if !p.assertAndNext(FROM) {
+	if !p.assertAndAdvance(FROM) {
 		return nil, nil, false
 	}
 
@@ -268,7 +268,7 @@ func (p *Parser) parseISymbol() (isymbol, bool) {
 		return isym, p.next()
 	}
 
-	if !p.assertAndNext(LPAREN) {
+	if !p.assertAndAdvance(LPAREN) {
 		return isymbol{}, false
 	}
 

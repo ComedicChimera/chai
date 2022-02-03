@@ -21,7 +21,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 
 	// TODO: generic tag
 
-	if !p.assertAndNext(LPAREN) {
+	if !p.assertAndAdvance(LPAREN) {
 		return nil, false
 	}
 
@@ -138,7 +138,7 @@ func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 			})
 
 			if p.got(COMMA) {
-				if !p.next() {
+				if !p.advance() {
 					return nil, false
 				}
 			} else {
@@ -156,7 +156,7 @@ func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 		}
 
 		if p.got(COMMA) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {
@@ -173,7 +173,7 @@ func (p *Parser) parseArgID() (*Token, bool, bool) {
 	if p.got(AMP) {
 		byRef = true
 
-		if !p.next() {
+		if !p.advance() {
 			return nil, false, false
 		}
 	}
@@ -216,16 +216,9 @@ func (p *Parser) parseFuncBody(annotations map[string]string) (ast.Expr, bool) {
 			return nil, false
 		}
 
-		// pure expression body
-		if !p.next() {
+		// pure expression body.  Newlines can be placed after equals sign
+		if !p.advance() {
 			return nil, false
-		}
-
-		// newlines can be placed after equals sign
-		if p.got(NEWLINE) {
-			if !p.next() {
-				return nil, false
-			}
 		}
 
 		expr, ok := p.parseExpr()
@@ -279,7 +272,7 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 	// TODO: generic tag
 
 	// arguments
-	if !p.assertAndNext(LPAREN) {
+	if !p.assertAndAdvance(LPAREN) {
 		return nil, false
 	}
 

@@ -12,7 +12,7 @@ import (
 func (p *Parser) parseVarDecl(global bool, annotations map[string]string, public bool) (ast.Expr, bool) {
 	letTokPos := p.tok.Position
 
-	if !p.assertAndNext(LET) {
+	if !p.assertAndAdvance(LET) {
 		return nil, false
 	}
 
@@ -86,7 +86,7 @@ func (p *Parser) parseVarDecl(global bool, annotations map[string]string, public
 
 		// `,` between successive statements
 		if p.got(COMMA) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {
@@ -128,7 +128,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		if p.got(COMMA) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {
@@ -156,7 +156,7 @@ func (p *Parser) parseExprStmt() (ast.Expr, bool) {
 		}
 
 		asnOp = p.tok
-		if !p.assertAndNext(ASSIGN) {
+		if !p.assertAndAdvance(ASSIGN) {
 			return nil, false
 		}
 	}

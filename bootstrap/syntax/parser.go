@@ -94,40 +94,24 @@ func (p *Parser) Parse() bool {
 
 // -----------------------------------------------------------------------------
 
-// next moves the parser forward one token.  It automatically skips newlines
-// after certain tokens: namely, `(`, `[`, `{`, `->`, and `,` -- ie. if the
-// parser is currently positioned on one of those tokens, newlines will be
-// skipped.  This allows newlines to be placed in convenient positions.  It also
-// automatically combines newlines: if one newline is expected, any that occur
-// after it are automatically skipped.
+// next moves the parser forward one token.
 func (p *Parser) next() bool {
-	// // check for automatic newline skips
-
-	// TODO: fix -- this breaks anything that expects a newline after one of
-	// these (eg. struct definitions).
-	switch p.tok.Kind {
-	case LPAREN, LBRACE, LBRACKET, ARROW, COMMA, SEMICOLON:
-		lookbehind := p.tok
-
-		for {
-			if tok, ok := p.lexer.NextToken(); ok {
-				if tok.Kind != NEWLINE {
-					p.lookbehind = lookbehind
-					p.tok = tok
-
-					return true
-				}
-			} else {
-				return false
-			}
-		}
-	}
-
 	if tok, ok := p.lexer.NextToken(); ok {
 		p.lookbehind = p.tok
 		p.tok = tok
 
 		return true
+	}
+
+	return false
+}
+
+// advance moves the parser to the next non-newline token.
+func (p *Parser) advance() bool {
+	for p.next() {
+		if p.tok.Kind != NEWLINE {
+			return true
+		}
 	}
 
 	return false
@@ -166,9 +150,15 @@ func (p *Parser) assert(kind int) bool {
 	return false
 }
 
-// assertAndNext performs an assert operation and moves the parser forward.
+// assertAndNext performs an assert operation and moves the parser forward (no
+// newline skipping).  This should be used in newline sensitive code.
 func (p *Parser) assertAndNext(kind int) bool {
 	return p.assert(kind) && p.next()
+}
+
+// assertAndAdvance performs an assert operation and advances the parser.
+func (p *Parser) assertAndAdvance(kind int) bool {
+	return p.assert(kind) && p.advance()
 }
 
 // want moves the parser forward one and then asserts that the token the parser

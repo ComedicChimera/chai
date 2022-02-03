@@ -9,16 +9,12 @@ import (
 // stmt = var_decl | const_decl | block_expr | tupled_expr | expr_stmt | control_stmt
 // control_stmt = 'break' | 'continue' | 'fallthrough' | 'return' [expr {',' expr}]
 func (p *Parser) parseBlock() (ast.Expr, bool) {
-	if !p.assertAndNext(NEWLINE) {
+	// skip leading newlines
+	if !p.assertAndAdvance(NEWLINE) {
 		return nil, false
 	}
 
 	var stmts []ast.Expr
-
-	// skip leading newlines
-	if !p.newlines() {
-		return nil, false
-	}
 
 	for {
 		switch p.tok.Kind {
@@ -68,12 +64,8 @@ func (p *Parser) parseBlock() (ast.Expr, bool) {
 			}
 		}
 
-		if p.assertAndNext(NEWLINE) {
-			// skip newlines between statements
-			if !p.newlines() {
-				return nil, false
-			}
-		} else {
+		// skip newlines between statements
+		if !p.assertAndAdvance(NEWLINE) {
 			return nil, false
 		}
 	}
@@ -115,7 +107,7 @@ func (p *Parser) parseIfExpr() (ast.Expr, bool) {
 	// of the if expression
 	ifPos := p.tok.Position
 
-	if !p.assertAndNext(IF) {
+	if !p.assertAndAdvance(IF) {
 		return nil, false
 	}
 
@@ -131,7 +123,7 @@ func (p *Parser) parseIfExpr() (ast.Expr, bool) {
 
 	// subsequent elif branches
 	for p.got(ELIF) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 
@@ -142,17 +134,13 @@ func (p *Parser) parseIfExpr() (ast.Expr, bool) {
 
 	// final else branch
 	if p.got(ELSE) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 
 		if body, ok := p.parseBlockBody(); ok {
 			ifExpr.ElseBranch = body
 		} else {
-			return nil, false
-		}
-
-		if !p.newlines() {
 			return nil, false
 		}
 	}
@@ -198,7 +186,7 @@ func (p *Parser) parseWhileExpr() (ast.Expr, bool) {
 	// position of the while expression
 	whilePos := p.tok.Position
 
-	if !p.assertAndNext(WHILE) {
+	if !p.assertAndAdvance(WHILE) {
 		return nil, false
 	}
 
@@ -244,7 +232,7 @@ func (p *Parser) parseBlockHeader() (*ast.VarDecl, ast.Expr, bool) {
 		}
 		vd = _vd.(*ast.VarDecl)
 
-		if !p.assertAndNext(SEMICOLON) {
+		if !p.assertAndAdvance(SEMICOLON) {
 			return nil, nil, false
 		}
 	}
@@ -258,10 +246,10 @@ func (p *Parser) parseBlockHeader() (*ast.VarDecl, ast.Expr, bool) {
 	return vd, expr, true
 }
 
-// block_body = '->' expr | block
+// block_body = '=>' expr | block
 func (p *Parser) parseBlockBody() (ast.Expr, bool) {
 	if p.got(ARROW) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 

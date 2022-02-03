@@ -36,7 +36,7 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 		case END:
 			// ending of public blocks
 			if inPubBlock {
-				if !p.next() {
+				if !p.advance() {
 					return nil, false
 				}
 
@@ -66,7 +66,7 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 
 				if p.got(NEWLINE) {
 					// public block
-					if !p.next() {
+					if !p.advance() {
 						return nil, false
 					}
 
@@ -87,16 +87,11 @@ func (p *Parser) parseFile() ([]ast.Def, bool) {
 			if def, ok := p.parseDefinition(annotations, pubDef); ok {
 				defs = append(defs, def)
 
-				// assert newlines after definitions
-				if !p.got(EOF) && !p.assertAndNext(NEWLINE) {
+				// assert newlines after a definition
+				if !p.got(EOF) && !p.assertAndAdvance(NEWLINE) {
 					return nil, false
 				}
 			} else {
-				return nil, false
-			}
-
-			// skip additional newlines after a definition
-			if !p.newlines() {
 				return nil, false
 			}
 		}
@@ -130,7 +125,7 @@ func (p *Parser) parseAnnotations() (map[string]string, bool) {
 
 	if p.got(LBRACKET) {
 		expectingMultiple = true
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 	}
@@ -147,6 +142,11 @@ func (p *Parser) parseAnnotations() (map[string]string, bool) {
 		value := ""
 		var valueTok *Token
 		if p.got(LPAREN) {
+			// skip newlines after the opening lparen
+			if !p.newlines() {
+				return nil, false
+			}
+
 			if !p.want(STRINGLIT) {
 				return nil, false
 			}
@@ -154,7 +154,7 @@ func (p *Parser) parseAnnotations() (map[string]string, bool) {
 			value = p.tok.Value
 			valueTok = p.tok
 
-			if !p.wantAndNext(RPAREN) {
+			if !p.advance() || !p.assertAndNext(RPAREN) {
 				return nil, false
 			}
 		}
@@ -180,7 +180,7 @@ func (p *Parser) parseAnnotations() (map[string]string, bool) {
 		annotations[idTok.Value] = value
 
 		if expectingMultiple && p.got(COMMA) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {

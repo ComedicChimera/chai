@@ -37,11 +37,11 @@ func (p *Parser) parseTypeDef(annotations map[string]string, public bool) (ast.D
 	return nil, false
 }
 
-// struct_body = '{' {struct_field} '}'
+// struct_body = '{' 'NEWLINE' {struct_field} '}'
 // struct_field = ['PUB'] ident_list type_ext [initializer] 'NEWLINE'
 func (p *Parser) parseStructBody(name string, namePos *report.TextPosition, annotations map[string]string, public bool) (*ast.StructDef, bool) {
-	// '{'
-	if !p.assertAndNext(LBRACE) {
+	// '{' 'NEWLINE'
+	if !p.assertAndNext(LBRACE) || !p.assertAndAdvance(NEWLINE) {
 		return nil, false
 	}
 
@@ -102,6 +102,11 @@ func (p *Parser) parseStructBody(name string, namePos *report.TextPosition, anno
 			if init != nil {
 				fieldInits[id.Name] = init
 			}
+		}
+
+		// newlines at the end of each field
+		if !p.assertAndAdvance(NEWLINE) {
+			return nil, false
 		}
 	}
 

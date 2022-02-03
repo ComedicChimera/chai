@@ -7,7 +7,7 @@ import (
 
 // type_ext = ':' type_label
 func (p *Parser) parseTypeExt() (typing.DataType, bool) {
-	if !p.assert(COLON) || !p.next() {
+	if !p.assertAndAdvance(COLON) {
 		return nil, false
 	}
 
@@ -18,7 +18,7 @@ func (p *Parser) parseTypeExt() (typing.DataType, bool) {
 func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	// check for reference types
 	if p.got(AMP) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 
@@ -55,7 +55,7 @@ func (p *Parser) parseValueType() (typing.DataType, bool) {
 
 // tuple_type = '(' type_label ',' type_label {',' type_label} ')'
 func (p *Parser) parseTupleType() (typing.DataType, bool) {
-	if !p.next() {
+	if !p.advance() {
 		return nil, false
 	}
 
@@ -66,7 +66,7 @@ func (p *Parser) parseTupleType() (typing.DataType, bool) {
 
 	types := []typing.DataType{firstTyp}
 	for p.got(COMMA) {
-		if !p.next() {
+		if !p.advance() {
 			return nil, false
 		}
 
@@ -107,7 +107,7 @@ func (p *Parser) parseOperator() (*Token, bool) {
 
 // initializer = '=' expr
 func (p *Parser) parseInitializer() (ast.Expr, bool) {
-	if !p.assertAndNext(ASSIGN) {
+	if !p.assertAndAdvance(ASSIGN) {
 		return nil, false
 	}
 
@@ -130,7 +130,7 @@ func (p *Parser) parseIdentList(sep int) ([]*ast.Identifier, bool) {
 		})
 
 		if p.got(sep) {
-			if !p.next() {
+			if !p.advance() {
 				return nil, false
 			}
 		} else {
