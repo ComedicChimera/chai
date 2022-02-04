@@ -36,7 +36,8 @@ func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 func (p *Parser) parseValueType() (typing.DataType, bool) {
 	switch p.tok.Kind {
 	case IDENTIFIER:
-		// TODO: named_type
+		// named_type
+		return p.res.AddOpaqueTypeRef(p.chFile, p.tok.Value, p.tok.Position), true
 	case LPAREN:
 		return p.parseTupleType()
 	default:

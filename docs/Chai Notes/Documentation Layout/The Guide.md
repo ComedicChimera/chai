@@ -8,15 +8,23 @@ Covers the *Hello World* program, introduces modules and functions, and explains
 *Exercises*: 
 1. Modify the *Hello World* program to print *Hello Chai!* instead of *Hello World!*
 
-**The Basics**
-Covers comments, types, numeric types, casting, arithmetic, variables, assignment, input and output.
+**Numbers and Types**
+Covers comments, types, numeric types, casting, arithmetic.
+
+**Variables and Input**
+Covers blocks, variables, assignment, input and output.
 
 *Exercises*:
-1. TODO
-2. TODO
-3. Write a program that prompts the user to enter two integers and prints their product.
+1. Write a program to multiply the values of `a`, `b`, and `c` by the sum of the other two values.
+2. Write a program that prompts the user to enter two integers and prints their quotient.
 
 **Conditional Logic**
+Covers booleans, relational operators, logical operator, block expression, and if/elif/else.
+
+*Exercises*
+1. Write a program that prompts the user to enter their favorite number and then display whether or not that number is even.
+2. Write a simple calculator program that prompts the user to enter a simple arithmetic expression (eg. `1 + 1` or `5 - 7` -- only two numbers and an operator separated by spaces) and evaluates then displays the result of the input expression.
+
 **Collections and Loops**
 **Strings**
 **Functions**

@@ -210,8 +210,14 @@ type StructInit struct {
 	ExprBase
 
 	SpreadInit Expr
-	FieldInits map[string]Expr
+	FieldInits map[string]FieldInit
 	Pos        *report.TextPosition
+}
+
+// FieldInit is a structure field initializer.
+type FieldInit struct {
+	NamePos *report.TextPosition
+	Init    Expr
 }
 
 func (si *StructInit) Position() *report.TextPosition {

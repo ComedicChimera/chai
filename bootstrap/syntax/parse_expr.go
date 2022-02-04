@@ -341,7 +341,7 @@ func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
 		}
 
 		return &ast.TupleDot{
-			ExprBase: ast.NewExprBase(nil, ast.LValue),
+			ExprBase: ast.NewExprBase(nil, rootExpr.Category()),
 			Tuple:    rootExpr,
 			FieldN:   int(nValue),
 			Pos:      report.TextPositionFromRange(rootExpr.Position(), nTok.Position),
@@ -352,17 +352,90 @@ func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
 
 	idTok := p.tok
 	return &ast.Dot{
-		ExprBase: ast.NewExprBase(nil, ast.LValue),
+		ExprBase: ast.NewExprBase(nil, rootExpr.Category()),
 		Root:     rootExpr,
 		Field:    idTok.Value,
 		Pos:      report.TextPositionFromRange(rootExpr.Position(), idTok.Position),
 	}, p.next()
 }
 
-// struct_init = '{' ['...' expr ','] initializer {',' initializer} '}'
+// struct_init = '{' ['...' expr ','] 'IDENTIFIER' initializer {',' 'IDENTIFIER' initializer} '}'
 func (p *Parser) parseStructInit(rootExpr ast.Expr) (ast.Expr, bool) {
-	// TODO
-	return nil, false
+	if !p.assertAndAdvance(LBRACE) {
+		return nil, false
+	}
+
+	si := &ast.StructInit{
+		ExprBase:   ast.NewExprBase(nil, ast.RValue),
+		FieldInits: make(map[string]ast.FieldInit),
+	}
+
+	// spread initialization
+	if p.got(ELLIPSIS) {
+		if !p.next() {
+			return nil, false
+		}
+
+		spreadExpr, ok := p.parseExpr()
+		if !ok {
+			return nil, false
+		}
+
+		si.SpreadInit = spreadExpr
+
+		if !p.assertAndAdvance(COMMA) {
+			return nil, false
+		}
+	}
+
+	// regular initializers
+	idTok := p.tok
+	if !p.assertAndAdvance(IDENTIFIER) {
+		return nil, false
+	}
+
+	expr, ok := p.parseInitializer()
+	if !ok {
+		return nil, false
+	}
+
+	si.FieldInits[idTok.Value] = ast.FieldInit{
+		NamePos: idTok.Position,
+		Init:    expr,
+	}
+
+	for p.got(COMMA) {
+		if !p.advance() {
+			return nil, false
+		}
+
+		idTok = p.tok
+		if !p.assertAndAdvance(IDENTIFIER) {
+			return nil, false
+		}
+
+		if _, ok = si.FieldInits[idTok.Value]; ok {
+			p.errorOn(idTok, "multiple initializers for the same field: `%s`", idTok.Value)
+			return nil, false
+		}
+
+		expr, ok = p.parseInitializer()
+		if !ok {
+			return nil, false
+		}
+
+		si.FieldInits[idTok.Value] = ast.FieldInit{
+			NamePos: idTok.Position,
+			Init:    expr,
+		}
+	}
+
+	// closing rbrace
+	if !p.assertAndNext(RBRACE) {
+		return nil, false
+	}
+
+	return si, true
 }
 
 // -----------------------------------------------------------------------------
