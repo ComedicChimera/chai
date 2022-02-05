@@ -4,6 +4,7 @@ import (
 	"chai/report"
 	"chai/typing"
 	"fmt"
+	"strings"
 )
 
 // typeRef represents a collection of references to a defined type.
@@ -69,7 +70,9 @@ func (r *Resolver) AddPackageList(pkgList []*ChaiPackage) {
 
 // AddOpaqueTypeRef adds a reference to named, defined type.  This should be
 // called by the parser as named types are used as type labels.  A new opaque
-// type is returned to be used in place of the named type.
+// type is returned to be used in place of the named type.  If the type is
+// accessed through a dot operation then the name should be passed in the form
+// `pkg.Type`.
 func (r *Resolver) AddOpaqueTypeRef(file *ChaiFile, name string, pos *report.TextPosition) *typing.OpaqueType {
 	// check to see if there is already a type reference in the table. If so,
 	// just return an opaque type wrapping that pointer.
@@ -145,6 +148,19 @@ func (r *Resolver) resolveNamedTypes() bool {
 
 // lookupType looks up a type definition in a file.
 func lookupType(chFile *ChaiFile, name string) (*Symbol, bool) {
+	// handle "dot" lookups
+	if strings.ContainsRune(name, '.') {
+		contents := strings.Split(name, ".")
+
+		if pkg, ok := chFile.VisiblePackages[contents[0]]; ok {
+			if sym, ok := pkg.SymbolTable[contents[1]]; ok && sym.Public {
+				return sym, true
+			}
+		}
+
+		return nil, false
+	}
+
 	// lookup order: imports, global, universal
 
 	if sym, ok := chFile.ImportedSymbols[name]; ok {

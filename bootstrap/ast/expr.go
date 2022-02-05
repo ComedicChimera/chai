@@ -169,8 +169,9 @@ type Dot struct {
 	// type corresponding to the type of the space being accessed.  For
 	// packages, this is an identifier with a `nil` data type and a name
 	// corresponding to the visible package.
-	Root  Expr
-	Field string
+	Root     Expr
+	Field    string
+	FieldPos *report.TextPosition
 
 	// DotKind indicates what kind of dot expression this is. This is determined
 	// after walking it performed.  It must be one of the enumerated Dot*
@@ -196,9 +197,10 @@ const (
 type TupleDot struct {
 	ExprBase
 
-	Tuple  Expr
-	FieldN int
-	Pos    *report.TextPosition
+	Tuple     Expr
+	FieldN    int
+	FieldNPos *report.TextPosition
+	Pos       *report.TextPosition
 }
 
 func (td *TupleDot) Position() *report.TextPosition {
@@ -209,6 +211,7 @@ func (td *TupleDot) Position() *report.TextPosition {
 type StructInit struct {
 	ExprBase
 
+	TypeExpr   Expr
 	SpreadInit Expr
 	FieldInits map[string]FieldInit
 	Pos        *report.TextPosition

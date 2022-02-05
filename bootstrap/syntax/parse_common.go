@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"chai/ast"
+	"chai/report"
 	"chai/typing"
 )
 
@@ -37,7 +38,7 @@ func (p *Parser) parseValueType() (typing.DataType, bool) {
 	switch p.tok.Kind {
 	case IDENTIFIER:
 		// named_type
-		return p.res.AddOpaqueTypeRef(p.chFile, p.tok.Value, p.tok.Position), true
+		return p.parseNamedType()
 	case LPAREN:
 		return p.parseTupleType()
 	default:
@@ -52,6 +53,31 @@ func (p *Parser) parseValueType() (typing.DataType, bool) {
 
 	p.reject()
 	return nil, false
+}
+
+// named_type = 'IDENTIFIER' ['.' 'IDENTIFIER'] [generic_tag]
+func (p *Parser) parseNamedType() (typing.DataType, bool) {
+	firstIDTok := p.tok
+
+	if !p.next() {
+		return nil, false
+	}
+
+	if p.got(DOT) {
+		if !p.wantAndNext(IDENTIFIER) {
+			return nil, false
+		}
+
+		return p.res.AddOpaqueTypeRef(
+			p.chFile,
+			firstIDTok.Value+"."+p.tok.Value,
+			report.TextPositionFromRange(firstIDTok.Position, p.tok.Position),
+		), true
+	} else {
+		return p.res.AddOpaqueTypeRef(p.chFile, firstIDTok.Value, firstIDTok.Position), true
+	}
+
+	// TODO: generic tag
 }
 
 // tuple_type = '(' type_label ',' type_label {',' type_label} ')'

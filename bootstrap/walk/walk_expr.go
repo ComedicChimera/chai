@@ -40,6 +40,10 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 		return w.walkIndirect(v)
 	case *ast.Call:
 		return w.walkCall(v)
+	case *ast.StructInit:
+		return w.walkStructInit(v)
+	case *ast.Dot:
+		return w.walkDot(v)
 	case *ast.Literal:
 		w.walkLiteral(v)
 
@@ -52,6 +56,7 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 			// TODO: handle constants and constraints
 			if sym.DefKind == depm.DKTypeDef {
 				w.reportError(v.Pos, "cannot use %s as value", depm.ReprDefKind(sym.DefKind))
+				return false
 			}
 
 			// update the type with the type of the matching symbol :)
@@ -249,6 +254,108 @@ func (w *Walker) walkCall(call *ast.Call) bool {
 
 	// set the yield type of the function
 	call.SetType(rtTypeVar)
+
+	return true
+}
+
+// walkStructInit walks a struct initialization.
+func (w *Walker) walkStructInit(init *ast.StructInit) bool {
+	// extract the type symbol
+	var sym *depm.Symbol
+	switch v := init.TypeExpr.(type) {
+	case *ast.Identifier:
+		// look up the type name
+		if _sym, ok := w.lookupGlobal(v.Name, v.Pos); ok {
+			sym = _sym
+		} else {
+			w.reportError(v.Pos, "no struct type named `%s`", v.Name)
+			return false
+		}
+	case *ast.Dot:
+		// must be a package definition access
+		pkgIdent, ok := v.Root.(*ast.Identifier)
+		if !ok {
+			w.reportError(init.TypeExpr.Position(), "expected a type")
+			return false
+		}
+
+		if pkg, ok := w.chFile.VisiblePackages[pkgIdent.Name]; ok {
+			if _sym, ok := pkg.SymbolTable[v.Field]; ok && _sym.Public {
+				sym = _sym
+			} else {
+				w.reportError(v.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, v.Field)
+				return false
+			}
+		} else {
+			w.reportError(init.TypeExpr.Position(), "expected a type")
+			return false
+		}
+	}
+
+	// assert that the symbol is a type
+	if sym.DefKind != depm.DKTypeDef {
+		w.reportError(init.TypeExpr.Position(), "expected a type not a %s", depm.ReprDefKind(sym.DefKind))
+		return false
+	}
+
+	// assert that the type of the symbol is a struct type
+	st, ok := typing.InnerType(sym.Type).(*typing.StructType)
+	if !ok {
+		w.reportError(init.TypeExpr.Position(), "struct initializer can only be applied to a struct type")
+		return false
+	}
+
+	// constrain spread initializers
+	if init.SpreadInit != nil {
+		w.solver.Constrain(sym.Type, init.SpreadInit.Type(), init.SpreadInit.Position())
+	}
+
+	// walk and check the field initializers
+	for name, fieldInit := range init.FieldInits {
+		// check that the field exists and is visible
+		fieldNdx, ok := st.FieldsByName[name]
+		if !ok || w.chFile.Parent.ID != sym.File.Parent.ID && !st.Fields[fieldNdx].Public {
+			w.reportError(fieldInit.NamePos, "struct `%s` has no public field named `%s`", st.Repr(), name)
+			return false
+		}
+
+		// assert that the field type is equivalent to the type of the expression
+		w.solver.Constrain(st.Fields[fieldNdx].Type, fieldInit.Init.Type(), fieldInit.Init.Position())
+	}
+
+	// set the return type of the expression to be the type of the struct
+	init.SetType(st)
+	return true
+}
+
+// walkDot walks a dot operator.
+func (w *Walker) walkDot(dot *ast.Dot) bool {
+	// if there is only an identifier in the root, then we may have a package
+	// symbol access or an explicit method call which are handled here.
+	if ident, ok := dot.Root.(*ast.Identifier); ok {
+		// check first for package symbol accesses
+		if pkg, ok := w.chFile.VisiblePackages[ident.Name]; ok {
+			if sym, ok := pkg.SymbolTable[dot.Field]; ok && sym.Public {
+				if sym.DefKind != depm.DKValueDef {
+					w.reportError(ident.Pos, "cannot use %s as value", depm.ReprDefKind(sym.DefKind))
+					return false
+				}
+
+				dot.SetType(sym.Type)
+				dot.DotKind = ast.DotDef
+				return true
+			}
+
+			w.reportError(dot.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, dot.Field)
+			return false
+		}
+
+		// TODO: explicit method calls
+	}
+
+	// otherwise, it is value and may only be a field access or an implicit
+	// method call
+	// TODO
 
 	return true
 }

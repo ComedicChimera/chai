@@ -341,10 +341,11 @@ func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
 		}
 
 		return &ast.TupleDot{
-			ExprBase: ast.NewExprBase(nil, rootExpr.Category()),
-			Tuple:    rootExpr,
-			FieldN:   int(nValue),
-			Pos:      report.TextPositionFromRange(rootExpr.Position(), nTok.Position),
+			ExprBase:  ast.NewExprBase(nil, rootExpr.Category()),
+			Tuple:     rootExpr,
+			FieldN:    int(nValue),
+			FieldNPos: nTok.Position,
+			Pos:       report.TextPositionFromRange(rootExpr.Position(), nTok.Position),
 		}, p.next()
 	} else if !p.assert(IDENTIFIER) /* named dot */ {
 		return nil, false
@@ -355,11 +356,13 @@ func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
 		ExprBase: ast.NewExprBase(nil, rootExpr.Category()),
 		Root:     rootExpr,
 		Field:    idTok.Value,
+		FieldPos: idTok.Position,
 		Pos:      report.TextPositionFromRange(rootExpr.Position(), idTok.Position),
 	}, p.next()
 }
 
-// struct_init = '{' ['...' expr ','] 'IDENTIFIER' initializer {',' 'IDENTIFIER' initializer} '}'
+// struct_init = '{' ['...' expr ',' struct_field_inits | struct_field_inits] '}'
+// struct_field_inits = 'IDENTIFIER' initializer {',' 'IDENTIFIER' initializer}
 func (p *Parser) parseStructInit(rootExpr ast.Expr) (ast.Expr, bool) {
 	if !p.assertAndAdvance(LBRACE) {
 		return nil, false
@@ -367,7 +370,13 @@ func (p *Parser) parseStructInit(rootExpr ast.Expr) (ast.Expr, bool) {
 
 	si := &ast.StructInit{
 		ExprBase:   ast.NewExprBase(nil, ast.RValue),
+		TypeExpr:   rootExpr,
 		FieldInits: make(map[string]ast.FieldInit),
+	}
+
+	// if it is struct an empty initializer, we can just return here
+	if p.got(RBRACE) {
+		return si, true
 	}
 
 	// spread initialization
