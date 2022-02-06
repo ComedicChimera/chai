@@ -154,6 +154,9 @@ func lookupType(chFile *ChaiFile, name string) (*Symbol, bool) {
 
 		if pkg, ok := chFile.VisiblePackages[contents[0]]; ok {
 			if sym, ok := pkg.SymbolTable[contents[1]]; ok && sym.Public {
+				// mark the symbol is imported
+				chFile.Parent.ImportedPackages[pkg.ID].Symbols[contents[1]] = sym
+
 				return sym, true
 			}
 		}
