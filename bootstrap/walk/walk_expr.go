@@ -119,7 +119,7 @@ func (w *Walker) walkBinaryOp(bop *ast.BinaryOp) bool {
 	bop.SetType(rtv)
 
 	// apply the equality constraint between operator and the template
-	w.solver.Constrain(ftTypeVar, operTemplate, bop.Position())
+	w.solver.MustBeEquiv(ftTypeVar, operTemplate, bop.Position())
 
 	// set the operator signature equal to the ftTypeVariable
 	bop.Op.Signature = ftTypeVar
@@ -153,7 +153,7 @@ func (w *Walker) walkUnaryOp(uop *ast.UnaryOp) bool {
 	uop.SetType(rtv)
 
 	// apply the equality constraint between operator and the template
-	w.solver.Constrain(ftTypeVar, operTemplate, uop.Position())
+	w.solver.MustBeEquiv(ftTypeVar, operTemplate, uop.Position())
 
 	// set the operator signature equal to the ftTypeVariable
 	uop.Op.Signature = ftTypeVar
@@ -237,7 +237,7 @@ func (w *Walker) walkCall(call *ast.Call) bool {
 	}
 
 	// apply the function constraint
-	w.solver.Constrain(call.Func.Type(), funcTemplate, call.Position())
+	w.solver.MustBeEquiv(call.Func.Type(), funcTemplate, call.Position())
 
 	// constrain the argument type variables to match the actual argument types
 	// so that we can type check arguments.  Doing this checking in this sort of
@@ -249,7 +249,7 @@ func (w *Walker) walkCall(call *ast.Call) bool {
 	// (we check the actual argument type v. the expected so we have determine
 	// the expected first).
 	for i, argVar := range argVars {
-		w.solver.Constrain(argVar, call.Args[i].Type(), call.Args[i].Position())
+		w.solver.MustBeEquiv(argVar, call.Args[i].Type(), call.Args[i].Position())
 	}
 
 	// set the yield type of the function
@@ -280,10 +280,10 @@ func (w *Walker) walkStructInit(init *ast.StructInit) bool {
 		}
 
 		if pkg, ok := w.chFile.VisiblePackages[pkgIdent.Name]; ok {
-			if _sym, ok := pkg.SymbolTable[v.Field]; ok && _sym.Public {
+			if _sym, ok := pkg.SymbolTable[v.FieldName]; ok && _sym.Public {
 				sym = _sym
 			} else {
-				w.reportError(v.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, v.Field)
+				w.reportError(v.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, v.FieldName)
 				return false
 			}
 		} else {
@@ -307,7 +307,7 @@ func (w *Walker) walkStructInit(init *ast.StructInit) bool {
 
 	// constrain spread initializers
 	if init.SpreadInit != nil {
-		w.solver.Constrain(sym.Type, init.SpreadInit.Type(), init.SpreadInit.Position())
+		w.solver.MustBeEquiv(sym.Type, init.SpreadInit.Type(), init.SpreadInit.Position())
 	}
 
 	// walk and check the field initializers
@@ -320,7 +320,7 @@ func (w *Walker) walkStructInit(init *ast.StructInit) bool {
 		}
 
 		// assert that the field type is equivalent to the type of the expression
-		w.solver.Constrain(st.Fields[fieldNdx].Type, fieldInit.Init.Type(), fieldInit.Init.Position())
+		w.solver.MustBeEquiv(st.Fields[fieldNdx].Type, fieldInit.Init.Type(), fieldInit.Init.Position())
 	}
 
 	// set the return type of the expression to be the type of the struct
@@ -335,7 +335,7 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 	if ident, ok := dot.Root.(*ast.Identifier); ok {
 		// check first for package symbol accesses
 		if pkg, ok := w.chFile.VisiblePackages[ident.Name]; ok {
-			if sym, ok := pkg.SymbolTable[dot.Field]; ok && sym.Public {
+			if sym, ok := pkg.SymbolTable[dot.FieldName]; ok && sym.Public {
 				if sym.DefKind != depm.DKValueDef {
 					w.reportError(ident.Pos, "cannot use %s as value", depm.ReprDefKind(sym.DefKind))
 					return false
@@ -346,17 +346,15 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 				return true
 			}
 
-			w.reportError(dot.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, dot.Field)
+			w.reportError(dot.FieldPos, "package `%s` has no publicly visible symbol named `%s`", pkg.Name, dot.FieldName)
 			return false
 		}
 
 		// TODO: explicit method calls
 	}
 
-	// otherwise, it is value and may only be a field access or an implicit
-	// method call
-	// TODO
-
+	// otherwise, it can only be a field access or an implicit method call
+	w.solver.MustHaveField(dot.Root.Type(), dot.FieldName, dot.Root.Position(), dot.FieldPos)
 	return true
 }
 

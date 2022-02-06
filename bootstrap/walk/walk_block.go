@@ -73,7 +73,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 				}
 
 				// constrain the tuple returned to match the tuple template
-				w.solver.Constrain(varTupleTemplate, varList.Initializer.Type(), varList.Initializer.Position())
+				w.solver.MustBeEquiv(varTupleTemplate, varList.Initializer.Type(), varList.Initializer.Position())
 
 				// declare variables according to the fields in the tuple template
 				for i, name := range varList.Names {
@@ -102,7 +102,7 @@ func (w *Walker) walkLocalVarDecl(vd *ast.VarDecl) bool {
 				return true
 			} else {
 				if varList.Type != nil {
-					w.solver.Constrain(varList.Type, varList.Initializer.Type(), varList.Initializer.Position())
+					w.solver.MustBeEquiv(varList.Type, varList.Initializer.Type(), varList.Initializer.Position())
 				} else {
 					varList.Type = varList.Initializer.Type()
 				}
@@ -181,19 +181,19 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 				}
 
 				// apply the equality constraint between operator and the template
-				w.solver.Constrain(ftTypeVar, operTemplate, rexpr.Position())
+				w.solver.MustBeEquiv(ftTypeVar, operTemplate, rexpr.Position())
 
 				// set the operator type
 				asn.Oper.Signature = ftTypeVar
 
 				// constrain the return type variable to be equal to the type of
 				// the LHS expression (since that is what we are assigning into)
-				w.solver.Constrain(lexpr.Type(), rtv, rexpr.Position())
+				w.solver.MustBeEquiv(lexpr.Type(), rtv, rexpr.Position())
 			}
 		} else {
 			// constrain LHS and RHS
 			for i, rexpr := range asn.RHSExprs {
-				w.solver.Constrain(asn.LHSExprs[i].Type(), rexpr.Type(), rexpr.Position())
+				w.solver.MustBeEquiv(asn.LHSExprs[i].Type(), rexpr.Type(), rexpr.Position())
 			}
 		}
 	} else {
@@ -209,7 +209,7 @@ func (w *Walker) walkAssign(asn *ast.Assign) bool {
 		}
 
 		// constrain to fit pattern
-		w.solver.Constrain(typing.TupleType(tupleTemplate), asn.RHSExprs[0].Type(), asn.Position())
+		w.solver.MustBeEquiv(typing.TupleType(tupleTemplate), asn.RHSExprs[0].Type(), asn.Position())
 	}
 
 	return true

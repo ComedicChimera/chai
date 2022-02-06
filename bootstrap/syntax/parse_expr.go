@@ -353,11 +353,11 @@ func (p *Parser) parseDotExpr(rootExpr ast.Expr) (ast.Expr, bool) {
 
 	idTok := p.tok
 	return &ast.Dot{
-		ExprBase: ast.NewExprBase(nil, rootExpr.Category()),
-		Root:     rootExpr,
-		Field:    idTok.Value,
-		FieldPos: idTok.Position,
-		Pos:      report.TextPositionFromRange(rootExpr.Position(), idTok.Position),
+		ExprBase:  ast.NewExprBase(nil, rootExpr.Category()),
+		Root:      rootExpr,
+		FieldName: idTok.Value,
+		FieldPos:  idTok.Position,
+		Pos:       report.TextPositionFromRange(rootExpr.Position(), idTok.Position),
 	}, p.next()
 }
 

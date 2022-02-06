@@ -169,9 +169,9 @@ type Dot struct {
 	// type corresponding to the type of the space being accessed.  For
 	// packages, this is an identifier with a `nil` data type and a name
 	// corresponding to the visible package.
-	Root     Expr
-	Field    string
-	FieldPos *report.TextPosition
+	Root      Expr
+	FieldName string
+	FieldPos  *report.TextPosition
 
 	// DotKind indicates what kind of dot expression this is. This is determined
 	// after walking it performed.  It must be one of the enumerated Dot*

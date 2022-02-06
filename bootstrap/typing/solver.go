@@ -22,6 +22,20 @@ type TypeVar struct {
 	// first overload that remains after solving completes if there is no valid
 	// substitution remaining for it.
 	shouldDefault bool
+
+	// fieldBounds is a map of the field bounds on this type variable organized
+	// by the name of the bound field.
+	fieldBounds map[string][]fieldBound
+}
+
+// fieldBound is an unification condition applied to a type variable that
+// specifies that it must have a specific field.  These conditions are resolved
+// when the type variable receives a substitution.  Note that the actual name of
+// the field that the struct must have is the key of the field bound in the map
+// on the type variable.
+type fieldBound struct {
+	FieldPos  *report.TextPosition
+	FieldType DataType
 }
 
 func (tv *TypeVar) Repr() string {
@@ -92,13 +106,25 @@ func (ss *solutionState) copyState() *solutionState {
 	return newSS
 }
 
-// constraint represents a Hindley-Milner type constraint: it asserts that two
-// types are equivalent to each other.
-type constraint struct {
+// -----------------------------------------------------------------------------
+
+// constraint is an interface used to group different kinds of type constraints.
+type constraint interface {
+	// Unify applies the field constraint.
+	Unify(s *Solver) bool
+}
+
+// equivConstraint represents a Hindley-Milner type equivConstraint: it asserts
+// that two types are equivalent to each other.
+type equivConstraint struct {
 	Lhs, Rhs DataType
 
 	// Position is the position of the expression that applied the constraint.
 	Position *report.TextPosition
+}
+
+func (ec *equivConstraint) Unify(s *Solver) bool {
+	return s.unify(ec.Lhs, ec.Rhs, ec.Position)
 }
 
 // -----------------------------------------------------------------------------
@@ -114,6 +140,9 @@ type Solver struct {
 	// ctx is the compilation context of the solver.
 	ctx *report.CompilationContext
 
+	// pkgID is the parentID of the package.
+	pkgID uint64
+
 	// vars is the list of type variables in the solver's current solution
 	// context.  All these variables must be given substitutions in order for
 	// the context to be considered solved.  The substitutions are stored in
@@ -121,9 +150,8 @@ type Solver struct {
 	// to its position within this list.
 	vars []*TypeVar
 
-	// constraints is the list of type constraints applied in the solution
-	// context.
-	constraints []*constraint
+	// constraints is the list of all type constraints.
+	constraints []constraint
 
 	// globalOverloadSets is the global map of known overload sets.
 	globalOverloadSets map[int][]DataType
@@ -142,9 +170,10 @@ type Solver struct {
 }
 
 // NewSolver creates a new type solver.
-func NewSolver(ctx *report.CompilationContext) *Solver {
+func NewSolver(ctx *report.CompilationContext, pkgID uint64) *Solver {
 	return &Solver{
 		ctx:                ctx,
+		pkgID:              pkgID,
 		globalOverloadSets: make(map[int][]DataType),
 		shouldError:        true,
 	}
@@ -152,7 +181,13 @@ func NewSolver(ctx *report.CompilationContext) *Solver {
 
 // NewTypeVar creates a new type variable in the given solution context.
 func (s *Solver) NewTypeVar(pos *report.TextPosition, displayName string) *TypeVar {
-	tv := &TypeVar{ID: len(s.vars), Position: pos, displayName: displayName}
+	tv := &TypeVar{
+		ID:          len(s.vars),
+		Position:    pos,
+		displayName: displayName,
+		fieldBounds: make(map[string][]fieldBound),
+	}
+
 	s.vars = append(s.vars, tv)
 	return tv
 }
@@ -165,6 +200,7 @@ func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName s
 		Position:      pos,
 		displayName:   displayName,
 		shouldDefault: shouldDefault,
+		fieldBounds:   make(map[string][]fieldBound),
 	}
 
 	s.vars = append(s.vars, tv)
@@ -172,9 +208,9 @@ func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName s
 	return tv
 }
 
-// Constrain adds a new equivalency constraint between types.
-func (s *Solver) Constrain(lhs, rhs DataType, pos *report.TextPosition) {
-	s.constraints = append(s.constraints, &constraint{
+// MustBeEquiv adds a new equivalency constraint between types.
+func (s *Solver) MustBeEquiv(lhs, rhs DataType, pos *report.TextPosition) {
+	s.constraints = append(s.constraints, &equivConstraint{
 		Lhs:      lhs,
 		Rhs:      rhs,
 		Position: pos,
@@ -199,7 +235,7 @@ func (s *Solver) Solve() bool {
 		// create a new local state for the constraint
 		s.localState = newState()
 
-		if !s.unify(cons.Lhs, cons.Rhs, cons.Position) {
+		if !cons.Unify(s) {
 			return false
 		}
 
@@ -335,8 +371,7 @@ func (s *Solver) unifyTypeVar(id int, other DataType, pos *report.TextPosition) 
 	} else {
 		// the type variable has no substitution and no overloads so we
 		// just update the working state with a new substitution for it
-		s.localState.Substitutions[id] = other
-		return true
+		return s.substitute(id, other, pos)
 	}
 }
 
@@ -385,8 +420,7 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 		return false
 	case 1:
 		// one matching overload => overload becomes substitution
-		s.localState.Substitutions[id] = validOverloads[0]
-		return s.unify(validOverloads[0], other, pos)
+		return s.substitute(id, validOverloads[0], pos) && s.unify(validOverloads[0], other, pos)
 	default:
 		// multiple matching overloads => update local overloads to remove any
 		// invalid ones as necessary.
@@ -432,4 +466,27 @@ func (s *Solver) mergeState() {
 	for id, overloadSet := range s.localState.OverloadSets {
 		s.globalOverloadSets[id] = overloadSet
 	}
+}
+
+// substitute applies a local substitution to a type variable.
+func (s *Solver) substitute(id int, other DataType, pos *report.TextPosition) bool {
+	// update the local substitutions
+	s.localState.Substitutions[id] = other
+
+	// then we need to check the field bounds on the type variable
+	for name, bounds := range s.vars[id].fieldBounds {
+		for _, fb := range bounds {
+			if !s.resolveField(&fieldConstraint{
+				RootType:  other,
+				RootPos:   s.vars[id].Position,
+				FieldName: name,
+				FieldPos:  fb.FieldPos,
+				FieldType: fb.FieldType,
+			}) {
+				return false
+			}
+		}
+	}
+
+	return true
 }

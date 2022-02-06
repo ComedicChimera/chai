@@ -28,7 +28,7 @@ func (w *Walker) walkIfExpr(ifExpr *ast.IfExpr, yieldsValue bool) bool {
 			}
 
 			// constrain the condition to be a boolean
-			w.solver.Constrain(condBranch.Cond.Type(), typing.BoolType(), condBranch.Cond.Position())
+			w.solver.MustBeEquiv(condBranch.Cond.Type(), typing.BoolType(), condBranch.Cond.Position())
 
 			// walk the body
 			if !w.walkExpr(condBranch.Body, true) {
@@ -40,7 +40,7 @@ func (w *Walker) walkIfExpr(ifExpr *ast.IfExpr, yieldsValue bool) bool {
 			if firstBranchType == nil {
 				firstBranchType = condBranch.Body.Type()
 			} else {
-				w.solver.Constrain(firstBranchType, condBranch.Body.Type(), condBranch.Body.Position())
+				w.solver.MustBeEquiv(firstBranchType, condBranch.Body.Type(), condBranch.Body.Position())
 			}
 
 			w.popScope()
@@ -53,7 +53,7 @@ func (w *Walker) walkIfExpr(ifExpr *ast.IfExpr, yieldsValue bool) bool {
 
 		// walk and constrain the `else` branch body
 		if w.walkExpr(ifExpr.ElseBranch, true) {
-			w.solver.Constrain(firstBranchType, ifExpr.ElseBranch.Type(), ifExpr.ElseBranch.Position())
+			w.solver.MustBeEquiv(firstBranchType, ifExpr.ElseBranch.Type(), ifExpr.ElseBranch.Position())
 		}
 
 		// set the returned type to be the first branch type
@@ -76,7 +76,7 @@ func (w *Walker) walkIfExpr(ifExpr *ast.IfExpr, yieldsValue bool) bool {
 			}
 
 			// constrain the condition to be a boolean
-			w.solver.Constrain(condBranch.Cond.Type(), typing.BoolType(), condBranch.Cond.Position())
+			w.solver.MustBeEquiv(condBranch.Cond.Type(), typing.BoolType(), condBranch.Cond.Position())
 
 			// walk the body (know it doesn't yield a value => no need to
 			// perform any other checks)
@@ -125,7 +125,7 @@ func (w *Walker) walkWhileExpr(whileExpr *ast.WhileExpr, yieldsValue bool) bool 
 		return false
 	}
 
-	w.solver.Constrain(whileExpr.Cond.Type(), typing.BoolType(), whileExpr.Cond.Position())
+	w.solver.MustBeEquiv(whileExpr.Cond.Type(), typing.BoolType(), whileExpr.Cond.Position())
 
 	// walk the body
 	if !w.walkExpr(whileExpr.Body, true) {

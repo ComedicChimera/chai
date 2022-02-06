@@ -54,7 +54,7 @@ func (w *Walker) walkFuncLike(signature *typing.FuncType, args []*ast.FuncArg, b
 	// add a constraint to the body's return value to ensure that is matches
 	// the function's return value if the function actually returns a value.
 	if !typing.IsNothing(signature.ReturnType) {
-		w.solver.Constrain(signature.ReturnType, body.Type(), body.Position())
+		w.solver.MustBeEquiv(signature.ReturnType, body.Type(), body.Position())
 	}
 
 	// type solve the function body
@@ -104,13 +104,13 @@ func (w *Walker) WalkGlobalVarDecl(vd *ast.VarDecl) bool {
 				}
 
 				// constrain the tuple returned to match the tuple template
-				w.solver.Constrain(varTupleTemplate, varList.Initializer.Type(), varList.Initializer.Position())
+				w.solver.MustBeEquiv(varTupleTemplate, varList.Initializer.Type(), varList.Initializer.Position())
 
 				// return early so we don't declare variables multiple times
 				return true
 			} else {
 				// we know the variable has an type label
-				w.solver.Constrain(varList.Type, varList.Initializer.Type(), varList.Initializer.Position())
+				w.solver.MustBeEquiv(varList.Type, varList.Initializer.Type(), varList.Initializer.Position())
 			}
 		}
 	}

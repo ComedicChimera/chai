@@ -70,7 +70,7 @@ func NewWalker(uni *depm.Universe, chFile *depm.ChaiFile) *Walker {
 	return &Walker{
 		uni:    uni,
 		chFile: chFile,
-		solver: typing.NewSolver(chFile.Context),
+		solver: typing.NewSolver(chFile.Context, chFile.Parent.ID),
 	}
 }
 
