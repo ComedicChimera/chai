@@ -25,13 +25,19 @@ Covers booleans, relational operators, logical operator, block expression, and i
 1. Write a program that prompts the user to enter their favorite number and then display whether or not that number is even.
 2. Write a simple calculator program that prompts the user to enter a simple arithmetic expression (eg. `1 + 1` or `5 - 7` -- only two numbers and an operator separated by spaces) and evaluates then displays the result of the input expression.
 
-**Collections and Loops**
-Covers while loops, lists, indexing, for loops, slicing, and maps.
+**Loops**
+Covers while loops, break, continue, and after.
 
 *Exercises*:
 1. Prompt the user to enter a list of numbers and display the maximum number entered.
-2. Write a program to print all the prime numbers under 200 using the Sieve of Erastothanes.
-3. Implement a guessing game where a random number is generated (hint: use `rand.int()`) between 1 and 100 and repeatedly prompt the user to guess the number.
+2. Implement a guessing game where a random number is generated (hint: use `rand.int()`) between 1 and 100 and repeatedly prompt the user to guess the number.
+
+**Lists and Maps**
+Covers lists, indexing, for loops, slicing, and maps.
+
+*Exercises*: 
+1. Write a program to print all the prime numbers under 1000 using the Sieve of Erastothanes.
+
 
 **Strings**
 Covers string manipulations, UTF-8 encoding, string indexing and slicing, string iteration, and useful string utilities.
@@ -49,8 +55,8 @@ TODO
 **Lambdas and Closures**
 **Generics**
 **Operator Definitions**
-**Sequences and Generators**
 **Type Classes**
+**Sequences and Generators**
 **Generic Control Flow**
 **Packages and Modules**
 **Files and Paths**
