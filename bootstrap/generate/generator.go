@@ -82,11 +82,15 @@ type Generator struct {
 	// enclosingFunc is function enclosing the block being compiled.
 	enclosingFunc *ir.Func
 
-	// globalScope is the scope containing all global identifiers.
+	// globalScope is the scope containing all global values.
 	globalScope map[string]LLVMIdent
 
 	// localScopes is the stack of local scopes used during generation.
 	localScopes []map[string]LLVMIdent
+
+	// globalTypes is a table containing all the globally defined types in the
+	// package.
+	globalTypes map[string]types.Type
 
 	// initFunc is the global initialization function for the package. It
 	// initializes global variables and calls the package's `init` function as
@@ -111,6 +115,7 @@ func NewGenerator(sb *StartBuilder, pkg *depm.ChaiPackage, isRoot bool) *Generat
 		defDepGraph:    make(map[string]ast.Def),
 		alreadyVisited: make(map[ast.Def]bool),
 		globalScope:    make(map[string]LLVMIdent),
+		globalTypes:    make(map[string]types.Type),
 	}
 }
 

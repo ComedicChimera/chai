@@ -10,6 +10,7 @@ import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
+	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
 
@@ -203,6 +204,74 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		// behavior.
 		g.block.NewRet(result)
 	}
+}
+
+// genStructDef generates a global struct definition.
+func (g *Generator) genStructDef(sd *ast.StructDef) {
+	// generate the field types
+	var fieldTypes []types.Type
+	for _, field := range sd.Type.Fields {
+		if !typing.IsNothing(field.Type) {
+			fieldTypes = append(fieldTypes, g.convType(field.Type))
+		}
+	}
+
+	// if all the fields are "nothing", then we just store `nil` in the type
+	// table
+	if len(fieldTypes) == 0 {
+		g.globalTypes[sd.Name] = nil
+		return
+	}
+
+	// generate the type definition itself
+	td := g.mod.NewTypeDef(g.globalPrefix+sd.Name, types.NewStruct(fieldTypes...))
+
+	// add the definition to the global table
+	g.globalTypes[sd.Name] = td
+
+	// generate the constructor definition
+	constr := g.mod.NewFunc(
+		g.globalPrefix+sd.Name+".$_constr",
+		types.Void,
+		ir.NewParam("this", types.NewPointer(td)),
+	)
+
+	// populate the constructor with initializers
+	cEntry := constr.NewBlock("entry")
+	g.block = cEntry
+
+	var n int64
+	for _, field := range sd.Type.Fields {
+		// skip nothing fields
+		if typing.IsNothing(field.Type) {
+			continue
+		}
+
+		// TODO: handle non-nullable fields
+
+		var initExpr value.Value
+
+		// first add any fields with defined initializers
+		if field.Initialized {
+			initExpr = g.genExpr(sd.FieldInits[field.Name])
+		} else {
+			initExpr = g.genNull(field.Type)
+		}
+
+		// get the field pointer and store
+		fieldPtr := cEntry.NewGetElementPtr(
+			td,
+			constr.Params[0],
+			constant.NewInt(types.I32, 0),
+			constant.NewInt(types.I32, n),
+		)
+		cEntry.NewStore(fieldPtr, initExpr)
+
+		n++
+	}
+
+	// end the constructor
+	cEntry.NewRet(nil)
 }
 
 // genGlobalVar generates a global variable declaration.

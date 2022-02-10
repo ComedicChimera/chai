@@ -8,6 +8,8 @@ import (
 )
 
 func (g *Generator) convType(typ typing.DataType) types.Type {
+	typ = typing.InnerType(typ)
+
 	switch v := typ.(type) {
 	case typing.PrimType:
 		return g.convPrimType(v)
@@ -15,6 +17,20 @@ func (g *Generator) convType(typ typing.DataType) types.Type {
 		return types.NewPointer(g.convType(v.ElemType))
 	case *typing.FuncType:
 		log.Fatalln("first class functions are not supported in Alpha Chai")
+	case *typing.AliasType:
+		return g.convType(v.Type)
+	case *typing.StructType:
+		{
+			st := g.globalTypes[v.Name()]
+
+			// handle structs containing only nothing fields
+			if st == nil {
+				return st
+			}
+
+			// struct types are always wrapped in pointers
+			return types.NewPointer(st)
+		}
 	}
 
 	log.Fatalln("type not implemented yet")
