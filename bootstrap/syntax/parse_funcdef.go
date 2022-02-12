@@ -121,8 +121,8 @@ func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 		var groupedArgs []*ast.FuncArg
 
 		for {
-			argId, byRef, ok := p.parseArgID()
-			if !ok {
+			argId := p.tok
+			if !p.assertAndNext(IDENTIFIER) {
 				return nil, false
 			}
 
@@ -133,8 +133,7 @@ func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 			}
 
 			groupedArgs = append(groupedArgs, &ast.FuncArg{
-				Name:  argId.Value,
-				ByRef: byRef,
+				Name: argId.Value,
 			})
 
 			if p.got(COMMA) {

@@ -3,6 +3,7 @@ package generate
 import (
 	"chai/ast"
 	"chai/depm"
+	"chai/typing"
 	"log"
 
 	"github.com/llir/llvm/ir/types"
@@ -57,9 +58,11 @@ func (g *Generator) genVarDecl(vd *ast.VarDecl) {
 
 		for i, name := range vlist.Names {
 			if vlist.Mutabilities[i] == depm.Mutable {
-				// mutable variables require a stack allocation and a store
-				varPtr := g.block.NewAlloca(init.Type())
-				g.block.NewStore(init, varPtr)
+				// mutable variables require a stack allocation and a store.
+				// However, the `alloca` is always placed at the start of the
+				// function to avoid loop invariant computation.
+				varPtr := g.enclosingFunc.Blocks[0].NewAlloca(g.convTypeNoPtr(vlist.Type))
+				g.assignTo(init, varPtr, vlist.Type)
 				g.defineLocal(name, varPtr, true)
 			} else {
 				// immutable variables are just initialized as their
@@ -104,7 +107,11 @@ func (g *Generator) genAssign(as *ast.Assign) {
 
 		// create the assignments
 		for i, lhsVar := range lhsVars {
-			g.block.NewStore(rhsVals[i], lhsVar)
+			if rhsVals[i] == nil {
+				continue
+			}
+
+			g.assignTo(rhsVals[i], lhsVar, as.LHSExprs[i].Type())
 		}
 	} else {
 		log.Fatalln("unpacking assign not implement yet")
@@ -121,8 +128,39 @@ func (g *Generator) genLHSExpr(expr ast.Expr) value.Value {
 		// just return that pointer.
 		val, _ := g.lookup(v.Name)
 		return val
+	case *ast.Dot:
+		if v.IsStaticDot {
+			val, _ := g.lookup(v.Root.(*ast.Identifier).Name + v.FieldName)
+			return val
+		}
+
+		// TODO: method calls
+
+		// return g.block.NewGetElementPtr(g.convTypeNoPtr(v.Root.Type()), g.genExpr(v.Root))
 	}
 
 	log.Fatalln("other lhs expressions not yet implemented")
 	return nil
+}
+
+// -----------------------------------------------------------------------------
+
+// assignTo generates a code snippet for assigning an RHS value into an LHS value.
+func (g *Generator) assignTo(lhs, rhs value.Value, dt typing.DataType) {
+	if isPtrType(dt) {
+		// TODO: memcopy
+	} else {
+		g.block.NewStore(rhs, lhs)
+	}
+}
+
+// returnFromFunc generate a code snippet for returning a value from a function.
+func (g *Generator) returnFromFunc(val value.Value, dt typing.DataType) {
+	if isPtrType(dt) {
+		// TODO: memcpy
+
+		g.block.NewRet(nil)
+	} else {
+		g.block.NewRet(val)
+	}
 }

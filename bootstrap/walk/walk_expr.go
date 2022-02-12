@@ -342,7 +342,7 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 				}
 
 				dot.SetType(sym.Type)
-				dot.DotKind = ast.DotDef
+				dot.IsStaticDot = true
 				return true
 			}
 

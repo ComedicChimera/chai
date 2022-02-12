@@ -322,7 +322,7 @@ func (c *Compiler) typeCheck() {
 func compileLLVMModule(llcPath string, mod *ir.Module, objFilePath string) error {
 	// write LLVM module to text file
 	modFilePath := objFilePath[:len(objFilePath)-2] + ".ll"
-	writeOutputFile(modFilePath, mod.String())
+	writeOutputFile(modFilePath, mod)
 
 	// compile LLVM module using LLC
 	llc := exec.Command(llcPath, "-filetype", "obj", "-o", objFilePath, modFilePath)
@@ -337,8 +337,8 @@ func compileLLVMModule(llcPath string, mod *ir.Module, objFilePath string) error
 	return nil
 }
 
-// writeOutputFile is used to quickly write an output file for the compiler.
-func writeOutputFile(fpath, content string) {
+// writeOutputFile is used to write a module to an LLVM IR file.
+func writeOutputFile(fpath string, mod *ir.Module) {
 	// open or create the file
 	file, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	if err != nil {
@@ -347,7 +347,7 @@ func writeOutputFile(fpath, content string) {
 	defer file.Close()
 
 	// write the data
-	_, err = file.WriteString(content)
+	_, err = mod.WriteTo(file)
 	if err != nil {
 		report.ReportFatal("failed to write output to file `%s`: %s", fpath, err.Error())
 	}

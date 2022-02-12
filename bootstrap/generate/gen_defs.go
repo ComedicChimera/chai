@@ -59,6 +59,8 @@ func (g *Generator) genDef(def ast.Def) {
 		g.genFunc(fmt.Sprintf("oper[%s]", v.Op.Name), v.Args, v.Op.Signature.(*typing.FuncType).ReturnType, v.Body, v.Public(), v.Annotations())
 	case *ast.VarDecl:
 		g.genGlobalVar(v)
+	case *ast.StructDef:
+		g.genStructDef(v)
 	}
 }
 
@@ -82,11 +84,6 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 		// prune nothing types from the arguments
 		if typing.IsNothing(arg.Type) {
 			continue
-		}
-
-		// TODO: by reference arguments
-		if arg.ByRef {
-			log.Fatalln("by reference arguments not implemented yet")
 		}
 
 		params = append(params, ir.NewParam(arg.Name, g.convType(arg.Type)))
@@ -149,12 +146,6 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 	// add the global declaration for the function
 	g.globalScope[name] = LLVMIdent{Val: llvmFunc, Mutable: false}
 
-	// Chai does not use exceptions in any form and thus all functions are
-	// marked `nounwind`.  NOTE: This should be okay for external functions
-	// since Chai has no error handling infrastructure of exceptions thrown
-	// from other languages.
-	llvmFunc.FuncAttrs = []ir.FuncAttribute{enum.FuncAttrNoUnwind}
-
 	// generate the body if a body is provided
 	if body != nil {
 		entry := llvmFunc.NewBlock("entry")
@@ -198,11 +189,10 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 			result = nil
 		}
 
-		// generate the implicit return statement at the end.  Note that even
-		// through `genExpr` may return `nil`, if the result is indeed `nil`,
-		// then `NewRet` is defined to generate a ret void which is the desired
-		// behavior.
-		g.block.NewRet(result)
+		// generate the implicit return statement at the end as necessary
+		if g.block.Term == nil {
+			g.returnFromFunc(result, body.Type())
+		}
 	}
 }
 
@@ -312,6 +302,8 @@ func (g *Generator) genForwardDecl(def ast.Def) {
 		// global variables should never be forward declared since they only
 		// depend on type definitions which do not depend on them
 		log.Fatalln("unable to forward declare a variable")
+	case *ast.StructDef:
+		g.mod.NewTypeDef(g.globalPrefix+v.Name, &types.StructType{Opaque: true})
 	}
 }
 

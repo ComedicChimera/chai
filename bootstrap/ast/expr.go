@@ -173,10 +173,8 @@ type Dot struct {
 	FieldName string
 	FieldPos  *report.TextPosition
 
-	// DotKind indicates what kind of dot expression this is. This is determined
-	// after walking it performed.  It must be one of the enumerated Dot*
-	// constants.
-	DotKind int
+	// IsStaticDot indicates if this Dot operation is a static symbol access.
+	IsStaticDot bool
 
 	Pos *report.TextPosition
 }
@@ -184,14 +182,6 @@ type Dot struct {
 func (d *Dot) Position() *report.TextPosition {
 	return d.Pos
 }
-
-// Enumeration of different usages of the dot operator.
-const (
-	DotField   = iota // struct.field
-	DotDef            // pkg.def
-	DotEMethod        // Type.method
-	DotIMethod        // value.method
-)
 
 // TupleDot represents a tuple field access (tuple.n)
 type TupleDot struct {

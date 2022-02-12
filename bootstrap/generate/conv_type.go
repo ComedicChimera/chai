@@ -9,7 +9,21 @@ import (
 
 func (g *Generator) convType(typ typing.DataType) types.Type {
 	typ = typing.InnerType(typ)
+	llTyp := g.pureConvType(typ)
 
+	// handle pointer types (like structs)
+	if llTyp != nil && isPtrType(typ) {
+		return types.NewPointer(llTyp)
+	}
+
+	return llTyp
+}
+
+func (g *Generator) convTypeNoPtr(typ typing.DataType) types.Type {
+	return g.pureConvType(typing.InnerType(typ))
+}
+
+func (g *Generator) pureConvType(typ typing.DataType) types.Type {
 	switch v := typ.(type) {
 	case typing.PrimType:
 		return g.convPrimType(v)
@@ -20,17 +34,7 @@ func (g *Generator) convType(typ typing.DataType) types.Type {
 	case *typing.AliasType:
 		return g.convType(v.Type)
 	case *typing.StructType:
-		{
-			st := g.globalTypes[v.Name()]
-
-			// handle structs containing only nothing fields
-			if st == nil {
-				return st
-			}
-
-			// struct types are always wrapped in pointers
-			return types.NewPointer(st)
-		}
+		return g.globalTypes[v.Name()]
 	}
 
 	log.Fatalln("type not implemented yet")
@@ -63,14 +67,15 @@ func (g *Generator) convPrimType(pt typing.PrimType) types.Type {
 	return nil
 }
 
-// isPtrValue returns whether or not the type is pointer-value type such as a
-// struct which is commonly wrapped in a pointer so it can be more readily
-// manipulated.  Such values need to have additional semantics and tags
-// generated for them to uphold Chai's strict value semantics.
-func isPtrValue(typ typing.DataType) bool {
-	switch v := typ.(type) {
-	case typing.PrimType:
-		return v == typing.PrimString
+// -----------------------------------------------------------------------------
+
+// isPtrType returns true if a type is wrapped in a pointer.
+func isPtrType(typ typing.DataType) bool {
+	typ = typing.InnerType(typ)
+
+	switch typ.(type) {
+	case *typing.StructType:
+		return true
 	}
 
 	return false

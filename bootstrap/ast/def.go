@@ -62,7 +62,6 @@ type FuncDef struct {
 type FuncArg struct {
 	Name     string
 	Type     typing.DataType
-	ByRef    bool
 	Constant bool
 }
 

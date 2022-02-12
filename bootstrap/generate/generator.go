@@ -147,6 +147,7 @@ func (g *Generator) Generate() *ir.Module {
 		importPrefix := fmt.Sprintf("p%d.", pkgImport.Pkg.ID)
 
 		// imported symbols
+		// TODO: fix to handle implicitly imported symbols
 		for _, sym := range pkgImport.Symbols {
 			g.genSymbolImport(importPrefix, sym)
 		}

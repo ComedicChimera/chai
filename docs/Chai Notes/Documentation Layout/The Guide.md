@@ -19,7 +19,7 @@ Covers blocks, variables, assignment, casting, input and output.
 2. Write a program that prompts the user to enter two integers and prints their quotient.
 
 **Conditional Logic**
-Covers booleans, relational operators, logical operator, block expression, and if/elif/else.
+Covers booleans, relational operators, logical operators, block expressions, scoping and shadowing, and if/elif/else.
 
 *Exercises*:
 1. Write a program that prompts the user to enter their favorite number and then display whether or not that number is even.
@@ -29,21 +29,24 @@ Covers booleans, relational operators, logical operator, block expression, and i
 Covers while loops, break, continue, and after.
 
 *Exercises*:
-1. Prompt the user to enter a list of numbers and display the maximum number entered.
-2. Implement a guessing game where a random number is generated (hint: use `rand.int()`) between 1 and 100 and repeatedly prompt the user to guess the number.
+1. Write a Fizz Buzz program.
+2. Write a program to prompt the user to enter a list of numbers and display the maximum number entered.
+4. Implement a guessing game where a random number is generated (hint: use `rand.int()`) between 1 and 100 and repeatedly prompt the user to guess the number.
 
 **Lists and Maps**
-Covers lists, indexing, for loops, slicing, and maps.
+Covers lists, indexing, list methods, for loops, slicing, maps, and map methods.
 
 *Exercises*: 
-1. Write a program to print all the prime numbers under 1000 using the Sieve of Erastothanes.
+1. TODO
+2. Write a program to print all the prime numbers under 1000 using the Sieve of Erastothanes.
 
 
 **Strings**
 Covers string manipulations, UTF-8 encoding, string indexing and slicing, string iteration, and useful string utilities.
 
 *Exercises*:
-TODO
+1. Write a program to capitalize a string the user enters.
+2. Write a program to prompt the user to enter a comma-separated list of numbers and print their sum. 
 
 **Functions**
 **Error Handling**
@@ -51,6 +54,7 @@ TODO
 **Pattern Matching**
 **Algebraic Types**
 **References and Buffers**
+**Nullability**
 **Method Spaces**
 **Lambdas and Closures**
 **Generics**
