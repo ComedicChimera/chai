@@ -129,7 +129,7 @@ func (g *Generator) genLHSExpr(expr ast.Expr) value.Value {
 		val, _ := g.lookup(v.Name)
 		return val
 	case *ast.Dot:
-		if v.IsStaticDot {
+		if v.IsStaticGet {
 			val, _ := g.lookup(v.Root.(*ast.Identifier).Name + v.FieldName)
 			return val
 		}

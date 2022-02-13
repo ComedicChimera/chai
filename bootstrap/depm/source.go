@@ -116,12 +116,18 @@ type ChaiPackage struct {
 // ChaiPackageImport details a package that was imported by another package.
 type ChaiPackageImport struct {
 	Pkg     *ChaiPackage
-	Symbols map[string]*Symbol
+	Symbols map[string]*ChaiSymbolImport
 
 	// Operators does not store the operator itself: that will be loaded from
 	// the package directly: it just stores the operators that should be loaded
 	// so the generator can retrieve them from the foreign package.
 	Operators map[int]struct{}
+}
+
+// ChaiSymbolImport represents a symbol imported from a package.
+type ChaiSymbolImport struct {
+	Sym      *Symbol
+	Implicit bool
 }
 
 // NewPackage creates a new Chai package and adds it to its parent module. It

@@ -170,6 +170,10 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Typed AST
        |
+    > Lowerer 
+       |
+       * - Chai MIR
+       |
     > Generator
        |
        * - LLVM IR

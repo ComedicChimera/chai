@@ -173,8 +173,9 @@ type Dot struct {
 	FieldName string
 	FieldPos  *report.TextPosition
 
-	// IsStaticDot indicates if this Dot operation is a static symbol access.
-	IsStaticDot bool
+	// IsStaticGet indicates whether this dot operation is used to perform an
+	// implicit import (ie. access a symbol in another package).
+	IsStaticGet bool
 
 	Pos *report.TextPosition
 }

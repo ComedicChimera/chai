@@ -148,8 +148,8 @@ func (g *Generator) Generate() *ir.Module {
 
 		// imported symbols
 		// TODO: fix to handle implicitly imported symbols
-		for _, sym := range pkgImport.Symbols {
-			g.genSymbolImport(importPrefix, sym)
+		for _, symImport := range pkgImport.Symbols {
+			g.genSymbolImport(importPrefix, symImport.Sym)
 		}
 
 		// TODO: imported operators

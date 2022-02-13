@@ -80,7 +80,7 @@ func (p *Parser) parseImportStmt() bool {
 	} else {
 		chPkgImport = depm.ChaiPackageImport{
 			Pkg:       importedPkg,
-			Symbols:   make(map[string]*depm.Symbol),
+			Symbols:   make(map[string]*depm.ChaiSymbolImport),
 			Operators: make(map[int]struct{}),
 		}
 		p.chFile.Parent.ImportedPackages[importedPkg.ID] = chPkgImport
@@ -113,7 +113,10 @@ func (p *Parser) parseImportStmt() bool {
 				p.chFile.ImportedSymbols[isym.Name] = sym
 
 				// add it the global import table
-				p.chFile.Parent.ImportedPackages[importedPkg.ID].Symbols[isym.Name] = sym
+				p.chFile.Parent.ImportedPackages[importedPkg.ID].Symbols[isym.Name] = &depm.ChaiSymbolImport{
+					Sym:      sym,
+					Implicit: false,
+				}
 			} else {
 				// operator imports
 
