@@ -26,12 +26,12 @@ Covers booleans, relational operators, logical operators, block expressions, sco
 2. Write a simple calculator program that prompts the user to enter a simple arithmetic expression (eg. `1 + 1` or `5 - 7` -- only two numbers and an operator separated by spaces) and evaluates then displays the result of the input expression.
 
 **Loops**
-Covers while loops, break, continue, and after.
+Covers while loops, break, continue, and after.  Also includes a digression on random numbers.
 
 *Exercises*:
 1. Write a Fizz Buzz program.
 2. Write a program to prompt the user to enter a list of numbers and display the maximum number entered.
-4. Implement a guessing game where a random number is generated (hint: use `rand.int()`) between 1 and 100 and repeatedly prompt the user to guess the number.
+4. Implement a guessing game where a random number is generated between 1 and 100 and repeatedly prompt the user to guess the number.
 
 **Lists and Maps**
 Covers lists, indexing, list methods, for loops, slicing, maps, and map methods.
