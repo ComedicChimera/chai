@@ -35,6 +35,8 @@ type FuncDef struct {
 
 	Args       []FuncParam
 	ReturnType typing.DataType
+
+	Body *FuncBody
 }
 
 // FuncParam represents a function parameter in MIR.
@@ -69,6 +71,7 @@ type TypeDef struct {
 type GlobalVarDef struct {
 	ParentID uint64
 	Names    []string
+	Type     typing.DataType
 	Public   bool
 
 	Initializer Expr
