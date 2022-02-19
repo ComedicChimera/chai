@@ -148,7 +148,8 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 
 	// generate the body if a body is provided
 	if body != nil {
-		entry := llvmFunc.NewBlock("entry")
+		// append a block for local variables
+		localsBlock := llvmFunc.NewBlock("locals")
 
 		// set the parent function of the block
 		g.enclosingFunc = llvmFunc
@@ -168,8 +169,8 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 				g.defineLocal(arg.Name, llvmFunc.Params[n], false)
 			} else {
 				// mutable parameters need local allocas to be manipulated
-				localArg := entry.NewAlloca(llvmFunc.Params[n].Type())
-				entry.NewStore(llvmFunc.Params[n], localArg)
+				localArg := localsBlock.NewAlloca(llvmFunc.Params[n].Type())
+				localsBlock.NewStore(llvmFunc.Params[n], localArg)
 				g.defineLocal(
 					arg.Name,
 					localArg,
@@ -180,7 +181,11 @@ func (g *Generator) genFunc(name string, args []*ast.FuncArg, rtType typing.Data
 			n++
 		}
 
-		// parse the body
+		// append an entry block for actually generating the body
+		entry := llvmFunc.NewBlock("entry")
+		localsBlock.NewBr(entry)
+
+		// generate the body
 		g.block = entry
 		result := g.genExpr(body)
 
