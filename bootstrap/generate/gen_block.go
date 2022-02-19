@@ -6,6 +6,7 @@ import (
 	"chai/typing"
 	"log"
 
+	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -80,15 +81,19 @@ func (g *Generator) genAssign(as *ast.Assign) {
 		// evaluate all the LHS expressions.  We do have to evaluate these first
 		// since it is technically possible for the RHS to effect the LHS via
 		// indirection.
-		lhsVars := make([]value.Value, len(as.LHSExprs))
-		for i, lhsExpr := range as.LHSExprs {
-			lhsVars[i] = g.genLHSExpr(lhsExpr)
+		var lhsVars []value.Value
+		for _, lhsExpr := range as.LHSExprs {
+			if lhsVar := g.genLHSExpr(lhsExpr); lhsVar != nil {
+				lhsVars = append(lhsVars, lhsVar)
+			}
 		}
 
 		// evaluate all the RHS expressions
-		rhsVals := make([]value.Value, len(as.RHSExprs))
-		for i, rhsExpr := range as.RHSExprs {
-			rhsVals[i] = g.genExpr(rhsExpr)
+		var rhsVals []value.Value
+		for _, rhsExpr := range as.RHSExprs {
+			if rhsVal := g.genExpr(rhsExpr); rhsVal != nil {
+				rhsVals = append(rhsVals, rhsVal)
+			}
 		}
 
 		// if this a compound operation, then we need to apply the operator
@@ -107,10 +112,6 @@ func (g *Generator) genAssign(as *ast.Assign) {
 
 		// create the assignments
 		for i, lhsVar := range lhsVars {
-			if rhsVals[i] == nil {
-				continue
-			}
-
 			g.assignTo(rhsVals[i], lhsVar, as.LHSExprs[i].Type())
 		}
 	} else {
@@ -121,6 +122,10 @@ func (g *Generator) genAssign(as *ast.Assign) {
 // genLHSExpr generates an expression on the left-hand side of an assigment or
 // unary update.
 func (g *Generator) genLHSExpr(expr ast.Expr) value.Value {
+	if typing.IsNothing(expr.Type()) {
+		return nil
+	}
+
 	// TODO: add more LHS exprs as necessary
 	switch v := expr.(type) {
 	case *ast.Identifier:
@@ -136,7 +141,15 @@ func (g *Generator) genLHSExpr(expr ast.Expr) value.Value {
 
 		// TODO: method calls
 
-		// return g.block.NewGetElementPtr(g.convTypeNoPtr(v.Root.Type()), g.genExpr(v.Root))
+		// struct access
+		structType := typing.InnerType(v.Root.Type()).(*typing.StructType)
+
+		return g.block.NewGetElementPtr(
+			g.pureConvType(structType),
+			g.genExpr(v.Root),
+			constant.NewInt(types.I32, 0),
+			constant.NewInt(types.I32, int64(structType.FieldsByName[v.FieldName])),
+		)
 	}
 
 	log.Fatalln("other lhs expressions not yet implemented")

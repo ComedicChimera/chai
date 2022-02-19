@@ -161,22 +161,22 @@ func (g *Generator) Generate() *ir.Module {
 	}
 
 	// generate global initializers at the very end
-	initBlock := g.initFunc.Blocks[0]
+	g.enclosingFunc = g.initFunc
+	g.block = g.initFunc.Blocks[0]
 	for _, ginit := range g.globalInits {
 		// generate the initialization expression itself
-		g.block = initBlock
 		initExpr := g.genExpr(ginit.Expr)
 
 		// store it in all the variables
 		for _, global := range ginit.Globals {
-			initBlock.NewStore(initExpr, global)
+			g.block.NewStore(initExpr, global)
 		}
 	}
 
 	// TODO: add in call to `init` if the package has one.
 
 	// terminate the global package init function
-	initBlock.NewRet(nil)
+	g.block.NewRet(nil)
 
 	// return the completed module
 	return g.mod
