@@ -80,7 +80,7 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 	if operFt.IntrinsicName != "" {
 		opCode, ok := intrinsicTable[operFt.IntrinsicName]
 		if !ok {
-			log.Fatalln("unknown intrinsic named: `%s`", operFt.IntrinsicName)
+			log.Fatalf("unknown intrinsic named: `%s`\n", operFt.IntrinsicName)
 			return nil
 		}
 
