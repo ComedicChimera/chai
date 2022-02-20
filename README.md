@@ -60,10 +60,6 @@ documentation can be found in the
     * Dictionaries (ordered hash-maps)
     * Arrays (like mathematical vectors)
     * Multi-Dimensional Arrays (like mathematical matrices)
-- Intuitive Vectorization
-    * Built-in `Vec` and `Mat` types that allows for elementwise arithmetic operations
-    that are [vectorized](https://en.wikipedia.org/wiki/SIMD)
-    * `Mat` types are multi-dimensional (ie. Matrices)
 - Garbage Collection
 - Directory-Based Package System 
     * All files in a directory are part of one shared namespace (called a package)
@@ -117,9 +113,8 @@ perfectly up to date but should help to give some idea of where we are.
   * [ ] Garbage Collector
   * [ ] Argc and Argv
 - [ ] Standard I/O
-  * [ ] `puts`
-  * [ ] `puti`
-  * [ ] `putf`
+  * [ ] `println`
+  * [ ] `printf`
 - [ ] String Manipulation
   * [ ] `StringBuilder`
   * [ ] `starts_with`
@@ -170,11 +165,15 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Typed AST
        |
-    > Lowerer + Generator
+    > Lowerer
+       |
+       * - Chai MIR
+       |
+    > Generator
        |
        * - LLVM IR
        |
-    > LLVM (llc)
+    > LLC (LLVM Static Compiler)
        |
        * - Object Code
        |
@@ -202,7 +201,7 @@ the compiler using the Go's LLVM IR generation library (this LLVM source text
 will then be piped to the LLVM compiler, Go's LLVM bindings don't work) -- this
 compiler will compile a simple subset of Chai called Alpha Chai.  Once that is
 finished, a full Chai compiler will be implemented in Chai rendering the
-language full self-hosting. Eventually, the compiler will be able to compile
+language fully self-hosting. Eventually, the compiler will be able to compile
 itself.
 
 The `bootstrap` directory contains the Go implementation.  Once that
