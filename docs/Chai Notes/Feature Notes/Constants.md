@@ -1,5 +1,5 @@
-## Idea
-Provide a convenient way to define compile-time constant values.
+# Constants
+Constants provide a convenient way to define compile-time constant values.
 
 ## Syntax
 ```

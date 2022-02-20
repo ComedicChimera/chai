@@ -1,3 +1,5 @@
+# Collections
+
 Chai provides 4 fundamental collections as enumerated below.
 
 **NOTE**: As of 1/30/22, vectors and matrices are no longer a part of the core language.  They may be readded with their own syntax as part of the math library at a later date.  They are not essential to the language's release and serve only to bloat and complicate the language (given the likely lack of adequate vector support upon release).  TLDR: we are not trying to compete with Matlab, and vectors and matrices have very little use to regular programmers on a day to day basis.

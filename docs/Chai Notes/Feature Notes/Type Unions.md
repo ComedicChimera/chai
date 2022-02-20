@@ -1,4 +1,4 @@
-## Idea
+# Type Unions
 Type unions provide a way to define sets of constraints for generics.
 
 ## Syntax
