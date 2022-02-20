@@ -28,7 +28,7 @@ oper (<) (a, b: i32) bool end
 @intrinsicop("sgt")
 oper (>) (a, b: i32) bool end
 
-@intrinsicop("sgeq")
+@intrinsicop("sge")
 oper (>=) (a, b: i32) bool end
 
 @intrinsicop("eq")

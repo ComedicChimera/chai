@@ -51,7 +51,7 @@ type FuncBody struct {
 	// Locals stores the local variables in the function.
 	Locals map[string]typing.DataType
 
-	Body Expr
+	BodyExpr Expr
 }
 
 // -----------------------------------------------------------------------------
@@ -68,11 +68,18 @@ type TypeDef struct {
 
 // -----------------------------------------------------------------------------
 
+// GlobalVarDef represents a global variable declarations
 type GlobalVarDef struct {
 	ParentID uint64
 	Names    []string
 	Type     typing.DataType
 	Public   bool
 
-	Initializer Expr
+	Initializer *GlobalVarInit
+}
+
+// GlobalVarInit represents a global variable initializer.
+type GlobalVarInit struct {
+	Locals   map[string]typing.DataType
+	InitExpr Expr
 }

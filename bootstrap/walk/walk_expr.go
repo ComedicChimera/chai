@@ -61,6 +61,7 @@ func (w *Walker) walkExpr(expr ast.Expr, yieldsValue bool) bool {
 
 			// update the type with the type of the matching symbol :)
 			v.ExprBase.SetType(sym.Type)
+			v.Mutability = &sym.Mutability
 			return true
 		} else {
 			return false

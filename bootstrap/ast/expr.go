@@ -239,8 +239,9 @@ func (t *Tuple) Position() *report.TextPosition {
 type Identifier struct {
 	ExprBase
 
-	Name string
-	Pos  *report.TextPosition
+	Name       string
+	Pos        *report.TextPosition
+	Mutability *int
 }
 
 func (id *Identifier) Position() *report.TextPosition {

@@ -29,20 +29,42 @@ const (
 	OCIndirect
 	OCDeref
 
-	OCAdd
-	OCSub
-	OCMul
-	OCDiv
-	OCMod
-	OCPow
-	OCNeg
+	OCIAdd
+	OCISub
+	OCIMul
+
+	OCINeg
+
+	OCSDiv
+	OCSMod
+	OCUDiv
+	OCUMod
+
+	OCFAdd
+	OCFSub
+	OCFMul
+	OCFDiv
+	OCFMod
+	OCFNeg
 
 	OCEq
 	OCNEq
-	OCLt
-	OCGt
-	OCLtEq
-	OCGtEq
+
+	OCSLt
+	OCULt
+	OCFLt
+
+	OCSGt
+	OCUGt
+	OCFGt
+
+	OCSLtEq
+	OCULtEq
+	OCFLtEq
+
+	OCSGtEq
+	OCUGtEq
+	OCFGtEq
 
 	OCNot
 	OCAnd

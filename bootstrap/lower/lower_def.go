@@ -16,12 +16,15 @@ func (l *Lowerer) lowerDef(def ast.Def) {
 		{
 			var body *mir.FuncBody
 			if v.Body != nil {
+				l.pushScope()
+				defer l.popScope()
+
+				l.locals = make(map[string]typing.DataType)
 				body = &mir.FuncBody{
-					Locals: make(map[string]typing.DataType),
-					Body:   l.lowerExpr(v.Body),
+					Locals:   l.locals,
+					BodyExpr: l.lowerExpr(v.Body),
 				}
 			}
-
 			l.b.Funcs = append(l.b.Funcs, &mir.FuncDef{
 				ParentID:    l.pkg.ID,
 				Name:        v.Name,
@@ -37,9 +40,13 @@ func (l *Lowerer) lowerDef(def ast.Def) {
 		{
 			var body *mir.FuncBody
 			if v.Body != nil {
+				l.pushScope()
+				defer l.popScope()
+
+				l.locals = make(map[string]typing.DataType)
 				body = &mir.FuncBody{
-					Locals: make(map[string]typing.DataType),
-					Body:   l.lowerExpr(v.Body),
+					Locals:   l.locals,
+					BodyExpr: l.lowerExpr(v.Body),
 				}
 			}
 
@@ -57,12 +64,21 @@ func (l *Lowerer) lowerDef(def ast.Def) {
 		// each global variable list compiles as a separate global variable
 		// declaration (all have same initializer and so are processed together)
 		for _, vlist := range v.VarLists {
+			var init *mir.GlobalVarInit
+			if vlist.Initializer != nil {
+				l.locals = make(map[string]typing.DataType)
+				init = &mir.GlobalVarInit{
+					Locals:   l.locals,
+					InitExpr: l.lowerExpr(vlist.Initializer),
+				}
+			}
+
 			l.b.GlobalVars = append(l.b.GlobalVars, &mir.GlobalVarDef{
 				ParentID:    l.pkg.ID,
 				Names:       vlist.Names,
 				Public:      v.Public(),
 				Type:        vlist.Type,
-				Initializer: l.lowerExpr(vlist.Initializer),
+				Initializer: init,
 			})
 		}
 	case *ast.StructDef:

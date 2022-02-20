@@ -4,6 +4,7 @@ import (
 	"chai/ast"
 	"chai/depm"
 	"chai/mir"
+	"chai/typing"
 )
 
 // Lowerer is responsible for converting a Chai package into a MIR bundle.
@@ -21,6 +22,13 @@ type Lowerer struct {
 	// and the value is a boolean flag indicating whether or not the definition
 	// is still undergoing lowering: true if in progress, false if done.
 	alreadyVisited map[ast.Def]bool
+
+	// locals is table of lowered local variables.
+	locals map[string]typing.DataType
+
+	// scopeStack is the stack of local scopes used during lowering: it maps
+	// Chai identifiers to their actual local names.
+	scopeStack []map[string]string
 }
 
 // Lower lowers a package into a MIR bundle.
@@ -90,4 +98,16 @@ func (l *Lowerer) visit(def ast.Def) {
 
 	// mark it as having been lowered
 	l.alreadyVisited[def] = false
+}
+
+// -----------------------------------------------------------------------------
+
+// pushScope pushes a new local scope onto the scope stack.
+func (l *Lowerer) pushScope() {
+	l.scopeStack = append(l.scopeStack, make(map[string]string))
+}
+
+// popScope pops a local scope off of the local scope stack.
+func (l *Lowerer) popScope() {
+	l.scopeStack = l.scopeStack[:len(l.scopeStack)-1]
 }
