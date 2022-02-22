@@ -57,6 +57,7 @@ def run_test(test_name, test_dir):
                     error('Test missing case number')
                 elif line.startswith('>>'):
                     p.stdin.write(line[3:] + '\n')
+                    p.stdin.flush()
                 elif line:
                     continue
                 elif (pline := p.stdout.readline().decode('UTF-8')) != line:

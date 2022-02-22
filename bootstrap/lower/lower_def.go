@@ -136,15 +136,13 @@ func (l *Lowerer) forwardDecl(def ast.Def) {
 
 // convFuncArgs converts a slice of function arguments to MIR function arguments.
 func convFuncArgs(args []*ast.FuncArg) []mir.FuncParam {
-	var params []mir.FuncParam
-	for _, arg := range args {
-		stype := typing.Simplify(arg.Type)
-		if !typing.IsNothing(stype) {
-			params = append(params, mir.FuncParam{
-				Name:     arg.Name,
-				Type:     stype,
-				Constant: arg.Constant,
-			})
+	params := make([]mir.FuncParam, len(args))
+
+	for i, arg := range args {
+		params[i] = mir.FuncParam{
+			Name:     arg.Name,
+			Type:     typing.Simplify(arg.Type),
+			Constant: arg.Constant,
 		}
 	}
 

@@ -74,7 +74,10 @@ var intrinsicTable map[string]int = map[string]int{
 func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands ...ast.Expr) mir.Expr {
 	operFt := typing.InnerType(op.Signature).(*typing.FuncType)
 
-	// TODO: handle nothing pruning of operands
+	mirOperands := make([]mir.Expr, len(operands))
+	for i, operand := range operands {
+		mirOperands[i] = l.lowerExpr(operand)
+	}
 
 	// handle intrinsic operators
 	if operFt.IntrinsicName != "" {
@@ -85,8 +88,9 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 		}
 
 		return &mir.OperExpr{
-			OpCode: opCode,
-			// Operands: ,
+			OpCode:     opCode,
+			Operands:   mirOperands,
+			ResultType: typing.Simplify(resultType),
 		}
 	}
 

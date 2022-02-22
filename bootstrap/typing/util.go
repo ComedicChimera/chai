@@ -31,35 +31,24 @@ func Simplify(dt DataType) DataType {
 		return &RefType{ElemType: Simplify(v.ElemType)}
 	case TupleType:
 		{
-			var simpleElemTypes []DataType
-			for _, tElemType := range v {
-				stElemType := Simplify(tElemType)
-				if !IsNothing(stElemType) {
-					simpleElemTypes = append(simpleElemTypes, stElemType)
-				}
+			simpleElemTypes := make([]DataType, len(v))
+
+			for i, tElemType := range v {
+				simpleElemTypes[i] = Simplify(tElemType)
 			}
 
-			// handle degenerate tuples
-			if len(simpleElemTypes) == 0 {
-				return NothingType()
-			} else if len(simpleElemTypes) == 1 {
-				return simpleElemTypes[0]
-			} else {
-				return TupleType(simpleElemTypes)
-			}
+			return TupleType(simpleElemTypes)
 		}
 	case *FuncType:
 		{
 			ft := &FuncType{
 				IntrinsicName: v.IntrinsicName,
+				Args:          make([]DataType, len(v.Args)),
 				ReturnType:    Simplify(v.ReturnType),
 			}
 
-			for _, arg := range v.Args {
-				stype := Simplify(arg)
-				if !IsNothing(stype) {
-					ft.Args = append(ft.Args, stype)
-				}
+			for i, arg := range v.Args {
+				ft.Args[i] = Simplify(arg)
 			}
 
 			return ft
@@ -87,25 +76,17 @@ func SimplifyStructTypeDef(st *StructType) DataType {
 	var newFields []StructField
 	newFieldsByName := make(map[string]int)
 
-	for _, field := range st.Fields {
-		stype := Simplify(field.Type)
-		if !IsNothing(stype) {
-			newFieldPos := len(newFields)
+	for i, field := range st.Fields {
+		newFieldPos := len(newFields)
 
-			newFields = append(newFields, StructField{
-				Name:        field.Name,
-				Type:        stype,
-				Public:      field.Public,
-				Initialized: field.Initialized,
-			})
-
-			newFieldsByName[field.Name] = newFieldPos
+		newFields[i] = StructField{
+			Name:        field.Name,
+			Type:        Simplify(field.Type),
+			Public:      field.Public,
+			Initialized: field.Initialized,
 		}
-	}
 
-	// handle degenerate structs
-	if len(newFields) == 0 {
-		return NothingType()
+		newFieldsByName[field.Name] = newFieldPos
 	}
 
 	return &StructType{
