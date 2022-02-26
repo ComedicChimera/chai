@@ -342,6 +342,10 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 					return false
 				}
 
+				// TODO: figure out how to communicate the package ID to the
+				// backend.
+
+				// update the type of the yielded expression
 				dot.SetType(sym.Type)
 				dot.IsStaticGet = true
 				return true

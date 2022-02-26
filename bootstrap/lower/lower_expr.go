@@ -11,6 +11,8 @@ import (
 // lowerExpr converts an AST expression into a MIR expression.
 func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 	switch v := expr.(type) {
+	case *ast.Dot:
+		return l.lowerDotExpr(v)
 	case *ast.Call:
 		return l.lowerFuncCall(v)
 	case *ast.UnaryOp:
@@ -26,6 +28,16 @@ func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 		return &mir.CastExpr{
 			Src:      l.lowerExpr(v.Src),
 			DestType: typing.Simplify(v.Type()),
+		}
+	case *ast.Indirect:
+		{
+			opExpr := l.lowerExpr(v.Operand)
+
+			return &mir.OperExpr{
+				OpCode:     mir.OCIndirect,
+				Operands:   []mir.Expr{opExpr},
+				ResultType: &typing.RefType{ElemType: opExpr.Type()},
+			}
 		}
 	case *ast.Identifier:
 		{
@@ -58,6 +70,25 @@ func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 
 	// TODO
 	return nil
+}
+
+// lowerDotExpr lowers a dot expression.
+func (l *Lowerer) lowerDotExpr(dot *ast.Dot) mir.Expr {
+	if dot.IsStaticGet {
+		log.Fatalln("static get not implemented")
+		// return &mir.GlobalIdent{
+		// 	ParentID: dot.Root.(*ast.Identifier).Name,
+		// }
+	}
+
+	// TODO: handle method calls
+
+	// handle the struct field expressions
+	return &mir.FieldExpr{
+		Struct:    l.lowerExpr(dot.Root),
+		FieldName: dot.FieldName,
+		FieldType: typing.Simplify(dot.Type()),
+	}
 }
 
 // intrinsicFuncTable maps intrinsic function names to MIR Op Codes.
