@@ -11,7 +11,7 @@ Where `type1`, `type2`, and so on are either types or unions.
 Unions may be used as constraints for generics like so:
 
 ```
-func abs[T: Real](x: T) T
+func abs<T: Real>(x: T) T
 ```
 
 where `Real` is an example of a type union.

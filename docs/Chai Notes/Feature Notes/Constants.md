@@ -5,7 +5,6 @@ Constants provide a convenient way to define compile-time constant values.
 ```
 const const_name: type_label = constant_value
 
-const const0, const1: type_label = constant_pattern
 
 const const0: type0 = value0, const1: type1 = value1
 ```
@@ -22,5 +21,3 @@ They may be defined locally or globally.
 They must always have a type extension and an initializer.
 
 When referenced, they act like literal constants (eg. `&1`)
-
-Integral constants may be used as size generics.
