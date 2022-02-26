@@ -76,6 +76,10 @@ const (
 	OCBWAnd
 	OCBWOr
 	OCBWXor
+
+	// TEMPORARY: until I have buffers
+	OCStrBytes
+	OCStrLen
 )
 
 // CastExpr represents a type cast expression.

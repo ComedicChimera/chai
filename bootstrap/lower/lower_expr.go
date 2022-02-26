@@ -11,6 +11,10 @@ import (
 // lowerExpr converts an AST expression into a MIR expression.
 func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 	switch v := expr.(type) {
+	case *ast.Call:
+		return l.lowerFuncCall(v)
+	case *ast.UnaryOp:
+		return l.lowerOperApp(v.Op, v.Type(), v.Operand)
 	case *ast.BinaryOp:
 		return l.lowerOperApp(v.Op, v.Type(), v.Lhs, v.Rhs)
 	case *ast.Cast:
@@ -56,8 +60,50 @@ func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 	return nil
 }
 
-// intrinsicTable is a table mapping intrinsic names to their MIR Op Codes
-var intrinsicTable map[string]int = map[string]int{
+// intrinsicFuncTable maps intrinsic function names to MIR Op Codes.
+var intrinsicFuncTable map[string]int = map[string]int{
+	"__strbytes": mir.OCStrBytes,
+	"__strlen":   mir.OCStrLen,
+}
+
+// lowerFuncCall lowers a function call.
+func (l *Lowerer) lowerFuncCall(call *ast.Call) mir.Expr {
+	ft := typing.Simplify(call.Func.Type()).(*typing.FuncType)
+
+	// lower the arguments
+	mirOperands := make([]mir.Expr, len(call.Args))
+	for i, arg := range call.Args {
+		mirOperands[i] = l.lowerExpr(arg)
+	}
+
+	// handle intrinsic functions
+	if ft.IntrinsicName != "" {
+		opCode, ok := intrinsicFuncTable[ft.IntrinsicName]
+		if !ok {
+			log.Fatalf("unknown intrinsic named: `%s`\n", ft.IntrinsicName)
+			return nil
+		}
+
+		return &mir.OperExpr{
+			OpCode:     opCode,
+			Operands:   mirOperands,
+			ResultType: ft.ReturnType,
+		}
+	}
+
+	// lower the function itself and make it the first MIR operand
+	mirOperands = append([]mir.Expr{l.lowerExpr(call.Func)}, mirOperands...)
+
+	// return the finalized call expression
+	return &mir.OperExpr{
+		OpCode:     mir.OCCall,
+		Operands:   mirOperands,
+		ResultType: ft.ReturnType,
+	}
+}
+
+// intrinsicOpTable maps intrinsic operator names to MIR Op Codes.
+var intrinsicOpTable map[string]int = map[string]int{
 	"iadd": mir.OCIAdd,
 	"isub": mir.OCISub,
 	"ineg": mir.OCINeg,
@@ -81,7 +127,7 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 
 	// handle intrinsic operators
 	if operFt.IntrinsicName != "" {
-		opCode, ok := intrinsicTable[operFt.IntrinsicName]
+		opCode, ok := intrinsicOpTable[operFt.IntrinsicName]
 		if !ok {
 			log.Fatalf("unknown intrinsic named: `%s`\n", operFt.IntrinsicName)
 			return nil
@@ -94,6 +140,21 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 		}
 	}
 
-	// TODO
-	return nil
+	log.Fatalln("non intrinsic operators are not yet implemented")
+
+	// add the operator function to the operands
+	mirOperands = append([]mir.Expr{
+		&mir.GlobalIdent{
+			// TODO: parent ID
+			Name:    op.Name,
+			IdType:  typing.Simplify(op.Signature),
+			Mutable: false,
+		},
+	}, mirOperands...)
+
+	return &mir.OperExpr{
+		OpCode:     mir.OCCall,
+		Operands:   mirOperands,
+		ResultType: typing.Simplify(resultType),
+	}
 }

@@ -50,13 +50,14 @@ func (l *Lowerer) lowerDef(def ast.Def) {
 				}
 			}
 
+			sOpSig := typing.Simplify(v.Op.Signature)
 			l.b.Funcs = append(l.b.Funcs, &mir.FuncDef{
 				ParentID:    l.pkg.ID,
-				Name:        fmt.Sprintf("oper[%s]", v.Op.Name),
+				Name:        fmt.Sprintf("oper[%s: %s]", v.Op.Name, sOpSig.Repr()),
 				Annotations: v.Annotations(),
 				Public:      v.Public(),
 				Args:        convFuncArgs(v.Args),
-				ReturnType:  typing.Simplify(v.Op.Signature).(*typing.FuncType).ReturnType,
+				ReturnType:  sOpSig.(*typing.FuncType).ReturnType,
 				Body:        body,
 			})
 		}
@@ -106,13 +107,14 @@ func (l *Lowerer) forwardDecl(def ast.Def) {
 			// no body
 		})
 	case *ast.OperDef:
+		sOpSig := typing.Simplify(v.Op.Signature)
 		l.b.Funcs = append(l.b.Funcs, &mir.FuncDef{
 			ParentID:    l.pkg.ID,
-			Name:        fmt.Sprintf("oper[%s]", v.Op.Name),
+			Name:        fmt.Sprintf("oper[%s: %s]", v.Op.Name, sOpSig.Repr()),
 			Annotations: v.Annotations(),
 			Public:      v.Public(),
 			Args:        convFuncArgs(v.Args),
-			ReturnType:  typing.Simplify(v.Op.Signature).(*typing.FuncType).ReturnType,
+			ReturnType:  sOpSig.(*typing.FuncType).ReturnType,
 			// no body
 		})
 	case *ast.StructDef:

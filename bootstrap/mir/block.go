@@ -79,3 +79,7 @@ type BindStmt struct {
 	Name string
 	Val  Expr
 }
+
+func (bs *BindStmt) Term() bool {
+	return false
+}
