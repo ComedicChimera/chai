@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pelletier/go-toml"
 )
@@ -17,20 +16,6 @@ type tomlModule struct {
 	Name        string `toml:"name"`
 	ShouldCache bool   `toml:"caching"`
 	ChaiVersion string `toml:"chai-version"`
-}
-
-// tomlProfile represents a profile as it encoded in TOML
-type tomlProfile struct {
-	Name          string     `toml:"name"`
-	TargetOS      string     `toml:"target-os"`
-	TargetArch    string     `toml:"target-arch"`
-	Debug         bool       `toml:"debug"`
-	OutputPath    string     `toml:"output-path"`
-	Format        string     `toml:"format"`
-	LinkObjects   []string   `toml:"link-objects,omitempty"`
-	DefaultProf   bool       `toml:"default"`
-	BaseOnly      bool       `default:"false"`
-	LastBuildTime *time.Time `toml:"last-build"`
 }
 
 // LoadModule loads and validates a module.  `abspath` is the absolute path to

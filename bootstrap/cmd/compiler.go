@@ -84,11 +84,16 @@ func (c *Compiler) Analyze() bool {
 	c.depGraph[rootMod.ID] = rootMod
 
 	// now that the base profile is loading, we can display the compilation
-	// header and report the start of analysis.
+	// header and report the start of analysis
 	report.ReportCompileHeader(
 		fmt.Sprintf("%s/%s", c.profile.TargetOS, c.profile.TargetArch),
 		rootMod.ShouldCache,
 	)
+
+	// add the prelude packages and imports to the project.  This needs to
+	// happen before parsing so universal name collisions can be properly
+	// handled
+	c.addPrelude()
 
 	// initialize the root package (which will initialize all other packages
 	// that this project depends on)
@@ -96,9 +101,6 @@ func (c *Compiler) Analyze() bool {
 	if !ok {
 		return false
 	}
-
-	// add the prelude packages and imports to the project
-	c.addPrelude()
 
 	// resolve global symbols and check for recursive types
 	c.res.AddPackageList(c.pkgList)

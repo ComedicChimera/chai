@@ -79,19 +79,8 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 		Public:      public,
 	}
 
-	// if the function is intrinsic, it is added to the universe instead of the
-	// global symbol table.  It also has its function type modified to include
-	// the intrinsic name
-	if _, ok := annotations["intrinsic"]; ok {
-		ft.IntrinsicName = sym.Name
-
-		if p.isGloballyDefined(sym.Name) {
-			p.reportError(sym.DefPosition, "multiple symbols named `%s` defined in scope", sym.Name)
-			return nil, false
-		}
-
-		p.uni.IntrinsicFuncs[sym.Name] = sym
-	} else /* otherwise, define it globally */ if !p.defineGlobal(sym) {
+	// define the symbol globally
+	if !p.defineGlobal(sym) {
 		return nil, false
 	}
 
@@ -112,7 +101,7 @@ func (p *Parser) parseFuncDef(annotations map[string]string, public bool) (ast.D
 }
 
 // args_decl = arg_decl {',' arg_decl}
-// arg_decl = arg_id {',' arg_id} type_ext
+// arg_decl = 'IDENTIFIER' {',' 'IDENTIFIER'} type_ext
 func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 	takenArgNames := make(map[string]struct{})
 	var args []*ast.FuncArg
@@ -164,24 +153,6 @@ func (p *Parser) parseArgsDecl() ([]*ast.FuncArg, bool) {
 	}
 
 	return args, true
-}
-
-// arg_id = ['&'] 'IDENTIFIER'
-func (p *Parser) parseArgID() (*Token, bool, bool) {
-	byRef := false
-	if p.got(AMP) {
-		byRef = true
-
-		if !p.advance() {
-			return nil, false, false
-		}
-	}
-
-	if !p.assertAndNext(IDENTIFIER) {
-		return nil, false, false
-	}
-
-	return p.lookbehind, byRef, true
 }
 
 // func_body = 'end' 'NEWLINE' | block | '=' expr 'NEWLINE'
@@ -333,15 +304,17 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 	// NOTE: overload collisions will be checked later when all types are known
 	// (so the equivalency test can work properly)
 
-	// if the operator is intrinsic, it is added to the universe instead of the
-	// global symbol table.  It also has its function type modified to include
-	// the intrinsic name
-	if opIname, ok := annotations["intrinsicop"]; ok {
-		ft.IntrinsicName = opIname
-
-		p.addToOperTable(p.uni.IntrinsicOperators, opToken.Kind, opToken.Value, opOverload)
+	// add the operator to the operator table
+	if operator, ok := p.chFile.Parent.OperatorTable[opToken.Kind]; ok {
+		operator.Overloads = append(operator.Overloads, opOverload)
 	} else {
-		p.addToOperTable(p.chFile.Parent.OperatorTable, opToken.Kind, opToken.Value, opOverload)
+		operator := &depm.Operator{
+			Pkg:       p.chFile.Parent,
+			OpName:    opToken.Value,
+			Overloads: []*depm.OperatorOverload{opOverload},
+		}
+
+		p.chFile.Parent.OperatorTable[opToken.Kind] = operator
 	}
 
 	// parse the operator function body
@@ -362,19 +335,4 @@ func (p *Parser) parseOperDef(annotations map[string]string, public bool) (ast.D
 		Args: args,
 		Body: funcBody,
 	}, true
-}
-
-// addToOperTable adds an operator to a given operator table.
-func (p *Parser) addToOperTable(table map[int]*depm.Operator, kind int, name string, overload *depm.OperatorOverload) {
-	if operator, ok := table[kind]; ok {
-		operator.Overloads = append(operator.Overloads, overload)
-	} else {
-		operator := &depm.Operator{
-			Pkg:       p.chFile.Parent,
-			OpName:    name,
-			Overloads: []*depm.OperatorOverload{overload},
-		}
-
-		table[kind] = operator
-	}
 }

@@ -278,9 +278,12 @@ func (p *Parser) isGloballyDefined(name string) bool {
 		return true
 	}
 
-	// check that it doesn't conflict with a symbol defined in the universe
-	if _, ok := p.uni.GetSymbol(name); ok {
-		return true
+	// check that the universe is defined
+	if p.uni.CorePkg != nil {
+		// check that it doesn't conflict with a symbol defined in the universe
+		if _, ok := p.uni.GetSymbol(name); ok {
+			return true
+		}
 	}
 
 	return false
