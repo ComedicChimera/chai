@@ -74,7 +74,7 @@ func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 
 // lowerDotExpr lowers a dot expression.
 func (l *Lowerer) lowerDotExpr(dot *ast.Dot) mir.Expr {
-	if dot.IsStaticGet {
+	if dot.DotKind == typing.DKStaticGet {
 		log.Fatalln("static get not implemented")
 		// return &mir.GlobalIdent{
 		// 	ParentID: dot.Root.(*ast.Identifier).Name,

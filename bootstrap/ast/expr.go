@@ -173,9 +173,9 @@ type Dot struct {
 	FieldName string
 	FieldPos  *report.TextPosition
 
-	// IsStaticGet indicates whether this dot operation is used to perform an
-	// implicit import (ie. access a symbol in another package).
-	IsStaticGet bool
+	// DotKind indicates the kind of dot operation this encodes.  This
+	// should be one of the dot kinds enumerated in `typing`.
+	DotKind int
 
 	Pos *report.TextPosition
 }

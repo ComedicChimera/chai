@@ -22,20 +22,6 @@ type TypeVar struct {
 	// first overload that remains after solving completes if there is no valid
 	// substitution remaining for it.
 	shouldDefault bool
-
-	// fieldBounds is a map of the field bounds on this type variable organized
-	// by the name of the bound field.
-	fieldBounds map[string][]fieldBound
-}
-
-// fieldBound is an unification condition applied to a type variable that
-// specifies that it must have a specific field.  These conditions are resolved
-// when the type variable receives a substitution.  Note that the actual name of
-// the field that the struct must have is the key of the field bound in the map
-// on the type variable.
-type fieldBound struct {
-	FieldPos  *report.TextPosition
-	FieldType DataType
 }
 
 func (tv *TypeVar) Repr() string {
@@ -108,27 +94,6 @@ func (ss *solutionState) copyState() *solutionState {
 
 // -----------------------------------------------------------------------------
 
-// constraint is an interface used to group different kinds of type constraints.
-type constraint interface {
-	// Unify applies the field constraint.
-	Unify(s *Solver) bool
-}
-
-// equivConstraint represents a Hindley-Milner type equivConstraint: it asserts
-// that two types are equivalent to each other.
-type equivConstraint struct {
-	Lhs, Rhs DataType
-
-	// Position is the position of the expression that applied the constraint.
-	Position *report.TextPosition
-}
-
-func (ec *equivConstraint) Unify(s *Solver) bool {
-	return s.unify(ec.Lhs, ec.Rhs, ec.Position)
-}
-
-// -----------------------------------------------------------------------------
-
 // Solver is the type solver for Chai: it is responsible for determining the
 // types of all expressions in the language and for checking that those types
 // are correct.  The solver uses Hindley-Milner type inferencing with some
@@ -150,8 +115,12 @@ type Solver struct {
 	// to its position within this list.
 	vars []*TypeVar
 
-	// constraints is the list of all type constraints.
-	constraints []constraint
+	// equivConstraint is the list of all type equivConstraint.
+	equivConstraint []*equivConstraint
+
+	// fieldConstraints is the list of all the field contraints (assertions that
+	// a type has a specific field) applied to types.
+	fieldConstraints []*FieldConstraint
 
 	// globalOverloadSets is the global map of known overload sets.
 	globalOverloadSets map[int][]DataType
@@ -167,6 +136,15 @@ type Solver struct {
 
 	// asserts is the list of assertions to be applied after type solving.
 	asserts []typeAssert
+}
+
+// equivConstraint represents a Hindley-Milner type equivalency equivConstraint: it
+// asserts that two types are equivalent to each other.
+type equivConstraint struct {
+	Lhs, Rhs DataType
+
+	// Position is the position of the expression that applied the constraint.
+	Position *report.TextPosition
 }
 
 // NewSolver creates a new type solver.
@@ -185,7 +163,6 @@ func (s *Solver) NewTypeVar(pos *report.TextPosition, displayName string) *TypeV
 		ID:          len(s.vars),
 		Position:    pos,
 		displayName: displayName,
-		fieldBounds: make(map[string][]fieldBound),
 	}
 
 	s.vars = append(s.vars, tv)
@@ -200,7 +177,6 @@ func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName s
 		Position:      pos,
 		displayName:   displayName,
 		shouldDefault: shouldDefault,
-		fieldBounds:   make(map[string][]fieldBound),
 	}
 
 	s.vars = append(s.vars, tv)
@@ -210,7 +186,7 @@ func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName s
 
 // MustBeEquiv adds a new equivalency constraint between types.
 func (s *Solver) MustBeEquiv(lhs, rhs DataType, pos *report.TextPosition) {
-	s.constraints = append(s.constraints, &equivConstraint{
+	s.equivConstraint = append(s.equivConstraint, &equivConstraint{
 		Lhs:      lhs,
 		Rhs:      rhs,
 		Position: pos,
@@ -223,24 +199,65 @@ func (s *Solver) MustBeEquiv(lhs, rhs DataType, pos *report.TextPosition) {
 func (s *Solver) Solve() bool {
 	// ensure the solution context is cleared
 	defer func() {
-		s.constraints = nil
+		s.equivConstraint = nil
 		s.vars = nil
 		s.globalOverloadSets = make(map[int][]DataType)
 		s.localState = nil
 		s.asserts = nil
 	}()
 
-	// unify constraints
-	for _, cons := range s.constraints {
+	// unify equivalency constraints
+	for _, cons := range s.equivConstraint {
 		// create a new local state for the constraint
 		s.localState = newState()
 
-		if !cons.Unify(s) {
+		if !s.unify(cons.Lhs, cons.Rhs, cons.Position) {
 			return false
 		}
 
 		// merge the completed local state into the global state
 		s.mergeState()
+	}
+
+	// unify field constraints
+	for len(s.fieldConstraints) > 0 {
+		// attempt to unify all the field constraints and "filter" out all the
+		// constraints that unified.  We do this by only storing constraints
+		// that we can't yet unify back into the slice and incrementing `k` for
+		// each one we store back in.  Then, we slice off the remaining
+		// constraints at the end.
+		k := 0
+		for _, fc := range s.fieldConstraints {
+			// create a new local state for the constraint
+			s.localState = newState()
+
+			// check to see if the unification can be performed
+			if didUnify, unifyOk := s.unifyFieldConstraint(fc); didUnify {
+				// check to see if unification succeeded
+				if !unifyOk {
+					// unification failed, we return
+					return false
+				}
+			} else {
+				// if not, we discard the new local state
+				s.localState = nil
+
+				// field constraint was not modified
+				s.fieldConstraints[k] = fc
+				k++
+			}
+		}
+
+		// if k is equal to the current length of the field constraints (before
+		// processing), then nothing was removed and no constraint was able to
+		// be resolved so we break the loop: there will be some undetermined
+		// type variables to report errors on.
+		if k == len(s.fieldConstraints) {
+			break
+		}
+
+		// slice off the unnecessary elements
+		s.fieldConstraints = s.fieldConstraints[:k]
 	}
 
 	// apply any default substitutions for type variables before checking
@@ -308,7 +325,7 @@ func (s *Solver) unify(lhs, rhs DataType, pos *report.TextPosition) bool {
 	if rhTypeVar, ok := rhs.(*TypeVar); ok {
 		// double type variable case: if the two type variables have the same
 		// ID, we know they are equivalent -- this check prevents infinite
-		// recursion in `unify`.
+		// recursion in `unify`
 		if lhTypeVar, ok := lhs.(*TypeVar); ok && lhTypeVar.ID == rhTypeVar.ID {
 			return true
 		}
@@ -371,7 +388,8 @@ func (s *Solver) unifyTypeVar(id int, other DataType, pos *report.TextPosition) 
 	} else {
 		// the type variable has no substitution and no overloads so we
 		// just update the working state with a new substitution for it
-		return s.substitute(id, other, pos)
+		s.localState.Substitutions[id] = other
+		return true
 	}
 }
 
@@ -420,7 +438,8 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 		return false
 	case 1:
 		// one matching overload => overload becomes substitution
-		return s.substitute(id, validOverloads[0], pos) && s.unify(validOverloads[0], other, pos)
+		s.localState.Substitutions[id] = validOverloads[0]
+		return s.unify(validOverloads[0], other, pos)
 	default:
 		// multiple matching overloads => update local overloads to remove any
 		// invalid ones as necessary.
@@ -466,27 +485,4 @@ func (s *Solver) mergeState() {
 	for id, overloadSet := range s.localState.OverloadSets {
 		s.globalOverloadSets[id] = overloadSet
 	}
-}
-
-// substitute applies a local substitution to a type variable.
-func (s *Solver) substitute(id int, other DataType, pos *report.TextPosition) bool {
-	// update the local substitutions
-	s.localState.Substitutions[id] = other
-
-	// then we need to check the field bounds on the type variable
-	for name, bounds := range s.vars[id].fieldBounds {
-		for _, fb := range bounds {
-			if !s.resolveField(&fieldConstraint{
-				RootType:  other,
-				RootPos:   s.vars[id].Position,
-				FieldName: name,
-				FieldPos:  fb.FieldPos,
-				FieldType: fb.FieldType,
-			}) {
-				return false
-			}
-		}
-	}
-
-	return true
 }

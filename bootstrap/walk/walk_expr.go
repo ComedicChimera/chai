@@ -5,6 +5,7 @@ import (
 	"chai/depm"
 	"chai/syntax"
 	"chai/typing"
+	"fmt"
 	"log"
 	"strings"
 )
@@ -347,7 +348,7 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 
 				// update the type of the yielded expression
 				dot.SetType(sym.Type)
-				dot.IsStaticGet = true
+				dot.DotKind = typing.DKStaticGet
 				return true
 			}
 
@@ -358,8 +359,20 @@ func (w *Walker) walkDot(dot *ast.Dot) bool {
 		// TODO: explicit method calls
 	}
 
+	// create a new type variable to hold the returned type of the field
+	fieldType := w.solver.NewTypeVar(dot.FieldPos, fmt.Sprintf("{.%s}", dot.FieldName))
+	dot.SetType(fieldType)
+
 	// otherwise, it can only be a field access or an implicit method call
-	w.solver.MustHaveField(dot.Root.Type(), dot.FieldName, dot.Root.Position(), dot.FieldPos)
+	w.solver.MustHaveField(&typing.FieldConstraint{
+		RootType:   dot.Root.Type(),
+		RootPos:    dot.Root.Position(),
+		FieldName:  dot.FieldName,
+		FieldPos:   dot.FieldPos,
+		FieldType:  fieldType,
+		DotKindPtr: &dot.DotKind,
+	})
+
 	return true
 }
 
