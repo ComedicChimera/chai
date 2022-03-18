@@ -128,9 +128,5 @@ func (w *Walker) walkWhileExpr(whileExpr *ast.WhileExpr, yieldsValue bool) bool 
 	w.solver.MustBeEquiv(whileExpr.Cond.Type(), typing.BoolType(), whileExpr.Cond.Position())
 
 	// walk the body
-	if !w.walkExpr(whileExpr.Body, true) {
-		return false
-	}
-
-	return true
+	return w.walkExpr(whileExpr.Body, true)
 }

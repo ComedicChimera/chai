@@ -10,26 +10,23 @@ import (
 // DataType interface so that it can be used as a data type.  Each type
 // variable has an ID that is unique to its solution context.
 type TypeVar struct {
-	ID       int
-	Value    DataType
-	Position *report.TextPosition
+	ID          int
+	Value       DataType
+	Position    *report.TextPosition
+	DisplayName string
 
-	// displayName is the name that is displayed when `Repr` is called on this
-	// type.
-	displayName string
-
-	// shouldDefault indicates that this type variable should default to the
-	// first overload that remains after solving completes if there is no valid
-	// substitution remaining for it.
-	shouldDefault bool
+	// s is the parent solver of this type variable.
+	s *Solver
 }
 
 func (tv *TypeVar) Repr() string {
 	if tv.Value != nil {
 		return tv.Value.Repr()
+	} else if os, ok := tv.s.getOverloads(tv.ID); ok {
+		return os.Repr()
 	}
 
-	return tv.displayName
+	return tv.DisplayName
 }
 
 func (tv *TypeVar) equals(other DataType) bool {
@@ -64,14 +61,14 @@ type solutionState struct {
 	// OverloadSets is a map of type variable IDs to the set of possible
 	// substitutions for the type variable.  These act as a special kind of
 	// constraint that restricts what kinds of substitutions are possible.
-	OverloadSets map[int][]DataType
+	OverloadSets map[int]overloadSet
 }
 
 // newState creates a new solution state.
 func newState() *solutionState {
 	return &solutionState{
 		Substitutions: map[int]DataType{},
-		OverloadSets:  map[int][]DataType{},
+		OverloadSets:  map[int]overloadSet{},
 	}
 }
 
@@ -83,10 +80,8 @@ func (ss *solutionState) copyState() *solutionState {
 		newSS.Substitutions[tvid] = sub
 	}
 
-	for tvid, overloads := range ss.OverloadSets {
-		newOverloads := make([]DataType, len(overloads))
-		copy(newOverloads, overloads)
-		newSS.OverloadSets[tvid] = newOverloads
+	for tvid, overloadSet := range ss.OverloadSets {
+		newSS.OverloadSets[tvid] = overloadSet.Copy()
 	}
 
 	return newSS
@@ -123,7 +118,7 @@ type Solver struct {
 	fieldConstraints []*FieldConstraint
 
 	// globalOverloadSets is the global map of known overload sets.
-	globalOverloadSets map[int][]DataType
+	globalOverloadSets map[int]overloadSet
 
 	// localState is the working state of the solver to be updated and copied
 	// while a constraint is being unified.
@@ -152,7 +147,7 @@ func NewSolver(ctx *report.CompilationContext, pkgID uint64) *Solver {
 	return &Solver{
 		ctx:                ctx,
 		pkgID:              pkgID,
-		globalOverloadSets: make(map[int][]DataType),
+		globalOverloadSets: make(map[int]overloadSet),
 		shouldError:        true,
 	}
 }
@@ -162,25 +157,50 @@ func (s *Solver) NewTypeVar(pos *report.TextPosition, displayName string) *TypeV
 	tv := &TypeVar{
 		ID:          len(s.vars),
 		Position:    pos,
-		displayName: displayName,
+		s:           s,
+		DisplayName: displayName,
 	}
 
 	s.vars = append(s.vars, tv)
 	return tv
 }
 
-// NewTypeVarWithOverloads creates a new overloaded type variable in the current
-// solution context.
-func (s *Solver) NewTypeVarWithOverloads(pos *report.TextPosition, displayName string, shouldDefault bool, overloads ...DataType) *TypeVar {
+// NewOperatorTypeVar creates a new overloaded type variable based
+// on an operator in the current solution context.
+func (s *Solver) NewOperatorTypeVar(pos *report.TextPosition, operName string, resultID *uint64, overloads ...OperatorOverload) *TypeVar {
 	tv := &TypeVar{
-		ID:            len(s.vars),
-		Position:      pos,
-		displayName:   displayName,
-		shouldDefault: shouldDefault,
+		ID:          len(s.vars),
+		Position:    pos,
+		s:           s,
+		DisplayName: operName,
 	}
 
 	s.vars = append(s.vars, tv)
-	s.globalOverloadSets[tv.ID] = overloads
+	s.globalOverloadSets[tv.ID] = &operatorOverloadSet{
+		OperName:  operName,
+		Overloads: overloads,
+		ResultID:  resultID,
+	}
+
+	return tv
+}
+
+// NewLiteralTypeVar creates a new overloaded type variable for
+// a literal in the current solution context.
+func (s *Solver) NewLiteralTypeVar(pos *report.TextPosition, litName string, litTypeName string, overloads ...LiteralOverload) *TypeVar {
+	tv := &TypeVar{
+		ID:          len(s.vars),
+		Position:    pos,
+		s:           s,
+		DisplayName: litName,
+	}
+
+	s.vars = append(s.vars, tv)
+	s.globalOverloadSets[tv.ID] = &literalOverloadSet{
+		LitTypeName: litTypeName,
+		Overloads:   overloads,
+	}
+
 	return tv
 }
 
@@ -201,7 +221,7 @@ func (s *Solver) Solve() bool {
 	defer func() {
 		s.equivConstraint = nil
 		s.vars = nil
-		s.globalOverloadSets = make(map[int][]DataType)
+		s.globalOverloadSets = make(map[int]overloadSet)
 		s.localState = nil
 		s.asserts = nil
 	}()
@@ -264,19 +284,14 @@ func (s *Solver) Solve() bool {
 	// undetermined to make sure all possible substitutions are fully considered
 	// before erroring.
 	for _, tv := range s.vars {
-		if tv.shouldDefault {
-			if tv.Value == nil {
-				// we know that overloads exist since the type was marked
-				// as defaulting, it has no substitution, and we didn't
-				// exit from a unification failure earlier.
-				overloads := s.globalOverloadSets[tv.ID]
-
+		if os, ok := s.globalOverloadSets[tv.ID]; ok {
+			if dt := os.Finalize(); dt != nil && tv.Value == nil {
 				// create a new local state for the unification
 				s.localState = newState()
 
 				// unification here should never fail because invalid overloads
 				// have already been pruned out.
-				s.unify(tv, overloads[0], nil)
+				s.unify(tv, dt, nil)
 
 				// merge the completed local state into the global state
 				s.mergeState()
@@ -291,7 +306,7 @@ func (s *Solver) Solve() bool {
 			report.ReportCompileError(
 				s.ctx,
 				tv.Position,
-				fmt.Sprintf("undetermined type variable: `T%d`", tv.ID),
+				fmt.Sprintf("undetermined type variable: `%s`", tv.DisplayName),
 			)
 
 			allSolved = false
@@ -397,7 +412,7 @@ func (s *Solver) unifyTypeVar(id int, other DataType, pos *report.TextPosition) 
 // valid based on a unification.  It returns `false` if there are no matching
 // overloads.  It will update the local substitutions and overloads as
 // necessary.
-func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, pos *report.TextPosition) bool {
+func (s *Solver) reduceOverloads(id int, os overloadSet, other DataType, pos *report.TextPosition) bool {
 	// copy the local state before performing test unification
 	cachedLocalState := s.localState.copyState()
 
@@ -408,23 +423,13 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 
 	// attempt to unify with each overload and keep track of which overloads
 	// are still valid as a result of these unifications.
-	var validOverloads []DataType
-	for _, overload := range overloads {
-		if s.unify(overload, other, pos) {
-			validOverloads = append(validOverloads, overload)
-		}
-
-		// reset state for next test unification; since we always reset this at
-		// the end of the loop, we know that we don't need to restore it at the
-		// end of this function.
-		s.localState = cachedLocalState.copyState()
-	}
+	prunedOverloadSet := os.Prune(s, cachedLocalState, other, pos)
 
 	// restore outer error reporting flag
 	s.shouldError = errorFlag
 
 	// check the number of valid overloads to determine how to update local state
-	switch len(validOverloads) {
+	switch prunedOverloadSet.Len() {
 	case 0:
 		// no valid overloads => unification fails
 		if s.shouldError {
@@ -438,12 +443,13 @@ func (s *Solver) reduceOverloads(id int, overloads []DataType, other DataType, p
 		return false
 	case 1:
 		// one matching overload => overload becomes substitution
-		s.localState.Substitutions[id] = validOverloads[0]
-		return s.unify(validOverloads[0], other, pos)
+		s.localState.Substitutions[id] = prunedOverloadSet.Substitution()
+		s.localState.OverloadSets[id] = prunedOverloadSet
+		return s.unify(s.localState.Substitutions[id], other, pos)
 	default:
 		// multiple matching overloads => update local overloads to remove any
 		// invalid ones as necessary.
-		s.localState.OverloadSets[id] = validOverloads
+		s.localState.OverloadSets[id] = prunedOverloadSet
 		return true
 	}
 }
@@ -464,7 +470,7 @@ func (s *Solver) getSubstitution(id int) (DataType, bool) {
 }
 
 // getOverloads gets the overloads for a type variable if they exist.
-func (s *Solver) getOverloads(id int) ([]DataType, bool) {
+func (s *Solver) getOverloads(id int) (overloadSet, bool) {
 	if overloads, ok := s.localState.OverloadSets[id]; ok {
 		return overloads, true
 	}

@@ -176,10 +176,10 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 	// add the operator function to the operands
 	mirOperands = append([]mir.Expr{
 		&mir.GlobalIdent{
-			// TODO: parent ID
-			Name:    op.Name,
-			IdType:  typing.Simplify(op.Signature),
-			Mutable: false,
+			ParentID: op.PkgID,
+			Name:     op.Name,
+			IdType:   typing.Simplify(op.Signature),
+			Mutable:  false,
 		},
 	}, mirOperands...)
 

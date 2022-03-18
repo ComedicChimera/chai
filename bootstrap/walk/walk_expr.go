@@ -165,19 +165,24 @@ func (w *Walker) walkUnaryOp(uop *ast.UnaryOp) bool {
 
 // makeOverloadFunc creates a new function type matching an operator overload.
 func (w *Walker) makeOverloadFunc(aop ast.Oper, arity int) (typing.DataType, bool) {
-	op, ok := w.lookupOperator(aop)
+	operators, ok := w.lookupOperators(aop)
 	if !ok {
 		return nil, false
 	}
 
-	var ftOverloads []typing.DataType
-	for _, overload := range op.Overloads {
-		if len(overload.Signature.Args) == arity {
-			ftOverloads = append(ftOverloads, overload.Signature)
+	var opOverloads []typing.OperatorOverload
+	for _, op := range operators {
+		for _, overload := range op.Overloads {
+			if len(overload.Signature.Args) == arity {
+				opOverloads = append(opOverloads, typing.OperatorOverload{
+					PkgID:     op.Pkg.ID,
+					Signature: overload.Signature,
+				})
+			}
 		}
 	}
 
-	return w.solver.NewTypeVarWithOverloads(aop.Pos, aop.Name, false, ftOverloads...), true
+	return w.solver.NewOperatorTypeVar(aop.Pos, aop.Name, &aop.PkgID, opOverloads...), true
 }
 
 // -----------------------------------------------------------------------------
@@ -384,40 +389,41 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 	case syntax.NULL:
 		// TODO: null checking (but not until there is an official way to get a
 		// `nullptr` for system APIs)
-		t := w.solver.NewTypeVar(lit.Pos, "{_}")
+		t := w.solver.NewTypeVar(lit.Pos, "{null}")
 		lit.SetType(t)
 	case syntax.NUMLIT:
-		t := w.solver.NewTypeVarWithOverloads(
+		t := w.solver.NewLiteralTypeVar(
 			lit.Pos,
+			fmt.Sprintf("{%s}", lit.Value),
 			"{number}",
-			true,
+
 			// the order determines the defaulting preference: eg. this number
 			// will default first to an `i64` and if that is not possible, then
 			// to an `u64`, etc.
-			typing.PrimType(typing.PrimI64),
-			typing.PrimType(typing.PrimU64),
-			typing.PrimType(typing.PrimI32),
-			typing.PrimType(typing.PrimU32),
-			typing.PrimType(typing.PrimI16),
-			typing.PrimType(typing.PrimU16),
-			typing.PrimType(typing.PrimI8),
-			typing.PrimType(typing.PrimU8),
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimI64)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimU64)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimI32)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimU32)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimI16)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimU16)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimI8)},
+			typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimU8)},
 
 			// floats can be at the bottom because the compiler should only
 			// select floats if they are the only option (generally, the user is
 			// going want to their number to be an integer)
-			typing.PrimType(typing.PrimF64),
-			typing.PrimType(typing.PrimF32),
+			typing.LiteralOverload{Name: "{float}", Type: typing.PrimType(typing.PrimF64)},
+			typing.LiteralOverload{Name: "{float}", Type: typing.PrimType(typing.PrimF32)},
 		)
 		lit.SetType(t)
 	case syntax.FLOATLIT:
-		t := w.solver.NewTypeVarWithOverloads(
+		t := w.solver.NewLiteralTypeVar(
 			lit.Pos,
+			fmt.Sprintf("{%s}", lit.Value),
 			"{float}",
-			true,
 			// default first to highest precision
-			typing.PrimType(typing.PrimF64),
-			typing.PrimType(typing.PrimF32),
+			typing.LiteralOverload{Name: "{float}", Type: typing.PrimType(typing.PrimF64)},
+			typing.LiteralOverload{Name: "{float}", Type: typing.PrimType(typing.PrimF32)},
 		)
 		lit.SetType(t)
 	case syntax.INTLIT:
@@ -427,43 +433,43 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 		if isLong && isUnsigned {
 			lit.SetType(typing.PrimType(typing.PrimU64))
 		} else if isLong {
-			t := w.solver.NewTypeVarWithOverloads(
+			t := w.solver.NewLiteralTypeVar(
 				lit.Pos,
+				fmt.Sprintf("{%s}", lit.Value),
 				"{long int}",
-				true,
 				// default first to signed
-				typing.PrimType(typing.PrimI64),
-				typing.PrimType(typing.PrimU64),
+				typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimI64)},
+				typing.LiteralOverload{Name: "{int}", Type: typing.PrimType(typing.PrimU64)},
 			)
 
 			lit.SetType(t)
 		} else if isUnsigned {
-			t := w.solver.NewTypeVarWithOverloads(
+			t := w.solver.NewLiteralTypeVar(
 				lit.Pos,
+				fmt.Sprintf("{%s}", lit.Value),
 				"{unsigned int}",
-				true,
 				// default first to largest size
-				typing.PrimType(typing.PrimU64),
-				typing.PrimType(typing.PrimU32),
-				typing.PrimType(typing.PrimU16),
-				typing.PrimType(typing.PrimU8),
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU64)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU32)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU16)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU8)},
 			)
 
 			lit.SetType(t)
 		} else {
-			t := w.solver.NewTypeVarWithOverloads(
+			t := w.solver.NewLiteralTypeVar(
 				lit.Pos,
+				fmt.Sprintf("{%s}", lit.Value),
 				"{int}",
-				true,
 				// default first to signed in order by size
-				typing.PrimType(typing.PrimI64),
-				typing.PrimType(typing.PrimU64),
-				typing.PrimType(typing.PrimI32),
-				typing.PrimType(typing.PrimU32),
-				typing.PrimType(typing.PrimI16),
-				typing.PrimType(typing.PrimU16),
-				typing.PrimType(typing.PrimI8),
-				typing.PrimType(typing.PrimU8),
+				typing.LiteralOverload{Name: "{signed int}", Type: typing.PrimType(typing.PrimI64)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU64)},
+				typing.LiteralOverload{Name: "{signed int}", Type: typing.PrimType(typing.PrimI32)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU32)},
+				typing.LiteralOverload{Name: "{signed int}", Type: typing.PrimType(typing.PrimI16)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU16)},
+				typing.LiteralOverload{Name: "{signed int}", Type: typing.PrimType(typing.PrimI8)},
+				typing.LiteralOverload{Name: "{unsigned int}", Type: typing.PrimType(typing.PrimU8)},
 			)
 
 			lit.SetType(t)

@@ -153,26 +153,33 @@ func (w *Walker) lookupGlobal(name string, pos *report.TextPosition) (*depm.Symb
 	return nil, false
 }
 
-// lookupOperator retrieves the overloads for a particular operator. It reports
-// an error if the lookup fails.
-func (w *Walker) lookupOperator(aop ast.Oper) (*depm.Operator, bool) {
+// lookupOperators retrieves the overloads for a particular operator.  It
+// returns all the unique operator collections matching the passed in AST
+// operator.  It reports an error if the lookup fails.
+func (w *Walker) lookupOperators(aop ast.Oper) ([]*depm.Operator, bool) {
+	var operators []*depm.Operator
+
 	// global operators
 	if op, ok := w.chFile.Parent.OperatorTable[aop.Kind]; ok {
-		return op, true
+		operators = append(operators, op)
 	}
 
 	// imported operators
 	if op, ok := w.chFile.ImportedOperators[aop.Kind]; ok {
-		return op, true
+		operators = append(operators, op)
 	}
 
 	// universal operators
 	if op, ok := w.uni.GetOperator(aop.Kind); ok {
-		return op, true
+		operators = append(operators, op)
 	}
 
-	w.reportError(aop.Pos, "no defined overloads for operator: `%s`", aop.Name)
-	return nil, false
+	if len(operators) == 0 {
+		w.reportError(aop.Pos, "no defined overloads for operator: `%s`", aop.Name)
+		return nil, false
+	}
+
+	return operators, true
 }
 
 // -----------------------------------------------------------------------------

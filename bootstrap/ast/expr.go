@@ -71,9 +71,10 @@ func (c *Cast) Position() *report.TextPosition {
 
 // Oper is an operator used in the AST.
 type Oper struct {
-	Kind int
-	Name string
-	Pos  *report.TextPosition
+	Kind  int
+	Name  string
+	PkgID uint64
+	Pos   *report.TextPosition
 
 	// Signature must be a regular type since it will be stored in a type
 	// variable (signature is inferred based on usage)
