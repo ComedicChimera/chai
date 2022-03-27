@@ -59,8 +59,6 @@ func (g *Generator) convPrimType(pt typing.PrimType) types.Type {
 		return types.I1
 	case typing.PrimNothing:
 		return types.Void
-	case typing.PrimString:
-		return types.NewPointer(g.stringType)
 	}
 
 	// unreachable

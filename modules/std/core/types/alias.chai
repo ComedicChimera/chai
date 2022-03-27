@@ -1,0 +1,9 @@
+# This file contains some common aliases and unions used throughout the
+# language.
+
+# usize is an alias to the type commonly used to represent sizes in the
+# language.  This should be used whenever sizes or indexing is involved.
+pub type usize = u32
+
+# rune is a type representing a single, unique Unicode point.
+pub type rune = i32

@@ -477,7 +477,7 @@ func (w *Walker) walkLiteral(lit *ast.Literal) {
 	// string literals, rune literals, bool literals, and nothings only have one
 	// possible type each.
 	case syntax.STRINGLIT:
-		lit.SetType(typing.PrimType(typing.PrimString))
+		lit.SetType(w.uni.PreludeSymbolImports["string"].Type)
 	case syntax.RUNELIT:
 		lit.SetType(typing.PrimType(typing.PrimI32))
 	case syntax.BOOLLIT:

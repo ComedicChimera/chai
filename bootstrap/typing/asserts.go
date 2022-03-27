@@ -53,11 +53,6 @@ func (ca *castAssert) Apply() bool {
 				return true
 			}
 
-			// rune to string
-			if v == PrimU32 && dpt == PrimString {
-				return true
-			}
-
 			// invalid cast
 			return false
 		}

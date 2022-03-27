@@ -35,7 +35,6 @@ const (
 	PrimF32
 	PrimF64
 	PrimBool
-	PrimString
 	PrimNothing
 )
 
@@ -63,8 +62,6 @@ func (pt PrimType) Repr() string {
 		return "f64"
 	case PrimBool:
 		return "bool"
-	case PrimString:
-		return "string"
 	default:
 		// PrimNothing
 		return "nothing"

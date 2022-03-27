@@ -71,7 +71,6 @@ const (
 	F32
 	F64
 	BOOL
-	STRING
 	NOTHING
 
 	// arithmetic/function operators
@@ -193,7 +192,6 @@ var keywordPatterns = map[string]int{
 	"f32":     F32,
 	"f64":     F64,
 	"bool":    BOOL,
-	"string":  STRING,
 	"nothing": NOTHING,
 
 	"true":  BOOLLIT,

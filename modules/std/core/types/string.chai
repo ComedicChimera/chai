@@ -1,0 +1,11 @@
+# string represents an array of Unicode characters.  They are used to represent
+# text within the language.  Strings are encoded in UTF-8 and represented
+# internally as a byte array. 
+#
+# NOTE: Strings appear identically to a byte buffer; however, they cannot simply
+# be defined as an alias to one since buffers are mutable (and have mutation
+# operators defined on them), and strings are not.
+pub type string = {
+    ptr: *u8
+    size: u32
+}

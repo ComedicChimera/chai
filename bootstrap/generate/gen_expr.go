@@ -345,7 +345,7 @@ func (g *Generator) genLiteral(lit *ast.Literal) value.Value {
 			x, _ := strconv.ParseFloat(lit.Value, 64)
 			return constant.NewFloat(types.Double, x)
 		}
-	case typing.PrimString:
+	default: // string type -- TODO: fix to use actual string type
 		{
 			// this code just generates a new structure allocation for the
 			// string struct.  NOTE: this currently allocates the string struct
