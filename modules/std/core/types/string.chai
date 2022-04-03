@@ -9,3 +9,11 @@ pub type string = {
     ptr: *u8
     size: u32
 }
+
+# THESE FUNCTIONS ARE TEMPORARY -- WILL EVENTUALLY BE METHODS
+
+# Returns the the internal string byte pointer for use in OS APIs.
+pub def str_ptr(s: string) *u8 = s.ptr
+
+# Returns the length of a string.
+pub def str_len(s: string) u32 = s.size

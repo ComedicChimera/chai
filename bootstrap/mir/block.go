@@ -5,6 +5,7 @@ import "chai/typing"
 type Block struct {
 	Stmts     []Stmt
 	YieldType typing.DataType
+	TermMode  int
 }
 
 func (b *Block) Type() typing.DataType {
@@ -12,9 +13,18 @@ func (b *Block) Type() typing.DataType {
 }
 
 type Stmt interface {
-	// Term returns whether or not the statement is a block terminator.
-	Term() bool
+	// Term returns the control flow termination mode of the statement.  If the
+	// statement is not a terminator, this is `BTNone`.
+	Term() int
 }
+
+const (
+	BTLoop = iota
+	BTCase
+	BTFunc
+	BTBlock
+	BTNone
+)
 
 // -----------------------------------------------------------------------------
 
@@ -22,6 +32,11 @@ type Stmt interface {
 type IfTree struct {
 	CondBranches []CondBranch
 	ElseBranch   *Block
+	TermMode     int
+}
+
+func (ift *IfTree) Term() int {
+	return ift.TermMode
 }
 
 // CondBranch represents a single condition (if/elif) branch of an if tree.
@@ -34,9 +49,14 @@ type CondBranch struct {
 type Loop struct {
 	Condition Expr
 	Body      *Block
+	TermMode  int
 
 	// PostIter runs after every loop iteration (eg. the `i++`)
 	PostIter *Block
+}
+
+func (loop *Loop) Term() int {
+	return loop.TermMode
 }
 
 // -----------------------------------------------------------------------------
@@ -58,8 +78,19 @@ const (
 	SSKindFallthrough
 )
 
-func (ss *SimpleStmt) Term() bool {
-	return ss.Kind != SSKindExpr
+func (ss *SimpleStmt) Term() int {
+	switch ss.Kind {
+	case SSKindExpr:
+		return BTNone
+	case SSKindYield:
+		return BTBlock
+	case SSKindBreak, SSKindContinue:
+		return BTLoop
+	case SSKindFallthrough:
+		return BTCase
+	default: // return
+		return BTFunc
+	}
 }
 
 // AssignStmt represents an assignment statement.  This expression does perform
@@ -69,8 +100,8 @@ type AssignStmt struct {
 	LHS, RHS []Expr
 }
 
-func (as *AssignStmt) Term() bool {
-	return false
+func (as *AssignStmt) Term() int {
+	return BTNone
 }
 
 // BindStmt creates a constant, named binding to a value.  This is used to
@@ -80,6 +111,6 @@ type BindStmt struct {
 	Val  Expr
 }
 
-func (bs *BindStmt) Term() bool {
-	return false
+func (bs *BindStmt) Term() int {
+	return BTNone
 }

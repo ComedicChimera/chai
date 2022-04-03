@@ -205,7 +205,7 @@ func (w *Walker) walkIndirect(ind *ast.Indirect) bool {
 		}
 	}
 
-	// TODO: indirection kinds, non-reference assertion
+	// TODO: indirection kinds
 
 	// set the resulting type of the indirection
 	ind.SetType(&typing.RefType{ElemType: ind.Operand.Type()})

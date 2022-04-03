@@ -5,12 +5,20 @@ import (
 	"chai/depm"
 	"chai/mir"
 	"chai/typing"
+	"fmt"
 	"log"
 )
 
 // lowerExpr converts an AST expression into a MIR expression.
 func (l *Lowerer) lowerExpr(expr ast.Expr) mir.Expr {
 	switch v := expr.(type) {
+	case *ast.Block:
+		return l.lowerBlock(v)
+	case *ast.IfExpr:
+		return &mir.Block{
+			Stmts:     []mir.Stmt{l.lowerIfBlock(v)},
+			YieldType: typing.Simplify(v.Type()),
+		}
 	case *ast.Dot:
 		return l.lowerDotExpr(v)
 	case *ast.Call:
@@ -93,6 +101,7 @@ func (l *Lowerer) lowerDotExpr(dot *ast.Dot) mir.Expr {
 
 // intrinsicFuncTable maps intrinsic function names to MIR Op Codes.
 var intrinsicFuncTable map[string]int = map[string]int{
+	// DEPRECATED
 	"__strbytes": mir.OCStrBytes,
 	"__strlen":   mir.OCStrLen,
 }
@@ -171,13 +180,11 @@ func (l *Lowerer) lowerOperApp(op ast.Oper, resultType typing.DataType, operands
 		}
 	}
 
-	log.Fatalln("non intrinsic operators are not yet implemented")
-
 	// add the operator function to the operands
 	mirOperands = append([]mir.Expr{
 		&mir.GlobalIdent{
 			ParentID: op.PkgID,
-			Name:     op.Name,
+			Name:     fmt.Sprintf("oper[%s: %s]", op.Name, op.Signature),
 			IdType:   typing.Simplify(op.Signature),
 			Mutable:  false,
 		},

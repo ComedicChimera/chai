@@ -1,17 +1,5 @@
 # Compiler Intrinsics (see table of intrinsics for more info)
 
-# These intrinsics are temporary until things like structs, generics, and
-# dynamic allocation are fully implemented.
-
-# Returns the internal pointer of the byte buffer of the string.
-@intrinsic
-pub def __strbytes(s: string) &u8 end
-
-# Returns the length of the string.
-@intrinsic
-pub def __strlen(s: string) u32 end
-
-
 # Builtin Operators: all of thse operators have compiler-intrinsic
 # implementations and often compile directly to single LLVM instructions. Refer
 # to the intrinsic table to understand what these do.

@@ -218,7 +218,7 @@ type RefType struct {
 }
 
 func (rt *RefType) Repr() string {
-	return "&" + rt.ElemType.Repr()
+	return "*" + rt.ElemType.Repr()
 }
 
 func (rt *RefType) equals(other DataType) bool {

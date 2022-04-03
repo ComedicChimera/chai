@@ -15,10 +15,10 @@ func (p *Parser) parseTypeExt() (typing.DataType, bool) {
 	return p.parseTypeLabel()
 }
 
-// type_label = ['&'] value_type
+// type_label = ['*'] value_type
 func (p *Parser) parseTypeLabel() (typing.DataType, bool) {
 	// check for reference types
-	if p.got(AMP) {
+	if p.got(STAR) {
 		if !p.advance() {
 			return nil, false
 		}
