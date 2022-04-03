@@ -1,4 +1,6 @@
 # The Guide
+**NOTE**: We are switching to a new strategy for documentation.  This guide may be outdated.
+
 The guide is intended to be the principle resource for learning Chai.  It is structured into a series of sequential chapters discussing both different language features and some useful standard library tooling.  Each chapter also may contain one or more exercises for the reader.  There will be a separate repository used to store solutions to these exercises.
 
 ## Chapters
