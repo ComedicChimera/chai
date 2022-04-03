@@ -1,4 +1,6 @@
 # The Spec
+**NOTE**: We are switching to a new strategy for documentation.  This document may be outdated.
+
 The Spec (specification) will be the definitive reference for the Chai programming language.  This will be the primary source of documentation until the Tour (discussed next) is completed.
 
 The Spec will be layed out in a series of chapters which are made up of sections.  It will be hosted digitally on [chai-lang.dev](https://chai-lang.dev). 
