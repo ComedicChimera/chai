@@ -102,6 +102,11 @@ func (l *Lowerer) visit(def ast.Def) {
 
 // -----------------------------------------------------------------------------
 
+// currScope returns the current scope on the scope stack.
+func (l *Lowerer) currScope() map[string]string {
+	return l.scopeStack[len(l.scopeStack)-1]
+}
+
 // pushScope pushes a new local scope onto the scope stack.
 func (l *Lowerer) pushScope() {
 	l.scopeStack = append(l.scopeStack, make(map[string]string))
