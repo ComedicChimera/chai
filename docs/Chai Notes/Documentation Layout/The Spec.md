@@ -7,6 +7,7 @@ This document is the definitive reference for the Chai programming language.
 **Program Structure**
 **Type System**
 **Simple Expressions**
+**Blocks and Variables**
 **Control Flow**
 **Pattern Matching**
 **Functions**
@@ -18,6 +19,7 @@ This document is the definitive reference for the Chai programming language.
 **Generics**
 **Function Spaces**
 **Monads**
+**Packages and Modules**
 **Concurrency**
 **System Interfacing**
 **Appendices**
