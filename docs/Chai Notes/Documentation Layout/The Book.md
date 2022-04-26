@@ -1,5 +1,5 @@
 # The Book
-The book is a proposed alternative to have a separate introductory guide and specification: the book would act as both a definitive reference for the language and as a learning material for new programmers.  It would be vaguely modeled after the K & R. 
+The book acts as the primary learning material for the Chai programming language.  It is designed to be comprehensive.
 
 The book would likely be considerable longer than the Guide by default and so should be structured in such a way that users don't have to read the whole thing to be effective and can skip around as relevant to them.
 
@@ -60,10 +60,11 @@ Introduction
 	9.1 Package Structure
 	9.2 Import Statements
 	9.3 Visibility
-	9.4 Modular Dependencies
-	9.5 Initialization
-	9.6 Build Configuration
-	9.7 Installing Modules
+	9.4 Constants
+	9.5 Modular Dependencies
+	9.6 Initialization
+	9.7 Build Configuration
+	9.8 Installing Modules
 10. Operators
 	10.1 Operator Definitions
 	10.2 Operator Imports
