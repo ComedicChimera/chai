@@ -1,6 +1,6 @@
 # Chai
 
-**NOTE: For right now, most development will be happening on `python-impl`.**
+**NOTE: For right now, most development will be happening on `python-bootstrap`.**
 
 *Chai* is a compiled, modern, multipurpose programming language designed for
 speed without sacrifice.
