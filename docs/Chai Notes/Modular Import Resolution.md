@@ -1,4 +1,6 @@
 ## Idea
+**NOTE:** *As of now, this concept is outdated as the idea of a "module file" has been removed.  However, this approach will be useful when implementing Chai's build tool, `kettle` -- something similar to this will likely be used there.*
+
 Use the module file to handle import resolution for all non-standard packages as a way of providing package "namespacing" and version control.
 
 ## Implementation

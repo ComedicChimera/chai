@@ -3,7 +3,7 @@ This document is the definitive reference for the Chai programming language.
 
 ## Table of Contents
 **Introduction**
-**Lexemes**
+**Lexical Elements**
 **Program Structure**
 **Type System**
 **Simple Expressions**
@@ -19,7 +19,6 @@ This document is the definitive reference for the Chai programming language.
 **Generics**
 **Function Spaces**
 **Monads**
-**Packages and Modules**
 **Concurrency**
 **System Interfacing**
 **Appendices**

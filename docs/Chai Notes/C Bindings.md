@@ -30,6 +30,8 @@ end
 ```
 
 ## Compiler Configuration
+**NOTE:** *These options are not really compatible with tools like C-Make and MSBuild (ie. libraries which require a more complex build procedure) so we will need to rework our approach to compiler configuration.*
+
 Special compiler Flags:
 ```
 -cc, --ccompiler   specify the path to the C compiler to use
@@ -38,4 +40,6 @@ Special compiler Flags:
 ```
 
 The Chai compiler will only use the C compiler to generate object files which it will combine into your executable.  Thus, all extra linking (eg. libraries like `glfw3.lib`, `openal.lib`, etc) can simply be added using standard Chai linking options.
+
+
 
