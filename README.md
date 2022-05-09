@@ -84,24 +84,22 @@ documentation can be found in the
 This section details the progress made on the compiler as of now.  It is not
 perfectly up to date but should help to give some idea of where we are.
 
-*NB: Alpha Chai is the name for the reduced subset of Chai being implemented for bootstrapping purposes.*
-
 ### <a name="compiler-prog"/> Compiler
 
-- [ ] Alpha Chai in Go <--
-- [ ] Alpha Chai in Alpha Chai
+- [ ] Chai in Python <--
 - [ ] Chai in Chai
-
 ### <a name="std-lib-prog"/> Standard Library
 
-*These are only the planned features of Alpha Chai*
+*These are only the planned features for the bootstrapped version of Chai*
 
 - [ ] Builtin Types
   * [ ] `Buff`
-  * [ ] String
+  * [ ] `string`
   * [ ] `List`
-  * [ ] `Dict`
+  * [ ] `Map`
   * [ ] `Iter` 
+  * [ ] `Option`
+  * [ ] `Result`
 - [ ] Runtime
   * [ ] Program Startup
   * [x] Graceful Exit
@@ -136,10 +134,6 @@ perfectly up to date but should help to give some idea of where we are.
   * [ ] Basic Path Manipulation
   * [ ] Walk Directory
   * [ ] Create Directory
-- [ ] TOML
-  * [ ] Parsing
-  * [ ] Serialization
-  * [ ] Deserialization (needs reflection?)
 
 ## <a name="building"> Building the Compiler
 
