@@ -169,11 +169,7 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Chai MIR
        |
-    > Generator
-       |
-       * - LLVM IR
-       |
-    > LLC (LLVM Static Compiler)
+    > Generator + LLVM
        |
        * - Object Code
        |
@@ -196,15 +192,14 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-The compiler is being bootstrapped.  I am going to write a Go implementation of
-the compiler using the Go's LLVM IR generation library (this LLVM source text
-will then be piped to the LLVM compiler, Go's LLVM bindings don't work) -- this
-compiler will compile a simple subset of Chai called Alpha Chai.  Once that is
-finished, a full Chai compiler will be implemented in Chai rendering the
-language fully self-hosting. Eventually, the compiler will be able to compile
-itself.
+The compiler is being bootstrapped.  I am going to write a Python implementation
+of the compiler using the LLVM C API with Python's `ctypes` module.  This
+compiler may exclude some features not necessary to implement the compiler.
+Once that is finished, a full Chai compiler will be implemented in Chai
+rendering the language fully self-hosting. Eventually, the compiler will be able
+to compile itself.
 
-The `bootstrap` directory contains the Go implementation.  Once that
+The `bootstrap` directory contains the Python implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
 
