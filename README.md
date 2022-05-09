@@ -1,5 +1,7 @@
 # Chai
 
+**NOTE: For right now, most development will be happening on `python-impl`.**
+
 *Chai* is a compiled, modern, multipurpose programming language designed for
 speed without sacrifice.
 
@@ -88,8 +90,7 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### <a name="compiler-prog"/> Compiler
 
-- [ ] Alpha Chai in Go <--
-- [ ] Alpha Chai in Alpha Chai
+- [ ] Chai in Go <--
 - [ ] Chai in Chai
 
 ### <a name="std-lib-prog"/> Standard Library
