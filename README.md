@@ -90,7 +90,8 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### <a name="compiler-prog"/> Compiler
 
-- [ ] Chai in Go <--
+- [ ] Alpha Chai in Go <--
+- [ ] Chai in Alpha Chai
 - [ ] Chai in Chai
 
 ### <a name="std-lib-prog"/> Standard Library
