@@ -15,7 +15,7 @@ def run_build_cmd(parse_result):
     if parse_result.output_path:
         output_path = parse_result.output_path
     else:
-        output_path = root_dir / os.path.basename(root_dir)
+        output_path = os.path.join(root_dir, os.path.basename(root_dir))
 
     if sys.platform == 'win32' and os.path.splitext(output_path)[1] == '':
         output_path += '.exe'
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # Declare the parser for the `build`` command.
     build_parser = cmd_parsers.add_parser('build', help='compile source code')
 
-    build_parser.add_argument('root_dir', help='the package directory to compile', required=True)
+    build_parser.add_argument('root_dir', help='the package directory to compile')
     build_parser.add_argument('-o', '--output_path', help='the output path for the binary')
 
     # Parse the command-line arguments.

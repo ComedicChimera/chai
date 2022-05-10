@@ -1,6 +1,11 @@
 from dataclasses import dataclass
+import os
 
-class BuildOptions(dataclass):
+from syntax.lexer import Lexer, Token
+from source import Package
+
+@dataclass
+class BuildOptions:
     '''
     Represents the various build configuration options that can be passed to a
     particular compiler instance.
@@ -40,8 +45,15 @@ class Compiler:
             The build options. 
         '''
 
-        self.root_dir = root_dir
+        self.root_dir = os.path.abspath(root_dir)
         self.build_options = build_options
 
     def compile(self):
         '''Runs the compiler with the configuration provided in the constructor.'''
+
+        # DEBUG Code
+        lexer = Lexer(Package(0, 'test', os.path.dirname(self.root_dir)), self.root_dir)
+        while (token := lexer.next_token()).kind != Token.Kind.EndOfFile:
+            print(token)
+
+        lexer.close()

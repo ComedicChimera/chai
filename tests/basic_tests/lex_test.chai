@@ -1,0 +1,33 @@
+def main 
+
+"test" "te\nst" " as\" xdf" "" "x\uaf32as" "d" "def"
+
+'t' '\0' '\x23' '_' '\''
+
+`test`  `\\beans` `\` deep`  `\'` `` `nice
+meme`
+
+# comment of baked beans
+
+`many 
+lines \`
+of
+fun`
+
+#{ line comment of beans }#
+
+temp #{ temp }# if
+
+#{
+    many
+    lines
+    owo
+}#
+
+real imaginary
+
+123 56_123 0xff 0b101 0o743 0xAD_23_de 0456
+
+3.14 0.1424 1e9 6.626e-34 17E4 456.12_3
+
++ ++
