@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 
 from syntax.lexer import Lexer, Token
-from source import Package
+from depm import Package
 
 @dataclass
 class BuildOptions:
