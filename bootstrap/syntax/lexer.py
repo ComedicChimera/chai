@@ -38,7 +38,7 @@ class Lexer:
     # The buffer storing the contents of the token as it is constructed.
     tok_buff: List[str]
 
-    def __init__(self, srcfile: SourceFile, file_abs_path: str):
+    def __init__(self, srcfile: SourceFile):
         '''
         Params
         ------
@@ -48,7 +48,7 @@ class Lexer:
             The absolute path to the file to tokenize.
         '''
 
-        self.file = open(file_abs_path, 'r')
+        self.file = open(srcfile.abs_path, 'r')
         self.rel_path = srcfile.rel_path
         self.tok_buff = []
 

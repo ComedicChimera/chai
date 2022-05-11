@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import Dict, List
+import os
 
 from . import Symbol
 from syntax.ast import ASTNode
@@ -15,15 +16,19 @@ class SourceFile:
     ----------
     parent: Package
         The parent package to this file.
-    rel_path: str
-        The package-relative path to this file.
+    abs_path: str
+        The absolute path to this file.
     definitions: List[ASTNode]
         The AST definitions that comprise this file.
     '''
 
     parent: 'Package'
-    rel_path: str
+    abs_path: str
     definitions: List[ASTNode] = field(default_factory=list)
+
+    @property
+    def rel_path(self):
+        return os.path.relpath(self.parent.abs_path, self.abs_path)
 
 @dataclass
 class Package:
