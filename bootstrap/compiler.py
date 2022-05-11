@@ -22,10 +22,6 @@ class Compiler:
     '''
     The high-level construct representing the Chai compiler.  It is responsible
     for storing and manipulating the Chai compiler's state.
-
-    Methods
-    -------
-    compile() -> None
     '''
 
     # The path to the root package directory.

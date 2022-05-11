@@ -15,11 +15,6 @@ class Lexer:
 
     .. note: All the `lex_*` methods assume that the character beginning them
         has not been read in but is correct -- ie. the lookahead is valid.
-
-    Methods
-    -------
-    close() -> None
-    next_token() -> Token
     '''
 
     # The file being tokenized.
