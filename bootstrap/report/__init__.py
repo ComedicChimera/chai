@@ -5,7 +5,7 @@ Provides all classes used to report compilation errors within user source text.
 from dataclasses import dataclass
 
 @dataclass
-class Position:
+class TextSpan:
     '''
     Indicates a positional range/span within user source text.
 
@@ -45,7 +45,7 @@ class CompileError(Exception):
 
     message: str
     rel_path: str
-    position: Position
+    position: TextSpan
 
 class Reporter:
     '''Responsible for handling all error reporting during compilation.'''

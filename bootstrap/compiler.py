@@ -25,8 +25,7 @@ class Compiler:
 
     Methods
     -------
-    compile()
-        Runs the compiler with the configuration provided in the constructor.
+    compile() -> None
     '''
 
     # The path to the root package directory.
@@ -37,8 +36,8 @@ class Compiler:
     
     def __init__(self, root_dir: str, build_options: BuildOptions):
         '''
-        Parameters
-        ----------
+        Params
+        ------
         root_dir: str
             The path to the root package directory.
         build_options
@@ -53,7 +52,7 @@ class Compiler:
 
         # DEBUG Code
         lexer = Lexer(Package(0, 'test', os.path.dirname(self.root_dir)), self.root_dir)
-        while (token := lexer.next_token()).kind != Token.Kind.EndOfFile:
+        while (token := lexer.next_token()).kind != Token.Kind.EOF:
             print(token)
 
         lexer.close()
