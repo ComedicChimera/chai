@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from .token import Token
 from report import TextSpan, CompileError
-from depm import Package
+from depm.source import SourceFile
 
 class Lexer:
     '''
@@ -38,7 +38,7 @@ class Lexer:
     # The buffer storing the contents of the token as it is constructed.
     tok_buff: List[str]
 
-    def __init__(self, pkg: Package, file_abs_path: str):
+    def __init__(self, srcfile: SourceFile, file_abs_path: str):
         '''
         Params
         ------
@@ -49,7 +49,7 @@ class Lexer:
         '''
 
         self.file = open(file_abs_path, 'r')
-        self.rel_path = os.path.relpath(pkg.abs_path, file_abs_path)
+        self.rel_path = srcfile.rel_path
         self.tok_buff = []
 
     def close(self):

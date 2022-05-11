@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 
 from syntax.lexer import Lexer, Token
-from depm import Package
+from depm.source import Package
 
 @dataclass
 class BuildOptions:
@@ -47,8 +47,8 @@ class Compiler:
         '''Runs the compiler with the configuration provided in the constructor.'''
 
         # DEBUG Code
-        lexer = Lexer(Package(0, 'test', os.path.dirname(self.root_dir)), self.root_dir)
-        while (token := lexer.next_token()).kind != Token.Kind.EOF:
-            print(token)
+        # lexer = Lexer(Package(0, 'test', os.path.dirname(self.root_dir)), self.root_dir)
+        # while (token := lexer.next_token()).kind != Token.Kind.EOF:
+        #     print(token)
 
-        lexer.close()
+        # lexer.close()

@@ -1,5 +1,10 @@
+'''Provides the relevant definitions for Chai's package system.'''
+
 from dataclasses import dataclass, field
-from typing import List
+from typing import Dict, List
+
+from . import Symbol
+from syntax.ast import ASTNode
 
 @dataclass
 class SourceFile:
@@ -12,10 +17,13 @@ class SourceFile:
         The parent package to this file.
     rel_path: str
         The package-relative path to this file.
+    definitions: List[ASTNode]
+        The AST definitions that comprise this file.
     '''
 
     parent: 'Package'
     rel_path: str
+    definitions: List[ASTNode] = field(default_factory=list)
 
 @dataclass
 class Package:
@@ -37,6 +45,9 @@ class Package:
         determine the package's position within the import resolution hierachy.
     files: List[SourceFile]
         The list of Chai files that make up this package.
+    symbol_table: Dict[str, Symbol]
+        The table mapping symbol names to symbol objects defined in the
+        package's global, shared namespace.
     '''
 
     pkg_name: str
@@ -45,6 +56,8 @@ class Package:
     pkg_id: int = field(init=False)
     root_pkg: 'Package' = field(init=False)
     files: List[SourceFile] = field(default_factory=list)
+
+    symbol_table: Dict[str, Symbol] = field(default_factory=dict)
 
     def __post_init__(self):
         '''Calculates the package ID based on its absolute path.'''
