@@ -34,6 +34,19 @@ class Token:
         WHILE = auto()
         END = auto()
 
+        BOOL = auto()
+        I8 = auto()
+        U8 = auto()
+        I16 = auto()
+        U16 = auto()
+        I32 = auto()
+        U32 = auto()
+        I64 = auto()
+        U64 = auto()
+        F32 = auto()
+        F64 = auto()
+        NOTHING = auto()
+
         PLUS = auto()
         MINUS = auto()
         STAR = auto()
@@ -65,6 +78,7 @@ class Token:
         COMMA = auto()
         COLON = auto()
         SEMICOLON = auto()
+        DOT = auto()
         ATSIGN = auto()
 
         STRINGLIT = auto()

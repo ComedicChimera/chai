@@ -28,6 +28,21 @@ class TextSpan:
     end_line: int
     end_col: int
 
+    @staticmethod
+    def over(a: 'TextSpan', b: 'TextSpan') -> 'TextSpan':
+        '''
+        Returns a text span spanning over and between the two input spans.
+
+        Params
+        ------
+        a: TextSpan
+            The start span of the over text span.
+        b: TextSpan
+            The end span of the over text span.
+        '''
+
+        return TextSpan(a.start_line, a.start_col, b.end_line, b.end_col)
+
 @dataclass
 class CompileError(Exception):
     '''

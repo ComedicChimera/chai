@@ -8,6 +8,82 @@ from .token import Token
 from report import TextSpan, CompileError
 from depm.source import SourceFile
 
+# The set of valid escape codes.
+ESCAPE_CODES = {
+    'a',
+    'b',
+    'f',
+    'n',
+    'r',
+    't',
+    'v',
+    '0',
+    '\"',
+    '\'',
+}
+
+# Maps valid keyword strings to their token kinds.
+KEYWORDS = {
+    'package': Token.Kind.PACKAGE,
+    'def': Token.Kind.DEF,
+    'let': Token.Kind.LET,
+    'if': Token.Kind.IF,
+    'elif': Token.Kind.ELIF,
+    'else': Token.Kind.ELSE,
+    'while': Token.Kind.WHILE,
+    'end': Token.Kind.END,
+
+    'bool': Token.Kind.BOOL,
+    'i8': Token.Kind.I8,
+    'u8': Token.Kind.U8,
+    'i16': Token.Kind.I16,
+    'u16': Token.Kind.U16,
+    'i32': Token.Kind.I32,
+    'u32': Token.Kind.U32,
+    'i64': Token.Kind.I64,
+    'u64': Token.Kind.U64,
+    'f32': Token.Kind.F32,
+    'f64': Token.Kind.F64,
+    'nothing': Token.Kind.NOTHING,
+}
+
+# Maps valid symbol strings to their token kinds.
+SYMBOLS = {
+    '+': Token.Kind.PLUS,
+    '-': Token.Kind.MINUS,
+    '*': Token.Kind.STAR,
+    '/': Token.Kind.DIV,
+    '%': Token.Kind.MOD,
+    '<': Token.Kind.LT,
+    '>': Token.Kind.GT,
+    '<=': Token.Kind.LTEQ,
+    '>=': Token.Kind.GTEQ,
+    '==': Token.Kind.EQ,
+    '!=': Token.Kind.NEQ,
+
+    '&&': Token.Kind.AND,
+    '||': Token.Kind.OR,
+    '!': Token.Kind.NOT,
+
+    '&': Token.Kind.AMP,
+
+    '=': Token.Kind.ASSIGN,
+    '++': Token.Kind.INCREMENT,
+    '--': Token.Kind.DECREMENT,
+
+    '(': Token.Kind.LPAREN,
+    ')': Token.Kind.RPAREN,
+    '{': Token.Kind.LBRACE,
+    '}': Token.Kind.RBRACE,
+    '[': Token.Kind.LBRACKET,
+    ']': Token.Kind.RBRACKET,
+    ',': Token.Kind.COMMA,
+    ':': Token.Kind.COLON,
+    ';': Token.Kind.SEMICOLON,
+    '.': Token.Kind.DOT,
+    '@': Token.Kind.ATSIGN,
+}
+
 class Lexer:
     '''
     Responsible for converting a source file into a stream of tokens (ie.
@@ -597,68 +673,6 @@ class Lexer:
                 self.col += 4
             case _:
                 self.col += 1
-
-# The set of valid escape codes.
-ESCAPE_CODES = {
-    'a',
-    'b',
-    'f',
-    'n',
-    'r',
-    't',
-    'v',
-    '0',
-    '\"',
-    '\'',
-}
-
-# Maps valid keyword strings to their token kinds.
-KEYWORDS = {
-    'package': Token.Kind.PACKAGE,
-    'def': Token.Kind.DEF,
-    'let': Token.Kind.LET,
-    'if': Token.Kind.IF,
-    'elif': Token.Kind.ELIF,
-    'else': Token.Kind.ELSE,
-    'while': Token.Kind.WHILE,
-    'end': Token.Kind.END,
-}
-
-# Maps valid symbol strings to their token kinds.
-SYMBOLS = {
-    '+': Token.Kind.PLUS,
-    '-': Token.Kind.MINUS,
-    '*': Token.Kind.STAR,
-    '/': Token.Kind.DIV,
-    '%': Token.Kind.MOD,
-    '<': Token.Kind.LT,
-    '>': Token.Kind.GT,
-    '<=': Token.Kind.LTEQ,
-    '>=': Token.Kind.GTEQ,
-    '==': Token.Kind.EQ,
-    '!=': Token.Kind.NEQ,
-
-    '&&': Token.Kind.AND,
-    '||': Token.Kind.OR,
-    '!': Token.Kind.NOT,
-
-    '&': Token.Kind.AMP,
-
-    '=': Token.Kind.ASSIGN,
-    '++': Token.Kind.INCREMENT,
-    '--': Token.Kind.DECREMENT,
-
-    '(': Token.Kind.LPAREN,
-    ')': Token.Kind.RPAREN,
-    '{': Token.Kind.LBRACE,
-    '}': Token.Kind.RBRACE,
-    '[': Token.Kind.LBRACKET,
-    ']': Token.Kind.RBRACKET,
-    ',': Token.Kind.COMMA,
-    ':': Token.Kind.COLON,
-    ';': Token.Kind.SEMICOLON,
-    '@': Token.Kind.ATSIGN,
-}
 
 def is_hex(c: str) -> bool:
     '''

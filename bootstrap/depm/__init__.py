@@ -25,8 +25,6 @@ class Symbol:
         The symbol's mutability status.
     used: bool
         Whether or not the symbol is used in source code.
-    local: bool
-        Whether or not the symbol is defined locally.
     '''
 
     class Kind(Enum):
@@ -52,7 +50,6 @@ class Symbol:
     kind: Kind
     mutability: Mutability
     used: bool
-    local: bool
 
 @dataclass
 class Scope:

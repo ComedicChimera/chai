@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from report import CompileError
 from depm.source import Package, SourceFile
-from .ast import ASTNode
+from .ast import *
 from .token import Token
 from .lexer import Lexer
 
@@ -26,21 +26,105 @@ class Parser:
         self.lexer.close()
 
     def parse(self):
+        '''
+        The main entry point for the parsing algorithm.
+
+        file := package_stmt {definition} ;
+        '''
+
         self.advance()
         
         self.parse_package_stmt()
 
+        while not self.has(Token.Kind.EOF):
+            if self.has(Token.Kind.ATSIGN):
+                # TODO annotations
+                pass
+
+            self.srcfile.definitions.append(self.parse_definition())
 
     # ---------------------------------------------------------------------------- #
 
     def parse_package_stmt(self):
+        '''package_stmt := 'package' package_path ;'''
+
         self.want(Token.Kind.PACKAGE)
 
-        if self.has(Token.Kind.COMMA):
-            pass
+        # TODO determine the root package
+        self.parse_package_path()
 
-    def parse_package_path(self) -> List[ASTNode]:
-        id_tok = self.want(Token.Kind.IDENTIFIER)
+        self.want(Token.Kind.NEWLINE)
+
+    def parse_package_path(self) -> List[Token]:
+        '''package_path := 'IDENTIFIER' {'.' 'IDENTIFIER'} ;'''
+
+        id_toks = [self.want(Token.Kind.IDENTIFIER)]
+
+        while self.has(Token.Kind.DOT):
+            self.advance()
+
+            self.want(Token.Kind.IDENTIFIER)
+
+        return id_toks
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_definition(self) -> ASTNode:
+        '''definition := func_def ;'''
+
+        match (tok := self.tok()).kind:
+            case Token.Kind.DEF:
+                self.parse_func_def()
+            case _:
+                self.reject()
+
+    def parse_func_def(self) -> ASTNode:
+        '''
+        func_def := 'def' 'IDENTIFIER' '(' func_def_args ')' ['type_label'] func_body ;
+        '''
+
+        self.want(Token.Kind.DEF)
+
+        func_id = self.want(Token.Kind.IDENTIFIER)
+
+        self.want(Token.Kind.LPAREN)
+
+        # TODO func params
+
+        self.want(Token.Kind.RPAREN)
+
+        # TODO type label
+
+        # TODO func body
+
+    def parse_func_params(self) -> List[FuncParam]:
+        '''
+        func_params := func_param {',' func_param} ;
+        func_param := id_list type_ext ;
+        '''
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_id_list(self) -> List[Identifier]:
+        '''id_list := 'IDENTIFIER' {',' 'IDENTIFIER'} ;'''
+
+    def parse_type_ext(self) -> Type:
+        '''type_ext := ':' type_label ;'''
+
+        self.want(Token.Kind.COLON)
+
+        return self.parse_type_label()
+
+    def parse_type_label(self) -> Type:
+        '''
+        type_label := prim_type_label | ptr_type_label ;
+        prim_type_label := 'bool' | 'i8' | 'u8' | 'u16' | 'i32' | 'u32'
+            | 'i64' | 'u64' | 'f32' | 'f64' | 'nothing' ;
+        ptr_type_label := '*' type_label ;
+        '''
+
+        
+
 
     # ---------------------------------------------------------------------------- #
 
@@ -59,11 +143,15 @@ class Parser:
         return self.tok().kind == kind
 
     def want(self, kind: Token.Kind) -> Token:
-        if kind in SWALLOW_TOKENS or kind != Token.Kind.NEWLINE and self._lookbehind in SWALLOW_TOKENS:
-            self.swallow()
+        if kind == Token.Kind.NEWLINE:
+            if self._tok.kind != kind and self._tok.kind != Token.Kind.EOF:
+                self.reject()
+        else:
+            if kind in SWALLOW_TOKENS or self._lookbehind in SWALLOW_TOKENS:
+                self.swallow()
 
-        if self._tok.kind != kind:
-            self.reject()
+            if self._tok.kind != kind:
+                self.reject()
 
         self.advance()
         return self._lookbehind
