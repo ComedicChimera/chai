@@ -48,7 +48,7 @@ class FuncParam:
 
     name: str
     type: Type
-    mutated: bool
+    mutated: bool = False
 
 @dataclass
 class FuncDef(ASTNode):
@@ -59,8 +59,6 @@ class FuncDef(ASTNode):
     ----------
     func_id: 'Identifier'
         The identifier representing the function's name.
-    rt_type: Type
-        The return type of the function.
     body: Optional[ASTNode]
         The function's optional body.
     func_params: List[FuncParam]
@@ -68,34 +66,38 @@ class FuncDef(ASTNode):
     '''
 
     func_id: 'Identifier'
-    rt_type: Type
     body: Optional[ASTNode]
     _span: TextSpan
     func_params: List[FuncParam] = field(default_factory=list)
 
     @property
     def type(self) -> Type:
-        return self.rt_type
+        return self.func_id.type.rt_type
 
     @property
     def span(self) -> TextSpan:
         return self._span
 
+@dataclass
 class Identifier(ASTNode):
     '''
     The AST node representing an identifier.
 
     Attributes
     ----------
-    symbol: Symbol
-        The symbol this identifier corresponds to.
+    name: str
+        The name of the identifier.
     local: bool
         Whether the identifier is defined locally.
+    symbol: Symbol
+        The symbol this identifier corresponds to.
     '''
 
-    symbol: Symbol
-    local: bool
+    name: str
     _span: TextSpan
+
+    local: bool = False
+    symbol: Optional[Symbol] = None
 
     @property
     def type(self) -> Type:

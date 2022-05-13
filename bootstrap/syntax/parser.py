@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from report import CompileError
 from depm.source import Package, SourceFile
+from typecheck import FuncType, PointerType, PrimitiveType
 from .ast import *
 from .token import Token
 from .lexer import Lexer
@@ -29,7 +30,7 @@ class Parser:
         '''
         The main entry point for the parsing algorithm.
 
-        file := package_stmt {definition} ;
+        file := package_stmt {definition 'NEWLINE'} ;
         '''
 
         self.advance()
@@ -42,6 +43,8 @@ class Parser:
                 pass
 
             self.srcfile.definitions.append(self.parse_definition())
+
+            self.want(Token.Kind.NEWLINE)
 
     # ---------------------------------------------------------------------------- #
 
@@ -89,13 +92,36 @@ class Parser:
 
         self.want(Token.Kind.LPAREN)
 
-        # TODO func params
+        func_params = self.parse_func_params()
 
         self.want(Token.Kind.RPAREN)
 
-        # TODO type label
+        match self.tok(False).kind:
+            case Token.Kind.NEWLINE | Token.Kind.ASSIGN | Token.Kind.END:
+                func_rt_type = PrimitiveType.NOTHING
+            case _:
+                func_rt_type = self.parse_type_ext()
 
-        # TODO func body
+        func_body, end_pos = self.parse_func_body()
+
+        func_type = FuncType([p.type for p in func_params], func_rt_type)
+        func_sym = Symbol(
+            func_id.value, 
+            self.pkg.id, 
+            func_type, 
+            Symbol.Kind.FUNC, 
+            Symbol.Mutability.IMMUTABLE, 
+            func_id.span,
+        )
+
+        self.define(func_sym)
+
+        return FuncDef(
+            Identifier(func_sym.name, func_sym.def_span, symbol=func_sym),
+            func_body,
+            TextSpan.over(func_id.span, end_pos),
+            func_params
+        )
 
     def parse_func_params(self) -> List[FuncParam]:
         '''
@@ -103,10 +129,55 @@ class Parser:
         func_param := id_list type_ext ;
         '''
 
+        id_list = self.parse_id_list()
+        param_type = self.parse_type_ext()
+
+        params = []
+        param_names = set()
+
+        def add_params():
+            for ident in id_list:
+                if ident.name not in param_names:
+                    param_names.add(ident.name)
+                    params.append(FuncParam(ident.name, param_type))
+                else:
+                    self.error(f'multiple parameters defined with same name: `{ident.name}`', ident.span)
+
+        add_params()
+
+        while self.has(Token.Kind.COMMA):
+            self.advance()
+
+            id_list = self.parse_id_list()
+            param_type = self.parse_type_ext()
+
+            add_params()
+        
+        return params
+
+    def parse_func_body(self) -> Tuple[Optional[ASTNode], TextSpan]:
+        match self.tok(False).kind:
+            case Token.Kind.END:
+                end_pos = self.tok().span
+                self.advance()
+                return None, end_pos
+            case _:
+                self.reject()
+
     # ---------------------------------------------------------------------------- #
 
     def parse_id_list(self) -> List[Identifier]:
         '''id_list := 'IDENTIFIER' {',' 'IDENTIFIER'} ;'''
+        
+        id_tok = self.want(Token.Kind.IDENTIFIER)
+        ids = [Identifier(id_tok.value, id_tok.span)]
+
+        while self.has(Token.Kind.COMMA):
+            self.advance()
+            id_tok = self.want(Token.Kind.IDENTIFIER)
+            ids.append(id_tok.value, id_tok.span)
+
+        return ids
 
     def parse_type_ext(self) -> Type:
         '''type_ext := ':' type_label ;'''
@@ -123,8 +194,49 @@ class Parser:
         ptr_type_label := '*' type_label ;
         '''
 
-        
+        match self.tok():
+            case Token.Kind.BOOL:
+                typ = PrimitiveType.BOOL
+            case Token.Kind.I8:
+                typ = PrimitiveType.I8
+            case Token.Kind.U8:
+                typ = PrimitiveType.U8
+            case Token.Kind.I16:
+                typ = PrimitiveType.I16
+            case Token.Kind.U16:
+                typ = PrimitiveType.U16
+            case Token.Kind.I32:
+                typ = PrimitiveType.I32
+            case Token.Kind.U32:
+                typ = PrimitiveType.U32
+            case Token.Kind.I64:
+                typ = PrimitiveType.I64
+            case Token.Kind.U64:
+                typ = PrimitiveType.U64
+            case Token.Kind.F32:
+                typ = PrimitiveType.F32
+            case Token.Kind.F64:
+                typ = PrimitiveType.F64
+            case Token.Kind.NOTHING:
+                typ = PrimitiveType.NOTHING
+            case Token.Kind.STAR:
+                self.advance()
+                return PointerType(self.parse_type_label())
+            case _:
+                self.reject()
 
+        self.advance()
+        return typ
+
+    # ---------------------------------------------------------------------------- #
+
+    def define(self, sym: Symbol):
+        # TODO local table
+
+        if sym.name in self.pkg.symbol_table:
+            self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
+
+        self.pkg.symbol_table[sym.name] = sym
 
     # ---------------------------------------------------------------------------- #
 
@@ -163,10 +275,13 @@ class Parser:
         return self._tok
 
     def reject(self):
-        self.error(f'unexpected token: `{self._tok.value}`')
+        self.reject_with_msg(f'unexpected token: `{self._tok.value}`')
 
-    def error(self, msg: str):
+    def reject_with_msg(self, msg: str):
         raise CompileError(msg, self.srcfile.rel_path, self._tok.span)
+
+    def error(self, msg: str, span: TextSpan):
+        raise CompileError(msg, self.srcfile.rel_path, span)
 
         
 

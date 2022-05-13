@@ -58,7 +58,7 @@ class Package:
     pkg_name: str
     abs_path: str
 
-    pkg_id: int = field(init=False)
+    id: int = field(init=False)
     root_pkg: 'Package' = field(init=False)
     files: List[SourceFile] = field(default_factory=list)
 
@@ -67,7 +67,7 @@ class Package:
     def __post_init__(self):
         '''Calculates the package ID based on its absolute path.'''
 
-        self.pkg_id = hash(self.abs_path)
+        self.id = hash(self.abs_path)
 
     def __eq__(self, other: object) -> bool:
         '''
@@ -80,7 +80,7 @@ class Package:
         '''
 
         if isinstance(other, Package):
-            return self.pkg_id == other.pkg_id
+            return self.id == other.id
 
         return False
 

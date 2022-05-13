@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Dict, List
+from bootstrap.report import TextSpan
 
 from typecheck import Type
 
@@ -23,6 +24,8 @@ class Symbol:
         The symbol's kind: what kind of thing does this symbol represent.
     mutability: Mutability
         The symbol's mutability status.
+    def_span: TextSpan
+        Where the symbol was defined.
     used: bool
         Whether or not the symbol is used in source code.
     '''
@@ -49,7 +52,8 @@ class Symbol:
     type: Type
     kind: Kind
     mutability: Mutability
-    used: bool
+    def_span: TextSpan
+    used: bool = False
 
 @dataclass
 class Scope:
