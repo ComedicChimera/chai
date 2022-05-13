@@ -1,16 +1,30 @@
-from typing import List, Optional, Tuple
+from typing import Deque, List, Optional, Tuple
+from collections import deque
 
 from report import CompileError
+from depm import Scope
 from depm.source import Package, SourceFile
 from typecheck import FuncType, PointerType, PrimitiveType
 from .ast import *
 from .token import Token
 from .lexer import Lexer
 
+SWALLOW_TOKENS = {
+    Token.Kind.LPAREN,
+    Token.Kind.RPAREN,
+    Token.Kind.LBRACE,
+    Token.Kind.RBRACE,
+    Token.Kind.LBRACKET,
+    Token.Kind.RBRACKET,
+    Token.Kind.COMMA,
+}
+
 class Parser:
     pkg: Package
     srcfile: SourceFile
     lexer: Lexer
+
+    _scopes: Deque[Scope]
 
     _tok: Optional[Token] = None
     _lookbehind: Optional[Token] = None
@@ -19,6 +33,7 @@ class Parser:
         self.pkg = pkg
         self.srcfile = srcfile
         self.lexer = Lexer(srcfile)
+        self._scopes = deque()
 
     def __enter__(self):
         return self
@@ -39,10 +54,11 @@ class Parser:
 
         while not self.has(Token.Kind.EOF):
             if self.has(Token.Kind.ATSIGN):
-                # TODO annotations
-                pass
+                annots = self.parse_annotation_def()
+            else:
+                annots = {}
 
-            self.srcfile.definitions.append(self.parse_definition())
+            self.srcfile.definitions.append(self.parse_definition(annots))
 
             self.want(Token.Kind.NEWLINE)
 
@@ -71,19 +87,70 @@ class Parser:
         return id_toks
 
     # ---------------------------------------------------------------------------- #
+    
+    def parse_annotation_def(self) -> Annotations:
+        '''
+        annotation_def := '@' (annotation | '[' annotation {',' annotation} ']') ;
+        annotation := 'IDENTIFIER' ['(' 'STRINGLIT' ')'] ;
+        '''
 
-    def parse_definition(self) -> ASTNode:
+        annots = {}
+
+        def parse_annotation():
+            annot_id = self.want(Token.Kind.IDENTIFIER)
+
+            if annot_id.value in annots:
+                self.error(f'annotation {annot_id.value} specified multiple times', annot_id.span)
+
+            if self.has(Token.Kind.LPAREN):
+                self.advance()
+
+                annot_value = self.want(Token.Kind.STRINGLIT)
+
+                rparen = self.want(Token.Kind.RPAREN)
+
+                annots[annot_id.value] = (
+                    annot_value.value, 
+                    TextSpan.over(annot_id.span, rparen.span),
+                )
+            else:
+                annots[annot_id.value] = ("", annot_id.span)         
+
+        self.want(Token.Kind.ATSIGN)
+
+        if self.has(Token.Kind.LBRACKET):
+            self.advance()
+
+            parse_annotation()
+
+            while self.has(Token.Kind.COMMA):
+                self.advance()
+
+                parse_annotation()
+
+            self.want(Token.Kind.RBRACKET)
+        else:
+            parse_annotation()
+
+        self.want(Token.Kind.NEWLINE)
+
+        return annots
+        
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_definition(self, annots: Annotations) -> ASTNode:
         '''definition := func_def ;'''
 
         match (tok := self.tok()).kind:
             case Token.Kind.DEF:
-                self.parse_func_def()
+                return self.parse_func_def(annots)
             case _:
                 self.reject()
 
-    def parse_func_def(self) -> ASTNode:
+    def parse_func_def(self, annots: Annotations) -> ASTNode:
         '''
-        func_def := 'def' 'IDENTIFIER' '(' func_def_args ')' ['type_label'] func_body ;
+        func_def := 'def' 'IDENTIFIER' '(' [func_params] ')' [type_label] func_body ;
         '''
 
         self.want(Token.Kind.DEF)
@@ -92,7 +159,10 @@ class Parser:
 
         self.want(Token.Kind.LPAREN)
 
-        func_params = self.parse_func_params()
+        if self.has(Token.Kind.IDENTIFIER):
+            func_params = self.parse_func_params()
+        else:
+            func_params = []
 
         self.want(Token.Kind.RPAREN)
 
@@ -100,9 +170,9 @@ class Parser:
             case Token.Kind.NEWLINE | Token.Kind.ASSIGN | Token.Kind.END:
                 func_rt_type = PrimitiveType.NOTHING
             case _:
-                func_rt_type = self.parse_type_ext()
+                func_rt_type = self.parse_type_label()
 
-        func_body, end_pos = self.parse_func_body()
+        func_body, end_pos = self.parse_func_body(func_params)
 
         func_type = FuncType([p.type for p in func_params], func_rt_type)
         func_sym = Symbol(
@@ -112,15 +182,17 @@ class Parser:
             Symbol.Kind.FUNC, 
             Symbol.Mutability.IMMUTABLE, 
             func_id.span,
+            'intrinsic' in annots,
         )
 
         self.define(func_sym)
 
         return FuncDef(
             Identifier(func_sym.name, func_sym.def_span, symbol=func_sym),
+            func_params,
             func_body,
+            annots,
             TextSpan.over(func_id.span, end_pos),
-            func_params
         )
 
     def parse_func_params(self) -> List[FuncParam]:
@@ -155,16 +227,217 @@ class Parser:
         
         return params
 
-    def parse_func_body(self) -> Tuple[Optional[ASTNode], TextSpan]:
+    def parse_func_body(self, func_params: List[FuncParam]) -> Tuple[Optional[ASTNode], TextSpan]:
         match self.tok(False).kind:
             case Token.Kind.END:
                 end_pos = self.tok().span
                 self.advance()
                 return None, end_pos
+            case Token.Kind.NEWLINE:
+                self.push_func_scope(func_params)
+                block = self.parse_block()
+                self.pop_scope()
+
+                return block, self.behind.span
+            case Token.Kind.ASSIGN:
+                self.advance()
+
+                self.push_func_scope(func_params)
+                expr = self.parse_expr()
+                self.pop_scope()
+
+                return expr, expr.span
             case _:
                 self.reject()
 
     # ---------------------------------------------------------------------------- #
+
+    def parse_block(self) -> ASTNode:
+        '''
+        block := 'NEWLINE' stmt {stmt} 'end' ;
+        stmt := (var_decl | expr_assign_stmt) 'NEWLINE' ;
+        '''
+
+        self.want(Token.Kind.NEWLINE)
+
+        self.push_scope()
+
+        stmts = []
+
+        while not self.has(Token.Kind.END):
+            match self.tok().kind:
+                case Token.Kind.LET:
+                    stmts.append(self.parse_var_decl())
+                case _:
+                    stmts.append(self.parse_expr_assign_stmt())
+
+        self.pop_scope()
+
+        self.want(Token.Kind.END)
+
+    def parse_var_decl(self) -> ASTNode:
+        '''
+        var_decl := 'let' var_list {',' var_list} ;
+        var_list := id_list (type_ext [initializer] | initializer) ;
+        '''
+
+        start_pos = self.tok().span
+        self.want(Token.Kind.LET)
+
+        def parse_var_list() -> List[VarList]:
+            id_list = self.parse_id_list()
+
+            if self.has(Token.Kind.COLON):
+                typ = self.parse_type_ext()
+
+                if self.has(Token.Kind.ASSIGN):
+                    init = self.parse_initializer()
+                else:
+                    init = None
+            else:
+                init = self.parse_initializer()
+                typ = init.type
+
+            for ident in id_list:
+                id_sym = Symbol(
+                    ident.name,
+                    self.pkg.id,
+                    typ,
+                    Symbol.Kind.VALUE,
+                    Symbol.Mutability.NEVER_MUTATED,
+                    ident.span
+                )
+
+                self.define(id_sym)
+                ident.symbol = id_sym
+
+            return VarList([ident.symbol for ident in id_list], init)
+
+        var_lists = [parse_var_list()]
+
+        while self.has(Token.Kind.COMMA):
+            self.advance()
+
+            var_lists.append(parse_var_list())
+
+        return VarDecl(var_lists, TextSpan.over(start_pos, self.behind.span))
+
+    def parse_expr_assign_stmt(self) -> ASTNode:
+        '''
+        expr_assign_stmt := atom_expr ;
+        '''
+
+        return self.parse_atom_expr()
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_expr(self) -> ASTNode:
+        '''
+        expr := unary_expr [expr_suffix] ;
+        expr_suffix := 'as' type_label ;
+        '''
+
+        expr = self.parse_unary_expr()
+
+        if self.has(Token.Kind.AS):
+            self.advance()
+
+            dest_type = self.parse_type_label()
+
+            return TypeCast(expr, dest_type, TextSpan.over(expr.span, self.behind.span))
+        else:
+            return expr
+
+    def parse_unary_expr(self) -> ASTNode:
+        '''
+        unary_expr := ['&' | '*'] atom_expr ;
+        '''
+
+        match (tok := self.tok()).kind:
+            case Token.Kind.AMP:
+                self.advance()
+
+                atom_expr = self.parse_atom_expr()
+
+                unary_expr = Indirect(atom_expr, TextSpan.over(tok.span, atom_expr.span))
+            case Token.Kind.STAR:
+                self.advance()
+
+                atom_expr = self.parse_atom_expr()
+
+                unary_expr = Dereference(atom_expr, TextSpan.over(tok.span, atom_expr.span))
+            case _:
+                unary_expr = self.parse_atom_expr()
+
+        return unary_expr
+
+    def parse_atom_expr(self) -> ASTNode:
+        '''
+        atom_expr := atom {trailer}
+        trailer := '(' expr_list ')' ;
+        '''
+
+        atom_expr = self.parse_atom()
+
+        match self.tok().kind:
+            case Token.Kind.LPAREN:
+                self.advance()
+
+                if not self.has(Token.Kind.RPAREN):
+                    args_list = self.parse_expr_list()
+                else:
+                    args_list = []
+
+                self.want(Token.Kind.RPAREN)
+
+                atom_expr = FuncCall(atom_expr, args_list)
+
+        return atom_expr
+
+    def parse_atom(self) -> ASTNode:
+        '''
+        atom := 'INTLIT' | 'NUMLIT' | 'BOOLLIT' | 'IDENTIFIER' | 'null' | '(' expr ')' ;
+        '''
+
+        match (tok := self.tok()).kind:
+            case Token.Kind.INTLIT | Token.Kind.NUMLIT:
+                return Literal(tok.value, tok.span)
+            case Token.Kind.BOOLLIT:
+                return Literal(tok.value, tok.span, PrimitiveType.BOOL)
+            case Token.Kind.IDENTIFIER:
+                return Identifier(tok.value, tok.span)
+            case Token.Kind.NULL:
+                return Null(tok.span)
+            case Token.Kind.LPAREN:
+                self.advance()
+
+                expr = self.parse_expr()
+
+                self.want(Token.Kind.RPAREN)
+
+                return expr
+            case _:
+                self.reject()
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_expr_list(self) -> List[ASTNode]:
+        '''expr_list := expr {',' expr} ;'''
+
+        exprs = [self.parse_expr()]
+
+        while self.has(Token.Kind.COMMA):
+            self.advance()
+            exprs.append(self.parse_expr())
+
+        return exprs
+
+    def parse_initializer(self) -> ASTNode:
+        '''initializer := '=' expr ;'''
+
+        self.want(Token.Kind.ASSIGN)
+
+        return self.parse_expr()
 
     def parse_id_list(self) -> List[Identifier]:
         '''id_list := 'IDENTIFIER' {',' 'IDENTIFIER'} ;'''
@@ -175,7 +448,7 @@ class Parser:
         while self.has(Token.Kind.COMMA):
             self.advance()
             id_tok = self.want(Token.Kind.IDENTIFIER)
-            ids.append(id_tok.value, id_tok.span)
+            ids.append(Identifier(id_tok.value, id_tok.span))
 
         return ids
 
@@ -194,7 +467,7 @@ class Parser:
         ptr_type_label := '*' type_label ;
         '''
 
-        match self.tok():
+        match self.tok().kind:
             case Token.Kind.BOOL:
                 typ = PrimitiveType.BOOL
             case Token.Kind.I8:
@@ -231,18 +504,56 @@ class Parser:
     # ---------------------------------------------------------------------------- #
 
     def define(self, sym: Symbol):
-        # TODO local table
+        if len(self._scopes) > 0:
+            scope = self._scopes[0]
 
-        if sym.name in self.pkg.symbol_table:
-            self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
+            if sym.name in scope.symbols:
+                self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
 
-        self.pkg.symbol_table[sym.name] = sym
+            scope.symbols[sym.name] = sym
+        else:
+            if sym.name in self.pkg.symbol_table:
+                self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
+
+            self.pkg.symbol_table[sym.name] = sym
+
+    def push_func_scope(self, func_params: List[FuncParam]):
+        scope = Scope()
+
+        for param in func_params:
+            scope.symbols[param.name] = Symbol(
+                param.name,
+                self.pkg.id,
+                param.type,
+                Symbol.Kind.VALUE,
+                Symbol.Mutability.NEVER_MUTATED,
+                None,  # span of this symbol never used
+            )
+
+        if len(self._scopes) > 0:
+            self._scopes[0].sub_scopes.append(scope)
+
+        self._scopes.appendleft(scope)
+
+    def push_scope(self):
+        scope = Scope()
+
+        if len(self._scopes) > 0:
+            self._scopes[0].sub_scopes.append(scope)
+
+        self._scopes.appendleft(scope)
+
+    def pop_scope(self):
+        self._scopes.popleft()
 
     # ---------------------------------------------------------------------------- #
 
     def advance(self):
         self._lookbehind = self._tok
         self._tok = self.lexer.next_token()
+
+    def has_swallow_behind(self):
+        return self._lookbehind and self._lookbehind.kind in SWALLOW_TOKENS
 
     def swallow(self):
         while self._tok.kind == Token.Kind.NEWLINE:
@@ -259,8 +570,8 @@ class Parser:
             if self._tok.kind != kind and self._tok.kind != Token.Kind.EOF:
                 self.reject()
         else:
-            if kind in SWALLOW_TOKENS or self._lookbehind in SWALLOW_TOKENS:
-                self.swallow()
+            if kind in SWALLOW_TOKENS or self.has_swallow_behind():
+                self.swallow()        
 
             if self._tok.kind != kind:
                 self.reject()
@@ -269,10 +580,14 @@ class Parser:
         return self._lookbehind
     
     def tok(self, swallow=True):
-        if swallow and self._lookbehind in SWALLOW_TOKENS:
+        if swallow and self.has_swallow_behind():
             self.swallow()
 
         return self._tok
+
+    @property
+    def behind(self):
+        return self._lookbehind
 
     def reject(self):
         self.reject_with_msg(f'unexpected token: `{self._tok.value}`')
@@ -281,22 +596,4 @@ class Parser:
         raise CompileError(msg, self.srcfile.rel_path, self._tok.span)
 
     def error(self, msg: str, span: TextSpan):
-        raise CompileError(msg, self.srcfile.rel_path, span)
-
-        
-
-SWALLOW_TOKENS = {
-    Token.Kind.LPAREN,
-    Token.Kind.RPAREN,
-    Token.Kind.LBRACE,
-    Token.Kind.RBRACE,
-    Token.Kind.LBRACKET,
-    Token.Kind.RBRACKET,
-    Token.Kind.COMMA,
-}
-
-    
-
-
-
-    
+        raise CompileError(msg, self.srcfile.rel_path, span)    

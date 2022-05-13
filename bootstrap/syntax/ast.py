@@ -3,9 +3,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
-from typecheck import Type
+from typecheck import Type, PrimitiveType, PointerType
 from report import TextSpan
 from depm import Symbol
 
@@ -30,6 +30,10 @@ class ASTNode(ABC):
     @property
     def category(self) -> ValueCategory:
         return ValueCategory.RVALUE
+
+# ---------------------------------------------------------------------------- #
+
+Annotations = Dict[str, Tuple[str, TextSpan]]
 
 @dataclass
 class FuncParam:
@@ -66,9 +70,10 @@ class FuncDef(ASTNode):
     '''
 
     func_id: 'Identifier'
+    func_params: List[FuncParam] 
     body: Optional[ASTNode]
+    annots: Annotations
     _span: TextSpan
-    func_params: List[FuncParam] = field(default_factory=list)
 
     @property
     def type(self) -> Type:
@@ -77,6 +82,183 @@ class FuncDef(ASTNode):
     @property
     def span(self) -> TextSpan:
         return self._span
+
+# ---------------------------------------------------------------------------- #
+
+@dataclass
+class Block(ASTNode):
+    '''
+    The AST node representing a procedural block of statements.
+
+    Attributes
+    ----------
+    stmts: List[ASTNode]
+        The statements that comprise this block.
+    '''
+
+    stmts: List[ASTNode]
+
+    @property
+    def type(self) -> Type:
+        if len(self.stmts) > 0:
+            return self.stmts[-1].type
+        else:
+            return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return TextSpan.over(self.stmts[0].span, self.stmts[-1].span)
+
+@dataclass
+class VarList:
+    '''
+    The AST node representing a list of variables sharing the same initializer.
+
+    Attributes
+    ----------
+    symbols: List[Symbol]
+        The list of variable symbols declared by this variable list.
+    initializer: Optional[ASTNode]
+        The initializer for the variable list: may be `None` if there is no
+        initializer.
+    '''
+
+    symbols: List[Symbol]
+    initializer: Optional[ASTNode]
+
+@dataclass
+class VarDecl(ASTNode):
+    '''
+    The AST node representing a variable declaration.
+
+    Attributes
+    ----------
+    var_lists: List[VarList]
+        The list of variable lists declared by this variable declaration.
+    '''
+
+    var_lists: List[VarList]
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+# ---------------------------------------------------------------------------- #
+
+@dataclass
+class TypeCast(ASTNode):
+    '''
+    The AST node representing a type cast.
+
+    Attributes
+    ----------
+    src_expr: ASTNode
+        The source expression being cast to another type.
+    dest_type: Type
+        The type to cast to.
+    '''
+
+    src_expr: ASTNode
+    dest_type: Type
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self.dest_type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+    @property
+    def category(self) -> ValueCategory:
+        return self.src_expr.category
+
+@dataclass
+class Indirect(ASTNode):
+    '''
+    The AST node representing an indirection operation.
+
+    Attributes
+    ----------
+    elem: ASTNode
+        The element being indirected.
+    is_alloc: bool
+        Whether this indirection acts as an allocation.
+    '''
+
+    elem: ASTNode
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return PointerType(self.elem.type)
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+    @property
+    def is_alloc(self) -> bool:
+        return self.elem.category == ValueCategory.RVALUE
+
+@dataclass
+class Dereference(ASTNode):
+    '''
+    The AST node representing a pointer dereference.
+
+    Attributes
+    ----------
+    ptr: ASTNode
+        The pointer being dereferenced.
+    '''
+
+    ptr: ASTNode
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self.ptr.type.elem_type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+    @property
+    def category(self) -> ValueCategory:
+        return ValueCategory.LVALUE
+
+@dataclass
+class FuncCall(ASTNode):
+    '''
+    The AST node representing a function call.
+
+    Attributes
+    ---------
+    func: ASTNode
+        The function being called.
+    args: List[ASTNode]
+        The arguments to pass to the function.
+    '''
+
+    func: ASTNode
+    args: List[ASTNode]
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self.func.type.rt_type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+# ---------------------------------------------------------------------------- #
 
 @dataclass
 class Identifier(ASTNode):
@@ -123,8 +305,25 @@ class Literal(ASTNode):
     '''
 
     value: str
-    _type: Type
     _span: TextSpan
+    _type: Type = PrimitiveType.NOTHING
+
+    @property
+    def type(self) -> Type:
+        return self._type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
+class Null(ASTNode):
+    '''
+    The AST node representing the language constant `null`.
+    '''
+
+    _span: TextSpan
+    _type: Type = PrimitiveType.NOTHING
 
     @property
     def type(self) -> Type:

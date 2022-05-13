@@ -1,0 +1,11 @@
+package basic_tests
+
+def test() end
+
+def test2(x: i32) i32 end
+
+def test3(x, y: f32) end
+
+def test4(abc, de: *i32, fg: bool) f64 end
+
+def test5(ding_dong: *bool, ping_pong: **i32) end

@@ -5,13 +5,18 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List
 
+import util
+
 class Type(ABC):
     '''An abstract base class for all types.'''
 
+    _compare_exact: bool = False
+
     @abstractmethod
-    def _equals(self, other: 'Type') -> bool:
+    def _compare(self, other: 'Type') -> bool:
         '''
-        Returns whether this type is exactly equal to the other type.
+        Returns whether this type is exactly equal or equivalent to the other
+        type depending on the value of `_compare_exact`.
 
         .. warning: This method should only be called by `Type`.
 
@@ -36,19 +41,6 @@ class Type(ABC):
             The type to cast from.
         '''
 
-    def _equiv(self, other: 'Type') -> bool:
-        '''
-        Returns whether this type is exactly equivalent to the other type.
-
-        ..warning: This method should only be called by `Type`.
-
-        Params
-        ------
-        other: Type
-            The type to compare this type to.
-        '''
-        return self._equals(other)
-
     # ---------------------------------------------------------------------------- #
 
     def inner_type(self) -> 'Type':
@@ -59,9 +51,9 @@ class Type(ABC):
         '''
         return self
 
-    def equals(self, other: 'Type') -> bool:
+    def exact_equals(self, other: 'Type') -> bool:
         '''
-        Returns whether this type is equal to the other type.
+        Returns whether this type is exactly equal to the other type.
 
         Params
         ------
@@ -69,7 +61,10 @@ class Type(ABC):
             The type to compare this type to.
         '''
 
-        return self.inner_type()._equals(other.inner_type())
+        self._compare_exact = True
+        result = self.inner_type()._compare(other.inner_type())
+        self._compare_exact = False
+        return result
 
     def __eq__(self, other: object) -> bool:
         '''
@@ -82,7 +77,7 @@ class Type(ABC):
         '''
 
         if isinstance(other, Type):
-            return self.inner_type()._equiv(other.inner_type())
+            return self.inner_type()._compare(other.inner_type())
 
         return False
 
@@ -100,7 +95,7 @@ class Type(ABC):
             self_inner = self.inner_type()
             other_inner = other.inner_type()
 
-            if self_inner._equiv(other_inner):
+            if self_inner._compare(other_inner):
                 return True
 
             return other_inner._cast_from(self_inner)
@@ -121,7 +116,7 @@ class Type(ABC):
             self_inner = self.inner_type()
             other_inner = other.inner_type()
 
-            if self_inner._equiv(other_inner):
+            if self_inner._compare(other_inner):
                 return True
 
             return self_inner._cast_from(other_inner)
@@ -130,7 +125,7 @@ class Type(ABC):
 
 typedataclass = dataclass(eq=False)
 
-class PrimitiveType(Enum, Type):
+class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
     '''Represents a primitive type.'''
 
     BOOL = auto()
@@ -146,7 +141,7 @@ class PrimitiveType(Enum, Type):
     F64 = auto()
     NOTHING = auto()
 
-    def _equals(self, other: Type) -> bool:
+    def _compare(self, other: Type) -> bool:
         return super.__eq__(self, other)
 
     def _cast_from(self, other: Type) -> bool:
@@ -166,10 +161,9 @@ class PointerType(Type):
 
     elem_type: Type
 
-    def _equals(self, other: Type) -> bool:
+    def _compare(self, other: Type) -> bool:
         if isinstance(other, PointerType):
-            return self.elem_type == other.elem_type and \
-                self.indirection == other.indirection
+            return self.elem_type == other.elem_type
 
         return False
 
@@ -196,3 +190,12 @@ class FuncType(Type):
 
     param_types: List[Type]
     rt_type: Type
+
+    def _compare(self, other: Type) -> bool:
+        if isinstance(other, FuncType):
+            return all(a == b for a, b in zip(self.param_types, other.param_types)) \
+                and self.rt_type == other.rt_type
+
+    def _cast_from(self, other: Type) -> bool:
+        # No legal function casts.
+        return False

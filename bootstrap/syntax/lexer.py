@@ -33,6 +33,8 @@ KEYWORDS = {
     'while': Token.Kind.WHILE,
     'end': Token.Kind.END,
 
+    'as': Token.Kind.AS,
+
     'bool': Token.Kind.BOOL,
     'i8': Token.Kind.I8,
     'u8': Token.Kind.U8,
@@ -45,6 +47,10 @@ KEYWORDS = {
     'f32': Token.Kind.F32,
     'f64': Token.Kind.F64,
     'nothing': Token.Kind.NOTHING,
+
+    'true': Token.Kind.BOOLLIT,
+    'false': Token.Kind.BOOLLIT,
+    'null': Token.Kind.NULL,
 }
 
 # Maps valid symbol strings to their token kinds.

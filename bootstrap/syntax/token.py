@@ -34,6 +34,8 @@ class Token:
         WHILE = auto()
         END = auto()
 
+        AS = auto()
+
         BOOL = auto()
         I8 = auto()
         U8 = auto()
@@ -88,6 +90,7 @@ class Token:
         INTLIT = auto()
         BOOLLIT = auto()
         IDENTIFIER = auto()
+        NULL = auto()
 
         EOF = auto()
 

@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Dict, List
-from bootstrap.report import TextSpan
 
+from report import TextSpan
 from typecheck import Type
 
 @dataclass
@@ -53,6 +53,7 @@ class Symbol:
     kind: Kind
     mutability: Mutability
     def_span: TextSpan
+    intrinsic: bool = False
     used: bool = False
 
 @dataclass
