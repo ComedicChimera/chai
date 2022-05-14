@@ -3,10 +3,8 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 
-from bootstrap.report import CompileError
-
 from . import *
-from report import TextSpan
+from report import TextSpan, CompileError
 from depm.source import SourceFile
 
 @typedataclass
@@ -69,6 +67,9 @@ class SolutionContext:
     substitutions: Dict[int, Substitution] = field(default_factory=dict)
     overload_sets: Dict[int, OverloadSet] = field(default_factory=dict)
 
+    def copy(self) -> 'SolutionContext':
+        return SolutionContext(self.substitutions.copy(), self.overload_sets.copy())
+
     def merge(self, sub_ctx: 'SolutionContext'):
         self.substitutions |= sub_ctx.substitutions
         self.overload_sets |= sub_ctx.overload_sets
@@ -99,7 +100,8 @@ class Solver:
         self.global_ctx.overload_sets[tv.id] = OverloadSet([Substitution(typ) for typ in overloads], True)
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
-        self.unify(lhs, rhs, span)
+        if not self.unify(lhs, rhs):
+            self.error(f'type mismatch: {lhs} v. {rhs}', span)
 
     def assert_cast(self, src: Type, dest: Type):
         self.cast_asserts.append(CastAssert(src, dest))
@@ -146,20 +148,32 @@ class Solver:
                 return False
             
     def unify_type_var(self, id: int, typ: Type) -> bool:
-        if sub := self.local_ctx.substitutions.get(id):
+        if sub := self.get_substitution(id):
             return self.unify(sub.type, typ)
-        elif oset := self.local_ctx.overload_sets.get(id):
+        elif oset := self.get_overload_set(id):
             return self.reduce_overloads(id, oset, typ)
         else:
             self.local_ctx.substitutions[id] = Substitution(typ)
             return True
+
+    def get_substitution(self, id: int) -> Optional[Substitution]:
+        if sub := self.local_ctx.substitutions.get(id):
+            return sub
+        elif sub := self.global_ctx.substitutions.get(id):
+            return sub
+
+    def get_overload_set(self, id: int) -> Optional[OverloadSet]:
+        if oset := self.local_ctx.overload_sets.get(id):
+            return oset
+        elif oset := self.global_ctx.overload_sets.get(id):
+            return oset
 
     def reduce_overloads(self, id: int, oset: OverloadSet, typ: Type) -> bool:
         outer_ctx = self.local_ctx
         
         new_overloads = []
         for overload in oset.overloads:
-            self.local_ctx = SolutionContext()
+            self.local_ctx = outer_ctx.copy()
 
             if self.unify(overload.type, typ):
                 new_overloads.append(overload)
