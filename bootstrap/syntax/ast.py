@@ -8,6 +8,7 @@ from typing import List, Optional, Dict, Tuple
 from typecheck import Type, PrimitiveType, PointerType
 from report import TextSpan
 from depm import Symbol
+from .token import Token
 
 class ValueCategory(Enum):
     '''Enumeration of possible value categories of AST nodes.'''
@@ -218,12 +219,15 @@ class Dereference(ASTNode):
         The pointer being dereferenced.
     '''
 
+    __match_args__ = ('ptr', '_span')
+
     ptr: ASTNode
     _span: TextSpan
+    elem_type: Type = PrimitiveType.NOTHING
 
     @property
     def type(self) -> Type:
-        return self.ptr.type.elem_type
+        return self.elem_type
 
     @property
     def span(self) -> TextSpan:
@@ -246,13 +250,16 @@ class FuncCall(ASTNode):
         The arguments to pass to the function.
     '''
 
+    __match_args__ = ('func', 'args', '_span')
+
     func: ASTNode
     args: List[ASTNode]
     _span: TextSpan
+    rt_type: Type = PrimitiveType.NOTHING
 
     @property
     def type(self) -> Type:
-        return self.func.type.rt_type
+        return self.rt_type
 
     @property
     def span(self) -> TextSpan:
@@ -274,6 +281,8 @@ class Identifier(ASTNode):
     symbol: Symbol
         The symbol this identifier corresponds to.
     '''
+
+    __match_args__ = ('name', '_span')
 
     name: str
     _span: TextSpan
@@ -304,6 +313,7 @@ class Literal(ASTNode):
         The literal value stored in the AST node.
     '''
 
+    kind: Token.Kind
     value: str
     _span: TextSpan
     _type: Type = PrimitiveType.NOTHING
@@ -311,6 +321,10 @@ class Literal(ASTNode):
     @property
     def type(self) -> Type:
         return self._type
+
+    @type.setter
+    def set_type(self, typ: Type):
+        self._type = typ
 
     @property
     def span(self) -> TextSpan:
@@ -328,6 +342,10 @@ class Null(ASTNode):
     @property
     def type(self) -> Type:
         return self._type
+
+    @type.setter
+    def set_type(self, typ: Type):
+        self._type = typ
 
     @property
     def span(self) -> TextSpan:

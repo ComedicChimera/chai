@@ -59,6 +59,7 @@ class OverloadSet:
 class CastAssert:
     src: Type
     dest: Type
+    span: TextSpan
 
 # ---------------------------------------------------------------------------- #    
 
@@ -87,9 +88,7 @@ class Solver:
     def __init__(self, srcfile: SourceFile):
         self.srcfile = srcfile
         self.type_vars = []
-        self.global_ctx = SolutionContext()
-        self.local_ctx = self.global_ctx
-        self.cast_asserts = []
+        self.reset()
 
     def new_type_var(self, span: TextSpan, name: Optional[str] = None):
         tv = TypeVariable(len(self.type_vars), span, name, self)
@@ -103,8 +102,10 @@ class Solver:
         if not self.unify(lhs, rhs):
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
 
-    def assert_cast(self, src: Type, dest: Type):
-        self.cast_asserts.append(CastAssert(src, dest))
+        self.local_ctx = SolutionContext()
+
+    def assert_cast(self, src: Type, dest: Type, span: TextSpan):
+        self.cast_asserts.append(CastAssert(src, dest, span))
 
     def solve(self):
         for tv in self.type_vars:
@@ -119,7 +120,14 @@ class Solver:
 
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
-                self.error(f'cannot cast {ca.src} to {ca.dest}')
+                self.error(f'cannot cast {ca.src} to {ca.dest}', ca.span)
+
+        self.reset()
+
+    def reset(self):
+        self.global_ctx = SolutionContext()
+        self.local_ctx = SolutionContext()
+        self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
 

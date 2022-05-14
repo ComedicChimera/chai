@@ -282,7 +282,7 @@ class Parser:
                     init = None
             else:
                 init = self.parse_initializer()
-                typ = init.type
+                typ = None
 
             for ident in id_list:
                 ident.symbol = Symbol(
@@ -384,9 +384,9 @@ class Parser:
 
         match (tok := self.tok()).kind:
             case Token.Kind.INTLIT | Token.Kind.NUMLIT:
-                return Literal(tok.value, tok.span)
+                return Literal(tok.kind, tok.value, tok.span)
             case Token.Kind.BOOLLIT:
-                return Literal(tok.value, tok.span, PrimitiveType.BOOL)
+                return Literal(tok.kind, tok.value, tok.span, PrimitiveType.BOOL)
             case Token.Kind.IDENTIFIER:
                 return Identifier(tok.value, tok.span)
             case Token.Kind.NULL:
