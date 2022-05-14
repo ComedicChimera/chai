@@ -2,7 +2,6 @@ from typing import Deque, List, Optional, Tuple
 from collections import deque
 
 from report import CompileError
-from depm import Scope
 from depm.source import Package, SourceFile
 from typecheck import FuncType, PointerType, PrimitiveType
 from .ast import *
@@ -24,8 +23,6 @@ class Parser:
     srcfile: SourceFile
     lexer: Lexer
 
-    _scopes: Deque[Scope]
-
     _tok: Optional[Token] = None
     _lookbehind: Optional[Token] = None
 
@@ -33,7 +30,6 @@ class Parser:
         self.pkg = pkg
         self.srcfile = srcfile
         self.lexer = Lexer(srcfile)
-        self._scopes = deque()
 
     def __enter__(self):
         return self
@@ -185,7 +181,7 @@ class Parser:
             'intrinsic' in annots,
         )
 
-        self.define(func_sym)
+        self.define_global(func_sym)
 
         return FuncDef(
             Identifier(func_sym.name, func_sym.def_span, symbol=func_sym),
@@ -234,17 +230,11 @@ class Parser:
                 self.advance()
                 return None, end_pos
             case Token.Kind.NEWLINE:
-                self.push_func_scope(func_params)
-                block = self.parse_block()
-                self.pop_scope()
-
-                return block, self.behind.span
+                return self.parse_block(), self.behind.span
             case Token.Kind.ASSIGN:
                 self.advance()
 
-                self.push_func_scope(func_params)
                 expr = self.parse_expr()
-                self.pop_scope()
 
                 return expr, expr.span
             case _:
@@ -260,8 +250,6 @@ class Parser:
 
         self.want(Token.Kind.NEWLINE)
 
-        self.push_scope()
-
         stmts = []
 
         while not self.has(Token.Kind.END):
@@ -270,8 +258,6 @@ class Parser:
                     stmts.append(self.parse_var_decl())
                 case _:
                     stmts.append(self.parse_expr_assign_stmt())
-
-        self.pop_scope()
 
         self.want(Token.Kind.END)
 
@@ -299,7 +285,7 @@ class Parser:
                 typ = init.type
 
             for ident in id_list:
-                id_sym = Symbol(
+                ident.symbol = Symbol(
                     ident.name,
                     self.pkg.id,
                     typ,
@@ -307,9 +293,6 @@ class Parser:
                     Symbol.Mutability.NEVER_MUTATED,
                     ident.span
                 )
-
-                self.define(id_sym)
-                ident.symbol = id_sym
 
             return VarList([ident.symbol for ident in id_list], init)
 
@@ -503,48 +486,11 @@ class Parser:
 
     # ---------------------------------------------------------------------------- #
 
-    def define(self, sym: Symbol):
-        if len(self._scopes) > 0:
-            scope = self._scopes[0]
+    def define_global(self, sym: Symbol):
+        if sym.name in self.pkg.symbol_table:
+            self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
 
-            if sym.name in scope.symbols:
-                self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
-
-            scope.symbols[sym.name] = sym
-        else:
-            if sym.name in self.pkg.symbol_table:
-                self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
-
-            self.pkg.symbol_table[sym.name] = sym
-
-    def push_func_scope(self, func_params: List[FuncParam]):
-        scope = Scope()
-
-        for param in func_params:
-            scope.symbols[param.name] = Symbol(
-                param.name,
-                self.pkg.id,
-                param.type,
-                Symbol.Kind.VALUE,
-                Symbol.Mutability.NEVER_MUTATED,
-                None,  # span of this symbol never used
-            )
-
-        if len(self._scopes) > 0:
-            self._scopes[0].sub_scopes.append(scope)
-
-        self._scopes.appendleft(scope)
-
-    def push_scope(self):
-        scope = Scope()
-
-        if len(self._scopes) > 0:
-            self._scopes[0].sub_scopes.append(scope)
-
-        self._scopes.appendleft(scope)
-
-    def pop_scope(self):
-        self._scopes.popleft()
+        self.pkg.symbol_table[sym.name] = sym
 
     # ---------------------------------------------------------------------------- #
 

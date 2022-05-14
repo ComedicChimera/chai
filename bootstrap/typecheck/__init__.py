@@ -123,6 +123,10 @@ class Type(ABC):
 
         raise TypeError('can only cast between types')
 
+    def __str__(self) -> str:
+        '''Returns the string representation of a type.'''
+        return repr(self)
+
 typedataclass = dataclass(eq=False)
 
 class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
@@ -147,6 +151,9 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
     def _cast_from(self, other: Type) -> bool:
         # TODO
         return False
+
+    def __repr__(self) -> str:
+        return self.name.lower()
 
 @typedataclass
 class PointerType(Type):
@@ -175,6 +182,9 @@ class PointerType(Type):
 
         return False
 
+    def __repr__(self) -> str:
+        return '*' + repr(self.elem_type)
+
 @typedataclass
 class FuncType(Type):
     '''
@@ -199,3 +209,11 @@ class FuncType(Type):
     def _cast_from(self, other: Type) -> bool:
         # No legal function casts.
         return False
+
+    def __repr__(self) -> str:
+        if len(self.param_types) == 1:
+            param_str = repr(self.param_types[0])
+        else:
+            param_str = '(' + ', '.join(self.param_types) + ')'
+
+        return f'{param_str} -> {self.rt_type}'

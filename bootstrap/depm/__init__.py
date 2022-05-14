@@ -55,19 +55,3 @@ class Symbol:
     def_span: TextSpan
     intrinsic: bool = False
     used: bool = False
-
-@dataclass
-class Scope:
-    '''
-    Represents a lexical scope within user source code.
-
-    Attributes
-    ----------
-    symbols: Dict[str, Symbol]
-        Maps the names of symbols defined in this scope to symbol objects.
-    sub_scopes: List[Scope]
-        The list of all sub-scopes of this scope.
-    '''
-
-    symbols: Dict[str, Symbol] = field(default_factory=dict)
-    sub_scopes: List['Scope'] = field(default_factory=list)
