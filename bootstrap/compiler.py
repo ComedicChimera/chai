@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import os
 
 from syntax.parser import Parser
+from typecheck.walker import Walker
 from depm.source import Package, SourceFile
 
 @dataclass
@@ -50,7 +51,9 @@ class Compiler:
         pkg = Package('test', os.path.dirname(self.root_dir))
         srcfile = SourceFile(pkg, self.root_dir)
         pkg.files.append(srcfile)
-        p = Parser(pkg, srcfile)
+
+        p = Parser(srcfile)
         p.parse()
-        for defin in srcfile.definitions:
-            print(defin)
+        
+        w = Walker(srcfile)
+        w.walk_file()

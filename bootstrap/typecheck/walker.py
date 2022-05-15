@@ -7,7 +7,8 @@ from depm import Symbol
 from depm.source import SourceFile
 from syntax.ast import *
 from . import FuncType, PointerType
-from .solver import Solver, TypeVariable
+from .solver import Solver
+import util
 
 @dataclass
 class Scope:
@@ -38,9 +39,12 @@ class Walker:
                 self.walk_func_def(defin)
 
     def walk_func_def(self, fd: FuncDef):
-        # TODO validate annotations
+        expect_body = self.validate_func_annotations(fd.func_id.name, fd.annots)
         
         if fd.body:
+            if not expect_body:
+                self.error('function should not have body', fd.body.span)
+
             self.push_scope(fd.func_id.type)
 
             for param in fd.func_params:
@@ -62,6 +66,31 @@ class Walker:
                     param.mutated = True
 
             self.pop_scope()
+        elif expect_body:
+            self.error('function must have body', fd.span)
+
+    INTRINSIC_FUNCS = set()
+
+    def validate_func_annotations(self, func_name: str, annots: Annotations) -> bool:
+        expect_body = True
+
+        for aname, (aval, aspan) in annots.items():
+            match aname:
+                case 'extern':
+                    if aval != '':
+                        self.error('@extern does not take an argument', aspan)
+
+                    expect_body = False
+                case 'intrinsic':
+                    if func_name not in self.INTRINSIC_FUNCS:
+                        self.error(f'no intrinsic function named {func_name}', aspan)
+
+                    expect_body = False
+                case 'entry':
+                    if aval != '':
+                        self.error('@entry does not take an argument', aspan)
+
+        return expect_body
 
     # ---------------------------------------------------------------------------- #
 
@@ -103,12 +132,21 @@ class Walker:
 
                 self.pop_scope()
             case TypeCast(src, dest_type, span):
+                self.walk_expr(src)
                 self.solver.assert_cast(src.type, dest_type, span)
+            case Indirect(elem, _):
+                self.walk_expr(elem)
             case Dereference(ptr, span):
+                self.walk_expr(ptr)
                 elem_type_var = self.solver.new_type_var(span)
                 self.solver.assert_equiv(ptr.type, PointerType(elem_type_var), span)
                 expr.elem_type = elem_type_var
             case FuncCall(func, args, span):
+                self.walk_expr(func)
+
+                for arg in args:
+                    self.walk_expr(arg)
+
                 rt_type_var = self.solver.new_type_var(span)
                 func_type = FuncType([arg.type for arg in args], rt_type_var)
                 self.solver.assert_equiv(func.type, func_type, span)
@@ -119,9 +157,61 @@ class Walker:
                 expr.type = self.solver.new_type_var(expr.span)
             case Literal():
                 self.walk_literal(expr)
-                
+    
+    INT_TYPES = [
+        PrimitiveType.I64,
+        PrimitiveType.I32,
+        PrimitiveType.I16,
+        PrimitiveType.I8,
+        PrimitiveType.U64,
+        PrimitiveType.U32,
+        PrimitiveType.U16,
+        PrimitiveType.U8,
+    ]
+
     def walk_literal(self, lit: Literal):
-        pass
+        def prune_int_types_by_size(types: List[PrimitiveType], value: str, base: int) -> List[PrimitiveType]:
+            bit_size = int(value, base=base).bit_length()
+
+            return [typ for typ in types if typ.value >= bit_size]
+
+        match lit.kind:
+            case Token.Kind.FLOATLIT:
+                float_var = self.solver.new_type_var(lit.span)
+                self.solver.add_literal_overloads(float_var, PrimitiveType.F64, PrimitiveType.F32)
+
+                lit.type = float_var
+            case Token.Kind.NUMLIT:
+                num_var = self.solver.new_type_var(lit.span)
+
+                num_types = prune_int_types_by_size(self.INT_TYPES, lit.value, 10)
+                num_types += [PrimitiveType.F64, PrimitiveType.F32]
+
+                self.solver.add_literal_overloads(num_var, *num_types)
+
+                lit.type = num_var
+            case Token.Kind.INTLIT:
+                trimmed_value, base, uns, lng = util.trim_int_lit(lit.value)
+
+                int_types = self.INT_TYPES
+
+                if uns:
+                    int_types = [typ for typ in int_types if typ.name.startswith('U')]
+                
+                if lng:
+                    int_types = [typ for typ in int_types if typ.name.endswith('64')]
+
+                int_types = prune_int_types_by_size(int_types, trimmed_value, base)
+
+                if len(int_types) == 0:
+                    self.error('value too large to fit in an integral type', lit.span)
+                elif len(int_types) == 1:
+                    lit.type = int_types[0]
+                else:
+                    int_var = self.solver.new_type_var(lit.span)
+                    self.solver.add_literal_overloads(int_var, *int_types)
+
+                    lit.type = int_var    
 
     # ---------------------------------------------------------------------------- #
 
@@ -133,7 +223,7 @@ class Walker:
         if sym := self.srcfile.parent.symbol_table.get(name):
             return sym, False
 
-        self.error(f'undefined symbol: `{name}`')
+        self.error(f'undefined symbol: `{name}`', span)
 
     def define_local(self, sym: Symbol):
         if sym.name in self.curr_scope.symbols:

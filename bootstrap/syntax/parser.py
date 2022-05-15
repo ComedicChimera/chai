@@ -19,15 +19,13 @@ SWALLOW_TOKENS = {
 }
 
 class Parser:
-    pkg: Package
     srcfile: SourceFile
     lexer: Lexer
 
     _tok: Optional[Token] = None
     _lookbehind: Optional[Token] = None
 
-    def __init__(self, pkg: Package, srcfile: SourceFile):
-        self.pkg = pkg
+    def __init__(self, srcfile: SourceFile):
         self.srcfile = srcfile
         self.lexer = Lexer(srcfile)
 
@@ -173,7 +171,7 @@ class Parser:
         func_type = FuncType([p.type for p in func_params], func_rt_type)
         func_sym = Symbol(
             func_id.value, 
-            self.pkg.id, 
+            self.srcfile.parent.id, 
             func_type, 
             Symbol.Kind.FUNC, 
             Symbol.Mutability.IMMUTABLE, 
@@ -259,7 +257,11 @@ class Parser:
                 case _:
                     stmts.append(self.parse_expr_assign_stmt())
 
+            self.want(Token.Kind.NEWLINE)
+
         self.want(Token.Kind.END)
+        
+        return Block(stmts)
 
     def parse_var_decl(self) -> ASTNode:
         '''
@@ -287,7 +289,7 @@ class Parser:
             for ident in id_list:
                 ident.symbol = Symbol(
                     ident.name,
-                    self.pkg.id,
+                    self.srcfile.parent.id,
                     typ,
                     Symbol.Kind.VALUE,
                     Symbol.Mutability.NEVER_MUTATED,
@@ -298,7 +300,7 @@ class Parser:
 
         var_lists = [parse_var_list()]
 
-        while self.has(Token.Kind.COMMA):
+        while self.has(Token.Kind.COMMA, False):
             self.advance()
 
             var_lists.append(parse_var_list())
@@ -322,7 +324,7 @@ class Parser:
 
         expr = self.parse_unary_expr()
 
-        if self.has(Token.Kind.AS):
+        if self.has(Token.Kind.AS, False):
             self.advance()
 
             dest_type = self.parse_type_label()
@@ -362,34 +364,45 @@ class Parser:
 
         atom_expr = self.parse_atom()
 
-        match self.tok().kind:
+        match self.tok(False).kind:
             case Token.Kind.LPAREN:
                 self.advance()
 
-                if not self.has(Token.Kind.RPAREN):
+                if not self.has(Token.Kind.RPAREN):    
                     args_list = self.parse_expr_list()
                 else:
                     args_list = []
 
-                self.want(Token.Kind.RPAREN)
+                rparen = self.want(Token.Kind.RPAREN)
 
-                atom_expr = FuncCall(atom_expr, args_list)
+                atom_expr = FuncCall(
+                    atom_expr, 
+                    args_list,
+                    TextSpan.over(atom_expr.span, rparen.span)
+                )
 
         return atom_expr
 
     def parse_atom(self) -> ASTNode:
         '''
-        atom := 'INTLIT' | 'NUMLIT' | 'BOOLLIT' | 'IDENTIFIER' | 'null' | '(' expr ')' ;
+        atom := 'INTLIT' | 'NUMLIT' | 'RUNELIT' | 'BOOLLIT' | 'IDENTIFIER' | 'null' | '(' expr ')' ;
         '''
 
         match (tok := self.tok()).kind:
             case Token.Kind.INTLIT | Token.Kind.NUMLIT:
+                self.advance()
                 return Literal(tok.kind, tok.value, tok.span)
+            case Token.Kind.RUNELIT:
+                self.advance()
+                return Literal(tok.kind, tok.value, tok.span, PrimitiveType.U32)
             case Token.Kind.BOOLLIT:
+                self.advance()
                 return Literal(tok.kind, tok.value, tok.span, PrimitiveType.BOOL)
             case Token.Kind.IDENTIFIER:
+                self.advance()
                 return Identifier(tok.value, tok.span)
             case Token.Kind.NULL:
+                self.advance()
                 return Null(tok.span)
             case Token.Kind.LPAREN:
                 self.advance()
@@ -487,31 +500,64 @@ class Parser:
     # ---------------------------------------------------------------------------- #
 
     def define_global(self, sym: Symbol):
-        if sym.name in self.pkg.symbol_table:
+        if sym.name in self.srcfile.parent.symbol_table:
             self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
 
-        self.pkg.symbol_table[sym.name] = sym
+        self.srcfile.parent.symbol_table[sym.name] = sym
 
     # ---------------------------------------------------------------------------- #
 
     def advance(self):
+        '''Moves the parser forward one token.'''
+
         self._lookbehind = self._tok
         self._tok = self.lexer.next_token()
 
     def has_swallow_behind(self):
+        '''Returns whether the lookbehind is a swallow token.'''
+
         return self._lookbehind and self._lookbehind.kind in SWALLOW_TOKENS
 
     def swallow(self):
+        '''Consumes newlines until the parser reaches a non-newline token.'''
+
         while self._tok.kind == Token.Kind.NEWLINE:
             self.advance()
 
-    def has(self, kind: Token.Kind) -> bool:
-        if kind == Token.Kind.NEWLINE:
+    def has(self, kind: Token.Kind, swallow: bool = True) -> bool:
+        '''
+        Returns whether or no the parser is on a token of the given kind.
+
+        Params
+        ------
+        kind: Token.Kind
+            The kind of token to check for.
+        swallow: bool
+            Whether or not to try to swallow before checking.
+        '''
+
+        if kind == Token.Kind.NEWLINE or not swallow:
             return self._tok.kind == kind
 
         return self.tok().kind == kind
 
     def want(self, kind: Token.Kind) -> Token:
+        '''
+        Asserts that the token the parser is on is of the given kind. This
+        function automatically tries to swallow newlines if the expected token
+        is not a newline.
+
+        Params
+        ------
+        kind: Token.Kind
+            The kind of token to check for.
+
+        Returns
+        -------
+        Token
+            The matched token.
+        '''
+
         if kind == Token.Kind.NEWLINE:
             if self._tok.kind != kind and self._tok.kind != Token.Kind.EOF:
                 self.reject()
@@ -525,21 +571,54 @@ class Parser:
         self.advance()
         return self._lookbehind
     
-    def tok(self, swallow=True):
+    def tok(self, swallow: bool = True) -> Token:
+        '''
+        Returns the token the parser is currently on.
+
+        Params
+        ------
+        swallow: bool
+            Whether or not to try to swallow before returning the token.
+        '''
+
         if swallow and self.has_swallow_behind():
             self.swallow()
 
         return self._tok
 
     @property
-    def behind(self):
+    def behind(self) -> Token:
+        '''Returns the parser's lookbehind.'''
+
         return self._lookbehind
 
     def reject(self):
+        '''Rejects the current token giving a default unexpected message.'''
+
         self.reject_with_msg(f'unexpected token: `{self._tok.value}`')
 
     def reject_with_msg(self, msg: str):
-        raise CompileError(msg, self.srcfile.rel_path, self._tok.span)
+        '''
+        Rejects the current token using the given error message.
+
+        Params
+        ------
+        msg: str
+            The error message.
+        '''
+
+        self.error(msg, self._tok.span)
 
     def error(self, msg: str, span: TextSpan):
+        '''
+        Raises a parsing compile error.
+
+        Params
+        ------
+        msg: str
+            The error message.
+        span: TextSpan
+            The span of the error.
+        '''
+
         raise CompileError(msg, self.srcfile.rel_path, span)    

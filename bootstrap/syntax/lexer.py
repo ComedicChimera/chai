@@ -269,7 +269,7 @@ class Lexer:
             self.error('unclosed rune literal')
 
         # Skip the closing single quote.
-        if c := self.read():
+        if c := self.peek():
             if c == '\'':
                 self.skip()
                 return self.make_token(Token.Kind.RUNELIT)
@@ -419,6 +419,7 @@ class Lexer:
             # Skip any `_` used for readability.
             if c == '_':
                 self.skip()
+                continue
 
             # Handle integer suffixes.
             if is_uns:

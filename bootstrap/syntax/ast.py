@@ -323,7 +323,7 @@ class Literal(ASTNode):
         return self._type
 
     @type.setter
-    def set_type(self, typ: Type):
+    def type(self, typ: Type):
         self._type = typ
 
     @property
@@ -344,7 +344,7 @@ class Null(ASTNode):
         return self._type
 
     @type.setter
-    def set_type(self, typ: Type):
+    def type(self, typ: Type):
         self._type = typ
 
     @property

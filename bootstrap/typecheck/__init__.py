@@ -130,20 +130,25 @@ class Type(ABC):
 typedataclass = dataclass(eq=False)
 
 class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
-    '''Represents a primitive type.'''
+    '''
+    Represents a primitive type.
 
-    BOOL = auto()
-    I8 = auto()
-    U8 = auto()
-    I16 = auto()
-    U16 = auto()
-    I32 = auto()
-    U32 = auto()
-    I64 = auto()
-    U64 = auto()
-    F32 = auto()
-    F64 = auto()
-    NOTHING = auto()
+    .. note: The values of all the integral types are their bit sizes.
+    '''
+
+    BOOL = 1
+    I8 = 7
+    U8 = 8
+    I16 = 15
+    U16 = 16
+    I32 = 31
+    U32 = 32
+    I64 = 63
+    U64 = 64
+
+    F32 = 2
+    F64 = 3
+    NOTHING = 4
 
     def _compare(self, other: Type) -> bool:
         return super.__eq__(self, other)
