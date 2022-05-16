@@ -52,7 +52,7 @@ class Value(LLVMObject):
 
     @name.setter
     def name(self, new_name: str):
-        LLVMSetValueName2(self, new_name, len(new_name))
+        LLVMSetValueName2(self, new_name.encode(), len(new_name))
 
     @property
     def constant(self) -> bool:

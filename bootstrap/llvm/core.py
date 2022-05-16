@@ -1,6 +1,6 @@
 from typing import Optional, List
 import atexit
-from ctypes import c_char_p, c_size_t
+from ctypes import POINTER, byref, c_char_p, c_size_t
 
 from . import LLVMObject, llvm_api, c_object_p
 
@@ -37,7 +37,7 @@ class Context(LLVMObject):
     def __enter__(self) -> 'Context':
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         for obj in self._owned_objects:
             obj.dispose()
 
@@ -51,7 +51,7 @@ class PassRegistry(LLVMObject):
 
 class Module(LLVMObject):
     def __init__(self, name: str, ctx: Context):
-        super().__init__(LLVMModuleCreateWithNameInContext(c_char_p(name), ctx))  
+        super().__init__(LLVMModuleCreateWithNameInContext(name.encode(), ctx))  
 
         ctx.take_ownership(self)
 
@@ -60,11 +60,12 @@ class Module(LLVMObject):
 
     @property
     def name(self) -> str:
-        return str(LLVMGetModuleIdentifier(self), encoding='utf-8')
+        length = c_size_t()
+        return str(LLVMGetModuleIdentifier(self, byref(length)), encoding='utf-8')
 
     @name.setter
-    def name(self, new_name: str):
-        LLVMSetModuleIdentifier(self, new_name, len(new_name))
+    def name(self, new_name: str):    
+        LLVMSetModuleIdentifier(self, new_name.encode(), len(new_name))
 
     @property
     def data_layout(self) -> str:
@@ -80,7 +81,7 @@ class Module(LLVMObject):
 
     @target.setter
     def target(self, target: str):
-        LLVMSetTarget(self, target)
+        LLVMSetTarget(self, target.encode())
 
     @property
     def context(self) -> Context:
@@ -116,7 +117,7 @@ def LLVMDisposeModule(m: Module):
     pass
 
 @llvm_api
-def LLVMGetModuleIdentifier(m: Module) -> c_char_p:
+def LLVMGetModuleIdentifier(m: Module, length: POINTER(c_size_t)) -> c_char_p:
     pass
 
 @llvm_api

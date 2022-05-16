@@ -4,6 +4,7 @@ import os
 from syntax.parser import Parser
 from typecheck.walker import Walker
 from depm.source import Package, SourceFile
+from llvm.core import Context, Module
 
 @dataclass
 class BuildOptions:
@@ -57,3 +58,9 @@ class Compiler:
         
         w = Walker(srcfile)
         w.walk_file()
+
+        with Context() as ctx:
+            m = Module('test', ctx)
+            print(m.name)
+            m.name = 'test2'
+            m.dump()
