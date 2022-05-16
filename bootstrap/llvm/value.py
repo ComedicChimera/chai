@@ -171,7 +171,16 @@ class UnnamedAddr(LLVMEnum):
     LOCAL = auto()
     GLOBAL = auto()
 
-class GlobalValue(Value):
+class Aligned(LLVMObject):
+    @property
+    def align(self) -> int:
+        return LLVMGetAlignment(self)
+
+    @align.setter
+    def align(self, new_align: int):
+        LLVMSetAlignment(self, new_align)
+
+class GlobalValue(Value, Aligned):
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr)  
 
@@ -331,4 +340,12 @@ def LLVMSetUnnamedAddress(val: GlobalValue, ua: UnnamedAddr):
 
 @llvm_api
 def LLVMGlobalGetValueType(val: GlobalValue) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetAlignment(val: Value) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMSetAlignment(val: Value, align: c_uint):
     pass
