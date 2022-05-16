@@ -10,8 +10,8 @@ from typing import Callable, get_type_hints, List
 # pointer to an object of some form.
 c_object_p = POINTER(c_void_p)
 
-# This type is used to represent LLVMBool.
-c_llvm_bool = c_int
+# This type is used to represent an LLVM enum.
+c_enum = c_int
 
 class LLVMObject:
     '''
@@ -31,10 +31,6 @@ class LLVMObject:
     ptr: c_object_p
     _as_parameter_: c_object_p
 
-    # This list of objects owned by this object: ie. the list of objects it is
-    # responsible for deleting.
-    _owned_objects: List['LLVMObject']
-
     def __init__(self, ptr: c_object_p):
         '''
         Params
@@ -45,21 +41,6 @@ class LLVMObject:
 
         self.ptr = ptr
         self._as_parameter_ = ptr
-
-        self._owned_objects = []
-
-    def take_ownership(self, obj: 'LLVMObject'):
-        '''
-        Prompts this object to take ownership of another LLVM object, making
-        this object responsible for the deletion of `obj`.
-
-        Params
-        ------
-        obj: LLVMObject
-            The object to take ownership of.       
-        '''
-
-        self._owned_objects.append(obj)
 
     def dispose(self):
         '''
@@ -76,30 +57,6 @@ class LLVMObject:
             raise TypeError()
 
         return self._as_parameter_
-
-    def _full_dispose(self):
-        '''
-        Disposes of this object's resources as well as those of its owned
-        objects.
-        '''
-
-        self.dispose()
-
-        for obj in self._owned_objects:
-            obj._full_dispose()
-
-    def __del__(self):
-        '''
-        Called by the Python GC to dispose of this object when it is no longer
-        used.  In addition to disposing of this object, it will also dispose of
-        all the objects this object owns.
-        '''
-
-        # NOTE This method does not need to check anything before calling
-        # dispose since if this object is not its own owner, then it will always
-        # be stored in another object.
-
-        self._full_dispose()
 
 class LLVMEnum(Enum):
     '''Represents an LLVM enumeration.'''

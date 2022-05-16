@@ -1,19 +1,47 @@
-from typing import Optional
+from typing import Optional, List
 import atexit
 from ctypes import c_char_p, c_size_t
 
-from . import LLVMObject, LLVMStringMessage, llvm_api, c_object_p
+from . import LLVMObject, llvm_api, c_object_p
 
 class Context(LLVMObject):
+    # This list of objects owned by this object: ie. the list of objects it is
+    # responsible for deleting.
+    _owned_objects: List['LLVMObject']
+
     def __init__(self, ptr: Optional[c_object_p] = None):
         super().__init__(ptr if ptr else LLVMContextCreate())
-
-    def dispose(self):
-        LLVMContextDispose(self)
+        
+        self._owned_objects = []
 
     @staticmethod
     def global_ctx() -> 'Context':
         return Context(LLVMGetGlobalContext())
+
+    def take_ownership(self, obj: 'LLVMObject'):
+        '''
+        Prompts this context to take ownership of an LLVM object, making this
+        context responsible for the deletion of `obj`.
+
+        Params
+        ------
+        obj: LLVMObject
+            The object to take ownership of.       
+        '''
+
+        self._owned_objects.append(obj)
+
+    def dispose(self):
+        LLVMContextDispose(self)
+
+    def __enter__(self) -> 'Context':
+        return self
+
+    def __exit__(self):
+        for obj in self._owned_objects:
+            obj.dispose()
+
+        self.dispose()
 
 class PassRegistry(LLVMObject):
     def __init__(self):
@@ -32,27 +60,27 @@ class Module(LLVMObject):
 
     @property
     def name(self) -> str:
-        return LLVMGetModuleIdentifier(self).value
+        return str(LLVMGetModuleIdentifier(self), encoding='utf-8')
 
     @name.setter
     def name(self, new_name: str):
-        LLVMSetModuleIdentifier(self, c_char_p(new_name), c_size_t(len(new_name)))
+        LLVMSetModuleIdentifier(self, new_name, len(new_name))
 
     @property
-    def data_layout(self):
-        return LLVMGetDataLayoutStr(self).value
+    def data_layout(self) -> str:
+        return str(LLVMGetDataLayoutStr(self), encoding='utf-8')
 
     @data_layout.setter
     def data_layout(self, data_layout: str):
-        LLVMSetDataLayout(self, c_char_p(data_layout))
+        LLVMSetDataLayout(self, data_layout)
 
     @property
-    def target(self):
-        return LLVMGetTarget(self).value
+    def target(self) -> str:
+        return str(LLVMGetTarget(self), encoding='utf-8')
 
     @target.setter
     def target(self, target: str):
-        LLVMSetTarget(self, c_char_p(target))
+        LLVMSetTarget(self, target)
 
     @property
     def context(self) -> Context:

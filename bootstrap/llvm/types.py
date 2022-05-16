@@ -2,7 +2,7 @@ from ctypes import c_int, c_uint, POINTER
 from enum import auto
 from typing import List, Optional
 
-from . import LLVMObject, LLVMEnum, llvm_api, c_object_p, c_llvm_bool, null_object_ptr
+from . import LLVMObject, LLVMEnum, llvm_api, c_object_p, c_enum, null_object_ptr
 
 class Type(LLVMObject):
     class Kind(LLVMEnum):
@@ -32,11 +32,11 @@ class Type(LLVMObject):
 
     @property
     def kind(self) -> Kind:
-        return Type.Kind(LLVMGetTypeKind(self).value)
+        return Type.Kind(LLVMGetTypeKind(self))
 
     @property
     def sized(self) -> bool:
-        return bool(LLVMTypeIsSized(self).value)
+        return bool(LLVMTypeIsSized(self))
 
     def dump(self):
         LLVMDumpType(self)
@@ -51,7 +51,7 @@ class IntegerType(Type):
 
     @property
     def width(self) -> int:
-        return LLVMGetIntTypeWidth(self).value
+        return LLVMGetIntTypeWidth(self)
 
 class FunctionType(Type):
     def __init__(self, param_types: List[Type], rt_type: Type, is_var_arg: bool, ptr: Optional[c_object_p] = None):
@@ -73,7 +73,7 @@ class FunctionType(Type):
         return FunctionType(None, None, None, typ.ptr)
     
     @property
-    def is_var_arg(self) -> bool:
+    def var_arg(self) -> bool:
         return LLVMIsFunctionVarArg(self)
 
     @property
@@ -82,7 +82,7 @@ class FunctionType(Type):
 
     @property
     def param_types(self) -> List[Type]:
-        num_params = LLVMCountParamTypes(self).value
+        num_params = LLVMCountParamTypes(self)
 
         if num_params == 0:
             return []
@@ -107,16 +107,16 @@ class PointerType(Type):
 
     @property
     def addr_space(self) -> int:
-        return LLVMGetPointerAddressSpace(self).value
+        return LLVMGetPointerAddressSpace(self)
 
 # ---------------------------------------------------------------------------- #
 
 @llvm_api
-def LLVMGetTypeKind(typ: Type) -> c_int:
+def LLVMGetTypeKind(typ: Type) -> c_enum:
     pass
 
 @llvm_api
-def LLVMTypeIsSized(typ: Type) -> c_llvm_bool:
+def LLVMTypeIsSized(typ: Type) -> c_enum:
     pass
 
 @llvm_api
@@ -160,12 +160,12 @@ def LLVMFunctionType(
     rt_type: Type, 
     param_types: POINTER(c_object_p), 
     param_count: c_uint, 
-    is_arg: c_llvm_bool
+    is_arg: c_enum
 ) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMIsFunctionVarArg(func_typ: FunctionType) -> c_llvm_bool:
+def LLVMIsFunctionVarArg(func_typ: FunctionType) -> c_enum:
     pass
 
 @llvm_api
