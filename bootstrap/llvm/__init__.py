@@ -1,13 +1,17 @@
 '''Provides some utilities common to the LLVM API bindings.'''
 
 import os
-from ctypes import cdll, POINTER, c_void_p
+from ctypes import cdll, POINTER, c_void_p, c_int
 from functools import wraps
+from enum import Enum
 from typing import Callable, get_type_hints, List
 
 # This is the type to be used whenever an LLVM API function accepts or returns a
 # pointer to an object of some form.
 c_object_p = POINTER(c_void_p)
+
+# This type is used to represent LLVMBool.
+c_llvm_bool = c_int
 
 class LLVMObject:
     '''
@@ -25,6 +29,7 @@ class LLVMObject:
     '''
 
     ptr: c_object_p
+    _as_parameter_: c_object_p
 
     # This list of objects owned by this object: ie. the list of objects it is
     # responsible for deleting.
@@ -39,6 +44,7 @@ class LLVMObject:
         '''
 
         self.ptr = ptr
+        self._as_parameter_ = ptr
 
         self._owned_objects = []
 
@@ -62,11 +68,14 @@ class LLVMObject:
         dispose of the resources of objects owned by this object.
         '''
 
-    @property
-    def _as_parameter_(self):
-        '''Return the `ctypes` parameter representation of this object.'''
+    @classmethod
+    def from_param(cls: 'LLVMObject', self: object) -> c_object_p:
+        '''ctypes function to use this class as an argument type.'''
 
-        return self.ptr
+        if not isinstance(self, cls):
+            raise TypeError()
+
+        return self._as_parameter_
 
     def _full_dispose(self):
         '''
@@ -91,7 +100,24 @@ class LLVMObject:
         # be stored in another object.
 
         self._full_dispose()
-            
+
+class LLVMEnum(Enum):
+    '''Represents an LLVM enumeration.'''
+
+    def _generate_next_value_(name: str, start: int, count: int, last_values: List[int]) -> int:
+        '''Overriddes the default Enum class to start enum values at 0.'''
+        return count
+
+    @classmethod
+    def from_param(cls: 'LLVMEnum', self: object) -> int:
+        '''ctypes function to use this class as an argument type.'''
+
+        if not isinstance(self, cls):
+            raise TypeError()
+
+        return self.value
+
+# ---------------------------------------------------------------------------- #     
 
 def llvm_api(f: Callable) -> Callable:
     '''
@@ -118,6 +144,8 @@ def llvm_api(f: Callable) -> Callable:
         return lib_func(*args)
 
     return wrapper
+
+null_object_ptr = POINTER(c_object_p)
 
 # ---------------------------------------------------------------------------- #
 
