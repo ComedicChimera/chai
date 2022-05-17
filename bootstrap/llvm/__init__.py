@@ -74,8 +74,15 @@ class LLVMEnum(Enum):
     '''Represents an LLVM enumeration.'''
 
     def _generate_next_value_(name: str, start: int, count: int, last_values: List[int]) -> int:
-        '''Overriddes the default Enum class to start enum values at 0.'''
-        return count
+        '''
+        Overriddes the default Enum class to start enum values at 0 if no first
+        value is given.  Otherwise, it starts at whatever the first value is.
+        '''
+
+        if len(last_values) > 0:
+            return last_values[-1] + 1
+            
+        return 0
 
     @classmethod
     def from_param(cls: 'LLVMEnum', self: object) -> int:

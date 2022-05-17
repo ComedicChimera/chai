@@ -1,4 +1,4 @@
-from ctypes import c_int, c_uint, POINTER
+from ctypes import c_uint, POINTER
 from enum import auto
 from typing import List, Optional
 

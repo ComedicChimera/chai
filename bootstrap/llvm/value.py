@@ -143,6 +143,8 @@ class Constant(Value):
     def null(self) -> bool:
         return bool(LLVMIsNull(self))
 
+# ---------------------------------------------------------------------------- #
+
 class Linkage(LLVMEnum):
     EXTERNAL = auto()
     AVAILABLE_EXTERNALLY = auto()

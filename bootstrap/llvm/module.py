@@ -3,7 +3,7 @@ from typing import Optional, Iterator
 
 from . import *
 from .types import FunctionType
-from .func import Function
+from .ir import Function
 
 class Module(LLVMObject):
     def __init__(self, name: str):
