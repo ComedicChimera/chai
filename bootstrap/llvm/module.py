@@ -1,13 +1,14 @@
 from ctypes import c_size_t, byref, c_char_p, POINTER
 from typing import Optional, Iterator
 
-from . import LLVMObject, llvm_api, c_object_p
-from .context import Context
+from . import *
 from .types import FunctionType
-from .value import Function
+from .func import Function
 
 class Module(LLVMObject):
-    def __init__(self, name: str, ctx: Context):
+    def __init__(self, name: str):
+        ctx = get_context()
+
         super().__init__(LLVMModuleCreateWithNameInContext(name.encode(), ctx))  
 
         ctx.take_ownership(self)
@@ -54,28 +55,50 @@ class Module(LLVMObject):
     def get_function_by_name(self, name: str) -> Optional[Function]:
         func_ptr = LLVMGetNamedFunction(self, name.encode())
         
-        if func_ptr == c_object_p():
-            return None
+        if func_ptr:
+            return Function(func_ptr)
+        
+        return None
 
-        return Function(func_ptr)
+    def delete_function(self, func: Function):
+        LLVMDeleteFunction(func)
 
     class _Functions:
-        mod: 'Module'
+        _mod: 'Module'
 
         def __init__(self, mod: 'Module'):
-            self.mod = mod
+            self._mod = mod
 
         def __iter__(self) -> Iterator[Function]:
-            it = LLVMGetFirstFunction(self.mod)
+            func_ptr = LLVMGetFirstFunction(self._mod)
 
-            while (func_ptr := LLVMGetNextFunction(it)) != c_object_p():
+            while func_ptr:
                 yield Function(func_ptr)
+                func_ptr = LLVMGetNextFunction(func_ptr)
 
         def __reversed__(self) -> Iterator[Function]:
-            it = LLVMGetLastFunction(self.mod)
+            func_ptr = LLVMGetLastFunction(self._mod)
 
-            while (func_ptr := LLVMGetPreviousFunction(it)) != c_object_p():
+            while func_ptr:
                 yield Function(func_ptr)
+
+                func_ptr = LLVMGetPreviousFunction(self)
+
+        def first(self) -> Optional[Function]:
+            func_ptr = LLVMGetFirstFunction(self._mod)
+            
+            if func_ptr:
+                return Function(func_ptr)
+            
+            return None
+
+        def last(self) -> Optional[Function]:
+            func_ptr = LLVMGetLastFunction(self._mod)
+
+            if func_ptr:
+                return Function(func_ptr)    
+
+            return None
 
     @property
     def functions(self) -> _Functions:
@@ -129,6 +152,10 @@ def LLVMAddFunction(m: Module, name: c_char_p, func_type: FunctionType) -> c_obj
 
 @llvm_api
 def LLVMGetNamedFunction(m: Module, name: c_char_p) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMDeleteFunction(func: Function):
     pass
 
 @llvm_api

@@ -2,7 +2,7 @@ from ctypes import c_int, c_uint, POINTER
 from enum import auto
 from typing import List, Optional
 
-from . import LLVMObject, LLVMEnum, llvm_api, c_object_p, c_enum, null_object_ptr
+from . import *
 
 class Type(LLVMObject):
     class Kind(LLVMEnum):
@@ -62,7 +62,7 @@ class FunctionType(Type):
             return
 
         if len(param_types) == 0:
-            param_arr = null_object_ptr
+            param_arr = None
         else:
             param_arr_type = c_object_p * len(param_types)
             param_arr = param_arr_type(*(x.ptr for x in param_types)) 

@@ -4,7 +4,19 @@ import os
 from ctypes import cdll, POINTER, c_void_p, c_int
 from functools import wraps
 from enum import Enum
-from typing import Callable, get_type_hints, List
+import threading
+from typing import Callable, get_type_hints, List, Optional
+import atexit
+
+__all__ = [
+    'c_object_p',
+    'c_enum',
+    'LLVMObject',
+    'LLVMEnum',
+    'llvm_api',
+    'Context',
+    'get_context',
+]
 
 # This is the type to be used whenever an LLVM API function accepts or returns a
 # pointer to an object of some form.
@@ -102,8 +114,6 @@ def llvm_api(f: Callable) -> Callable:
 
     return wrapper
 
-null_object_ptr = POINTER(c_object_p)
-
 # ---------------------------------------------------------------------------- #
 
 # Load the LLVM C library using the environment variable to locate it.
@@ -114,3 +124,151 @@ if not llvm_c_path:
     exit(-1)
 
 lib = cdll.LoadLibrary(llvm_c_path)
+
+# ---------------------------------------------------------------------------- #
+
+class Context(LLVMObject):
+    '''
+    Represents an LLVM Context object.  The wrapper uses this object to help
+    manage resources and ensure partial thread-safety when using LLVM.
+    '''
+
+    # The shared Python object associated with LLVM's global context.
+    _global_ctx: Optional['Context'] = None
+
+    # This list of objects owned by this object: ie. the list of objects it is
+    # responsible for deleting.
+    _owned_objects: List['LLVMObject']
+
+    def __init__(self, ptr: Optional[c_object_p] = None):
+        '''
+        Params
+        ------
+        ptr: Optional[c_object_p]
+            The C object pointer to the context this object wraps.  A new
+            context is created if it is not provided.
+        '''
+
+        super().__init__(ptr if ptr else LLVMContextCreate())
+        
+        self._owned_objects = []
+
+    @staticmethod
+    def global_ctx() -> 'Context':
+        '''Returns LLVM's global context.'''
+
+        if not Context._global_ctx:
+            Context._global_ctx = Context(LLVMGetGlobalContext())
+
+        return Context._global_ctx
+
+    def take_ownership(self, obj: 'LLVMObject'):
+        '''
+        Prompts this context to take ownership of an LLVM object, making this
+        context responsible for the deletion of `obj`.
+
+        Params
+        ------
+        obj: LLVMObject
+            The object to take ownership of.       
+        '''
+
+        self._owned_objects.append(obj)
+
+    def dispose(self):
+        '''Disposes of this object's resources.'''
+
+        LLVMContextDispose(self)
+
+    def __enter__(self) -> 'Context':
+        '''Makes this context the active context for the current thread.'''
+
+        thread_id = curr_thread_id()
+
+        assert thread_id not in ctx_table, "only one context per thread at a time"
+
+        ctx_table[thread_id] = self
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        '''
+        Removes this context as the active context for the current thread and
+        disposes of all the resources associated with it.
+        '''
+
+        del ctx_table[curr_thread_id()]
+
+        for obj in self._owned_objects:
+            obj.dispose()
+
+        self.dispose()
+
+# The table mapping thread IDs to their active contexts.
+ctx_table = {}
+
+def curr_thread_id() -> Optional[int]:
+    '''Returns the current thread identifier.'''
+
+    return threading.current_thread().ident
+
+def get_context() -> Context:
+    '''Returns the current context.'''
+
+    if ctx := ctx_table.get(curr_thread_id()):
+        return ctx
+
+    return Context.global_ctx()
+
+class PassRegistry(LLVMObject):
+    '''Represents an LLVM Pass Registry object.'''
+
+    def __init__(self):
+        super().__init__(LLVMGetGlobalPassRegistry())  
+
+# ---------------------------------------------------------------------------- #
+
+@llvm_api
+def LLVMContextCreate() -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMContextDispose(ctx: Context):
+    pass
+
+@llvm_api
+def LLVMGetGlobalContext() -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetGlobalPassRegistry() -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMInitializeCore(p: PassRegistry):
+    pass
+
+@llvm_api
+def LLVMShutdown():
+    pass
+
+# ---------------------------------------------------------------------------- #
+
+# LLVM Initialization
+
+# Force LLVM to initialize the global context.
+Context.global_ctx()
+
+# Get the global pass registry.
+p = PassRegistry()
+
+# Initialize all of the LLVM libraries we use.
+LLVMInitializeCore(p)
+
+# LLVM Shutdown Logic
+def llvm_shutdown():
+    '''Cleans up and disposes of LLVM resources.'''
+
+    LLVMShutdown()
+
+atexit.register(llvm_shutdown)
