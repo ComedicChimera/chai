@@ -1,9 +1,10 @@
 from ctypes import c_char_p, c_double, c_size_t, c_int, POINTER, byref, c_uint, c_ulonglong
 from enum import auto
-from typing import Iterator
+from typing import Dict, Iterator, Set
 
 from . import LLVMObject, LLVMEnum, llvm_api, c_object_p, c_enum
 from .types import Int1Type, IntegerType, Type
+from .context import Attribute
 
 class Value(LLVMObject):
     class Kind(LLVMEnum):
@@ -83,14 +84,20 @@ class UserValue(Value):
             return LLVMGetNumOperands(self.val)
 
         def __getitem__(self, ndx: int) -> Value:
-            return Value(LLVMGetOperand(self.val, ndx))
+            if 0 <= ndx < len(self):
+                return Value(LLVMGetOperand(self.val, ndx))
+            else:
+                raise IndexError()
 
         def __setitem__(self, ndx: int, operand: Value):
-            LLVMSetOperand(self.val, ndx, operand)
+            if 0 <= ndx < len(self):
+                LLVMSetOperand(self.val, ndx, operand)
+            else:
+                raise IndexError()
 
         def __iter__(self) -> Iterator[Value]:
             for i in range(len(self)):
-                yield self[i]            
+                yield Value(LLVMGetOperand(self.val, i))            
 
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr)
@@ -171,16 +178,7 @@ class UnnamedAddr(LLVMEnum):
     LOCAL = auto()
     GLOBAL = auto()
 
-class Aligned(LLVMObject):
-    @property
-    def align(self) -> int:
-        return LLVMGetAlignment(self)
-
-    @align.setter
-    def align(self, new_align: int):
-        LLVMSetAlignment(self, new_align)
-
-class GlobalValue(Value, Aligned):
+class GlobalValue(Value):
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr)  
 
@@ -223,6 +221,172 @@ class GlobalValue(Value, Aligned):
     @property
     def type(self) -> Type:
         return Type(LLVMGlobalGetValueType(self))
+
+class Aligned(LLVMObject):
+    @property
+    def align(self) -> int:
+        return LLVMGetAlignment(self)
+
+    @align.setter
+    def align(self, new_align: int):
+        LLVMSetAlignment(self, new_align)
+
+class CallConv(LLVMEnum):
+    C = 0
+    FAST = 8
+    COLD = 9
+    GHC = 10
+    HIPE = 11
+    WEBKIT_JS = 12
+    ANY_REG = 13
+    PRESERVE_MOST = 14
+    PRESERVEALL = 15
+    SWIFT = 16
+    CXX_FAST_TLS = 17
+    TAIL = 18,
+    CFGUARD_CHECK = 19
+    SWIFTTAIL = 20
+    FIRSTTARGETCC = 64
+    X86_STDCALL = 64
+    X86_FASTCALL = 65
+    ARM_APCS = 66
+    ARM_AAPCS = 67
+    ARM_AAPCS_VFP = 68,
+    MSP430_INTR = 69
+    X86_THISCALL = 70
+    PTX_KERNEL = 71
+    PTX_DEVICE = 72
+    SPIR_FUNC = 75
+    SPIR_KERNEL = 76
+    INTEL_OCL_BI = 77
+    X86_64_SYSV = 78
+    WIN64 = 79
+    X86_VECTORCALL = 80
+    HHVM = 81
+    HHVM_C = 82
+    X86_INTR = 83
+    AVR_INTR = 84
+    AVR_SIGNAL = 85
+    AVR_BUILTIN = 86
+    AMDGPU_VS = 87
+    AMDGPU_GS = 88
+    AMDGPU_PS = 89
+    AMDGPU_CS = 90,
+    AMDGPU_KERNEL = 91
+    X86_REGCALL = 92
+    AMDGPU_HS = 93
+    MSP430_BUILTIN = 94
+    AMDGPU_LS = 95
+    AMDGPU_ES = 96
+    AARCH64_VECTORCALL = 97
+    AARCH64_SVE_VECTORCALL = 98
+    WASM_EMSCRIPTEN_INVOKE = 99
+    AMDGPU_GFX = 100
+    M68K_INTR = 101
+    MAXID = 1023
+
+class AttributeSet:
+    KeyType = Attribute.Kind | str 
+
+    _func: 'Function'
+    _ndx: int
+    _attr_dict: Dict[KeyType, Attribute]
+
+    def __init__(self, func: 'Function', ndx: int):
+        self._func = func
+        self._ndx = ndx
+
+        attr_arr_len = LLVMGetAttributeCountAtIndex(func, ndx)
+        attr_arr = (c_object_p * attr_arr_len)()
+        LLVMGetAttributesAtIndex(func, ndx, attr_arr)
+
+        self._attr_dict = {attr.kind: attr for attr in map(lambda p: Attribute(ptr=p), attr_arr)}
+
+    def __len__(self) -> int:
+        return len(self._attr_dict)
+
+    def __getitem__(self, key: KeyType) -> Attribute:
+        return self._attr_dict(key)
+
+    def __iter__(self) -> Iterator[Attribute]:
+        return self._attr_dict.values()
+
+    def add(self, attr: Attribute):
+        self._attr_dict[attr.kind] = attr
+        LLVMAddAttributeAtIndex(self._func, self._ndx, attr)
+
+    def remove(self, key: KeyType):
+        del self._attr_dict[key]
+
+        if isinstance(key, str):
+            key_bytes = key.encode()
+            LLVMRemoveStringAttributeAtIndex(self._func, self._ndx, key_bytes, len(key_bytes))
+        else:
+            LLVMRemoveEnumAttributeAtIndex(self._func, self._ndx, key)        
+
+class FuncParam(Value):
+    _attr_set: AttributeSet
+
+    def __init__(self, ptr: c_object_p, func: 'Function', attr_ndx: int):
+        super().__init__(ptr)
+
+        self._attr_set = AttributeSet(func, attr_ndx)
+
+    @property
+    def attr_set(self):
+        return self._attr_set
+
+class Function(GlobalValue):
+    _attr_set: AttributeSet
+    _rt_attr_set: AttributeSet
+
+    class FuncParamsView:
+        _func: 'Function'
+
+        def __init__(self, func: 'Function'):
+            self._func = func
+
+        def __len__(self) -> int:
+            return LLVMCountParams(self._func)
+
+        def __getitem__(self, ndx: int) -> FuncParam:
+            if 0 <= ndx < len(self):
+                return FuncParam(LLVMGetParam(self._func, ndx), self._func, ndx + 1)
+            else:
+                raise IndexError()
+
+        def __iter__(self) -> Iterator[FuncParam]:
+            for i in range(len(self)):
+                yield FuncParam(LLVMGetParam(self._func, i), self._func, i + 1)
+
+    def __init__(self, ptr: c_object_p):
+        super().__init__(ptr)
+
+        self._attr_set = AttributeSet(self, 0)
+        self._rt_attr_set = AttributeSet(self, -1)
+
+    def delete(self):
+        LLVMDeleteFunction(self)
+
+    @property
+    def call_conv(self) -> CallConv:
+        return CallConv(LLVMGetFunctionCallConv(self))
+
+    @call_conv.setter
+    def call_conv(self, cc: CallConv):
+        LLVMSetFunctionCallConv(self, cc)
+
+    @property
+    def params(self) -> FuncParamsView:
+        return Function.FuncParamsView(self)
+
+    @property
+    def attr_set(self) -> AttributeSet:
+        return self._attr_set
+
+    @property
+    def rt_attr_set(self) -> AttributeSet:
+        return self._rt_attr_set
 
 # ---------------------------------------------------------------------------- #
 
@@ -348,4 +512,44 @@ def LLVMGetAlignment(val: Value) -> c_uint:
 
 @llvm_api
 def LLVMSetAlignment(val: Value, align: c_uint):
+    pass
+
+@llvm_api
+def LLVMDeleteFunction(func: Function):
+    pass
+
+@llvm_api
+def LLVMGetFunctionCallConv(func: Function) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMSetFunctionCallConv(func: Function, cc: CallConv):
+    pass
+
+@llvm_api
+def LLVMCountParams(func: Function) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMGetParam(func: Function, ndx: c_uint) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetAttributeCountAtIndex(func: Function, ndx: c_uint) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMGetAttributesAtIndex(func: Function, ndx: c_uint, attrs: POINTER(c_object_p)):
+    pass
+
+@llvm_api
+def LLVMAddAttributeAtIndex(func: Function, ndx: c_uint, attr: Attribute):
+    pass
+
+@llvm_api
+def LLVMRemoveEnumAttributeAtIndex(func: Function, ndx: c_uint, kind: Attribute.Kind):
+    pass
+
+@llvm_api
+def LLVMRemoveStringAttributeAtIndex(func: Function, ndx: c_uint, kind: c_char_p, length: c_uint):
     pass

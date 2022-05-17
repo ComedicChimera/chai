@@ -47,6 +47,8 @@ class IntegerType(Type):
 
     @staticmethod
     def from_type(typ: Type) -> 'IntegerType':
+        assert typ.kind == Type.Kind.INTEGER
+
         return IntegerType(typ.ptr)
 
     @property
@@ -54,7 +56,7 @@ class IntegerType(Type):
         return LLVMGetIntTypeWidth(self)
 
 class FunctionType(Type):
-    def __init__(self, param_types: List[Type], rt_type: Type, is_var_arg: bool, ptr: Optional[c_object_p] = None):
+    def __init__(self, param_types: List[Type], rt_type: Type, is_var_arg: bool = False, ptr: Optional[c_object_p] = None):
         if ptr:
             super().__init__(ptr)
             return
@@ -63,13 +65,15 @@ class FunctionType(Type):
             param_arr = null_object_ptr
         else:
             param_arr_type = c_object_p * len(param_types)
-            param_arr = param_arr_type(*param_types) 
+            param_arr = param_arr_type(*(x.ptr for x in param_types)) 
 
         ptr = LLVMFunctionType(rt_type, param_arr, len(param_types), int(is_var_arg))
         super().__init__(ptr)
 
     @staticmethod
     def from_type(typ: Type) -> 'FunctionType':
+        assert typ.kind == Type.Kind.FUNCTION
+
         return FunctionType(None, None, None, typ.ptr)
     
     @property
@@ -100,6 +104,12 @@ class PointerType(Type):
             return
 
         super().__init__(LLVMPointerType(elem_type, addr_space))
+
+    @staticmethod
+    def from_type(typ: Type) -> 'PointerType':
+        assert typ.kind == Type.Kind.POINTER
+
+        return PointerType(None, ptr=typ.ptr) 
 
     @property
     def elem_type(self) -> Type:

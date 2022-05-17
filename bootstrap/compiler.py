@@ -4,7 +4,9 @@ import os
 from syntax.parser import Parser
 from typecheck.walker import Walker
 from depm.source import Package, SourceFile
-from llvm.core import Context, Module
+from llvm.context import Context
+from llvm.module import Module
+import llvm.types as lltypes
 
 @dataclass
 class BuildOptions:
@@ -61,6 +63,16 @@ class Compiler:
 
         with Context() as ctx:
             m = Module('test', ctx)
-            print(m.name)
-            m.name = 'test2'
+            
+            func = m.add_function('add', lltypes.FunctionType(
+                [lltypes.PointerType(lltypes.Int32Type), lltypes.Int32Type],
+                lltypes.Int32Type,
+            ))
+
+            first_param = func.params[0]
+            first_param.name = "a"
+
+            second_param = func.params[1]
+            second_param.name = "b"
+
             m.dump()
