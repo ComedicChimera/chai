@@ -1,5 +1,5 @@
 from ctypes import c_size_t, byref, c_char_p, POINTER
-from typing import Optional, Iterator
+from typing import Optional, Iterator, Tuple
 
 from . import *
 from .types import FunctionType
@@ -27,24 +27,33 @@ class Module(LLVMObject):
         LLVMSetModuleIdentifier(self, name_bytes, len(name_bytes))
 
     @property
-    def data_layout(self) -> str:
-        return str(LLVMGetDataLayoutStr(self), encoding='utf-8')
+    def data_layout(self) -> TargetData:
+        return TargetData(LLVMGetModuleDataLayout(self))
 
     @data_layout.setter
-    def data_layout(self, data_layout: str):
-        LLVMSetDataLayout(self, data_layout.encode())
+    def data_layout(self, data_layout: TargetData):
+        LLVMSetModuleDataLayout(self, data_layout)
 
     @property
-    def target(self) -> str:
+    def target_triple(self) -> str:
         return str(LLVMGetTarget(self), encoding='utf-8')
 
-    @target.setter
-    def target(self, target: str):
+    @target_triple.setter
+    def target_triple(self, target: str):
         LLVMSetTarget(self, target.encode())
 
     @property
     def context(self) -> Context:
         return Context(LLVMGetModuleContext(self))
+
+    def verify(self) -> Tuple[str, bool]:
+        p = c_char_p()
+        ok = LLVMVerifyModule(self, 2, byref(p))
+        
+        if ok:
+            return "", True
+
+        return str(p.contents, encoding='utf-8'), False
 
     def dump(self):
         LLVMDumpModule(self)
@@ -104,6 +113,9 @@ class Module(LLVMObject):
     def functions(self) -> _Functions:
         return Module._Functions(self) 
 
+# This import has to go down here to handle an import cycle.
+from .target import TargetData
+
 # ---------------------------------------------------------------------------- #
 
 @llvm_api
@@ -123,11 +135,11 @@ def LLVMSetModuleIdentifier(m: Module, mod_id: c_char_p, length: c_size_t):
     pass
 
 @llvm_api
-def LLVMGetDataLayoutStr(m: Module) -> c_char_p:
+def LLVMGetModuleDataLayout(m: Module) -> TargetData:
     pass
 
 @llvm_api
-def LLVMSetDataLayout(m: Module, data_layout: c_char_p):
+def LLVMSetModuleDataLayout(m: Module, data_layout: TargetData):
     pass
 
 @llvm_api
@@ -172,4 +184,8 @@ def LLVMGetLastFunction(m: Module) -> c_object_p:
 
 @llvm_api
 def LLVMGetPreviousFunction(func_iter: c_object_p) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMVerifyModule(m: Module, verifier_action: c_enum, out_message: POINTER(c_char_p)) -> c_enum:
     pass

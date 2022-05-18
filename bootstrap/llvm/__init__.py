@@ -256,6 +256,18 @@ def LLVMInitializeCore(p: PassRegistry):
     pass
 
 @llvm_api
+def LLVMInitializeAnalysis(p: PassRegistry):
+    pass
+
+@llvm_api
+def LLVMInitializeCodeGen(p: PassRegistry):
+    pass
+
+@llvm_api
+def LLVMInitializeTarget(p: PassRegistry):
+    pass
+
+@llvm_api
 def LLVMShutdown():
     pass
 
@@ -271,6 +283,9 @@ p = PassRegistry()
 
 # Initialize all of the LLVM libraries we use.
 LLVMInitializeCore(p)
+LLVMInitializeAnalysis(p)
+LLVMInitializeCodeGen(p)
+LLVMInitializeTarget(p)
 
 # LLVM Shutdown Logic
 def llvm_shutdown():

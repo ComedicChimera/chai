@@ -357,6 +357,10 @@ class Instruction(UserValue):
     def opcode(self) -> OpCode:
         return OpCode(LLVMGetInstructionOpcode(self))
 
+    @property
+    def parent(self) -> 'BasicBlock':
+        return BasicBlock(LLVMGetInstructionParent(self))
+
 class IntPredicate(LLVMEnum):
     EQ = 32
     NE = auto()
@@ -545,6 +549,9 @@ class ConditionalInstruction(Terminator):
 class SwitchInstruction(ConditionalInstruction):
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr)
+
+    def add_case(self, case_val: Value, case_block: 'BasicBlock'):
+        LLVMAddCase(self, case_val, case_block)
 
     @property
     def default(self) -> 'BasicBlock':
@@ -899,6 +906,10 @@ def LLVMGetInstructionOpcode(instr: Instruction) -> c_enum:
     pass
 
 @llvm_api
+def LLVMGetInstructionParent(instr: Instruction) -> c_object_p:
+    pass
+
+@llvm_api
 def LLVMIsEnumAttribute(attr: Attribute) -> c_enum:
     pass
 
@@ -1076,6 +1087,10 @@ def LLVMGetCondition(cb: ConditionalInstruction) -> c_object_p:
 
 @llvm_api
 def LLVMSetCondition(cb: ConditionalInstruction, cond: Value):
+    pass
+
+@llvm_api
+def LLVMAddCase(switch: SwitchInstruction, on_val: Value, dest: BasicBlock):
     pass
 
 @llvm_api

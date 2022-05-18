@@ -84,56 +84,95 @@ documentation can be found in the
 This section details the progress made on the compiler as of now.  It is not
 perfectly up to date but should help to give some idea of where we are.
 
-### <a name="compiler-prog"/> Compiler
+*NOTE: This section refers to progress on the bootstrap compiler.*
 
-- [ ] Chai in Python <--
-- [ ] Chai in Chai
-### <a name="std-lib-prog"/> Standard Library
+### Target 1:
 
-*These are only the planned features for the bootstrapped version of Chai*
+- [ ] Function Definitions
+- [ ] Basic Annotations
+- [ ] Blocks and Variables
+- [ ] Function Calls
+- [ ] Bool, Int, Float, and Rune Literals
+- [ ] Graceful Shutdown
+- [ ] Naive Pointers
 
-- [ ] Builtin Types
-  * [ ] `Buff`
-  * [ ] `string`
-  * [ ] `List`
-  * [ ] `Map`
-  * [ ] `Iter` 
-  * [ ] `Option`
-  * [ ] `Result`
-- [ ] Runtime
-  * [ ] Program Startup
-  * [x] Graceful Exit
-  * [x] Global Initializers
-  * [ ] `init` functions
-  * [ ] Signaling
-  * [ ] Panics
-  * [ ] Allocator
-  * [ ] Garbage Collector
-  * [ ] Argc and Argv
-- [ ] Standard I/O
-  * [ ] `println`
-  * [ ] `printf`
-- [ ] String Manipulation
-  * [ ] `StringBuilder`
-  * [ ] `starts_with`
-  * [ ] `ends_with`
-  * [ ] `contains`
-  * [ ] `trim_left`
-  * [ ] `trim_right`
-  * [ ] `parse_int`
-  * [ ] `parse_float`
-  * [ ] `parse_int`
-  * [ ] `pad_right`
-  * [ ] `pad_left`
-  * [ ] `to_string`
-- [ ] File I/O
-  * [ ] Open and Close
-  * [ ] Read File
-  * [ ] Write File
-  * [ ] Create File
-  * [ ] Basic Path Manipulation
-  * [ ] Walk Directory
-  * [ ] Create Directory
+### Target 2:
+
+- [ ] Operator Definitions
+- [ ] Arithmetic Operators
+- [ ] Conditional and Logical Operators
+- [ ] If/Elif/Else
+- [ ] While Loops
+- [ ] Assignment
+
+### Target 3:
+
+Introduce debug information and include from here on.
+
+### Target 4:
+
+- [ ] Structure Definitions
+- [ ] The `.` Operator
+- [ ] Aliases
+- [ ] Strings and String Literals
+
+### Target 5:
+
+- [ ] Import Statements and Import Resolution
+- [ ] Visibility (`pub` keyword)
+- [ ] The Prelude
+- [ ] The Main Function (full implementation)
+- [ ] Global Variables
+
+### Target 6:
+
+- [ ] Allocator (`malloc`, `realloc`, `free`)
+- [ ] Garbage Collector (`gc_malloc`, `gc_realloc`)
+- [ ] Safe Referencing and Dereferencing (escape analysis, etc.)
+- [ ] Nullability and `core.unsafe`
+- [ ] Proper Signal and Panic Handling
+
+### Target 7:
+
+- [ ] Type Generics
+- [ ] Function and Operator Generics
+- [ ] Buffer Types
+
+### Target 8:
+
+- [ ] Function Spaces
+- [ ] Built-in String Space
+- [ ] Built-in Buffer Space
+- [ ] Type Classes
+- [ ] Type Unions
+
+### Target 9:
+
+- [ ] Lists
+- [ ] Dictionaries
+- [ ] Sequences and Iterators
+- [ ] For Loops
+- [ ] Loop Generators
+
+### Target 10:
+
+- [ ] Tuples
+- [ ] Tuple Pattern Matching
+- [ ] Sum Types
+- [ ] Sum Pattern Matching
+- [ ] Hybrid Types
+- [ ] Struct Pattern Matching
+
+### Target 11:
+
+- [ ] `Monad`
+- [ ] `Option` and `Result`
+- [ ] Monadic Operators
+
+### Target 12:
+
+- [ ] `cmixin` package
+- [ ] C Binding
 
 ## <a name="building"> Building the Compiler
 
