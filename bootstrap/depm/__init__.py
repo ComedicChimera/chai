@@ -1,11 +1,12 @@
 '''Provides Chai's definitions for symbols and scopes.'''
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List
+from typing import Optional
 
 from report import TextSpan
 from typecheck import Type
+from llvm.value import Value
 
 @dataclass
 class Symbol:
@@ -28,6 +29,9 @@ class Symbol:
         Where the symbol was defined.
     used: bool
         Whether or not the symbol is used in source code.
+    ll_value: Optional[Value]
+        The LLVM value that this symbol refers to.  This value is `None` until
+        generation begins.
     '''
 
     class Kind(Enum):
@@ -55,3 +59,4 @@ class Symbol:
     def_span: TextSpan
     intrinsic: bool = False
     used: bool = False
+    ll_value: Optional[Value] = None

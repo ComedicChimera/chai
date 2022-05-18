@@ -1,12 +1,13 @@
 from collections import deque
-from typing import Deque, Dict, Optional, Tuple
+from typing import Deque, Dict, Optional, Tuple, List
 from dataclasses import dataclass, field
 
 from report import CompileError, TextSpan
 from depm import Symbol
 from depm.source import SourceFile
 from syntax.ast import *
-from . import FuncType, PointerType
+from syntax.token import Token
+from . import *
 from .solver import Solver
 import util
 
@@ -39,31 +40,20 @@ class Walker:
                 self.walk_func_def(defin)
 
     def walk_func_def(self, fd: FuncDef):
-        expect_body = self.validate_func_annotations(fd.func_id.name, fd.annots)
+        expect_body = self.validate_func_annotations(fd.ident.name, fd.annots)
         
         if fd.body:
             if not expect_body:
                 self.error('function should not have body', fd.body.span)
 
-            self.push_scope(fd.func_id.type)
+            self.push_scope(fd.ident.type)
 
-            for param in fd.func_params:
-                self.define_local(Symbol(
-                    param.name,
-                    self.srcfile.parent.id,
-                    param.type,
-                    Symbol.Kind.VALUE,
-                    Symbol.Mutability.NEVER_MUTATED,
-                    None,  # never used
-                ))
+            for param in fd.params:
+                self.define_local(param)
 
             self.walk_expr(fd.body)
 
-            self.solver.assert_equiv(fd.func_id.type.rt_type, fd.body.type, fd.body.span)
-
-            for param in fd.func_params:
-                if self.curr_scope.symbols[param.name].mutability == Symbol.Mutability.MUTABLE:
-                    param.mutated = True
+            self.solver.assert_equiv(fd.ident.type.rt_type, fd.body.type, fd.body.span)
 
             self.pop_scope()
         elif expect_body:

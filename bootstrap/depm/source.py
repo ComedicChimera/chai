@@ -39,11 +39,11 @@ class Package:
 
     Attributes
     ----------
-    pkg_name: str
+    name: str
         The name of the package.
     abs_path: str
         The absolute path to the package directory.
-    pkg_id: int
+    id: int
         The unique ID of the package generated from its absolute path.
     root_pkg: Package
         The root package as defined in the package's package path, used to
@@ -55,7 +55,7 @@ class Package:
         package's global, shared namespace.
     '''
 
-    pkg_name: str
+    name: str
     abs_path: str
 
     id: int = field(init=False)

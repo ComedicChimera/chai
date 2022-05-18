@@ -1,7 +1,7 @@
 '''Provides the definitions of Chai's abstract syntax tree.'''
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Optional, Dict, Tuple
 
@@ -9,6 +9,23 @@ from typecheck import Type, PrimitiveType, PointerType
 from report import TextSpan
 from depm import Symbol
 from .token import Token
+
+__all__ = [
+    'ValueCategory',
+    'ASTNode',
+    'Annotations',
+    'FuncDef',
+    'Block',
+    'VarList',
+    'VarDecl',
+    'TypeCast',
+    'Indirect',
+    'Dereference',
+    'FuncCall',
+    'Identifier',
+    'Literal',
+    'Null'
+]
 
 class ValueCategory(Enum):
     '''Enumeration of possible value categories of AST nodes.'''
@@ -37,48 +54,31 @@ class ASTNode(ABC):
 Annotations = Dict[str, Tuple[str, TextSpan]]
 
 @dataclass
-class FuncParam:
-    '''
-    Represents a parameter in a function or operator definition.
-
-    Attributes
-    ----------
-    name: str
-        The name of the function parameter.
-    type: Type
-        The type of the function parameter.
-    mutated: bool
-        Whether the parameter is ever mutated.
-    '''
-
-    name: str
-    type: Type
-    mutated: bool = False
-
-@dataclass
 class FuncDef(ASTNode):
     '''
     The AST node representing a function definition.
     
     Attributes
     ----------
-    func_id: 'Identifier'
+    ident: 'Identifier'
         The identifier representing the function's name.
+    params: List[Symbol]
+        The parameters to the function.
     body: Optional[ASTNode]
         The function's optional body.
-    func_params: List[FuncParam]
-        The parameters to the function.
+    annots: Annotations
+        The function's annotations.
     '''
 
-    func_id: 'Identifier'
-    func_params: List[FuncParam] 
+    ident: 'Identifier'
+    params: List[Symbol] 
     body: Optional[ASTNode]
     annots: Annotations
     _span: TextSpan
 
     @property
     def type(self) -> Type:
-        return self.func_id.type.rt_type
+        return self.ident.type.rt_type
 
     @property
     def span(self) -> TextSpan:
@@ -334,6 +334,13 @@ class Literal(ASTNode):
 class Null(ASTNode):
     '''
     The AST node representing the language constant `null`.
+
+    Attributes
+    ----------
+    span: TextSpan
+        The span over which the constant null occurs.
+    type: Type
+        The type of the null value.
     '''
 
     _span: TextSpan

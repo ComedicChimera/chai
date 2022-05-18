@@ -32,6 +32,8 @@ def trim_int_lit(value: str) -> Tuple[str, int, bool, bool]:
         The trimmed value and data extracted from the literal.
     '''
 
+    value = value.replace('_', '')
+
     if len(value) > 2:
         match value[:2]:
             case '0b':

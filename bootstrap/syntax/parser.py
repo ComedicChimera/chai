@@ -1,8 +1,7 @@
-from typing import Deque, List, Optional, Tuple
-from collections import deque
+from typing import List, Optional, Tuple
 
 from report import CompileError
-from depm.source import Package, SourceFile
+from depm.source import SourceFile
 from typecheck import FuncType, PointerType, PrimitiveType
 from .ast import *
 from .token import Token
@@ -166,7 +165,7 @@ class Parser:
             case _:
                 func_rt_type = self.parse_type_label()
 
-        func_body, end_pos = self.parse_func_body(func_params)
+        func_body, end_pos = self.parse_func_body()
 
         func_type = FuncType([p.type for p in func_params], func_rt_type)
         func_sym = Symbol(
@@ -189,7 +188,7 @@ class Parser:
             TextSpan.over(func_id.span, end_pos),
         )
 
-    def parse_func_params(self) -> List[FuncParam]:
+    def parse_func_params(self) -> List[Symbol]:
         '''
         func_params := func_param {',' func_param} ;
         func_param := id_list type_ext ;
@@ -205,7 +204,14 @@ class Parser:
             for ident in id_list:
                 if ident.name not in param_names:
                     param_names.add(ident.name)
-                    params.append(FuncParam(ident.name, param_type))
+                    params.append(Symbol(
+                        ident.name,
+                        self.srcfile.parent.id,
+                        param_type,
+                        Symbol.Kind.VALUE,
+                        Symbol.Mutability.NEVER_MUTATED,
+                        ident.span
+                    ))
                 else:
                     self.error(f'multiple parameters defined with same name: `{ident.name}`', ident.span)
 
@@ -221,7 +227,7 @@ class Parser:
         
         return params
 
-    def parse_func_body(self, func_params: List[FuncParam]) -> Tuple[Optional[ASTNode], TextSpan]:
+    def parse_func_body(self) -> Tuple[Optional[ASTNode], TextSpan]:
         match self.tok(False).kind:
             case Token.Kind.END:
                 end_pos = self.tok().span

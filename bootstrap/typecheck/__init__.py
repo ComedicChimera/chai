@@ -2,10 +2,17 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import List
 
 import util
+
+__all__ = [
+    'Type',
+    'PrimitiveType',
+    'PointerType',
+    'FuncType'
+]
 
 class Type(ABC):
     '''An abstract base class for all types.'''
