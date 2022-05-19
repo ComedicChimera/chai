@@ -1,8 +1,9 @@
 from typing import List, Optional, Tuple
 
-from report import CompileError
+from report import CompileError, TextSpan
+from depm import Symbol
 from depm.source import SourceFile
-from typecheck import FuncType, PointerType, PrimitiveType
+from typecheck import *
 from .ast import *
 from .token import Token
 from .lexer import Lexer

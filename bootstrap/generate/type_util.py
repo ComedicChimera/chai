@@ -1,9 +1,12 @@
 from typecheck import *
 import llvm.types as lltypes
 
-def conv_type(typ: Type, alloc_type: bool = False) -> lltypes.Type:
+def conv_type(typ: Type, alloc_type: bool = False, rt_type: bool = False) -> lltypes.Type:
     match inner_typ := typ.inner_type():
         case PrimitiveType():
+            if rt_type and is_nothing(inner_typ):
+                return lltypes.VoidType
+
             return conv_prim_type(inner_typ)
         case PointerType(elem_type):
             return lltypes.PointerType(conv_type(elem_type))

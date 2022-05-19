@@ -5,8 +5,7 @@ from syntax.parser import Parser
 from typecheck.walker import Walker
 from depm.source import Package, SourceFile
 from llvm import Context
-from llvm.module import Module
-import llvm.types as lltypes
+from generate import Generator
 
 @dataclass
 class BuildOptions:
@@ -62,20 +61,11 @@ class Compiler:
         w.walk_file()
 
         with Context():
-            m = Module('test')
-            
-            func = m.add_function('add', lltypes.FunctionType(
-                [lltypes.PointerType(lltypes.Int32Type), lltypes.Int32Type],
-                lltypes.Int32Type,
-            ))
-
-            first_param = func.params[0]
-            first_param.name = "a"
-
-            second_param = func.params[1]
-            second_param.name = "b"
-
-            for func in m.functions:
-                print(func.name)
+            g = Generator(pkg)
+            m = g.generate()
 
             m.dump()
+
+            err, ok = m.verify()
+            if not ok:
+                print(err)            

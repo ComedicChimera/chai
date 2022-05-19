@@ -589,10 +589,6 @@ class GEPInstruction(Instruction):
     def in_bounds(self, in_bounds: bool):
         LLVMSetIsInBounds(self, int(in_bounds))
 
-    @property
-    def elem_type(self) -> Type:
-        return Type(LLVMGetGEPSourceElementType(self))
-
     @staticmethod
     def from_instr(instr: Instruction) -> 'GEPInstruction':
         assert instr.opcode == OpCode.GET_ELEMENT_PTR
@@ -1107,10 +1103,6 @@ def LLVMIsInBounds(gep: GEPInstruction) -> c_enum:
 
 @llvm_api
 def LLVMSetIsInBounds(gep: GEPInstruction, is_in_bounds: c_enum):
-    pass
-
-@llvm_api
-def LLVMGetGEPSourceElementType(gep: GEPInstruction) -> c_object_p:
     pass
 
 @llvm_api

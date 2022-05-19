@@ -98,16 +98,16 @@ class Target(LLVMObject):
         else:
             raise ValueError('expected kwarg of either `ptr`, `triple`, or `name`')   
 
-    @staticmethod
-    def initialize_all():
-        LLVMInitializeAllTargetInfos()
-        LLVMInitializeAllTargets()
-        LLVMInitializeAllAsmPrinters()
+    # @staticmethod
+    # def initialize_all():
+    #     LLVMInitializeAllTargetInfos()
+    #     LLVMInitializeAllTargets()
+    #     LLVMInitializeAllAsmPrinters()
 
-    @staticmethod
-    def initialize_native():
-        LLVMInitializeNativeTarget()
-        LLVMInitializeNativeAsmPrinter()
+    # @staticmethod
+    # def initialize_native():
+    #     LLVMInitializeNativeTarget()
+    #     LLVMInitializeNativeAsmPrinter()
 
     class _Targets:
         _first: c_object_p
@@ -208,25 +208,25 @@ class TargetMachine(LLVMObject):
 
 # ---------------------------------------------------------------------------- #
 
-@llvm_api
-def LLVMInitializeAllTargetInfos():
-    pass
+# @llvm_api
+# def LLVMInitializeAllTargets():
+#     pass
 
-@llvm_api
-def LLVMInitializeAllTargets():
-    pass
+# @llvm_api
+# def LLVMInitializeAllTargetInfos():
+#     pass
 
-@llvm_api
-def LLVMInitializeAllAsmPrinters():
-    pass
+# @llvm_api
+# def LLVMInitializeAllAsmPrinters():
+#     pass
 
-@llvm_api
-def LLVMInitializeNativeTarget():
-    pass
+# @llvm_api
+# def LLVMInitializeNativeTarget():
+#     pass
 
-@llvm_api
-def LLVMInitializeNativeAsmPrinter():
-    pass
+# @llvm_api
+# def LLVMInitializeNativeAsmPrinter():
+#     pass
 
 @llvm_api
 def LLVMDisposeTargetData(td: TargetData):

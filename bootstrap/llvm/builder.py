@@ -22,7 +22,7 @@ class IRBuilder(LLVMObject):
         LLVMPositionBuilderBefore(self, instr)
 
     def move_after(self, instr: Instruction):
-        LLVMPositionBuilder(self, instr.parent, instr)
+        LLVMPositionBuilder(self, instr.parent, instr.ptr)
 
     def move_to_start(self, bb: BasicBlock):
         first = bb.instructions.first()
@@ -30,7 +30,7 @@ class IRBuilder(LLVMObject):
         if first:
             LLVMPositionBuilderBefore(self, bb, first)
         else:
-            LLVMPositionBuilder(self, bb, None)
+            LLVMPositionBuilder(self, bb, c_object_p())
 
     def move_to_end(self, bb: BasicBlock):
         LLVMPositionBuilderAtEnd(self, bb)
@@ -218,7 +218,7 @@ class IRBuilder(LLVMObject):
 
     def build_call(self, rt_typ: Type, func: Value, *args: Value, name: str = "") -> CallInstruction:
         if len(args) == 0:
-            args_arr = None
+            args_arr = (c_object_p * 0)()
         else:
             args_arr_type = c_object_p * len(args)
             args_arr = args_arr_type(*(x.ptr for x in args))
@@ -238,7 +238,7 @@ def LLVMCreateBuilderInContext(ctx: Context) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMPositionBuilder(b: IRBuilder, bb: BasicBlock, instr: Instruction):
+def LLVMPositionBuilder(b: IRBuilder, bb: BasicBlock, instr: c_object_p):
     pass
 
 @llvm_api

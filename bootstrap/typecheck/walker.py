@@ -53,7 +53,8 @@ class Walker:
 
             self.walk_expr(fd.body)
 
-            self.solver.assert_equiv(fd.ident.type.rt_type, fd.body.type, fd.body.span)
+            if not fd.type == PrimitiveType.NOTHING:
+                self.solver.assert_equiv(fd.type, fd.body.type, fd.body.span)
 
             self.pop_scope()
         elif expect_body:
@@ -88,6 +89,8 @@ class Walker:
         match stmt:
             case VarDecl():
                 self.walk_var_decl(stmt)
+            case _:
+                self.walk_expr(stmt)
 
     def walk_var_decl(self, vd: VarDecl):
         for var_list in vd.var_lists:

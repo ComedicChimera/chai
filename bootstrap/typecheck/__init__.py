@@ -11,7 +11,8 @@ __all__ = [
     'Type',
     'PrimitiveType',
     'PointerType',
-    'FuncType'
+    'FuncType',
+    'typedataclass'
 ]
 
 class Type(ABC):

@@ -27,7 +27,7 @@ class PredicateGenerator:
     nothing_value: lltypes.Type = llvalue.Constant.Null(lltypes.Int1Type)
 
     def __init__(self):
-        self.irb = IRBuilder
+        self.irb = IRBuilder()
 
     def generate(self, pred: Predicate):
         self.body = pred.ll_func.body
@@ -78,7 +78,42 @@ class PredicateGenerator:
     # ---------------------------------------------------------------------------- #
 
     def generate_block(self, stmts: List[ASTNode]):
-        pass
+        for stmt in stmts:
+            match stmt:
+                case VarDecl(var_lists, _):
+                    for vlist in var_lists:
+                        self.generate_var_list(vlist)
+                case _:
+                    self.generate_expr(stmt)
+
+    def generate_var_list(self, var_list: VarList):
+        if var_list.initializer:
+            var_ll_init = self.generate_expr(var_list.initializer)
+
+            if not var_ll_init:
+                var_ll_init = self.nothing_value
+        else:
+            var_ll_init = None
+
+        for sym in var_list.symbols:
+            if not var_ll_init:
+                ll_init = llvalue.Constant.Null(conv_type(sym.type))
+            else:
+                # TODO handle pattern matching
+                ll_init = var_ll_init
+
+            if sym.mutability == Symbol.Mutability.MUTABLE:
+                curr_block = self.irb.block
+                self.irb.move_to_end(self.var_block)
+
+                ll_var = self.irb.build_alloca(conv_type(sym.type, True))
+                self.irb.build_store(ll_init, ll_var)
+
+                self.irb.move_to_end(curr_block)
+            else:
+                ll_var = var_ll_init
+
+            sym.ll_value = ll_var
 
     # ---------------------------------------------------------------------------- #
 
@@ -104,7 +139,25 @@ class PredicateGenerator:
 
 
     def generate_func_call(self, fc: FuncCall) -> Optional[llvalue.Value]:
-        pass
+        ll_args = []
+        for arg in fc.args:
+            ll_arg = self.generate_expr(arg)
+
+            if ll_arg:
+                ll_args.append(ll_arg)
+            else:
+                ll_args.append(self.nothing_value)
+
+        ll_call = self.irb.build_call(
+            conv_type(fc.rt_type, rt_type=True),
+            self.generate_expr(fc.func),
+            *ll_args
+        )
+
+        if is_nothing(fc.rt_type):
+            return None
+
+        return ll_call
 
     def generate_literal(self, lit: Literal) -> Optional[llvalue.Value]:
         match lit.kind:

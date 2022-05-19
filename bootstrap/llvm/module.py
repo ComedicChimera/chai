@@ -27,11 +27,11 @@ class Module(LLVMObject):
         LLVMSetModuleIdentifier(self, name_bytes, len(name_bytes))
 
     @property
-    def data_layout(self) -> TargetData:
+    def data_layout(self) -> 'TargetData':
         return TargetData(LLVMGetModuleDataLayout(self))
 
     @data_layout.setter
-    def data_layout(self, data_layout: TargetData):
+    def data_layout(self, data_layout: 'TargetData'):
         LLVMSetModuleDataLayout(self, data_layout)
 
     @property

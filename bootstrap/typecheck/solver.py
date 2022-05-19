@@ -405,7 +405,7 @@ class Solver:
 
     def repr_unnamed_type_var(self, tv: TypeVariable) -> str:
         if sub := self.get_substitution(tv.id):
-            return repr(sub)
+            return repr(sub.type)
         elif oset := self.get_overload_set(tv.id):
             return '{' + ' | '.join(x.type for x in oset.overloads) + '}'
         else:

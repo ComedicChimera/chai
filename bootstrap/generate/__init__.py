@@ -58,7 +58,7 @@ class Generator:
 
         ll_func_type = lltypes.FunctionType(
             [conv_type(x.type) for x in fd.params],
-            conv_type(fd.type)
+            conv_type(fd.type, rt_type=True)
         )
 
         ll_func = self.mod.add_function(ll_name, ll_func_type)
