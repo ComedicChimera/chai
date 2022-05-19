@@ -1,11 +1,11 @@
 '''Provides Chai's lexical analyzer.'''
 
 from io import TextIOWrapper
-import os
 from typing import List, Optional
 
 from .token import Token
-from report import TextSpan, CompileError
+from report import TextSpan
+from report.reporter import CompileError
 from depm.source import SourceFile
 
 # The set of valid escape codes.
@@ -102,8 +102,8 @@ class Lexer:
     # The file being tokenized.
     file: TextIOWrapper
 
-    # The package-relative path to the file being tokenized.
-    rel_path: str
+    # The source file being tokenized.
+    src_file: SourceFile
 
     # The line beginning the current token.
     start_line: int = 1
@@ -120,7 +120,7 @@ class Lexer:
     # The buffer storing the contents of the token as it is constructed.
     tok_buff: List[str]
 
-    def __init__(self, srcfile: SourceFile):
+    def __init__(self, src_file: SourceFile):
         '''
         Params
         ------
@@ -130,8 +130,8 @@ class Lexer:
             The absolute path to the file to tokenize.
         '''
 
-        self.file = open(srcfile.abs_path, 'r')
-        self.rel_path = srcfile.rel_path
+        self.file = open(src_file.abs_path, 'r')
+        self.src_file = src_file
         self.tok_buff = []
 
     def close(self):
@@ -599,7 +599,7 @@ class Lexer:
             The error message.
         '''
 
-        raise CompileError(msg, self.rel_path, self.get_span())
+        raise CompileError(msg, self.src_file, self.get_span())
 
     def get_span(self) -> TextSpan:
         '''

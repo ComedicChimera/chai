@@ -26,8 +26,7 @@ def run_build_cmd(parse_result):
 
     # Create and run the compiler.
     c = Compiler(root_dir, build_options)
-    c.compile()
-    
+    exit(c.compile())
 
 if __name__ == '__main__':
     # Declare the command-line argument parser.

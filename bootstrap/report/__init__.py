@@ -1,6 +1,6 @@
-'''
-Provides all classes used to report compilation errors within user source text.
-'''
+'''Provides the class used to identify places in source text.'''
+
+__all__ = ['TextSpan']
 
 from dataclasses import dataclass
 
@@ -42,28 +42,3 @@ class TextSpan:
         '''
 
         return TextSpan(a.start_line, a.start_col, b.end_line, b.end_col)
-
-@dataclass
-class CompileError(Exception):
-    '''
-    Indicates an error that occurred during compilation.
-
-    Attributes
-    ----------
-    message: str
-        The error message.
-    rel_path: str
-        The package-root-relative path to the file where the error occurred.
-    position: Position
-        The position of the erroneous source text.
-    '''
-
-    message: str
-    rel_path: str
-    position: TextSpan
-
-class Reporter:
-    '''Responsible for handling all error reporting during compilation.'''
-
-    def __init__(self):
-        pass

@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 
 from . import *
-from report import TextSpan, CompileError
+from report import TextSpan
+from report.reporter import CompileError
 from depm.source import SourceFile
 
 @typedataclass
@@ -188,7 +189,7 @@ class Solver:
     '''
 
     # The source file in which this solver is operating.
-    srcfile: SourceFile
+    src_file: SourceFile
 
     # The list of type variables defined in the global solution context.
     type_vars: List[TypeVariable]
@@ -204,7 +205,7 @@ class Solver:
     # The list of cast assertions applied in the global solution context.
     cast_asserts: List[CastAssert]
 
-    def __init__(self, srcfile: SourceFile):
+    def __init__(self, src_file: SourceFile):
         '''
         Params
         ------
@@ -212,7 +213,7 @@ class Solver:
             The source file this solver is operating in.
         '''
 
-        self.srcfile = srcfile
+        self.src_file = src_file
 
         # Prime the solver to begin accepting constraints.
         self.reset()
@@ -401,7 +402,7 @@ class Solver:
         return True
 
     def error(self, msg: str, span: TextSpan):
-        raise CompileError(msg, self.srcfile.rel_path, span)
+        raise CompileError(msg, self.src_file, span)
 
     def repr_unnamed_type_var(self, tv: TypeVariable) -> str:
         if sub := self.get_substitution(tv.id):

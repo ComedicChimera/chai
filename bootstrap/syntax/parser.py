@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple
 
-from report import CompileError, TextSpan
+from report import TextSpan
+from report.reporter import CompileError
 from depm import Symbol
 from depm.source import SourceFile
 from typecheck import *
@@ -19,15 +20,15 @@ SWALLOW_TOKENS = {
 }
 
 class Parser:
-    srcfile: SourceFile
+    src_file: SourceFile
     lexer: Lexer
 
     _tok: Optional[Token] = None
     _lookbehind: Optional[Token] = None
 
-    def __init__(self, srcfile: SourceFile):
-        self.srcfile = srcfile
-        self.lexer = Lexer(srcfile)
+    def __init__(self, src_file: SourceFile):
+        self.src_file = src_file
+        self.lexer = Lexer(src_file)
 
     def __enter__(self):
         return self
@@ -52,7 +53,7 @@ class Parser:
             else:
                 annots = {}
 
-            self.srcfile.definitions.append(self.parse_definition(annots))
+            self.src_file.definitions.append(self.parse_definition(annots))
 
             self.want(Token.Kind.NEWLINE)
 
@@ -64,7 +65,8 @@ class Parser:
         self.want(Token.Kind.PACKAGE)
 
         # TODO determine the root package
-        self.parse_package_path()
+        id_toks = self.parse_package_path()
+        self.src_file.parent.pkg_path = '.'.join(id_tok.value for id_tok in id_toks)
 
         self.want(Token.Kind.NEWLINE)
 
@@ -171,7 +173,7 @@ class Parser:
         func_type = FuncType([p.type for p in func_params], func_rt_type)
         func_sym = Symbol(
             func_id.value, 
-            self.srcfile.parent.id, 
+            self.src_file.parent.id, 
             func_type, 
             Symbol.Kind.FUNC, 
             Symbol.Mutability.IMMUTABLE, 
@@ -207,7 +209,7 @@ class Parser:
                     param_names.add(ident.name)
                     params.append(Symbol(
                         ident.name,
-                        self.srcfile.parent.id,
+                        self.src_file.parent.id,
                         param_type,
                         Symbol.Kind.VALUE,
                         Symbol.Mutability.NEVER_MUTATED,
@@ -296,7 +298,7 @@ class Parser:
             for ident in id_list:
                 ident.symbol = Symbol(
                     ident.name,
-                    self.srcfile.parent.id,
+                    self.src_file.parent.id,
                     typ,
                     Symbol.Kind.VALUE,
                     Symbol.Mutability.NEVER_MUTATED,
@@ -507,10 +509,10 @@ class Parser:
     # ---------------------------------------------------------------------------- #
 
     def define_global(self, sym: Symbol):
-        if sym.name in self.srcfile.parent.symbol_table:
+        if sym.name in self.src_file.parent.symbol_table:
             self.error(f'multiple symbols named `{sym.name}` defined in scope', sym.def_span)
 
-        self.srcfile.parent.symbol_table[sym.name] = sym
+        self.src_file.parent.symbol_table[sym.name] = sym
 
     # ---------------------------------------------------------------------------- #
 
@@ -628,4 +630,4 @@ class Parser:
             The span of the error.
         '''
 
-        raise CompileError(msg, self.srcfile.rel_path, span)    
+        raise CompileError(msg, self.src_file, span)    

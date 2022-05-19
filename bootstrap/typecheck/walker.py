@@ -2,7 +2,8 @@ from collections import deque
 from typing import Deque, Dict, Optional, Tuple, List
 from dataclasses import dataclass, field
 
-from report import CompileError, TextSpan
+from report import TextSpan
+from report.reporter import CompileError
 from depm import Symbol
 from depm.source import SourceFile
 from syntax.ast import *
@@ -17,17 +18,17 @@ class Scope:
     symbols: Dict[str, Symbol] = field(default_factory=dict)
 
 class Walker:
-    srcfile: SourceFile
+    src_file: SourceFile
     solver: Solver
     scopes: Deque[Scope]
 
-    def __init__(self, srcfile: SourceFile):
-        self.srcfile = srcfile
-        self.solver = Solver(srcfile)
+    def __init__(self, src_file: SourceFile):
+        self.src_file = src_file
+        self.solver = Solver(src_file)
         self.scopes = deque()
 
     def walk_file(self):
-        for defin in self.srcfile.definitions:
+        for defin in self.src_file.definitions:
             self.walk_definition(defin)
 
             self.solver.solve()
@@ -213,7 +214,7 @@ class Walker:
             if sym := scope.symbols.get(name):
                 return sym, True
         
-        if sym := self.srcfile.parent.symbol_table.get(name):
+        if sym := self.src_file.parent.symbol_table.get(name):
             return sym, False
 
         self.error(f'undefined symbol: `{name}`', span)
@@ -238,4 +239,4 @@ class Walker:
         self.scopes.popleft()
 
     def error(self, msg: str, span: TextSpan):
-        raise CompileError(msg, self.srcfile.rel_path, span)
+        raise CompileError(msg, self.src_file, span)

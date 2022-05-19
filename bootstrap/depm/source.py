@@ -59,6 +59,7 @@ class Package:
     abs_path: str
 
     id: int = field(init=False)
+    pkg_path: str = ""
     root_pkg: 'Package' = field(init=False)
     files: List[SourceFile] = field(default_factory=list)
 
@@ -84,5 +85,17 @@ class Package:
 
         return False
 
+    @property
+    def display_path(self) -> str:
+        '''
+        Returns the path that should be used to identify the package. Most
+        often, this will be the package path, but if that cannot be determined,
+        then the name is given instead.
+        '''
+
+        if self.pkg_path:
+            return self.pkg_path
+        else:
+            return self.name
 
     

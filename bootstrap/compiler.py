@@ -10,6 +10,7 @@ from depm.source import Package, SourceFile
 from llvm import Context
 from generate import Generator
 from llvm.target import Target
+from report.reporter import Reporter, LogLevel, CompileError
 
 @dataclass
 class BuildOptions:
@@ -39,6 +40,9 @@ class Compiler:
 
     # The value of the CHAI path environment variable
     chai_path: str
+
+    # The reporter for the compiler.
+    reporter: Reporter
     
     def __init__(self, root_dir: str, build_options: BuildOptions):
         '''
@@ -52,46 +56,60 @@ class Compiler:
 
         self.root_dir = os.path.abspath(root_dir)
         self.build_options = build_options
+        self.reporter = Reporter(LogLevel.VERBOSE)
         
         if path := os.environ.get('CHAI_PATH'):
             self.chai_path = path
         else:
-            print('missing environment variable `CHAI_PATH`')
+            self.reporter.report_error('missing required environment variable `CHAI_PATH`', 'env')
             exit(1)
 
-    def compile(self):
-        '''Runs the compiler with the configuration provided in the constructor.'''
+    def compile(self) -> int:
+        '''
+        Runs the compiler with the configuration provided in the constructor.
+
+        Returns
+        -------
+        return_code: int
+            The return code for the program.
+        
+        '''
 
         # DEBUG Code
         root_dir = os.path.dirname(self.root_dir)
         pkg = Package('test', root_dir)
-        srcfile = SourceFile(pkg, self.root_dir)
-        pkg.files.append(srcfile)
+        src_file = SourceFile(pkg, self.root_dir)
+        pkg.files.append(src_file)
 
-        p = Parser(srcfile)
-        p.parse()
-        
-        w = Walker(srcfile)
-        w.walk_file()
+        try:
+            p = Parser(src_file)
+            p.parse()
+            
+            w = Walker(src_file)
+            w.walk_file()
 
-        Target.initialize_all()
+            Target.initialize_all()
 
-        with Context():
-            g = Generator(pkg)
-            m = g.generate()
+            with Context():
+                g = Generator(pkg)
+                m = g.generate()
 
-            # m.dump()
+                # m.dump()
 
-            target = Target(triple=Target.default_triple())
-            machine = target.create_machine()
-            m.data_layout = machine.data_layout
-            m.target_triple = machine.triple
+                target = Target(triple=Target.default_triple())
+                machine = target.create_machine()
+                m.data_layout = machine.data_layout
+                m.target_triple = machine.triple
 
-            output_path = os.path.join(root_dir, 'pkg0.o')
-            machine.compile_module(m, output_path)
+                output_path = os.path.join(root_dir, 'pkg0.o')
+                machine.compile_module(m, output_path)
 
-        self.create_executable(['/out:' + self.build_options.output_path], [output_path])
-        os.remove(output_path)
+            self.create_executable(['/out:' + self.build_options.output_path], [output_path])
+            os.remove(output_path)
+        except CompileError as cerr:
+            self.reporter.report_compile_error(cerr)
+        except Exception as e:
+            self.reporter.report_fatal_error(e)
 
     def create_executable(self, link_flags: List[str], link_objects: List[str]):
         link_command = []
@@ -102,25 +120,24 @@ class Compiler:
                 output, ok = exec_command([vswhere_path, '-latest', '-products', '*', '-property', 'installationPath'])
 
                 if not ok:
-                    print(output)
-                    exit(1)
+                    self.reporter.report_error('failed to find linker:\n' + output, 'env')
+                    return
 
                 vs_dev_cmd_path = os.path.join(output[:-2], 'VC/Auxiliary/Build/vcvars64.bat')
 
                 link_command = [vs_dev_cmd_path, '&', 'link.exe', '/entry:_start', '/subsystem:console', '/nologo']
                 link_objects = ['kernel32.lib', 'libcmt.lib'] + link_objects
             case _:
-                print('unsupported platform')
-                exit(1)
+                self.reporter.report_error('unsupported platform', 'env')
+                return
 
         link_command.extend(link_flags)
         link_command.extend(link_objects)
 
         output, ok = exec_command(link_command)
         if not ok:
-            print('Link Error:')
-            print(output)
-            exit(1)
+            self.reporter.report_error('failed to link program:\n' + output, 'link')
+            return
 
 def exec_command(command: List[str]) -> Tuple[str, bool]:
     proc = subprocess.run(command, stdout=subprocess.PIPE)
