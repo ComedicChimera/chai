@@ -793,14 +793,14 @@ class FuncBody:
 
         return None
 
-    def append(self, name: str = "") -> BasicBlock:
+    def append(self, name: str = "bb") -> BasicBlock:
         return BasicBlock(LLVMAppendBasicBlockInContext(
             get_context(),
             self._func,
             name.encode(),
         ))
 
-    def insert(self, before: BasicBlock, name: str = "") -> BasicBlock:
+    def insert(self, before: BasicBlock, name: str = "bb") -> BasicBlock:
         return BasicBlock(LLVMInsertBasicBlockInContext(
             get_context(),
             before,

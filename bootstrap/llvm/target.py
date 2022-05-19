@@ -78,6 +78,26 @@ class TargetData(LLVMObject):
 # This import has to go down here to handle an import cycle.
 from .module import Module
 
+ALL_TARGETS = [
+    'AArch64',
+    'AMDGPU',
+    'ARM',
+    'AVR',
+    'BPF',
+    'Hexagon',
+    'Lanai',
+    'MSP430',
+    'Mips',
+    'NVPTX',
+    'PowerPC',
+    'RISCV',
+    'Sparc',
+    'SystemZ',
+    'WebAssembly',
+    'X86',
+    'XCore'
+]
+
 class Target(LLVMObject):
     def __init__(self, **kwargs):
         if ptr := kwargs.get('ptr'):
@@ -88,15 +108,37 @@ class Target(LLVMObject):
 
             target_ptr = c_object_p()
             out_msg = c_char_p()
-            if LLVMGetTargetFromTriple(triple.encode(), byref(target_ptr), byref(out_msg)):
+            if LLVMGetTargetFromTriple(triple.encode(), byref(target_ptr), byref(out_msg)) == 0:
                 super().__init__(target_ptr)
             else:
-                raise ValueError(str(out_msg, encoding='utf-8'))
+                raise ValueError(str(out_msg.value, encoding='utf-8'))
         elif name := kwargs.get('name'):
             assert isinstance(name, str)
             super().__init__(self, LLVMGetTargetFromName(name.encode()))
         else:
             raise ValueError('expected kwarg of either `ptr`, `triple`, or `name`')   
+
+    @staticmethod
+    def default_triple() -> str:
+        return str(LLVMGetDefaultTargetTriple(), encoding='utf-8')
+
+    @staticmethod
+    def initialize_all():
+        func_suffixes = [
+            'Target',
+            'TargetInfo',
+            'TargetMC',
+            'AsmPrinter'
+        ]
+
+        lib = get_api_lib()
+
+        for target in ALL_TARGETS:
+            for suffix in func_suffixes:
+                func_name = 'LLVMInitialize' + target + suffix
+                func = lib[func_name]
+                func.argtypes = []
+                func()
 
     # @staticmethod
     # def initialize_all():
@@ -148,7 +190,7 @@ class Target(LLVMObject):
     def create_machine(self, **kwargs) -> 'TargetMachine':
         assert self.has_machine
 
-        triple = kwargs.get('triple', str(LLVMGetDefaultTargetTriple(), encoding='utf-8'))
+        triple = kwargs.get('triple', Target.default_triple())
         cpu_name = kwargs.get('cpu_name', str(LLVMGetHostCPUName(), encoding='utf-8'))
         cpu_features = kwargs.get('cpu_features', str(LLVMGetHostCPUFeatures(), encoding='utf-8'))
 
@@ -203,7 +245,7 @@ class TargetMachine(LLVMObject):
     ):
         err_msg = c_char_p()
 
-        if LLVMTargetMachineEmitToFile(self, mod, out_file_path.encode(), file_type, byref(err_msg)) == 0:
+        if LLVMTargetMachineEmitToFile(self, mod, out_file_path.encode(), file_type, byref(err_msg)) == 1:
             raise Exception(str(err_msg, encoding='utf-8'))
 
 # ---------------------------------------------------------------------------- #

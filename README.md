@@ -22,8 +22,6 @@ documentation can be found in the
 
 - [Features](#features)
 - [Progress](#progress)
-  * [Compiler](#compiler-prog)
-  * [Standard Library](#std-lib-prog)
 - [Building the Compiler](#building)
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)

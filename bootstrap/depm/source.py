@@ -67,7 +67,7 @@ class Package:
     def __post_init__(self):
         '''Calculates the package ID based on its absolute path.'''
 
-        self.id = hash(self.abs_path)
+        self.id = abs(hash(self.abs_path))
 
     def __eq__(self, other: object) -> bool:
         '''

@@ -168,6 +168,22 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
     def __repr__(self) -> str:
         return self.name.lower()
 
+    @property
+    def is_integral(self) -> bool:
+        return self.value > 4
+
+    @property
+    def is_floating(self) -> bool:
+        return self.value == 2 or self.value == 3
+
+    @property
+    def is_signed(self) -> bool:
+        return self.value % 2 == 1
+
+    @property
+    def size(self) -> int:
+        return self.value
+
 @typedataclass
 class PointerType(Type):
     '''

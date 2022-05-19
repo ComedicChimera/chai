@@ -15,7 +15,9 @@ def run_build_cmd(parse_result):
     if parse_result.output_path:
         output_path = parse_result.output_path
     else:
-        output_path = os.path.join(root_dir, os.path.basename(root_dir))
+        # output_path = os.path.join(root_dir, os.path.basename(root_dir))
+        # TEMP CODE
+        output_path = os.path.join(os.path.dirname(root_dir), os.path.basename(root_dir).replace('.chai', '.exe'))
 
     if sys.platform == 'win32' and os.path.splitext(output_path)[1] == '':
         output_path += '.exe'

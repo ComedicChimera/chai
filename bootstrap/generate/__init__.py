@@ -43,6 +43,7 @@ class Generator:
 
     def generate_func_def(self, fd: FuncDef):
         mangle = True
+        public = False
 
         for annot in fd.annots:
             match annot:
@@ -50,6 +51,7 @@ class Generator:
                     return
                 case 'extern' | 'entry':
                     mangle = False
+                    public = True
 
         if mangle:
             ll_name = self.pkg_prefix + fd.ident.name
@@ -63,8 +65,7 @@ class Generator:
 
         ll_func = self.mod.add_function(ll_name, ll_func_type)
 
-        ll_func.linkage = llvalue.Linkage.INTERNAL
-        ll_func.attr_set.add(ir.Attribute(kind=ir.Attribute.Kind.NO_UNWIND))
+        ll_func.linkage = llvalue.Linkage.EXTERNAL if public else llvalue.Linkage.INTERNAL
 
         for param, ll_param in zip(fd.params, ll_func.params):
             ll_param.name = param.name

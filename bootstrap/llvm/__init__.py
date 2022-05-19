@@ -1,7 +1,7 @@
 '''Provides some utilities common to the LLVM API bindings.'''
 
 import os
-from ctypes import cdll, POINTER, c_void_p, c_int
+from ctypes import cdll, POINTER, c_void_p, c_int, CDLL
 from functools import wraps
 from enum import Enum
 import threading
@@ -16,6 +16,7 @@ __all__ = [
     'llvm_api',
     'Context',
     'get_context',
+    'get_api_lib'
 ]
 
 # This is the type to be used whenever an LLVM API function accepts or returns a
@@ -120,6 +121,9 @@ def llvm_api(f: Callable) -> Callable:
         return lib_func(*args)
 
     return wrapper
+
+def get_api_lib() -> CDLL:
+    return lib
 
 # ---------------------------------------------------------------------------- #
 

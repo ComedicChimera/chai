@@ -28,7 +28,7 @@ class IRBuilder(LLVMObject):
         first = bb.instructions.first()
 
         if first:
-            LLVMPositionBuilderBefore(self, bb, first)
+            LLVMPositionBuilderBefore(self, first)
         else:
             LLVMPositionBuilder(self, bb, c_object_p())
 
@@ -216,14 +216,14 @@ class IRBuilder(LLVMObject):
     def build_phi(self, typ: Type, name: str = "") -> PHINodeInstruction:
         return PHINodeInstruction(LLVMBuildPhi(self, typ, name.encode()))
 
-    def build_call(self, rt_typ: Type, func: Value, *args: Value, name: str = "") -> CallInstruction:
+    def build_call(self, func: Value, *args: Value, name: str = "") -> CallInstruction:
         if len(args) == 0:
             args_arr = (c_object_p * 0)()
         else:
             args_arr_type = c_object_p * len(args)
             args_arr = args_arr_type(*(x.ptr for x in args))
 
-        return CallInstruction(LLVMBuildCall2(self, rt_typ, func, args_arr, len(args), name.encode()))
+        return CallInstruction(LLVMBuildCall2(self, func.type, func, args_arr, len(args), name.encode()))
 
     def build_is_null(self, val: Value, name: str = "") -> Instruction:
         return Instruction(LLVMBuildIsNull(self, val, name.encode()))
