@@ -1,8 +1,12 @@
+'''Provides the main compiler driver.'''
+
+__all__ = [
+    'BuildOptions',
+    'Compiler'
+]
+
 from dataclasses import dataclass
 import os
-import sys
-import subprocess
-from typing import List, Tuple
 
 from syntax.parser import Parser
 from typecheck.walker import Walker
@@ -11,6 +15,7 @@ from llvm import Context
 from generate import Generator
 from llvm.target import Target
 from report.reporter import Reporter, LogLevel, CompileError
+from linker import *
 
 @dataclass
 class BuildOptions:
@@ -101,44 +106,20 @@ class Compiler:
                 m.data_layout = machine.data_layout
                 m.target_triple = machine.triple
 
-                output_path = os.path.join(root_dir, 'pkg0.o')
-                machine.compile_module(m, output_path)
+                obj_output_path = os.path.join(root_dir, 'pkg0.o')
+                machine.compile_module(m, obj_output_path)
 
-            self.create_executable(['/out:' + self.build_options.output_path], [output_path])
-            os.remove(output_path)
+            create_executable(self.build_options.output_path, [], [obj_output_path])
+            os.remove(obj_output_path)
         except CompileError as cerr:
             self.reporter.report_compile_error(cerr)
+        except LinkError as lerr:
+            self.reporter.report_error('failed to link executable:\n' + lerr.link_output, 'link')
+        except LinkConfigError as lcerr:
+            err_msg = lcerr.message
+            if lcerr.is_msvc_error:
+                err_msg += '\nmake sure you have the Microsoft Visual C++ build tools installed'
+
+            self.reporter.report_error(err_msg, 'config')
         except Exception as e:
             self.reporter.report_fatal_error(e)
-
-    def create_executable(self, link_flags: List[str], link_objects: List[str]):
-        link_command = []
-
-        match sys.platform:
-            case 'win32':
-                vswhere_path = os.path.join(self.chai_path, 'tools/bin/vswhere.exe')
-                output, ok = exec_command([vswhere_path, '-latest', '-products', '*', '-property', 'installationPath'])
-
-                if not ok:
-                    self.reporter.report_error('failed to find linker:\n' + output, 'env')
-                    return
-
-                vs_dev_cmd_path = os.path.join(output[:-2], 'VC/Auxiliary/Build/vcvars64.bat')
-
-                link_command = [vs_dev_cmd_path, '&', 'link.exe', '/entry:_start', '/subsystem:console', '/nologo']
-                link_objects = ['kernel32.lib', 'libcmt.lib'] + link_objects
-            case _:
-                self.reporter.report_error('unsupported platform', 'env')
-                return
-
-        link_command.extend(link_flags)
-        link_command.extend(link_objects)
-
-        output, ok = exec_command(link_command)
-        if not ok:
-            self.reporter.report_error('failed to link program:\n' + output, 'link')
-            return
-
-def exec_command(command: List[str]) -> Tuple[str, bool]:
-    proc = subprocess.run(command, stdout=subprocess.PIPE)
-    return proc.stdout.decode(), proc.returncode == 0
