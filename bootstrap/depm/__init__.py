@@ -85,8 +85,10 @@ class OperatorOverload:
         The signature of the operator overload.
     def_span: TextSpan
         The span containing the operator symbol.
-    overload_id: int
+    id: int
         The unique ID of the overload: used to generate its name on the backend.
+    intrinsic_name: str
+        The instrinic generator associated with this overload if any.
     ll_value: Optional[Value]
         The LLVM value that this overload refers to.  This value is `None` until
         generation begins.
@@ -96,6 +98,7 @@ class OperatorOverload:
     signature: Type
     def_span: TextSpan
     id: int = field(init=False)
+    intrinsic_name: str = ''
     ll_value: Optional[Value] = None
 
     _id_counter: ClassVar[int] = 0

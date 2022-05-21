@@ -1,3 +1,4 @@
+from re import L
 from typing import List, Optional
 from dataclasses import dataclass
 
@@ -24,7 +25,7 @@ class PredicateGenerator:
     var_block: ir.BasicBlock
     body: ir.FuncBody
 
-    nothing_value: lltypes.Type = llvalue.Constant.Null(lltypes.Int1Type)
+    nothing_value: llvalue.Value = llvalue.Constant.Null(lltypes.Int1Type)
 
     def __init__(self):
         self.irb = IRBuilder()
@@ -177,6 +178,129 @@ class PredicateGenerator:
                 return self.irb.build_bit_cast(src_ll_val, conv_type(dest_itype))
             case _:
                 raise NotImplementedError()
+
+    def generate_binary_op_app(self, bop: BinaryOpApp) -> Optional[llvalue.Value]:
+        lhs = self.generate_expr(bop.lhs)
+        if not lhs:
+            lhs = self.nothing_value
+
+        # handle short-circuit evaluation
+        match bop.overload.intrinsic_name:
+            case 'land':
+                start_block = self.irb.block
+                true_block = self.body.append()
+                exit_block = self.body.append()
+
+                self.irb.build_cond_br(lhs, true_block, exit_block)
+
+                self.irb.move_to_end(true_block)
+                rhs = self.generate_expr(bop.rhs)
+                self.irb.build_br(exit_block)
+
+                self.irb.move_to_end(exit_block)
+                and_result = self.irb.build_phi(lltypes.Int1Type)
+                and_result.incoming.add(ir.PHIIncoming(llvalue.Constant.Bool(False), start_block))
+                and_result.incoming.add(ir.PHIIncoming(rhs, true_block))
+
+                return and_result
+            case 'lor':
+                start_block = self.irb.block
+                false_block = self.body.append()
+                exit_block = self.body.append()
+
+                self.irb.build_cond_br(lhs, exit_block, false_block)
+
+                self.irb.move_to_end(false_block)
+                rhs = self.generate_expr(bop.rhs)
+                self.irb.build_br(exit_block)
+
+                self.irb.move_to_end(exit_block)
+                or_result = self.irb.build_phi(lltypes.Int1Type)
+                or_result.incoming.add(ir.PHIIncoming(llvalue.Constant.Bool(True), start_block))
+                or_result.incoming.add(ir.PHIIncoming(rhs, false_block))
+                
+                return or_result
+        rhs = self.generate_expr(bop.rhs)
+        if not rhs:
+            rhs = self.nothing_value
+
+        match bop.overload.intrinsic_name:
+            case 'iadd':
+                return self.irb.build_add(lhs, rhs)
+            case 'isub':
+                return self.irb.build_sub(lhs, rhs)
+            case 'imul':
+                return self.irb.build_mul(lhs, rhs)
+            case 'sdiv':
+                return self.irb.build_sdiv(lhs, rhs)
+            case 'udiv':
+                return self.irb.build_udiv(lhs, rhs)
+            case 'smod':
+                return self.irb.build_srem(lhs, rhs)
+            case 'umod':
+                return self.irb.build_urem(lhs, rhs)
+            case 'fadd':
+                return self.irb.build_fadd(lhs, rhs)
+            case 'fsub':
+                return self.irb.build_fsub(lhs, rhs)
+            case 'fmul':
+                return self.irb.build_fmul(lhs, rhs)
+            case 'fdiv':
+                return self.irb.build_fdiv(lhs, rhs)
+            case 'fmod':
+                return self.irb.build_frem(lhs, rhs)
+            case 'shl':
+                return self.irb.build_shl(lhs, rhs)
+            case 'ashr':
+                return self.irb.build_ashr(lhs, rhs)
+            case 'lshr':
+                return self.irb.build_lshr(lhs, rhs)
+            case 'band':
+                return self.irb.build_and(lhs, rhs)
+            case 'bor':
+                return self.irb.build_or(lhs, rhs)
+            case 'bxor':
+                return self.irb.build_xor(lhs, rhs)
+            case 'slt':
+                return self.irb.build_icmp(ir.IntPredicate.SLT, lhs, rhs)
+            case 'ult':
+                return self.irb.build_icmp(ir.IntPredicate.ULT, lhs, rhs)
+            case 'flt':
+                return self.irb.build_fcmp(ir.RealPredicate.ULT, lhs, rhs)
+            case 'sgt':
+                return self.irb.build_icmp(ir.IntPredicate.SGT, lhs, rhs)
+            case 'ugt':
+                return self.irb.build_icmp(ir.IntPredicate.UGT, lhs, rhs)
+            case 'fgt':
+                return self.irb.build_fcmp(ir.RealPredicate.UGT, lhs, rhs)
+            case 'slteq':
+                return self.irb.build_icmp(ir.IntPredicate.SLE, lhs, rhs)
+            case 'ulteq':
+                return self.irb.build_icmp(ir.IntPredicate.ULE, lhs, rhs)
+            case 'flteq':
+                return self.irb.build_fcmp(ir.RealPredicate.ULE, lhs, rhs)
+            case 'sgteq':
+                return self.irb.build_icmp(ir.IntPredicate.SGE, lhs, rhs)
+            case 'ugteq':
+                return self.irb.build_icmp(ir.IntPredicate.UGE, lhs, rhs)
+            case 'fgteq':
+                return self.irb.build_fcmp(ir.RealPredicate.UGE, lhs, rhs)
+            case 'ieq':
+                return self.irb.build_icmp(ir.IntPredicate.EQ, lhs, rhs)
+            case 'feq':
+                return self.irb.build_fcmp(ir.RealPredicate.UEQ, lhs, rhs)
+            case 'ineq':
+                return self.irb.build_icmp(ir.IntPredicate.NE, lhs, rhs)
+            case 'fneq':
+                return self.irb.build_fcmp(ir.RealPredicate.UNE, lhs, rhs)
+            case '':
+                # Not an intrinsic operator.
+                oper_call = self.irb.build_call(bop.overload.ll_value, lhs, rhs)
+
+                if is_nothing(bop.rt_type):
+                    return None
+
+                return oper_call
 
     def generate_func_call(self, fc: FuncCall) -> Optional[llvalue.Value]:
         ll_args = []

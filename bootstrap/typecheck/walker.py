@@ -90,7 +90,7 @@ class Walker:
         return expect_body
 
     def walk_oper_def(self, od: OperDef):
-        expects_body = self.validate_oper_annotations(od.annots)
+        expects_body = self.validate_oper_annotations(od)
 
         if od.body:
             if not expects_body:
@@ -112,14 +112,16 @@ class Walker:
 
     INTRINSIC_OPS = {
         'iadd', 'fadd', 'isub', 'fsub', 'imul', 'fmul', 'sdiv', 'udiv', 'fdiv',
-        'smod', 'umod', 'fmod', 'lt', 'gt', 'lteq', 'gteq', 'land', 'lor', 'lnot',
-        'ineg', 'fned', 'band', 'bor', 'bxor', 'eq', 'neq', 'shl', 'shr', 'compl'
+        'smod', 'umod', 'fmod', 'slt', 'ult', 'flt', 'sgt' 'ugt', 'fgt', 'slteq', 
+        'ulteq', 'flteq', 'sgteq', 'ugteq', 'fgteq', 'ieq', 'feq', 'ineq', 'fneq',
+        'land', 'lor', 'lnot', 'ineg', 'fneg', 'band', 'bor', 'bxor', 'shl', 'ashr', 
+        'lshr', 'compl'
     }
 
-    def validate_oper_annotations(self, annots: Annotations):
+    def validate_oper_annotations(self, od: OperDef):
         expects_body = True
 
-        for aname, (aval, aspan) in annots.items():
+        for aname, (aval, aspan) in od.annots.items():
             match aname:
                 case 'intrinsic':
                     if aval == '':
@@ -131,6 +133,7 @@ class Walker:
                     if aval not in self.INTRINSIC_OPS:
                         self.error(f'no intrinsic operator named `{aval}`', aspan)
 
+                    od.overload.intrinsic_name = aval
                     expects_body = False
 
         return expects_body
