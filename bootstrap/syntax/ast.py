@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Tuple
 
 from typecheck import Type, PrimitiveType, PointerType
 from report import TextSpan
-from depm import Symbol
+from depm import Symbol, OperatorOverload
 from .token import Token
 
 __all__ = [
@@ -15,6 +15,7 @@ __all__ = [
     'ASTNode',
     'Annotations',
     'FuncDef',
+    'OperDef',
     'Block',
     'VarList',
     'VarDecl',
@@ -60,8 +61,8 @@ class FuncDef(ASTNode):
     
     Attributes
     ----------
-    ident: 'Identifier'
-        The identifier representing the function's name.
+    symbol: Symbol
+        The symbol corresponding to the function.
     params: List[Symbol]
         The parameters to the function.
     body: Optional[ASTNode]
@@ -70,7 +71,7 @@ class FuncDef(ASTNode):
         The function's annotations.
     '''
 
-    ident: 'Identifier'
+    symbol: Symbol
     params: List[Symbol] 
     body: Optional[ASTNode]
     annots: Annotations
@@ -78,7 +79,38 @@ class FuncDef(ASTNode):
 
     @property
     def type(self) -> Type:
-        return self.ident.type.rt_type
+        return self.symbol.type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
+class OperDef(ASTNode):
+    '''
+    The AST node representing an operator definition.
+
+    Attributes
+    ----------
+    overload: OperatorOverload
+        The operator overload corresponding to this operator definition. 
+    params: List[Symbol]
+        The parameters to the operator.
+    body: Optional[ASTNode]
+        The operator's optional body.
+    annots: Annotations
+        The operator's annotations.
+    '''
+
+    overload: OperatorOverload
+    params: List[Symbol]
+    body: Optional[ASTNode]
+    annots: Annotations
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self.oper.signature
 
     @property
     def span(self) -> TextSpan:

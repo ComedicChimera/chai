@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 from report import TextSpan
 from report.reporter import CompileError
-from depm import Symbol
+from depm import *
 from depm.source import SourceFile
 from typecheck import *
 from .ast import *
@@ -136,11 +136,13 @@ class Parser:
     # ---------------------------------------------------------------------------- #
 
     def parse_definition(self, annots: Annotations) -> ASTNode:
-        '''definition := func_def ;'''
+        '''definition := func_def | oper_def ;'''
 
         match (tok := self.tok()).kind:
             case Token.Kind.DEF:
                 return self.parse_func_def(annots)
+            case Token.Kind.OPER:
+                return self.parse_oper_def(annots)
             case _:
                 self.reject()
 
@@ -149,7 +151,7 @@ class Parser:
         func_def := 'def' 'IDENTIFIER' '(' [func_params] ')' [type_label] func_body ;
         '''
 
-        self.want(Token.Kind.DEF)
+        start_span = self.want(Token.Kind.DEF).span
 
         func_id = self.want(Token.Kind.IDENTIFIER)
 
@@ -168,7 +170,7 @@ class Parser:
             case _:
                 func_rt_type = self.parse_type_label()
 
-        func_body, end_pos = self.parse_func_body()
+        func_body, end_span = self.parse_func_body()
 
         func_type = FuncType([p.type for p in func_params], func_rt_type)
         func_sym = Symbol(
@@ -184,17 +186,22 @@ class Parser:
         self.define_global(func_sym)
 
         return FuncDef(
-            Identifier(func_sym.name, func_sym.def_span, symbol=func_sym),
+            func_sym,
             func_params,
             func_body,
             annots,
-            TextSpan.over(func_id.span, end_pos),
+            TextSpan.over(start_span, end_span),
         )
 
     def parse_func_params(self) -> List[Symbol]:
         '''
         func_params := func_param {',' func_param} ;
         func_param := id_list type_ext ;
+
+        Returns
+        -------
+        func_params: List[Symbol]
+            The list of symbols representing the parameters to the function.
         '''
 
         id_list = self.parse_id_list()
@@ -231,6 +238,17 @@ class Parser:
         return params
 
     def parse_func_body(self) -> Tuple[Optional[ASTNode], TextSpan]:
+        '''
+        func_body = 'end' | block | '=' expr ;
+
+        Returns
+        -------
+        (maybe_body: Optional[ASTNode], body_end: TextSpan)
+            maybe_body: If the function has a body, then the expression node
+                comprising it is returned.  If not, `None` is returned.
+            body_end: The end token of the body.
+        '''
+
         match self.tok(False).kind:
             case Token.Kind.END:
                 end_pos = self.tok().span
@@ -246,6 +264,136 @@ class Parser:
                 return expr, expr.span
             case _:
                 self.reject()
+
+    OVERLOADABLE_OPERATORS = {
+        Token.Kind.PLUS: 2,
+        Token.Kind.MINUS: [1, 2],
+        Token.Kind.STAR: 2,
+        Token.Kind.DIV: 2,
+        Token.Kind.MOD: 2,
+        Token.Kind.LT: 2,
+        Token.Kind.GT: 2,
+        Token.Kind.LTEQ: 2,
+        Token.Kind.GTEQ: 2,
+        Token.Kind.EQ: 2,
+        Token.Kind.NEQ: 2,
+        Token.Kind.AMP: 2,
+        Token.Kind.AND: 2,
+        Token.Kind.OR: 2,
+        Token.Kind.NOT: 1,
+    }
+
+    def parse_oper_def(self, annots: Annotations) -> ASTNode:
+        '''
+        oper_def = 'oper' '(' operator ')' '(' func_params ')' [type_label] 'func_body' ;
+        operator = '+' | '-' | '*' | '/' | '%' | '<' | '>' | '<=' | '>=' | '&' ;
+        '''
+
+        start_span = self.want(Token.Kind.OPER).span
+
+        self.want(Token.Kind.LPAREN)
+
+        op_tok = self.tok()
+        arities = self.OVERLOADABLE_OPERATORS.get(op_tok.kind)
+        if not arities:
+            self.reject()
+
+        op_sym = op_tok.value
+        op_span = op_tok.span
+
+        self.advance()
+        self.want(Token.Kind.RPAREN)
+
+        self.want(Token.Kind.LPAREN)
+
+        oper_params = self.parse_func_params()
+
+        self.want(Token.Kind.RPAREN)
+
+        match self.tok(False).kind:
+            case Token.Kind.NEWLINE | Token.Kind.END | Token.Kind.ASSIGN:
+                rt_type = PrimitiveType.NOTHING
+            case _:
+                rt_type = self.parse_type_label()
+
+        oper_body, end_span = self.parse_func_body()
+
+        if isinstance(arities, int):
+            arities = [arities]
+
+        if not any(arity == len(oper_params) for arity in arities):
+            if len(arities) == 1 and arities[0] == 1:
+                expected_arity_repr = '1 argument'
+            else:
+                expected_arity_repr = ' or '.join(arities) + ' arguments'
+
+            self.error(
+                f'operator {op_sym} must take {expected_arity_repr}', 
+                TextSpan.over(oper_params[0].def_span, oper_params[-1].def_span)
+            )
+
+        oper_type = FuncType([p.type for p in oper_params], rt_type)
+
+        oper_overload = OperatorOverload(
+            self.src_file.parent.id,
+            oper_type,
+            op_span
+        )
+
+        self.define_operator_overload(op_tok.kind, op_sym, oper_overload, len(oper_params))
+
+        return OperDef(
+            oper_overload,
+            oper_params,
+            oper_body,
+            annots,
+            TextSpan.over(start_span, end_span)
+        )
+
+    def define_operator_overload(self, op_kind: Token.Kind, op_sym: str, overload: OperatorOverload, arity: int):
+        '''
+        Attempts to defines an operator overload.  Fails if the operator
+        overload conflicts with another overload.
+
+        Params
+        ------
+        op_kind: Token.Kind
+            The operator kind of the operator being overloaded.
+        op_sym: str
+            The operator symbol of the operator being overloaded.
+        overload: OperatorOverload
+            The operator overload to add.
+        arity: int
+            The arity of the operator overload to define.
+        '''
+
+        if operators := self.src_file.parent.operator_table.get(op_kind):
+            for operator in operators:
+                if operator.arity == arity:
+                    for defined_overload in operator.overloads:
+                        if overload.conflicts(defined_overload):
+                            self.error(
+                                f'operator definition for {op_sym} conflicts with another visible definition ' + 
+                                f'for the same operator: {overload.signature} v {defined_overload.signature}',
+                                overload.def_span
+                            )
+
+                    operator.overloads.append(overload)
+                    break
+            else:
+                operators.append(Operator(
+                    op_kind,
+                    op_sym,
+                    arity,
+                    [overload]
+                ))
+        else:
+            self.src_file.parent.operator_table[op_kind] = [Operator(
+                op_kind,
+                op_sym,
+                arity,
+                [overload]
+            )]
 
     # ---------------------------------------------------------------------------- #
 

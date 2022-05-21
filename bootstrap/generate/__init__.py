@@ -42,25 +42,26 @@ class Generator:
     # ---------------------------------------------------------------------------- #
 
     def generate_func_def(self, fd: FuncDef):
+        if 'intrinsic' in fd.annots:
+            return
+
         mangle = True
         public = False
 
         for annot in fd.annots:
             match annot:
-                case 'intrinsic':
-                    return
                 case 'extern' | 'entry':
                     mangle = False
                     public = True
 
         if mangle:
-            ll_name = self.pkg_prefix + fd.ident.name
+            ll_name = self.pkg_prefix + fd.symbol.name
         else:
-            ll_name = fd.ident.name
+            ll_name = fd.symbol.name
 
         ll_func_type = lltypes.FunctionType(
             [conv_type(x.type) for x in fd.params],
-            conv_type(fd.type, rt_type=True)
+            conv_type(fd.type.rt_type, rt_type=True)
         )
 
         ll_func = self.mod.add_function(ll_name, ll_func_type)
@@ -71,10 +72,39 @@ class Generator:
             ll_param.name = param.name
             param.ll_value = ll_param
 
-        fd.ident.symbol.ll_value = ll_func
+        fd.symbol.ll_value = ll_func
 
         if fd.body:
             self.predicates.append(Predicate(ll_func, fd.params, fd.body))
+
+    def generate_oper_def(self, od: OperDef):
+        if 'intrinsic' in od.annots:
+            return
+
+        ll_name = f'{self.pkg_prefix}.oper.overload.{od.overload.id}'
+
+        ll_func_type = lltypes.FunctionType(
+            [conv_type(x.type) for x in od.params],
+            conv_type(od.type.rt_type, rt_type=True)
+        )
+
+        ll_func = self.mod.add_function(ll_name, ll_func_type)
+        
+        ll_func.linkage = llvalue.Linkage.INTERNAL
+
+        for param, ll_param in zip(od.params, ll_func.params):
+            ll_param.name = param.name
+            param.ll_value = ll_param
+
+        od.overload.ll_value = ll_func
+
+        if od.body:
+            self.predicates.append(Predicate(ll_func, od.params, od.body))
+
+
+            
+
+
 
 
 

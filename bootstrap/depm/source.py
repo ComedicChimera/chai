@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 import os
 
-from . import Symbol
+from . import Symbol, Operator
+from syntax.token import Token
 from syntax.ast import ASTNode
 
 @dataclass
@@ -53,6 +54,9 @@ class Package:
     symbol_table: Dict[str, Symbol]
         The table mapping symbol names to symbol objects defined in the
         package's global, shared namespace.
+    operator_table: Dict[Token.Kind, Operator]
+        The table mapping operator kinds to the list of operators defined for
+        that operator kind in the given package.
     '''
 
     name: str
@@ -64,6 +68,7 @@ class Package:
     files: List[SourceFile] = field(default_factory=list)
 
     symbol_table: Dict[str, Symbol] = field(default_factory=dict)
+    operator_table = Dict[Token.Kind, List[Operator]] = field(default_factory=dict)
 
     def __post_init__(self):
         '''Calculates the package ID based on its absolute path.'''

@@ -91,7 +91,8 @@ class Compiler:
             p.parse()
             
             w = Walker(src_file)
-            w.walk_file()
+            for defin in src_file.definitions:
+                w.walk_definition(defin)
 
             Target.initialize_all()
 

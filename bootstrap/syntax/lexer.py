@@ -26,6 +26,8 @@ ESCAPE_CODES = {
 KEYWORDS = {
     'package': Token.Kind.PACKAGE,
     'def': Token.Kind.DEF,
+    'oper': Token.Kind.OPER,
+    
     'let': Token.Kind.LET,
     'if': Token.Kind.IF,
     'elif': Token.Kind.ELIF,

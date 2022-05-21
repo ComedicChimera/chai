@@ -27,35 +27,31 @@ class Walker:
         self.solver = Solver(src_file)
         self.scopes = deque()
 
-    def walk_file(self):
-        for defin in self.src_file.definitions:
-            self.walk_definition(defin)
-
-            self.solver.solve()
-
-    # ---------------------------------------------------------------------------- #
-
     def walk_definition(self, defin: ASTNode):
         match defin:
             case FuncDef():
                 self.walk_func_def(defin)
 
+        self.solver.solve()
+
+    # ---------------------------------------------------------------------------- #
+
     def walk_func_def(self, fd: FuncDef):
-        expect_body = self.validate_func_annotations(fd.ident.name, fd.annots)
+        expect_body = self.validate_func_annotations(fd.symbol.name, fd.annots)
         
         if fd.body:
             if not expect_body:
-                self.error('function should not have body', fd.body.span)
+                self.error('function must not have body', fd.body.span)
 
-            self.push_scope(fd.ident.type)
+            self.push_scope(fd.type)
 
             for param in fd.params:
                 self.define_local(param)
 
             self.walk_expr(fd.body)
 
-            if not fd.type == PrimitiveType.NOTHING:
-                self.solver.assert_equiv(fd.type, fd.body.type, fd.body.span)
+            if not fd.type.rt_type == PrimitiveType.NOTHING:
+                self.solver.assert_equiv(fd.type.rt_type, fd.body.type, fd.body.span)
 
             self.pop_scope()
         elif expect_body:
@@ -74,8 +70,14 @@ class Walker:
 
                     expect_body = False
                 case 'intrinsic':
+                    if aval != '':
+                        self.error(
+                            '@intrinsic does not take an argument when applied to a function definition', 
+                            aspan
+                        )
+
                     if func_name not in self.INTRINSIC_FUNCS:
-                        self.error(f'no intrinsic function named {func_name}', aspan)
+                        self.error(f'no intrinsic function named `{func_name}`', aspan)
 
                     expect_body = False
                 case 'entry':
@@ -83,6 +85,53 @@ class Walker:
                         self.error('@entry does not take an argument', aspan)
 
         return expect_body
+
+    def walk_oper_def(self, od: OperDef):
+        expects_body = self.validate_oper_annotations(od.annots)
+
+        if od.body:
+            if not expects_body:
+                self.error('operator must not have a body')
+
+            self.push_scope(od.overload.signature)
+
+            for param in od.params:
+                self.define_local(param)
+
+            self.walk_expr(od.body)
+
+            if not od.type.rt_type == PrimitiveType.NOTHING:
+                self.solver.assert_equiv(od.type.rt_type, od.body.type, od.body.span)
+
+            self.pop_scope()
+        elif expects_body:
+            self.error('operator must have a body')
+
+    INTRINSIC_OPS = {
+        'iadd', 'fadd', 'isub', 'fsub', 'imul', 'fmul', 'sdiv', 'udiv', 'fdiv',
+        'smod', 'umod', 'fmod', 'lt', 'gt', 'lteq', 'gteq', 'land', 'lor', 'lnot',
+        'ineg', 'fned', 'band', 'eq', 'neq'
+    }
+
+    def validate_oper_annotations(self, annots: Annotations):
+        expects_body = True
+
+        for aname, (aval, aspan) in annots.items():
+            match aname:
+                case 'intrinsic':
+                    if aval == '':
+                        self.error(
+                            '@intrinsic requires an argument when applied to an operator definition', 
+                            aspan
+                        )
+                    
+                    if aval not in self.INTRINSIC_OPS:
+                        self.error(f'no intrinsic operator named `{aval}`', aspan)
+
+                    expects_body = False
+
+        return expects_body
+
 
     # ---------------------------------------------------------------------------- #
 

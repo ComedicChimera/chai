@@ -86,17 +86,17 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 1:
 
-- [ ] Function Definitions
-- [ ] Basic Annotations
-- [ ] Blocks and Variables
-- [ ] Function Calls
-- [ ] Bool, Int, Float, and Rune Literals
-- [ ] Graceful Shutdown
-- [ ] Naive Pointers
+- [x] Function Definitions
+- [x] Basic Annotations
+- [x] Blocks and Variables
+- [x] Function Calls
+- [x] Bool, Int, Float, and Rune Literals
+- [x] Graceful Shutdown
+- [x] Naive Pointers
 
 ### Target 2:
 
-- [ ] Operator Definitions
+- [x] Operator Definitions
 - [ ] Arithmetic Operators
 - [ ] Conditional and Logical Operators
 - [ ] If/Elif/Else
@@ -105,7 +105,11 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 3:
 
-Introduce debug information and include from here on.
+- [ ] LLVM Debug + Metadata Bindings
+- [ ] Add Debug v. Release compiler flag
+- [ ] Generate debug info for all constructs so far
+
+*Note:* Debug info will be included on all constructs from here on.
 
 ### Target 4:
 

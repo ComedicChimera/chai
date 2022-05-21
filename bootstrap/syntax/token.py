@@ -27,6 +27,8 @@ class Token:
 
         PACKAGE = auto()
         DEF = auto()
+        OPER = auto()
+
         LET = auto()
         IF = auto()
         ELIF = auto()
