@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from report import TextSpan
 from report.reporter import CompileError
-from depm import Symbol
+from depm import *
 from depm.source import SourceFile
 from syntax.ast import *
 from syntax.token import Token
@@ -28,11 +28,14 @@ class Walker:
         self.scopes = deque()
 
     def walk_definition(self, defin: ASTNode):
-        match defin:
-            case FuncDef():
-                self.walk_func_def(defin)
+        try:
+            match defin:
+                case FuncDef():
+                    self.walk_func_def(defin)
 
-        self.solver.solve()
+            self.solver.solve()
+        finally:
+            self.solver.reset()
 
     # ---------------------------------------------------------------------------- #
 
@@ -177,6 +180,35 @@ class Walker:
             case TypeCast(src, dest_type, span):
                 self.walk_expr(src)
                 self.solver.assert_cast(src.type, dest_type, span)
+            case BinaryOpApp(op_tok, _, lhs, rhs):
+                self.walk_expr(lhs)
+                self.walk_expr(rhs)
+
+                rt_type_var = self.solver.new_type_var(expr.span)
+                oper_func_type = FuncType([lhs.type, rhs.type], rt_type_var)
+
+                oper_var = self.solver.new_type_var(op_tok.span, op_tok.value)
+                self.solver.add_operator_overloads(
+                    oper_var, 
+                    expr,
+                    self.lookup_operator_overloads(op_tok, 2)
+                )
+                
+                self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
+            case UnaryOpApp(op_tok, _, operand):
+                self.walk_expr(operand)
+
+                rt_type_var = self.solver.new_type_var(expr.span)
+                oper_func_type = FuncType([operand.type], rt_type_var)
+
+                oper_var = self.solver.new_type_var(op_tok.span, op_tok.value)
+                self.solver.add_operator_overloads(
+                    oper_var,
+                    expr,
+                    self.lookup_operator_overloads(op_tok, 1)
+                )
+
+                self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
             case Indirect(elem, _):
                 self.walk_expr(elem)
             case Dereference(ptr, span):
@@ -195,7 +227,7 @@ class Walker:
                 self.solver.assert_equiv(func.type, func_type, span)
                 expr.rt_type = rt_type_var
             case Identifier(name, span):
-                expr.symbol, expr.local = self.lookup(name, span)
+                expr.symbol, expr.local = self.lookup_symbol(name, span)
             case Null():
                 expr.type = self.solver.new_type_var(expr.span)
             case Literal():
@@ -221,7 +253,7 @@ class Walker:
         match lit.kind:
             case Token.Kind.FLOATLIT:
                 float_var = self.solver.new_type_var(lit.span)
-                self.solver.add_literal_overloads(float_var, PrimitiveType.F64, PrimitiveType.F32)
+                self.solver.add_literal_overloads(float_var, [PrimitiveType.F64, PrimitiveType.F32])
 
                 lit.type = float_var
             case Token.Kind.NUMLIT:
@@ -230,7 +262,7 @@ class Walker:
                 num_types = prune_int_types_by_size(self.INT_TYPES, lit.value, 10)
                 num_types += [PrimitiveType.F64, PrimitiveType.F32]
 
-                self.solver.add_literal_overloads(num_var, *num_types)
+                self.solver.add_literal_overloads(num_var, num_types)
 
                 lit.type = num_var
             case Token.Kind.INTLIT:
@@ -252,18 +284,24 @@ class Walker:
                     lit.type = int_types[0]
                 else:
                     int_var = self.solver.new_type_var(lit.span)
-                    self.solver.add_literal_overloads(int_var, *int_types)
+                    self.solver.add_literal_overloads(int_var, int_types)
 
                     lit.type = int_var    
 
     # ---------------------------------------------------------------------------- #
 
-    def lookup(self, name: str, span: TextSpan) -> Tuple[Symbol, bool]:
+    def lookup_operator_overloads(self, op_token: Token, arity: int) -> List[OperatorOverload]:
+        if op := self.src_file.lookup_operator(op_token.kind, arity):
+            return op.overloads
+
+        self.error(f'no visible definitions for operator `{op_token.value}`', op_token.span)
+
+    def lookup_symbol(self, name: str, span: TextSpan) -> Tuple[Symbol, bool]:
         for scope in self.scopes:
             if sym := scope.symbols.get(name):
                 return sym, True
         
-        if sym := self.src_file.parent.symbol_table.get(name):
+        if sym := self.src_file.lookup_symbol(name):
             return sym, False
 
         self.error(f'undefined symbol: `{name}`', span)

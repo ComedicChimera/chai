@@ -2,11 +2,14 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
+from abc import ABC, abstractmethod
 
 from . import *
 from report import TextSpan
 from report.reporter import CompileError
+from depm import OperatorOverload
 from depm.source import SourceFile
+from syntax.ast import UnaryOpApp, BinaryOpApp
 
 @typedataclass
 class TypeVariable(Type):
@@ -56,8 +59,9 @@ class TypeVariable(Type):
 
         return self.display_name
 
-@dataclass
-class Substitution:
+# ---------------------------------------------------------------------------- #
+
+class Substitution(ABC):
     '''
     Represents the solver's "guess" for what type should be inferred for a given
     type variable.
@@ -76,6 +80,21 @@ class Substitution:
         selected).
     '''
 
+    @property
+    @abstractmethod
+    def type(self) -> Type:
+        pass
+
+    def finalize(self):
+        pass
+
+@dataclass
+class BasicSubstitution(Substitution):
+    '''
+    A general purpose substitution: used for all types which don't require
+    special substitution logic.
+    '''
+
     _type: Type
 
     @property
@@ -84,6 +103,24 @@ class Substitution:
 
     def finalize(self):
         pass
+
+OperatorAST = UnaryOpApp | BinaryOpApp
+
+@dataclass
+class OperatorSubstitution(Substitution):
+    '''A specialized kind of substitution for operator overloads.'''
+    
+    op_ast: OperatorAST
+    op_overload: OperatorOverload
+
+    @property
+    def type(self) -> Type:
+        return self.op_overload.signature
+
+    def finalize(self):
+        self.op_ast.overload = self.op_overload
+
+# ---------------------------------------------------------------------------- #
 
 @dataclass
 class OverloadSet:
@@ -235,7 +272,7 @@ class Solver:
         self.type_vars.append(tv)
         return tv
 
-    def add_literal_overloads(self, tv: TypeVariable, *overloads: Type):
+    def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
         '''
         Binds an overload set for a literal (ie. defaulting overload set)
         comprised of the given type overloads to the given type variable.
@@ -248,7 +285,29 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
-        self.global_ctx.overload_sets[tv.id] = OverloadSet([Substitution(typ) for typ in overloads], True)
+        self.global_ctx.overload_sets[tv.id] = OverloadSet(
+            [BasicSubstitution(typ) for typ in overloads], True
+        )
+
+    def add_operator_overloads(self, tv: TypeVariable, op_ast: OperatorAST, overloads: List[OperatorOverload]):
+        '''
+        Binds an overload set for an operator application comprised of the given
+        operator overloads to the given type variable.
+
+        Params
+        ------
+        tv: TypeVariable
+            The type variable to bind to.
+        op_ast: OperatorAST
+            The AST node of the operator application generating this overload
+            constraint.
+        *overloads: OperatorOverload
+            The list of operator overloads for the operator.
+        '''
+
+        self.global_ctx.overload_sets[tv.id] = OverloadSet(
+            [OperatorSubstitution(op_ast, overload) for overload in overloads], False
+        )
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -302,8 +361,7 @@ class Solver:
         '''
         Prompts the solver to make its final type deductions based on all the
         constraints it has been given -- this assumes that no more relevant
-        constraints will be provided.  If this succeeds, the solver is reset
-        (ie. primed for the next solution).
+        constraints will be provided.  This does NOT reset the solver.
         '''
 
         for tv in self.type_vars:
@@ -319,8 +377,6 @@ class Solver:
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
                 self.error(f'cannot cast {ca.src} to {ca.dest}', ca.span)
-
-        self.reset()
 
     def reset(self):
         '''Resets the solver to its default state.'''

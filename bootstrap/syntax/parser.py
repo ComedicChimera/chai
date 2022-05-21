@@ -177,6 +177,7 @@ class Parser:
         func_sym = Symbol(
             func_id.value, 
             self.src_file.parent.id, 
+            self.src_file.file_number,
             func_type, 
             Symbol.Kind.FUNC, 
             Symbol.Mutability.IMMUTABLE, 
@@ -218,6 +219,7 @@ class Parser:
                     params.append(Symbol(
                         ident.name,
                         self.src_file.parent.id,
+                        self.src_file.file_number,
                         param_type,
                         Symbol.Kind.VALUE,
                         Symbol.Mutability.NEVER_MUTATED,
@@ -337,6 +339,7 @@ class Parser:
 
         oper_overload = OperatorOverload(
             self.src_file.parent.id,
+            self.src_file.file_number,
             oper_type,
             op_span
         )
@@ -353,8 +356,8 @@ class Parser:
 
     def define_operator_overload(self, op_kind: Token.Kind, op_sym: str, overload: OperatorOverload, arity: int):
         '''
-        Attempts to defines an operator overload.  Fails if the operator
-        overload conflicts with another overload.
+        Defines an operator overload.  Does NOT check for conflicts.  That is
+        done by the resolver.
 
         Params
         ------
@@ -371,14 +374,6 @@ class Parser:
         if operators := self.src_file.parent.operator_table.get(op_kind):
             for operator in operators:
                 if operator.arity == arity:
-                    for defined_overload in operator.overloads:
-                        if overload.conflicts(defined_overload):
-                            self.error(
-                                f'operator definition for {op_sym} conflicts with another visible definition ' + 
-                                f'for the same operator: {overload.signature} v {defined_overload.signature}',
-                                overload.def_span
-                            )
-
                     operator.overloads.append(overload)
                     break
             else:
@@ -448,6 +443,7 @@ class Parser:
                 ident.symbol = Symbol(
                     ident.name,
                     self.src_file.parent.id,
+                    self.src_file.file_number,
                     typ,
                     Symbol.Kind.VALUE,
                     Symbol.Mutability.NEVER_MUTATED,
@@ -590,12 +586,16 @@ class Parser:
                 atom_expr = self.parse_atom_expr()
 
                 unary_expr = Dereference(atom_expr, TextSpan.over(tok.span, atom_expr.span))
+            case Token.Kind.NOT | Token.Kind.COMPL:
+                self.advance()
+
+                atom_expr = self.parse_atom_expr()
+
+                unary_expr = UnaryOpApp(tok, atom_expr, TextSpan.over(tok.span, atom_expr.span))
             case _:
                 unary_expr = self.parse_atom_expr()
 
         return unary_expr
-
-    
 
     # ---------------------------------------------------------------------------- #
 

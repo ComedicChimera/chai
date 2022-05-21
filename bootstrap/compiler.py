@@ -7,10 +7,12 @@ __all__ = [
 
 from dataclasses import dataclass
 import os
+from typing import Dict
 
 from syntax.parser import Parser
 from typecheck.walker import Walker
 from depm.source import Package, SourceFile
+from depm.resolver import Resolver
 from llvm import Context
 from generate import Generator
 from llvm.target import Target
@@ -48,6 +50,9 @@ class Compiler:
 
     # The reporter for the compiler.
     reporter: Reporter
+
+    # The package dependency graph.
+    dep_graph: Dict[int, Package]
     
     def __init__(self, root_dir: str, build_options: BuildOptions):
         '''
@@ -69,6 +74,8 @@ class Compiler:
             self.reporter.report_error('missing required environment variable `CHAI_PATH`', 'env')
             exit(1)
 
+        self.dep_graph = {}
+
     def compile(self) -> int:
         '''
         Runs the compiler with the configuration provided in the constructor.
@@ -82,14 +89,20 @@ class Compiler:
 
         # DEBUG Code
         root_dir = os.path.dirname(self.root_dir)
-        pkg = Package('test', root_dir)
-        src_file = SourceFile(pkg, self.root_dir)
+        pkg = Package(os.path.basename(root_dir), root_dir)
+        self.dep_graph[pkg.id] = pkg
+
+        src_file = SourceFile(pkg, len(pkg.files), self.root_dir)
         pkg.files.append(src_file)
 
         try:
             p = Parser(src_file)
             p.parse()
             
+            r = Resolver(self.reporter, self.dep_graph)
+            if not r.resolve():
+                return self.reporter.return_code
+
             w = Walker(src_file)
             for defin in src_file.definitions:
                 w.walk_definition(defin)
@@ -124,3 +137,5 @@ class Compiler:
             self.reporter.report_error(err_msg, 'config')
         except Exception as e:
             self.reporter.report_fatal_error(e)
+
+        return self.reporter.return_code

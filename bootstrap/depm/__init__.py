@@ -26,6 +26,8 @@ class Symbol:
         The symbol's name.
     parent_id: int
         The ID of the package the symbol is defined in.
+    file_number: int
+        The number identifying the file this symbol is defined in.
     type: Type
         The symbol's data type.
     kind: Kind
@@ -60,11 +62,11 @@ class Symbol:
 
     name: str
     parent_id: int
+    file_number: int
     type: Type
     kind: Kind
     mutability: Mutability
     def_span: TextSpan
-    intrinsic: bool = False
     used: bool = False
     ll_value: Optional[Value] = None
 
@@ -77,6 +79,8 @@ class OperatorOverload:
     ----------
     parent_id: int
         The ID of the parent package to this overload.
+    file_number: int
+        The number identifying the file this overload is defined in.
     signature: Type
         The signature of the operator overload.
     def_span: TextSpan
