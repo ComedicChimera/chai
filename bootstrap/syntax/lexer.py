@@ -62,6 +62,8 @@ SYMBOLS = {
     '*': Token.Kind.STAR,
     '/': Token.Kind.DIV,
     '%': Token.Kind.MOD,
+    '**': Token.Kind.POWER,
+
     '<': Token.Kind.LT,
     '>': Token.Kind.GT,
     '<=': Token.Kind.LTEQ,
@@ -69,11 +71,17 @@ SYMBOLS = {
     '==': Token.Kind.EQ,
     '!=': Token.Kind.NEQ,
 
+    '<<': Token.Kind.LSHIFT,
+    '>>': Token.Kind.RSHIFT,
+    '~': Token.Kind.COMPL,
+
+    '&': Token.Kind.AMP,
+    '|': Token.Kind.PIPE,
+    '^': Token.Kind.CARRET,
+
     '&&': Token.Kind.AND,
     '||': Token.Kind.OR,
     '!': Token.Kind.NOT,
-
-    '&': Token.Kind.AMP,
 
     '=': Token.Kind.ASSIGN,
     '++': Token.Kind.INCREMENT,

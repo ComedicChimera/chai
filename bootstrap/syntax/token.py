@@ -56,6 +56,8 @@ class Token:
         STAR = auto()
         DIV = auto()
         MOD = auto()
+        POWER = auto()
+
         LT = auto()
         LTEQ = auto()
         GT = auto()
@@ -63,11 +65,17 @@ class Token:
         EQ = auto()
         NEQ = auto()
 
+        LSHIFT = auto()
+        RSHIFT = auto()
+        COMPL = auto()
+
+        AMP = auto()
+        PIPE = auto()
+        CARRET = auto()
+
         AND = auto()
         OR = auto()
         NOT = auto()
-
-        AMP = auto()
 
         ASSIGN = auto()
         INCREMENT = auto()

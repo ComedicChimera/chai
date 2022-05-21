@@ -110,7 +110,7 @@ class Walker:
     INTRINSIC_OPS = {
         'iadd', 'fadd', 'isub', 'fsub', 'imul', 'fmul', 'sdiv', 'udiv', 'fdiv',
         'smod', 'umod', 'fmod', 'lt', 'gt', 'lteq', 'gteq', 'land', 'lor', 'lnot',
-        'ineg', 'fned', 'band', 'eq', 'neq'
+        'ineg', 'fned', 'band', 'bor', 'bxor', 'eq', 'neq', 'shl', 'shr', 'compl'
     }
 
     def validate_oper_annotations(self, annots: Annotations):

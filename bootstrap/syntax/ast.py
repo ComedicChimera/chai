@@ -20,6 +20,8 @@ __all__ = [
     'VarList',
     'VarDecl',
     'TypeCast',
+    'BinaryOpApp',
+    'UnaryOpApp',
     'Indirect',
     'Dereference',
     'FuncCall',
@@ -213,6 +215,74 @@ class TypeCast(ASTNode):
         return self.src_expr.category
 
 @dataclass
+class BinaryOpApp(ASTNode):
+    '''
+    The AST node representing a binary operator application.
+
+    Attributes
+    ----------
+    op_token: Token
+        The operator token.
+    lhs: ASTNode
+        The LHS operand.
+    rhs: ASTNode
+        The RHS operand.
+    rt_type: Type
+        The yielded type of the operation.
+    overload: Optional[OperatorOverload]
+        The binary operator overload corresponding to the application.  This is
+        `None` until it is determined by the Walker.
+    '''
+
+    __match_args__ = ('op_token', 'overload', 'lhs', 'rhs', 'rt_type')
+
+    op_token: Token
+    lhs: ASTNode
+    rhs: ASTNode
+
+    rt_type: Type = PrimitiveType.NOTHING
+    overload: Optional[OperatorOverload] = None
+
+    def type(self) -> Type:
+        return self.rt_type
+
+    def span(self) -> TextSpan:
+        return TextSpan.over(self.lhs.span, self.rhs.span)
+
+@dataclass
+class UnaryOpApp(ASTNode):
+    '''
+    The AST node representing a unary operator application.
+
+    Attributes
+    ----------
+    op_token: Token
+        The operator token.
+    operand: ASTNode
+        The operand of the application.
+    rt_type: Type
+        The yielded type of the operation.
+    overload: Optional[OperatorOverload]
+        The unary operator overload corresponding to the application.  This is
+        `None` until it is determined by the Walker.
+    '''
+
+    __match_args__ = ('op_token', 'overload', 'operand', 'rt_type')
+
+    op_token: Token
+    operand: ASTNode
+    _span: TextSpan
+    
+    rt_type: Type = PrimitiveType.NOTHING
+    overload: Optional[OperatorOverload] = None
+
+    def type(self) -> Type:
+        return self.rt_type
+
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
 class Indirect(ASTNode):
     '''
     The AST node representing an indirection operation.
@@ -281,8 +351,6 @@ class FuncCall(ASTNode):
     args: List[ASTNode]
         The arguments to pass to the function.
     '''
-
-    __match_args__ = ('func', 'args', '_span')
 
     func: ASTNode
     args: List[ASTNode]

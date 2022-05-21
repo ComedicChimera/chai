@@ -1,3 +1,4 @@
+from re import L
 from typing import List, Optional, Tuple
 
 from report import TextSpan
@@ -475,11 +476,11 @@ class Parser:
 
     def parse_expr(self) -> ASTNode:
         '''
-        expr := unary_expr [expr_suffix] ;
+        expr := or_expr [expr_suffix] ;
         expr_suffix := 'as' type_label ;
         '''
 
-        expr = self.parse_unary_expr()
+        expr = self.parse_binary_expr(0)
 
         if self.has(Token.Kind.AS, False):
             self.advance()
@@ -490,9 +491,90 @@ class Parser:
         else:
             return expr
 
+    # The table of binary operators ordered by precedence: lowest to highest.
+    PRED_TABLE = [
+        {Token.Kind.OR, Token.Kind.PIPE},
+        {Token.Kind.XOR},
+        {Token.Kind.AND, Token.Kind.AMP},
+        {Token.Kind.LT, Token.Kind.GT, Token.Kind.LTEQ, Token.Kind.GTEQ, Token.Kind.EQ, Token.Kind.NEQ},
+        {Token.Kind.LSHIFT, Token.Kind.RSHIFT},
+        {Token.Kind.PLUS, Token.Kind.MINUS},
+        {Token.Kind.STAR, Token.Kind.DIV, Token.Kind.MOD},
+        {Token.Kind.POWER}
+    ]
+
+    # The precedence level for comparison operators.
+    COMP_PRED_LEVEL = 3
+
+    def parse_binary_expr(self, pred_level: int) -> ASTNode:
+        '''
+        Parses one of the given binary expressions based on the precedence
+        level. This function essentially handles all the logic common to all
+        binary operators.
+
+        Params
+        ------
+        pred_level: int
+            The precedence level of the expression being parsed: 0 is lowest
+            precedence.
+
+        or_expr := xor_expr {('||' | '|') xor_expr} ;
+        xor_expr := and_expr {'^' and_expr} ;
+        and_expr := comp_expr {('&&' | '&') comp_expr} ;
+        comp_expr := shift_expr {('==' | '!=' | '>' | '<' | '>=' | '<=') shift_expr} ;
+        shift_expr := arith_expr {('<<' | '>>') arith_expr} ;
+        arith_expr := term {('+' | '-') term} ;
+        term := factor {('*' | '/' | '%') factor} ;
+        factor := unary_expr {'**' unary_expr} ;
+        '''
+
+        if pred_level == len(self.PRED_TABLE):
+            return self.parse_unary_expr()
+        elif pred_level == self.COMP_PRED_LEVEL:
+            return self.parse_multi_comparison()
+
+        lhs = self.parse_binary_expr(pred_level + 1)
+
+        while (op_tok := self.tok().kind) in self.PRED_TABLE[pred_level]:
+            self.advance()
+
+            rhs = self.parse_binary_expr(pred_level + 1)
+
+            lhs = BinaryOpApp(op_tok, lhs, rhs)
+
+        return lhs
+        
+    def parse_multi_comparison(self) -> ASTNode:
+        '''
+        Parses a multi-operator comparison (eg. `a < b < c`).  This is
+        essentially just a binary operator parser that generates its tree
+        differently.
+        '''
+
+        lhs = self.parse_binary_expr(self.COMP_PRED_LEVEL + 1)
+        prev_operand = None
+
+        while (op_tok := self.tok().kind) in self.PRED_TABLE[self.COMP_PRED_LEVEL]:
+            self.advance()
+
+            rhs = self.parse_binary_expr(self.COMP_PRED_LEVEL + 1)
+
+            if prev_operand:
+                rhs = BinaryOpApp(op_tok, prev_operand, rhs)
+                lhs = BinaryOpApp(
+                    Token(Token.Kind.AND, '&&', TextSpan.over(lhs.span, rhs.span)),
+                    lhs, rhs
+                )
+            else:
+                lhs = BinaryOpApp(op_tok, lhs, rhs)
+
+            prev_operand = rhs
+
+        return lhs
+
     def parse_unary_expr(self) -> ASTNode:
         '''
-        unary_expr := ['&' | '*'] atom_expr ;
+        unary_expr := ['&' | '*' | '!' | '~'] atom_expr ;
         '''
 
         match (tok := self.tok()).kind:
@@ -512,6 +594,10 @@ class Parser:
                 unary_expr = self.parse_atom_expr()
 
         return unary_expr
+
+    
+
+    # ---------------------------------------------------------------------------- #
 
     def parse_atom_expr(self) -> ASTNode:
         '''
