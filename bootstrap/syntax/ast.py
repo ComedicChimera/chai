@@ -1,7 +1,7 @@
 '''Provides the definitions of Chai's abstract syntax tree.'''
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Optional, Dict, Tuple
 
@@ -19,6 +19,8 @@ __all__ = [
     'Block',
     'VarList',
     'VarDecl',
+    'Assignment',
+    'IncDecStmt',
     'TypeCast',
     'BinaryOpApp',
     'UnaryOpApp',
@@ -183,6 +185,64 @@ class VarDecl(ASTNode):
     def span(self) -> TextSpan:
         return self._span
 
+@dataclass
+class Assignment(ASTNode):
+    '''
+    The AST node representing an assignment operation.
+
+    Attributes
+    ----------
+    lhs_exprs: List[ASTNode]
+        The expressions being assigned to.
+    rhs_exprs: List[ASTNode]
+        The values being assigned.
+    compound_op_token: Optional[Token]
+        The compound operator token (if it exists).
+    compound_op_overload: List[OperatorOverload]
+        The list of compound operator overloads (for each LHS-RHS pair).
+    '''
+
+    lhs_exprs: List[ASTNode]
+    rhs_exprs: List[ASTNode]
+
+    compound_op_token: Optional[Token] = None
+    compound_op_overloads: List[OperatorOverload] = field(default_factory=list)
+
+    @property
+    def type(self) -> Type:
+        return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return TextSpan.over(self.lhs_exprs[0].span, self.rhs_exprs[-1].span)
+
+@dataclass
+class IncDecStmt:
+    '''
+    The AST node representing an increment or a decrement statement.
+
+    Attributes
+    ----------
+    lhs_operand: ASTNode
+        The value being incremented or decremented.
+    op_token: Token
+        The increment/decrement token.
+    overload: Optional[OperatorOverload] = None
+        The corresponding `+`/`-` operator overload.
+    '''
+
+    lhs_operand: ASTNode
+    op_token: Token
+    overload: Optional[OperatorOverload] = None
+
+    @property
+    def type(self) -> Type:
+        return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return TextSpan.over(self.lhs_operand.span, self.op_token.span)
+
 # ---------------------------------------------------------------------------- #
 
 @dataclass
@@ -319,6 +379,8 @@ class Dereference(ASTNode):
     ----------
     ptr: ASTNode
         The pointer being dereferenced.
+    elem_type: Type
+        The element type of the pointer.
     '''
 
     __match_args__ = ('ptr', '_span')

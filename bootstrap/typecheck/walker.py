@@ -145,6 +145,10 @@ class Walker:
         match stmt:
             case VarDecl():
                 self.walk_var_decl(stmt)
+            case Assignment():
+                self.walk_assignment(stmt)
+            case IncDecStmt():
+                self.walk_inc_dec_stmt(stmt)
             case _:
                 self.walk_expr(stmt)
 
@@ -168,6 +172,36 @@ class Walker:
 
             for sym in var_list.symbols:
                 self.define_local(sym)
+
+    def walk_assignment(self, assign: Assignment):
+        if len(assign.lhs_exprs) == len(assign.rhs_exprs):
+            if assign.compound_op_token:
+                cpd_op_overloads = self.lookup_operator_overloads(assign.compound_op_token, 2)
+            else:
+                cpd_op_overloads = None
+
+            for lhs_expr, rhs_expr in zip(assign.lhs_exprs, assign.rhs_exprs):
+                self.walk_expr(lhs_expr)
+                self.walk_expr(rhs_expr)
+
+                if lhs_expr.category != ValueCategory.LVALUE:
+                    self.error('cannot mutate an R-value', lhs_expr.span)
+
+                self.assert_mutable(lhs_expr)
+
+                if cpd_op_overloads:
+                    pass
+                else:
+                    self.solver.assert_equiv(lhs_expr.type, rhs_expr.type, rhs_expr.span)
+        else:
+            # TODO pattern matching
+            raise NotImplementedError()
+
+    def walk_inc_dec_stmt(self, incdec: IncDecStmt):
+        pass
+
+    def assert_mutable(self, lhs_expr: ASTNode):
+        pass
 
     # ---------------------------------------------------------------------------- #
 

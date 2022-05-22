@@ -100,9 +100,10 @@ perfectly up to date but should help to give some idea of where we are.
 - [x] Arithmetic Operators
 - [x] Bitwise Operators
 - [x] Conditional and Logical Operators
+- [ ] Assignment
 - [ ] If/Elif/Else
 - [ ] While Loops
-- [ ] Assignment
+- [ ] Break, Continue, and Return
 
 ### Target 3:
 
