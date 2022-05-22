@@ -274,22 +274,29 @@ class Parser:
         Token.Kind.STAR: 2,
         Token.Kind.DIV: 2,
         Token.Kind.MOD: 2,
+        Token.Kind.POWER: 2,
+        Token.Kind.EQ: 2,
+        Token.Kind.NEQ: 2,
         Token.Kind.LT: 2,
         Token.Kind.GT: 2,
         Token.Kind.LTEQ: 2,
         Token.Kind.GTEQ: 2,
-        Token.Kind.EQ: 2,
-        Token.Kind.NEQ: 2,
         Token.Kind.AMP: 2,
+        Token.Kind.PIPE: 2,
+        Token.Kind.CARRET: 2,
+        Token.Kind.LSHIFT: 2,
+        Token.Kind.RSHIFT: 2,
         Token.Kind.AND: 2,
         Token.Kind.OR: 2,
         Token.Kind.NOT: 1,
+        Token.Kind.COMPL: 1
     }
 
     def parse_oper_def(self, annots: Annotations) -> ASTNode:
         '''
         oper_def = 'oper' '(' operator ')' '(' func_params ')' [type_label] 'func_body' ;
-        operator = '+' | '-' | '*' | '/' | '%' | '<' | '>' | '<=' | '>=' | '&' ;
+        operator = '+' | '-' | '*' | '/' | '%' | '**' | '==' | '!=' | '<' | '>' | '<='
+            | '>=' | '&' | '|' | '^' | '<<' | '>>' | '&&' | '||' | '!' | '~' ;
         '''
 
         start_span = self.want(Token.Kind.OPER).span
@@ -570,7 +577,7 @@ class Parser:
 
     def parse_unary_expr(self) -> ASTNode:
         '''
-        unary_expr := ['&' | '*' | '!' | '~'] atom_expr ;
+        unary_expr := ['&' | '*' | '-' | '!' | '~'] atom_expr ;
         '''
 
         match (tok := self.tok()).kind:
@@ -586,7 +593,7 @@ class Parser:
                 atom_expr = self.parse_atom_expr()
 
                 unary_expr = Dereference(atom_expr, TextSpan.over(tok.span, atom_expr.span))
-            case Token.Kind.NOT | Token.Kind.COMPL:
+            case Token.Kind.NOT | Token.Kind.COMPL | Token.Kind.MINUS:
                 self.advance()
 
                 atom_expr = self.parse_atom_expr()

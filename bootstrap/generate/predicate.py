@@ -220,6 +220,7 @@ class PredicateGenerator:
                 or_result.incoming.add(ir.PHIIncoming(rhs, false_block))
                 
                 return or_result
+
         rhs = self.generate_expr(bop.rhs)
         if not rhs:
             rhs = self.nothing_value
@@ -298,6 +299,25 @@ class PredicateGenerator:
                 oper_call = self.irb.build_call(bop.overload.ll_value, lhs, rhs)
 
                 if is_nothing(bop.rt_type):
+                    return None
+
+                return oper_call
+
+    def generate_unary_op_app(self, uop: UnaryOpApp) -> Optional[llvalue.Value]:
+        operand = self.generate_expr(uop.operand)
+
+        match uop.overload.intrinsic_name:
+            case 'ineg':
+                return self.irb.build_neg(operand)
+            case 'fneg':
+                return self.irb.build_fneg(operand)
+            case 'compl' | 'not':
+                return self.irb.build_not(operand)
+            case _:
+                # Not an intrinsic operator
+                oper_call = self.irb.build_call(uop.overload.ll_value, operand)
+                
+                if is_nothing(uop.rt_type):
                     return None
 
                 return oper_call

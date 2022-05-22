@@ -198,6 +198,7 @@ class Walker:
                 )
                 
                 self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
+                expr.rt_type = rt_type_var
             case UnaryOpApp(op_tok, _, operand):
                 self.walk_expr(operand)
 
@@ -212,6 +213,7 @@ class Walker:
                 )
 
                 self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
+                expr.rt_type = rt_type_var
             case Indirect(elem, _):
                 self.walk_expr(elem)
             case Dereference(ptr, span):

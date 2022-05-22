@@ -97,8 +97,9 @@ perfectly up to date but should help to give some idea of where we are.
 ### Target 2:
 
 - [x] Operator Definitions
-- [ ] Arithmetic Operators
-- [ ] Conditional and Logical Operators
+- [x] Arithmetic Operators
+- [x] Bitwise Operators
+- [x] Conditional and Logical Operators
 - [ ] If/Elif/Else
 - [ ] While Loops
 - [ ] Assignment
