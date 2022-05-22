@@ -468,6 +468,7 @@ class Parser:
 
         return VarDecl(var_lists, TextSpan.over(start_pos, self.behind.span))
 
+    # The set of valid compound assignment operators.
     COMPOUND_ASSIGN_OPS = {
         Token.Kind.PLUS, Token.Kind.MINUS, Token.Kind.STAR, Token.Kind.DIV,
         Token.Kind.MOD, Token.Kind.POWER, Token.Kind.AMP, Token.Kind.PIPE,
@@ -499,30 +500,33 @@ class Parser:
             self.advance()
 
             lhs_exprs.append(parse_lhs_expr())
-
-        if self.has(Token.Kind.NEWLINE):
-            if len(lhs_exprs) > 1:
-                self.reject()
-
-            return lhs_exprs[0]
-
+        
         next_op_tok = self.tok(False)
+
         if next_op_tok.kind in self.COMPOUND_ASSIGN_OPS:
             self.advance()
             compound_op_tok = next_op_tok
+        elif next_op_tok.kind == Token.Kind.ASSIGN:
+            compound_op_tok = None  
         elif len(lhs_exprs) == 1:
             if next_op_tok.kind in {Token.Kind.INCREMENT, Token.Kind.DECREMENT}:
                 self.advance()
 
                 return IncDecStmt(lhs_exprs[0], next_op_tok)
+            else:
+                return lhs_exprs[0]
         else:
-            compound_op_tok = None
+            self.reject()    
 
         self.want(Token.Kind.ASSIGN)
 
         rhs_exprs = self.parse_expr_list()
 
-        return Assignment(lhs_exprs, rhs_exprs, compound_op_tok)
+        return Assignment(
+            lhs_exprs, 
+            rhs_exprs, 
+            [AppliedOperator(compound_op_tok) for _ in lhs_exprs] if compound_op_tok else []
+        )
 
     # ---------------------------------------------------------------------------- #
 
@@ -612,9 +616,9 @@ class Parser:
             rhs = self.parse_binary_expr(self.COMP_PRED_LEVEL + 1)
 
             if prev_operand:
-                rhs = BinaryOpApp(op_tok, prev_operand, rhs)
+                rhs = BinaryOpApp(AppliedOperator(op_tok), prev_operand, rhs)
                 lhs = BinaryOpApp(
-                    Token(Token.Kind.AND, '&&', TextSpan.over(lhs.span, rhs.span)),
+                    AppliedOperator(Token(Token.Kind.AND, '&&', TextSpan.over(lhs.span, rhs.span))),
                     lhs, rhs
                 )
             else:
@@ -647,7 +651,7 @@ class Parser:
 
                 atom_expr = self.parse_atom_expr()
 
-                unary_expr = UnaryOpApp(tok, atom_expr, TextSpan.over(tok.span, atom_expr.span))
+                unary_expr = UnaryOpApp(AppliedOperator(tok), atom_expr, TextSpan.over(tok.span, atom_expr.span))
             case _:
                 unary_expr = self.parse_atom_expr()
 

@@ -13,6 +13,7 @@ from .token import Token
 __all__ = [
     'ValueCategory',
     'ASTNode',
+    'AppliedOperator'
     'Annotations',
     'FuncDef',
     'OperDef',
@@ -53,6 +54,23 @@ class ASTNode(ABC):
     @property
     def category(self) -> ValueCategory:
         return ValueCategory.RVALUE
+
+@dataclass
+class AppliedOperator:
+    '''
+    A utility structure representing a specific application of an operator.
+
+    Attributes
+    ----------
+    token: Token
+        The operator token corresponding to this application.
+    overload: Optional[OperatorOverload]
+        The determined operator overload corresponding to this application: this
+        is `None` until it is deduced by the solver.
+    '''
+
+    token: Token
+    overload: Optional[OperatorOverload] = None
 
 # ---------------------------------------------------------------------------- #
 
@@ -196,17 +214,14 @@ class Assignment(ASTNode):
         The expressions being assigned to.
     rhs_exprs: List[ASTNode]
         The values being assigned.
-    compound_op_token: Optional[Token]
-        The compound operator token (if it exists).
-    compound_op_overload: List[OperatorOverload]
-        The list of compound operator overloads (for each LHS-RHS pair).
+    compound_ops: List[AppliedOperator]
+        The list of applied compound operators corresponding to each LHS-RHS
+        pair.  This list is empty if there are no compound operators.
     '''
 
     lhs_exprs: List[ASTNode]
     rhs_exprs: List[ASTNode]
-
-    compound_op_token: Optional[Token] = None
-    compound_op_overloads: List[OperatorOverload] = field(default_factory=list)
+    compound_ops: List[AppliedOperator]
 
     @property
     def type(self) -> Type:
@@ -217,7 +232,7 @@ class Assignment(ASTNode):
         return TextSpan.over(self.lhs_exprs[0].span, self.rhs_exprs[-1].span)
 
 @dataclass
-class IncDecStmt:
+class IncDecStmt(ASTNode):
     '''
     The AST node representing an increment or a decrement statement.
 
@@ -225,15 +240,12 @@ class IncDecStmt:
     ----------
     lhs_operand: ASTNode
         The value being incremented or decremented.
-    op_token: Token
-        The increment/decrement token.
-    overload: Optional[OperatorOverload] = None
-        The corresponding `+`/`-` operator overload.
+    op: AppliedOperator
+        The applied `+`/`-` operator.
     '''
 
     lhs_operand: ASTNode
-    op_token: Token
-    overload: Optional[OperatorOverload] = None
+    op: AppliedOperator
 
     @property
     def type(self) -> Type:
@@ -241,7 +253,7 @@ class IncDecStmt:
 
     @property
     def span(self) -> TextSpan:
-        return TextSpan.over(self.lhs_operand.span, self.op_token.span)
+        return TextSpan.over(self.lhs_operand.span, self.op.token.span)
 
 # ---------------------------------------------------------------------------- #
 
@@ -281,27 +293,21 @@ class BinaryOpApp(ASTNode):
 
     Attributes
     ----------
-    op_token: Token
-        The operator token.
+    op: AppliedOperator
+        The applied binary operator.
     lhs: ASTNode
         The LHS operand.
     rhs: ASTNode
         The RHS operand.
     rt_type: Type
         The yielded type of the operation.
-    overload: Optional[OperatorOverload]
-        The binary operator overload corresponding to the application.  This is
-        `None` until it is determined by the Walker.
     '''
 
-    __match_args__ = ('op_token', 'overload', 'lhs', 'rhs', 'rt_type')
-
-    op_token: Token
+    op: AppliedOperator
     lhs: ASTNode
     rhs: ASTNode
 
     rt_type: Type = PrimitiveType.NOTHING
-    overload: Optional[OperatorOverload] = None
 
     def type(self) -> Type:
         return self.rt_type
@@ -316,8 +322,8 @@ class UnaryOpApp(ASTNode):
 
     Attributes
     ----------
-    op_token: Token
-        The operator token.
+    op: AppliedOperator
+        The applied unary operator.
     operand: ASTNode
         The operand of the application.
     rt_type: Type
@@ -327,14 +333,11 @@ class UnaryOpApp(ASTNode):
         `None` until it is determined by the Walker.
     '''
 
-    __match_args__ = ('op_token', 'overload', 'operand', 'rt_type')
-
-    op_token: Token
+    op: AppliedOperator
     operand: ASTNode
     _span: TextSpan
     
     rt_type: Type = PrimitiveType.NOTHING
-    overload: Optional[OperatorOverload] = None
 
     def type(self) -> Type:
         return self.rt_type

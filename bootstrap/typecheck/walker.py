@@ -175,30 +175,47 @@ class Walker:
 
     def walk_assignment(self, assign: Assignment):
         if len(assign.lhs_exprs) == len(assign.rhs_exprs):
-            if assign.compound_op_token:
-                cpd_op_overloads = self.lookup_operator_overloads(assign.compound_op_token, 2)
+            if len(assign.compound_ops):
+                cpd_op_overloads = self.lookup_operator_overloads(assign.compound_ops[0].token, 2)
             else:
                 cpd_op_overloads = None
 
-            for lhs_expr, rhs_expr in zip(assign.lhs_exprs, assign.rhs_exprs):
-                self.walk_expr(lhs_expr)
-                self.walk_expr(rhs_expr)
+            for i, (lhs, rhs) in enumerate(zip(assign.lhs_exprs, assign.rhs_exprs)):
+                self.walk_expr(lhs)
+                self.walk_expr(rhs)
 
-                if lhs_expr.category != ValueCategory.LVALUE:
-                    self.error('cannot mutate an R-value', lhs_expr.span)
+                if lhs.category != ValueCategory.LVALUE:
+                    self.error('cannot mutate an R-value', lhs.span)
 
-                self.assert_mutable(lhs_expr)
+                self.assert_mutable(lhs)
 
                 if cpd_op_overloads:
-                    pass
+                    rhs_rt_type = self.check_oper_app(
+                        assign.compound_ops[i], 
+                        cpd_op_overloads, 
+                        rhs.span, lhs, rhs
+                    )
+                    self.solver.assert_equiv(lhs.type, rhs_rt_type, rhs.span)
                 else:
-                    self.solver.assert_equiv(lhs_expr.type, rhs_expr.type, rhs_expr.span)
+                    self.solver.assert_equiv(lhs.type, rhs.type, rhs.span)                    
         else:
             # TODO pattern matching
             raise NotImplementedError()
 
     def walk_inc_dec_stmt(self, incdec: IncDecStmt):
-        pass
+        int_type_var = self.solver.new_type_var(incdec.op.token.span)
+        self.solver.add_literal_overloads(int_type_var, self.INT_TYPES)
+
+        overloads = self.lookup_operator_overloads(incdec.op, 2)
+
+        rhs_rt_type = self.check_oper_app(
+            incdec.op, 
+            overloads, 
+            incdec.lhs_operand,
+            Literal(Token.Kind.INTLIT, '', incdec.op.token.span, int_type_var)
+        )
+
+        self.solver.assert_equiv(incdec.lhs_operand.type, rhs_rt_type)
 
     def assert_mutable(self, lhs_expr: ASTNode):
         pass
@@ -216,44 +233,28 @@ class Walker:
                 self.pop_scope()
             case TypeCast(src, dest_type, span):
                 self.walk_expr(src)
+
                 self.solver.assert_cast(src.type, dest_type, span)
-            case BinaryOpApp(op_tok, _, lhs, rhs):
+            case BinaryOpApp(op, _, lhs, rhs):
                 self.walk_expr(lhs)
                 self.walk_expr(rhs)
 
-                rt_type_var = self.solver.new_type_var(expr.span)
-                oper_func_type = FuncType([lhs.type, rhs.type], rt_type_var)
+                overloads = self.lookup_operator_overloads(op.token, 2)
 
-                oper_var = self.solver.new_type_var(op_tok.span, op_tok.value)
-                self.solver.add_operator_overloads(
-                    oper_var, 
-                    expr,
-                    self.lookup_operator_overloads(op_tok, 2)
-                )
-                
-                self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
-                expr.rt_type = rt_type_var
-            case UnaryOpApp(op_tok, _, operand):
+                expr.rt_type = self.check_oper_app(op, overloads, expr.span, lhs, rhs)
+            case UnaryOpApp(op, _, operand):
                 self.walk_expr(operand)
 
-                rt_type_var = self.solver.new_type_var(expr.span)
-                oper_func_type = FuncType([operand.type], rt_type_var)
+                overloads = self.lookup_operator_overloads(op.token, 1)
 
-                oper_var = self.solver.new_type_var(op_tok.span, op_tok.value)
-                self.solver.add_operator_overloads(
-                    oper_var,
-                    expr,
-                    self.lookup_operator_overloads(op_tok, 1)
-                )
-
-                self.solver.assert_equiv(oper_var, oper_func_type, expr.span)
-                expr.rt_type = rt_type_var
+                expr.rt_type = self.check_oper_app(op, overloads, expr.span, operand)
             case Indirect(elem, _):
                 self.walk_expr(elem)
             case Dereference(ptr, span):
                 self.walk_expr(ptr)
+
                 elem_type_var = self.solver.new_type_var(span)
-                self.solver.assert_equiv(ptr.type, PointerType(elem_type_var), span)
+                self.solver.assert_equiv(ptr.type, PointerType(elem_type_var), span)         
                 expr.elem_type = elem_type_var
             case FuncCall(func, args, span):
                 self.walk_expr(func)
@@ -271,6 +272,27 @@ class Walker:
                 expr.type = self.solver.new_type_var(expr.span)
             case Literal():
                 self.walk_literal(expr)
+
+    def check_oper_app(
+        self, 
+        op: AppliedOperator, 
+        overloads: List[OperatorOverload], 
+        span: TextSpan,
+        *operands: ASTNode, 
+    ) -> Type:
+
+        rt_type_var = self.solver.new_type_var(span)
+        oper_func_type = FuncType([operand.type for operand in operands], rt_type_var)
+
+        oper_var = self.solver.new_type_var(op.token.span, op.token.value)
+        self.solver.add_operator_overloads(
+            oper_var,
+            op,
+            overloads
+        )
+
+        self.solver.assert_equiv(oper_var, oper_func_type, span)
+        return rt_type_var
     
     INT_TYPES = [
         PrimitiveType.I64,

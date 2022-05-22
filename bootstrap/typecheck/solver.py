@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
 
+from bootstrap.syntax.ast import AppliedOperator
+
 from . import *
 from report import TextSpan
 from report.reporter import CompileError
@@ -104,21 +106,29 @@ class BasicSubstitution(Substitution):
     def finalize(self):
         pass
 
-OperatorAST = UnaryOpApp | BinaryOpApp
-
 @dataclass
 class OperatorSubstitution(Substitution):
-    '''A specialized kind of substitution for operator overloads.'''
+    '''
+    A specialized kind of substitution for operator overloads.
     
-    op_ast: OperatorAST
-    op_overload: OperatorOverload
+    Attributes
+    ----------
+    op: AppliedOperator
+        The applied operator generating this substitution. This is where the
+        determined overload is stored.
+    overload: OperatorOverload
+        The operator overload associated with this substitution.
+    '''
+    
+    op: AppliedOperator
+    overload: OperatorOverload
 
     @property
     def type(self) -> Type:
-        return self.op_overload.signature
+        return self.overload.signature
 
     def finalize(self):
-        self.op_ast.overload = self.op_overload
+        self.op.overload = self.overload
 
 # ---------------------------------------------------------------------------- #
 
@@ -289,7 +299,7 @@ class Solver:
             [BasicSubstitution(typ) for typ in overloads], True
         )
 
-    def add_operator_overloads(self, tv: TypeVariable, op_ast: OperatorAST, overloads: List[OperatorOverload]):
+    def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
         Binds an overload set for an operator application comprised of the given
         operator overloads to the given type variable.
@@ -306,7 +316,7 @@ class Solver:
         '''
 
         self.global_ctx.overload_sets[tv.id] = OverloadSet(
-            [OperatorSubstitution(op_ast, overload) for overload in overloads], False
+            [OperatorSubstitution(op, overload) for overload in overloads], False
         )
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
