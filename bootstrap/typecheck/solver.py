@@ -401,7 +401,10 @@ class Solver:
     def unify(self, lhs: Type, rhs: Type) -> bool:
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
-                return lhs_id == rhs_id
+                if lhs_id == rhs_id:
+                    return True
+
+                return self.unify_type_var(lhs_id, rhs)
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):

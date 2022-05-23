@@ -157,7 +157,18 @@ class PredicateGenerator:
             raise NotImplementedError()
 
     def generate_incdec(self, incdec: IncDecStmt):
-        lhs = self.generate_lhs_expr(incdec)
+        lhs_ptr = self.generate_lhs_expr(incdec)
+        lhs_ll_type = conv_type(incdec.lhs_operand.type)
+        lhs_value = self.irb.build_load(lhs_ll_type, lhs_ptr)
+        one_value = llvalue.Constant.Int(lltypes.IntegerType.from_type(lhs_ll_type), 1)
+
+        rhs_value = self.generate_binary_op_app(BinaryOpApp(
+            incdec.op, 
+            LLVMValueNode(lhs_value, incdec.lhs_operand.type, incdec.span),
+            LLVMValueNode(one_value, incdec.lhs_operand.type, incdec.span)
+        ))
+
+        self.irb.build_store(rhs_value, lhs_ptr)
 
     def generate_lhs_expr(self, lhs_expr: ASTNode) -> llvalue.Value:
         match lhs_expr:

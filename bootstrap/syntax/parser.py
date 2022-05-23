@@ -425,12 +425,17 @@ class Parser:
 
     def parse_var_decl(self) -> ASTNode:
         '''
-        var_decl := 'let' var_list {',' var_list} ;
+        var_decl := ('let' | 'const') var_list {',' var_list} ;
         var_list := id_list (type_ext [initializer] | initializer) ;
         '''
 
         start_pos = self.tok().span
-        self.want(Token.Kind.LET)
+        if self.has(Token.Kind.CONST):
+            self.advance()
+            const = True
+        else:
+            self.want(Token.Kind.LET)
+            const = False
 
         def parse_var_list() -> List[VarList]:
             id_list = self.parse_id_list()
@@ -453,7 +458,7 @@ class Parser:
                     self.src_file.file_number,
                     typ,
                     Symbol.Kind.VALUE,
-                    Symbol.Mutability.NEVER_MUTATED,
+                    Symbol.Mutability.IMMUTABLE if const else Symbol.Mutability.NEVER_MUTATED,
                     ident.span
                 )
 
