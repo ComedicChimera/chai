@@ -187,7 +187,8 @@ class Walker:
                 if lhs.category != ValueCategory.LVALUE:
                     self.error('cannot mutate an R-value', lhs.span)
 
-                self.assert_mutable(lhs)
+                if not self.try_mark_mutable(lhs):
+                    self.error('cannot mutate an immutable value', lhs.span)
 
                 if cpd_op_overloads:
                     rhs_rt_type = self.check_oper_app(
@@ -217,8 +218,17 @@ class Walker:
 
         self.solver.assert_equiv(incdec.lhs_operand.type, rhs_rt_type)
 
-    def assert_mutable(self, lhs_expr: ASTNode):
-        pass
+    def try_mark_mutable(self, lhs_expr: ASTNode) -> bool:
+        match lhs_expr:
+            case Identifier(symbol=sym):
+                if sym.mutability == Symbol.Mutability.IMMUTABLE:
+                    return False
+                else:
+                    sym.mutability = Symbol.Mutability.MUTABLE
+            case Dereference(ptr):
+                return not ptr.type.inner_type().const
+
+        return False
 
     # ---------------------------------------------------------------------------- #
 
@@ -248,8 +258,10 @@ class Walker:
                 overloads = self.lookup_operator_overloads(op.token, 1)
 
                 expr.rt_type = self.check_oper_app(op, overloads, expr.span, operand)
-            case Indirect(elem, _):
+            case Indirect(elem, const):
                 self.walk_expr(elem)
+
+                expr.ptr_type = PointerType(elem.type, const or not self.try_mark_mutable(elem))
             case Dereference(ptr, span):
                 self.walk_expr(ptr)
 
@@ -294,6 +306,8 @@ class Walker:
         self.solver.assert_equiv(oper_var, oper_func_type, span)
         return rt_type_var
     
+    # ---------------------------------------------------------------------------- #
+
     INT_TYPES = [
         PrimitiveType.I64,
         PrimitiveType.I32,

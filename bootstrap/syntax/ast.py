@@ -354,16 +354,25 @@ class Indirect(ASTNode):
     ----------
     elem: ASTNode
         The element being indirected.
+    const: bool
+        Whether the indirection is explicitly constant.
+    ptr_type: Type
+        The pointer type produced by the indirection.
     is_alloc: bool
         Whether this indirection acts as an allocation.
     '''
 
+    __match_args__ = ('elem', '_ptr_type', 'const', '_span')
+
     elem: ASTNode
+    const: bool
     _span: TextSpan
+
+    ptr_type: Type = PrimitiveType.NOTHING
 
     @property
     def type(self) -> Type:
-        return PointerType(self.elem.type)
+        return self.ptr_type
 
     @property
     def span(self) -> TextSpan:

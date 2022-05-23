@@ -30,6 +30,7 @@ class Token:
         OPER = auto()
 
         LET = auto()
+        CONST = auto()
         IF = auto()
         ELIF = auto()
         ELSE = auto()

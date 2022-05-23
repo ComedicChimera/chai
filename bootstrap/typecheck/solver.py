@@ -50,7 +50,7 @@ class TypeVariable(Type):
     def inner_type(self) -> Type:
         assert self.value, 'unable to directly operate on undetermined type variable'
 
-        return self.value
+        return self.value.inner_type()
 
     def __repr__(self) -> str:
         if self.value:

@@ -192,10 +192,13 @@ class PointerType(Type):
     Attributes
     ----------
     elem_type: Type
-        The element type of the pointer.  
+        The element type of the pointer. 
+    const: bool
+        Whether the pointer points a immutable value. 
     '''
 
     elem_type: Type
+    const: bool
 
     def _compare(self, other: Type) -> bool:
         if isinstance(other, PointerType):
@@ -212,7 +215,10 @@ class PointerType(Type):
         return False
 
     def __repr__(self) -> str:
-        return '*' + repr(self.elem_type)
+        if self.const:
+            return f'*const {self.elem_type}'
+        else:
+            return f'*{self.elem_type}'
 
 @typedataclass
 class FuncType(Type):

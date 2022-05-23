@@ -20,6 +20,21 @@ class Predicate:
     expr: ASTNode
     store_result: Optional[Symbol] = None
 
+@dataclass
+class LLVMValueNode(ASTNode):
+    ll_value: llvalue.Value
+
+    _type: Type
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self._type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
 class PredicateGenerator:
     irb: IRBuilder
     var_block: ir.BasicBlock
@@ -78,14 +93,19 @@ class PredicateGenerator:
 
     # ---------------------------------------------------------------------------- #
 
-    def generate_block(self, stmts: List[ASTNode]):
-        for stmt in stmts:
+    def generate_block(self, stmts: List[ASTNode]) -> Optional[llvalue.Value]:
+        for i, stmt in enumerate(stmts):
             match stmt:
                 case VarDecl(var_lists, _):
                     for vlist in var_lists:
                         self.generate_var_list(vlist)
+                case Assignment():
+                    self.generate_assignment(stmt)
+                case IncDecStmt():
+                    self.generate_incdec(stmt)
                 case _:
-                    self.generate_expr(stmt)
+                    if (expr_value := self.generate_expr(stmt)) and i == len(stmts) - 1:
+                        return expr_value
 
     def generate_var_list(self, var_list: VarList):
         if var_list.initializer:
@@ -110,6 +130,44 @@ class PredicateGenerator:
 
             sym.ll_value = ll_var
 
+    def generate_assignment(self, assign: Assignment):
+        lhss = [self.generate_lhs_expr(lhs_expr) for lhs_expr in assign.lhs_exprs]
+
+        if len(assign.lhs_exprs) == len(assign.rhs_exprs):
+            if len(assign.compound_ops) == 0:
+                rhss = [
+                    self.coalesce_nothing(self.generate_expr(rhs_expr))
+                    for rhs_expr in assign.rhs_exprs
+                ]
+            else:
+                rhss = [
+                    self.generate_binary_op_app(BinaryOpApp(
+                        op, 
+                        LLVMValueNode(self.irb.build_load(lhs_expr.type, lhs), lhs_expr.type, lhs_expr.span), 
+                        rhs_expr, lhs_expr.type
+                    ))
+                    for lhs, lhs_expr, rhs_expr, op in
+                    zip(lhss, assign.lhs_exprs, assign.rhs_exprs, assign.compound_ops)
+                ]
+            
+            for lhs, rhs in zip(lhss, rhss):
+                self.irb.build_store(rhs, lhs)
+        else:
+            # TODO pattern matching
+            raise NotImplementedError()
+
+    def generate_incdec(self, incdec: IncDecStmt):
+        lhs = self.generate_lhs_expr(incdec)
+
+    def generate_lhs_expr(self, lhs_expr: ASTNode) -> llvalue.Value:
+        match lhs_expr:
+            case Identifier(symbol=sym):
+                return sym.ll_value
+            case Dereference(ptr):
+                return self.generate_expr(ptr)
+            case _:
+                raise NotImplementedError()
+
     # ---------------------------------------------------------------------------- #
 
     def generate_expr(self, expr: ASTNode) -> Optional[llvalue.Value]:
@@ -118,6 +176,10 @@ class PredicateGenerator:
                 return self.generate_block(stmts)
             case TypeCast(src_expr, dest_type):
                 return self.generate_type_cast(src_expr, dest_type)
+            case BinaryOpApp():
+                return self.generate_binary_op_app(expr)
+            case UnaryOpApp():
+                return self.generate_unary_op_app(expr)
             case FuncCall():
                 return self.generate_func_call(expr)
             case Indirect(elem):
@@ -140,6 +202,8 @@ class PredicateGenerator:
                 return self.generate_literal(expr)
             case Null(type=typ):
                 return llvalue.Constant.Null(conv_type(typ))
+            case LLVMValueNode(ll_value=value):
+                return value
             case _:
                 raise NotImplementedError()
 
@@ -179,13 +243,11 @@ class PredicateGenerator:
             case _:
                 raise NotImplementedError()
 
-    def generate_binary_op_app(self, bop: BinaryOpApp) -> Optional[llvalue.Value]:
-        lhs = self.generate_expr(bop.lhs)
-        if not lhs:
-            lhs = self.nothing_value
+    def generate_binary_op_app(self, bop_app: BinaryOpApp) -> Optional[llvalue.Value]:
+        lhs = self.coalesce_nothing(self.generate_expr(bop_app.lhs))
 
         # handle short-circuit evaluation
-        match bop.overload.intrinsic_name:
+        match bop_app.op.overload.intrinsic_name:
             case 'land':
                 start_block = self.irb.block
                 true_block = self.body.append()
@@ -194,7 +256,7 @@ class PredicateGenerator:
                 self.irb.build_cond_br(lhs, true_block, exit_block)
 
                 self.irb.move_to_end(true_block)
-                rhs = self.generate_expr(bop.rhs)
+                rhs = self.generate_expr(bop_app.rhs)
                 self.irb.build_br(exit_block)
 
                 self.irb.move_to_end(exit_block)
@@ -211,7 +273,7 @@ class PredicateGenerator:
                 self.irb.build_cond_br(lhs, exit_block, false_block)
 
                 self.irb.move_to_end(false_block)
-                rhs = self.generate_expr(bop.rhs)
+                rhs = self.generate_expr(bop_app.rhs)
                 self.irb.build_br(exit_block)
 
                 self.irb.move_to_end(exit_block)
@@ -221,11 +283,9 @@ class PredicateGenerator:
                 
                 return or_result
 
-        rhs = self.generate_expr(bop.rhs)
-        if not rhs:
-            rhs = self.nothing_value
+        rhs = self.coalesce_nothing(self.generate_expr(bop_app.rhs))
 
-        match bop.overload.intrinsic_name:
+        match bop_app.op.overload.intrinsic_name:
             case 'iadd':
                 return self.irb.build_add(lhs, rhs)
             case 'isub':
@@ -296,17 +356,17 @@ class PredicateGenerator:
                 return self.irb.build_fcmp(ir.RealPredicate.UNE, lhs, rhs)
             case '':
                 # Not an intrinsic operator.
-                oper_call = self.irb.build_call(bop.overload.ll_value, lhs, rhs)
+                oper_call = self.irb.build_call(bop_app.op.overload.ll_value, lhs, rhs)
 
-                if is_nothing(bop.rt_type):
+                if is_nothing(bop_app.rt_type):
                     return None
 
                 return oper_call
 
-    def generate_unary_op_app(self, uop: UnaryOpApp) -> Optional[llvalue.Value]:
-        operand = self.generate_expr(uop.operand)
+    def generate_unary_op_app(self, uop_app: UnaryOpApp) -> Optional[llvalue.Value]:
+        operand = self.coalesce_nothing(self.generate_expr(uop_app.operand))
 
-        match uop.overload.intrinsic_name:
+        match uop_app.op.overload.intrinsic_name:
             case 'ineg':
                 return self.irb.build_neg(operand)
             case 'fneg':
@@ -315,22 +375,15 @@ class PredicateGenerator:
                 return self.irb.build_not(operand)
             case _:
                 # Not an intrinsic operator
-                oper_call = self.irb.build_call(uop.overload.ll_value, operand)
+                oper_call = self.irb.build_call(uop_app.op.overload.ll_value, operand)
                 
-                if is_nothing(uop.rt_type):
+                if is_nothing(uop_app.rt_type):
                     return None
 
                 return oper_call
 
     def generate_func_call(self, fc: FuncCall) -> Optional[llvalue.Value]:
-        ll_args = []
-        for arg in fc.args:
-            ll_arg = self.generate_expr(arg)
-
-            if ll_arg:
-                ll_args.append(ll_arg)
-            else:
-                ll_args.append(self.nothing_value)
+        ll_args = [self.coalesce_nothing(self.generate_expr(arg)) for arg in fc.args]
 
         ll_call = self.irb.build_call(
             self.generate_expr(fc.func),
@@ -365,6 +418,12 @@ class PredicateGenerator:
         ll_var = self.irb.build_alloca(conv_type(typ, alloc_type=True))
         self.irb.move_to_end(curr_block)
         return ll_var
+
+    def coalesce_nothing(self, value: Optional[llvalue.Value]) -> llvalue.Value:
+        if value:
+            return value
+
+        return self.nothing_value
 
 def get_rune_char_code(rune_val: str) -> int:
     match rune_val:

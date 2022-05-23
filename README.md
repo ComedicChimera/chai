@@ -100,7 +100,9 @@ perfectly up to date but should help to give some idea of where we are.
 - [x] Arithmetic Operators
 - [x] Bitwise Operators
 - [x] Conditional and Logical Operators
+- [x] Const Pointers
 - [ ] Assignment
+- [ ] Constants
 - [ ] If/Elif/Else
 - [ ] While Loops
 - [ ] Break, Continue, and Return

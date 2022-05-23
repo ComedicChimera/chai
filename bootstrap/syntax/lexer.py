@@ -29,6 +29,8 @@ KEYWORDS = {
     'oper': Token.Kind.OPER,
     
     'let': Token.Kind.LET,
+    'const': Token.Kind.CONST,
+    
     'if': Token.Kind.IF,
     'elif': Token.Kind.ELIF,
     'else': Token.Kind.ELSE,

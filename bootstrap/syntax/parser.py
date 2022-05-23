@@ -630,16 +630,22 @@ class Parser:
 
     def parse_unary_expr(self) -> ASTNode:
         '''
-        unary_expr := ['&' | '*' | '-' | '!' | '~'] atom_expr ;
+        unary_expr := ['&' ['const'] | '*' | '-' | '!' | '~'] atom_expr ;
         '''
 
         match (tok := self.tok()).kind:
             case Token.Kind.AMP:
                 self.advance()
 
+                if self.has(Token.Kind.CONST):
+                    self.advance()
+                    const = True
+                else:
+                    const = False
+
                 atom_expr = self.parse_atom_expr()
 
-                unary_expr = Indirect(atom_expr, TextSpan.over(tok.span, atom_expr.span))
+                unary_expr = Indirect(atom_expr, const, TextSpan.over(tok.span, atom_expr.span))
             case Token.Kind.STAR:
                 self.advance()
 
