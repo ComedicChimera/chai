@@ -242,7 +242,7 @@ class Parser:
 
     def parse_func_body(self) -> Tuple[Optional[ASTNode], TextSpan]:
         '''
-        func_body = 'end' | block | '=' expr ;
+        func_body = 'end' | ended_block | '=' expr ;
 
         Returns
         -------
@@ -258,7 +258,7 @@ class Parser:
                 self.advance()
                 return None, end_pos
             case Token.Kind.NEWLINE:
-                return self.parse_block(), self.behind.span
+                return self.parse_ended_block(), self.behind.span
             case Token.Kind.ASSIGN:
                 self.advance()
 
@@ -400,28 +400,147 @@ class Parser:
 
     # ---------------------------------------------------------------------------- #
 
-    def parse_block(self) -> ASTNode:
+    def parse_block_expr(self) -> ASTNode:
+        '''block_expr := if_tree | while_loop ;'''
+
+        match (tok := self.tok()).kind:
+            case Token.Kind.IF:
+                pass
+            case Token.Kind.WHILE:
+                pass
+
+    def parse_if_tree(self) -> ASTNode:
         '''
-        block := 'NEWLINE' stmt {stmt} 'end' ;
-        stmt := (var_decl | expr_assign_stmt) 'NEWLINE' ;
+        if_tree := 'if' if_cond block_body {'elif' if_cond block_body} ['else' block_body] 'end' ;
+        if_cond := [var_decl ';'] expr ;
         '''
+
+        def parse_cond_branch() -> CondBranch:
+            if self.tok().kind in {Token.Kind.LET, Token.Kind.CONST}:
+                header_var_decl = self.parse_var_decl()
+                self.want(Token.Kind.SEMICOLON)
+            else:
+                header_var_decl = None
+
+            return CondBranch(
+                header_var_decl,
+                self.parse_expr(),
+                self.parse_block_body(Token.Kind.ELIF, Token.Kind.ELSE, Token.Kind.END)
+            )
+
+        start_span = self.want(Token.Kind.IF).span
+
+        cond_branches = [parse_cond_branch()]
+
+        while self.has(Token.Kind.ELIF):
+            self.advance()
+
+            cond_branches.append(parse_cond_branch())
+
+        if self.has(Token.Kind.ELSE):
+            self.advance()
+
+            else_branch = self.parse_block_body(Token.Kind.END)
+        else:
+            else_branch = None
+
+        end_span = self.want(Token.Kind.END).span
+
+        return IfTree(cond_branches, else_branch, TextSpan.over(start_span, end_span))
+
+    def parse_while_loop(self) -> ASTNode:
+        '''
+        while_loop := 'while' [var_decl ';'] expr [';' expr_assign_stmt] block_body 'end' ;
+        '''
+
+        start_span = self.want(Token.Kind.WHILE).span
+
+        if self.tok().kind in {Token.Kind.LET, Token.Kind.CONST}:
+            header_var_decl = self.parse_var_decl()
+            self.want(Token.Kind.SEMICOLON)
+        else:
+            header_var_decl = None
+
+        condition = self.parse_expr()
+
+        if self.has(Token.Kind.SEMICOLON):
+            self.advance()
+
+            update_stmt = self.parse_expr_assign_stmt()
+        else:
+            update_stmt = None
+
+        block_body = self.parse_block_body(Token.Kind.END)
+
+        end_span = self.want(Token.Kind.END).span
+
+        return WhileLoop(
+            header_var_decl,
+            condition,
+            update_stmt,
+            block_body,
+            TextSpan.over(start_span, end_span)
+        )
+
+    def parse_block_body(self, *end_tokens: Token.Kind) -> ASTNode:
+        '''
+        block_body := '=>' expr | block ;
+        '''
+
+        if self.has(Token.Kind.NEWLINE):
+            return self.parse_block(*end_tokens)
+        else:
+            self.want(Token.Kind.ARROW)
+
+            return self.parse_expr()
+
+    # ---------------------------------------------------------------------------- #
+
+    def parse_ended_block(self) -> ASTNode:
+        '''ended_block := block 'end' ;'''
+
+        block = self.parse_block(Token.Kind.END)
+        self.want(Token.Kind.END)
+        return block
+
+    def parse_block(self, *end_tokens: Token.Kind) -> ASTNode:
+        '''block := 'NEWLINE' stmt 'NEWLINE' {stmt 'NEWLINE'} ;'''
 
         self.want(Token.Kind.NEWLINE)
 
         stmts = []
 
-        while not self.has(Token.Kind.END):
-            match self.tok().kind:
-                case Token.Kind.LET:
-                    stmts.append(self.parse_var_decl())
-                case _:
-                    stmts.append(self.parse_expr_assign_stmt())
+        while not self.tok().kind in end_tokens:
+            stmts.append(self.parse_stmt())
 
             self.want(Token.Kind.NEWLINE)
-
-        self.want(Token.Kind.END)
         
         return Block(stmts)
+
+    def parse_stmt(self) -> ASTNode:
+        '''
+        stmt := var_decl | expr_assign_stmt | simple_stmt | block_expr ;
+        simple_stmt := 'break' | 'continue' | 'return' [expr_list] ;
+        '''
+
+        match (tok := self.tok()).kind:
+            case Token.Kind.LET | Token.Kind.CONST:
+                return self.parse_var_decl()
+            case Token.Kind.BREAK | Token.Kind.CONTINUE:
+                self.advance()
+                return KeywordStmt(tok)
+            case Token.Kind.RETURN:
+                self.advance()
+
+                if self.has(Token.Kind.NEWLINE):
+                    return ReturnStmt([], tok.span)
+                else:
+                    expr_list = self.parse_expr_list()
+                    return ReturnStmt(expr_list, TextSpan.over(tok.span, expr_list[-1].span))
+            case Token.Kind.IF | Token.Kind.WHILE:
+                return self.parse_block_expr()
+            case _:
+                return self.parse_expr_assign_stmt()
 
     def parse_var_decl(self) -> ASTNode:
         '''
@@ -537,20 +656,24 @@ class Parser:
 
     def parse_expr(self) -> ASTNode:
         '''
-        expr := or_expr [expr_suffix] ;
+        expr := or_expr [expr_suffix] | block_expr ;
         expr_suffix := 'as' type_label ;
         '''
 
-        expr = self.parse_binary_expr(0)
+        match self.tok().kind:
+            case Token.Kind.IF | Token.Kind.WHILE:
+                return self.parse_block_expr()
+            case _:
+                expr = self.parse_binary_expr(0)
 
-        if self.has(Token.Kind.AS, False):
-            self.advance()
+                if self.has(Token.Kind.AS, False):
+                    self.advance()
 
-            dest_type = self.parse_type_label()
+                    dest_type = self.parse_type_label()
 
-            return TypeCast(expr, dest_type, TextSpan.over(expr.span, self.behind.span))
-        else:
-            return expr
+                    return TypeCast(expr, dest_type, TextSpan.over(expr.span, self.behind.span))
+                else:
+                    return expr
 
     # The table of binary operators ordered by precedence: lowest to highest.
     PRED_TABLE = [

@@ -103,9 +103,9 @@ perfectly up to date but should help to give some idea of where we are.
 - [x] Const Pointers
 - [x] Assignment
 - [x] Constants
-- [ ] If/Elif/Else
-- [ ] While Loops
-- [ ] Break, Continue, and Return
+- [x] If/Elif/Else
+- [x] While Loops
+- [x] Break, Continue, and Return
 
 ### Target 3:
 

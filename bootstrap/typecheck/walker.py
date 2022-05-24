@@ -1,6 +1,8 @@
 from collections import deque
 from typing import Deque, Dict, Optional, Tuple, List
 from dataclasses import dataclass, field
+from enum import Flag, auto
+from functools import reduce
 
 from report import TextSpan
 from report.reporter import CompileError
@@ -12,20 +14,32 @@ from . import *
 from .solver import Solver
 import util
 
+class Control(Flag):
+    NONE = 0
+    LOOP = auto()
+    FUNC = auto()
+
 @dataclass
 class Scope:
     func: Optional[FuncType]
     symbols: Dict[str, Symbol] = field(default_factory=dict)
 
+@dataclass
+class ControlContext:
+    valid_control: Control
+    curr_control: Control = Control.NONE
+
 class Walker:
     src_file: SourceFile
     solver: Solver
     scopes: Deque[Scope]
+    control_contexts: Deque[ControlContext]
 
     def __init__(self, src_file: SourceFile):
         self.src_file = src_file
         self.solver = Solver(src_file)
         self.scopes = deque()
+        self.control_contexts = deque()
 
     def walk_definition(self, defin: ASTNode):
         try:
@@ -47,15 +61,18 @@ class Walker:
                 self.error('function must not have body', fd.body.span)
 
             self.push_scope(fd.type)
+            self.push_context(Control.FUNC)
 
             for param in fd.params:
                 self.define_local(param)
 
-            self.walk_expr(fd.body)
-
-            if not fd.type.rt_type == PrimitiveType.NOTHING:
+            if fd.type.rt_type == PrimitiveType.NOTHING:
+                self.walk_expr(fd.body, False)
+            else:
+                self.walk_expr(fd.body, True)
                 self.solver.assert_equiv(fd.type.rt_type, fd.body.type, fd.body.span)
 
+            self.merge_unconditional_context()
             self.pop_scope()
         elif expect_body:
             self.error('function must have body', fd.span)
@@ -97,15 +114,18 @@ class Walker:
                 self.error('operator must not have a body')
 
             self.push_scope(od.overload.signature)
+            self.push_context(Control.FUNC)
 
             for param in od.params:
                 self.define_local(param)
 
-            self.walk_expr(od.body)
-
-            if not od.type.rt_type == PrimitiveType.NOTHING:
+            if od.type.rt_type == PrimitiveType.NOTHING:
+                self.walk_expr(od.body, False)
+            else:
+                self.walk_expr(od.body, True)
                 self.solver.assert_equiv(od.type.rt_type, od.body.type, od.body.span)
 
+            self.merge_unconditional_context()
             self.pop_scope()
         elif expects_body:
             self.error('operator must have a body')
@@ -138,10 +158,75 @@ class Walker:
 
         return expects_body
 
+    # ---------------------------------------------------------------------------- #
+
+    def walk_if_tree(self, if_tree: IfTree, expects_value: bool):
+        if_rt_type = None
+
+        for cond_branch in if_tree.cond_branches:
+            self.push_scope()
+
+            if cond_branch.header_var:
+                self.walk_var_decl(cond_branch.header_var)
+
+            self.walk_expr(cond_branch.condition, True)
+            self.solver.assert_equiv(cond_branch.condition.type, PrimitiveType.BOOL)
+
+            self.push_context()       
+            self.walk_expr(cond_branch.body, expects_value, True)
+
+            if expects_value and not self.curr_control:
+                if if_rt_type:
+                    self.solver.assert_equiv(cond_branch.body.type, if_rt_type)
+                else:
+                    if_rt_type = cond_branch.body.type
+
+            self.merge_conditional_context()
+            self.pop_scope()
+
+        if if_tree.else_branch:
+            self.push_scope()
+            self.push_context()
+
+            self.walk_expr(if_tree.else_branch, expects_value, True)
+
+            if expects_value and not self.curr_control:
+                self.solver.assert_equiv(if_tree.else_branch.type, if_rt_type)
+
+            self.merge_conditional_context()
+            self.pop_scope()
+        elif expects_value:
+            self.error('if tree is not exhaustive: include an else', if_tree.span)
+
+        if if_rt_type:
+            if_tree.rt_type = if_rt_type
+        elif expects_value:
+            self.error('unconditional jump when value is expected', if_tree.span)
+            
+    def walk_while_loop(self, while_loop: WhileLoop, expects_value: bool):
+        if expects_value:
+            raise NotImplementedError()
+
+        self.push_scope()
+
+        if while_loop.header_var:
+            self.walk_var_decl(while_loop.header_var)
+
+        self.walk_expr(while_loop.condition, True)
+        self.solver.assert_equiv(while_loop.condition.type, PrimitiveType.BOOL)
+
+        if while_loop.update_stmt:
+            self.walk_stmt(while_loop.update_stmt, False)
+        
+        self.push_context(Control.LOOP)
+        self.walk_expr(while_loop.body, False)
+        self.merge_unconditional_context()
+
+        self.pop_scope()
 
     # ---------------------------------------------------------------------------- #
 
-    def walk_stmt(self, stmt: ASTNode):
+    def walk_stmt(self, stmt: ASTNode, expects_value: bool, unconditional: bool):
         match stmt:
             case VarDecl():
                 self.walk_var_decl(stmt)
@@ -149,13 +234,42 @@ class Walker:
                 self.walk_assignment(stmt)
             case IncDecStmt():
                 self.walk_inc_dec_stmt(stmt)
+            case KeywordStmt(keyword):
+                if expects_value and unconditional:
+                    self.error(f'unconditional jump when value is expected', keyword.span)
+
+                match keyword.kind:
+                    case Token.Kind.BREAK | Token.Kind.CONTINUE:
+                        if Control.LOOP & self.valid_control:
+                            self.curr_control = Control.LOOP
+                        else:
+                            self.error(f'{keyword.value} cannot be used outside a loop', keyword.span)
+            case ReturnStmt(exprs):
+                if expects_value and unconditional:
+                    self.error(f'unconditional jump when value is expected', stmt.span)
+
+                for expr in exprs:
+                    self.walk_expr(expr, True)
+
+                if Control.FUNC & self.valid_control:
+                    self.curr_control = Control.FUNC
+                else:
+                    self.error(f'return cannot be used outside a function', stmt.span)
+
+                match len(exprs):
+                    case 0:
+                        self.solver.assert_equiv(self.curr_scope.func.rt_type, PrimitiveType.NOTHING)
+                    case 1:
+                        self.solver.assert_equiv(self.curr_scope.func.rt_type, exprs[0].type)
+                    case _:
+                        raise NotImplementedError()
             case _:
-                self.walk_expr(stmt)
+                self.walk_expr(stmt, expects_value)
 
     def walk_var_decl(self, vd: VarDecl):
         for var_list in vd.var_lists:
             if var_list.initializer:
-                self.walk_expr(var_list.initializer)
+                self.walk_expr(var_list.initializer, True)
 
                 assert len(var_list.symbols) == 1, 'tuple unpacking not implemented yet'
 
@@ -181,8 +295,8 @@ class Walker:
                 cpd_op_overloads = None
 
             for i, (lhs, rhs) in enumerate(zip(assign.lhs_exprs, assign.rhs_exprs)):
-                self.walk_expr(lhs)
-                self.walk_expr(rhs)
+                self.walk_expr(lhs, True)
+                self.walk_expr(rhs, True)
 
                 if lhs.category != ValueCategory.LVALUE:
                     self.error('cannot mutate an R-value', lhs.span)
@@ -232,47 +346,51 @@ class Walker:
 
     # ---------------------------------------------------------------------------- #
 
-    def walk_expr(self, expr: ASTNode):
+    def walk_expr(self, expr: ASTNode, expects_value: bool, unconditional: bool = True):
         match expr:
+            case IfTree():
+                self.walk_if_tree(expr, expects_value)
+            case WhileLoop():
+                self.walk_while_loop(expr, expects_value)
             case Block(stmts):
                 self.push_scope()
 
-                for stmt in stmts:
-                    self.walk_stmt(stmt)
+                for i, stmt in enumerate(stmts):
+                    self.walk_stmt(stmt, expects_value and i == len(stmts) - 1, unconditional) 
 
                 self.pop_scope()
             case TypeCast(src, dest_type, span):
-                self.walk_expr(src)
+                self.walk_expr(src, True)
 
                 self.solver.assert_cast(src.type, dest_type, span)
             case BinaryOpApp(op, _, lhs, rhs):
-                self.walk_expr(lhs)
-                self.walk_expr(rhs)
+                self.walk_expr(lhs, True)
+                self.walk_expr(rhs, True)
 
                 overloads = self.lookup_operator_overloads(op.token, 2)
 
                 expr.rt_type = self.check_oper_app(op, overloads, expr.span, lhs, rhs)
             case UnaryOpApp(op, _, operand):
-                self.walk_expr(operand)
+                self.walk_expr(operand, True)
 
                 overloads = self.lookup_operator_overloads(op.token, 1)
 
                 expr.rt_type = self.check_oper_app(op, overloads, expr.span, operand)
             case Indirect(elem, const):
-                self.walk_expr(elem)
+                self.walk_expr(elem, True)
 
                 expr.ptr_type = PointerType(elem.type, const or not self.try_mark_mutable(elem))
             case Dereference(ptr, span):
-                self.walk_expr(ptr)
+                self.walk_expr(ptr, True)
 
                 elem_type_var = self.solver.new_type_var(span)
                 self.solver.assert_equiv(ptr.type, PointerType(elem_type_var), span)         
                 expr.elem_type = elem_type_var
             case FuncCall(func, args, span):
-                self.walk_expr(func)
+                self.walk_expr(func, True)
 
                 for arg in args:
-                    self.walk_expr(arg)
+                    expr_control |= self.walk_expr(arg, True)
 
                 rt_type_var = self.solver.new_type_var(span)
                 func_type = FuncType([arg.type for arg in args], rt_type_var)
@@ -395,10 +513,45 @@ class Walker:
         if func or len(self.scopes) == 0:
             self.scopes.appendleft(Scope(func))
         else:
-            self.scopes.appendleft(Scope(self.scopes[0].func))
+            self.scopes.appendleft(Scope(self.curr_scope.func))
 
     def pop_scope(self):
         self.scopes.popleft()
+
+    # ---------------------------------------------------------------------------- #
+
+    @property
+    def curr_control(self) -> Control:
+        return self.control_contexts[0].curr_control
+
+    @curr_control.setter
+    def curr_control(self, control: Control):
+        if not self.control_contexts[0].curr_control:
+            self.control_contexts[0].curr_control = control
+
+    @property
+    def valid_control(self) -> Control:
+        return self.control_contexts[0].valid_control
+
+    def push_context(self, valid_control: Control = Control.NONE):
+        if len(self.control_contexts) == 0:
+            self.control_contexts.appendleft(ControlContext(valid_control))
+        else:
+            self.control_contexts.appendleft(ControlContext(self.valid_control | valid_control))
+
+    def merge_conditional_context(self):
+        ctx = self.control_contexts.popleft()
+
+        if len(self.control_contexts) > 0:
+            self.control_contexts[0].curr_control &= ctx.curr_control
+
+    def merge_unconditional_context(self):
+        ctx = self.control_contexts.popleft()
+
+        if len(self.control_contexts) > 0:
+            self.curr_control = ctx.curr_control
+
+    # ---------------------------------------------------------------------------- #
 
     def error(self, msg: str, span: TextSpan):
         raise CompileError(msg, self.src_file, span)

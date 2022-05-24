@@ -746,9 +746,11 @@ class FuncParam(Value):
 
 class FuncBody:
     _func: 'Function'
+    _name_counter: int
 
     def __init__(self, func: 'Function'):
         self._func = func
+        self._name_counter = 1
 
     def __iter__(self) -> Iterator[BasicBlock]:
         bb_ptr = LLVMGetFirstBasicBlock(self._func)
@@ -793,14 +795,22 @@ class FuncBody:
 
         return None
 
-    def append(self, name: str = "bb") -> BasicBlock:
+    def append(self, name: str = "") -> BasicBlock:
+        if not name:
+            name = f'bb{self._name_counter}'
+            self._name_counter += 1
+
         return BasicBlock(LLVMAppendBasicBlockInContext(
             get_context(),
             self._func,
             name.encode(),
         ))
 
-    def insert(self, before: BasicBlock, name: str = "bb") -> BasicBlock:
+    def insert(self, before: BasicBlock, name: str = "") -> BasicBlock:
+        if not name:
+            name = f'bb{len(self._name_counter)}'
+            self._name_counter += 1
+
         return BasicBlock(LLVMInsertBasicBlockInContext(
             get_context(),
             before,

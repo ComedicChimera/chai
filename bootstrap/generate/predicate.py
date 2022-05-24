@@ -1,6 +1,7 @@
-from re import L
-from typing import List, Optional
+from typing import List, Optional, Deque 
 from dataclasses import dataclass
+from collections import deque
+from bootstrap.llvm.ir import PHIIncoming
 
 import llvm.ir as ir
 import llvm.value as llvalue
@@ -35,15 +36,23 @@ class LLVMValueNode(ASTNode):
     def span(self) -> TextSpan:
         return self._span
 
+@dataclass
+class LoopContext:
+    break_block: ir.BasicBlock
+    continue_block: ir.BasicBlock
+
 class PredicateGenerator:
     irb: IRBuilder
     var_block: ir.BasicBlock
     body: ir.FuncBody
 
+    loop_contexts: Deque[LoopContext]
+
     nothing_value: llvalue.Value = llvalue.Constant.Null(lltypes.Int1Type)
 
     def __init__(self):
         self.irb = IRBuilder()
+        self.loop_contexts = deque()
 
     def generate(self, pred: Predicate):
         self.body = pred.ll_func.body
@@ -93,42 +102,132 @@ class PredicateGenerator:
 
     # ---------------------------------------------------------------------------- #
 
-    def generate_block(self, stmts: List[ASTNode]) -> Optional[llvalue.Value]:
-        for i, stmt in enumerate(stmts):
-            match stmt:
-                case VarDecl(var_lists, _):
-                    for vlist in var_lists:
-                        self.generate_var_list(vlist)
+    def generate_if_tree(self, if_tree: IfTree) -> Optional[llvalue.Value]:
+        incoming = []
+
+        if_end = self.body.append()
+
+        for cond_branch in if_tree.cond_branches:
+            if cond_branch.header_var:
+                self.generate_var_decl(cond_branch.header_var)
+
+            if_then = self.body.append()
+            if_else = self.body.append()
+
+            ll_cond = self.generate_expr(cond_branch.condition)
+            self.irb.build_cond_br(ll_cond, if_then, if_else)
+
+            self.irb.move_to_end(if_then)
+            if ll_value := self.generate_expr(cond_branch.body):
+                incoming.append(PHIIncoming(ll_value, if_then))
+
+            if not if_then.terminator:
+                self.irb.build_br(if_end)
+
+            self.irb.move_to_end(if_else)
+
+        if if_tree.else_branch:
+            self.generate_expr(if_tree.else_branch)
+        
+        self.irb.build_br(if_end)
+        self.irb.move_to_end(if_end)
+
+        if is_nothing(if_tree.type):
+            return None
+
+        phi_node = self.irb.build_phi(conv_type(if_tree.type))
+        phi_node.incoming.add(*incoming)
+
+        return phi_node
+
+    def generate_while_loop(self, while_loop: WhileLoop):
+        if while_loop.header_var:
+            self.generate_var_decl(while_loop.header_var)
+
+        loop_header = self.body.append()
+        self.irb.build_br(loop_header)
+        self.irb.move_to_end(loop_header)
+
+        if while_loop.update_stmt:
+            loop_update = self.body.append()
+            self.irb.move_to_start(loop_update)
+            
+            match stmt := while_loop.update_stmt:
                 case Assignment():
                     self.generate_assignment(stmt)
                 case IncDecStmt():
                     self.generate_incdec(stmt)
                 case _:
+                    self.generate_expr(stmt)
+
+            self.irb.build_br(loop_header)
+
+            loop_continue = loop_update
+        else:
+            loop_continue = loop_header
+
+        loop_body = self.body.append()
+        loop_exit = self.body.append()
+
+        ll_cond = self.generate_expr(while_loop.condition)
+        self.irb.build_cond_br(ll_cond, loop_body, loop_exit)
+
+        self.irb.move_to_end(loop_body)
+        self.push_loop_context(loop_exit, loop_continue)
+        self.generate_expr(while_loop.body)
+        self.build_br(loop_continue)
+
+        self.irb.move_to_end(loop_exit)
+
+    # ---------------------------------------------------------------------------- #
+
+    def generate_block(self, stmts: List[ASTNode]) -> Optional[llvalue.Value]:
+        for i, stmt in enumerate(stmts):
+            match stmt:
+                case VarDecl():
+                    self.generate_var_decl(stmt)
+                case Assignment():
+                    self.generate_assignment(stmt)
+                case IncDecStmt():
+                    self.generate_incdec(stmt)
+                case KeywordStmt(keyword):
+                    match keyword.kind:
+                        case Token.Kind.BREAK:
+                            self.irb.build_br(self.loop_context.break_block)
+                            return
+                        case Token.Kind.CONTINUE:
+                            self.irb.build_br(self.loop_context.continue_block)
+                            return
+                case ReturnStmt(exprs):
+                    self.irb.build_ret(*(self.generate_expr(expr) for expr in exprs))
+                    return
+                case _:
                     if (expr_value := self.generate_expr(stmt)) and i == len(stmts) - 1:
                         return expr_value
 
-    def generate_var_list(self, var_list: VarList):
-        if var_list.initializer:
-            var_ll_init = self.generate_expr(var_list.initializer)
+    def generate_var_decl(self, vd: VarDecl):
+        for var_list in vd.var_lists:
+            if var_list.initializer:
+                var_ll_init = self.generate_expr(var_list.initializer)
 
-            if not var_ll_init:
-                var_ll_init = self.nothing_value
-        else:
-            var_ll_init = None
-
-        for sym in var_list.symbols:
-            if not var_ll_init:
-                ll_init = llvalue.Constant.Null(conv_type(sym.type))
+                if not var_ll_init:
+                    var_ll_init = self.nothing_value
             else:
-                # TODO handle pattern matching
-                ll_init = var_ll_init
+                var_ll_init = None
 
-            if sym.mutability == Symbol.Mutability.MUTABLE:
-                ll_var = self.alloc_var(sym.type)
-            else:
-                ll_var = var_ll_init
+            for sym in var_list.symbols:
+                if not var_ll_init:
+                    ll_init = llvalue.Constant.Null(conv_type(sym.type))
+                else:
+                    # TODO handle pattern matching
+                    ll_init = var_ll_init
 
-            sym.ll_value = ll_var
+                if sym.mutability == Symbol.Mutability.MUTABLE:
+                    ll_var = self.alloc_var(sym.type)
+                else:
+                    ll_var = var_ll_init
+
+                sym.ll_value = ll_var        
 
     def generate_assignment(self, assign: Assignment):
         lhss = [self.generate_lhs_expr(lhs_expr) for lhs_expr in assign.lhs_exprs]
@@ -183,6 +282,10 @@ class PredicateGenerator:
 
     def generate_expr(self, expr: ASTNode) -> Optional[llvalue.Value]:
         match expr:
+            case IfTree():
+                return self.generate_if_tree(expr)
+            case WhileLoop():
+                return self.generate_while_loop(expr)
             case Block(stmts):
                 return self.generate_block(stmts)
             case TypeCast(src_expr, dest_type):
@@ -435,6 +538,18 @@ class PredicateGenerator:
             return value
 
         return self.nothing_value
+
+    # ---------------------------------------------------------------------------- #
+
+    @property
+    def loop_context(self) -> LoopContext:
+        return self.loop_contexts[0]
+
+    def push_loop_context(self, bb: ir.BasicBlock, cb: ir.BasicBlock):
+        self.loop_contexts.appendleft(LoopContext(bb, cb))
+
+    def pop_loop_context(self):
+        self.loop_contexts.popleft()
 
 def get_rune_char_code(rune_val: str) -> int:
     match rune_val:

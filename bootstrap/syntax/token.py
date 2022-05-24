@@ -31,11 +31,16 @@ class Token:
 
         LET = auto()
         CONST = auto()
+        
         IF = auto()
         ELIF = auto()
         ELSE = auto()
         WHILE = auto()
         END = auto()
+
+        BREAK = auto()
+        CONTINUE = auto()
+        RETURN = auto()
 
         AS = auto()
 
@@ -92,6 +97,7 @@ class Token:
         COLON = auto()
         SEMICOLON = auto()
         DOT = auto()
+        ARROW = auto()
         ATSIGN = auto()
 
         STRINGLIT = auto()

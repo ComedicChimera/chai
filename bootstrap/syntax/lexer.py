@@ -37,6 +37,10 @@ KEYWORDS = {
     'while': Token.Kind.WHILE,
     'end': Token.Kind.END,
 
+    'break': Token.Kind.BREAK,
+    'continue': Token.Kind.CONTINUE,
+    'return': Token.Kind.RETURN,
+
     'as': Token.Kind.AS,
 
     'bool': Token.Kind.BOOL,
@@ -99,6 +103,7 @@ SYMBOLS = {
     ':': Token.Kind.COLON,
     ';': Token.Kind.SEMICOLON,
     '.': Token.Kind.DOT,
+    '=>': Token.Kind.ARROW,
     '@': Token.Kind.ATSIGN,
 }
 

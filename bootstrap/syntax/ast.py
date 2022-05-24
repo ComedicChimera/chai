@@ -17,11 +17,16 @@ __all__ = [
     'Annotations',
     'FuncDef',
     'OperDef',
+    'CondBranch',
+    'IfTree',
+    'WhileLoop',
     'Block',
     'VarList',
     'VarDecl',
     'Assignment',
     'IncDecStmt',
+    'KeywordStmt',
+    'ReturnStmt',
     'TypeCast',
     'BinaryOpApp',
     'UnaryOpApp',
@@ -133,6 +138,91 @@ class OperDef(ASTNode):
     @property
     def type(self) -> Type:
         return self.oper.signature
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+# ---------------------------------------------------------------------------- #
+
+@dataclass
+class CondBranch:
+    '''
+    Represents a single conditional branch in an if/elif/else tree.
+
+    Attributes
+    ----------
+    header_var: Optional['VarDecl']
+        The header variable of the if/elif/else statement if it exists.
+    condition: ASTNode
+        The branch condition.
+    body: ASTNode
+        The body to execute if the condition is true.
+    '''
+
+    header_var: Optional['VarDecl']
+    condition: ASTNode
+    body: ASTNode
+
+@dataclass
+class IfTree(ASTNode):
+    '''
+    The AST node representing an if/elif/else tree.
+
+    Attributes
+    ----------
+    cond_branches: List[CondBranch]
+        The list of condition (if/elif) branches of the if tree.
+    else_branch: Optional[ASTNode]
+        The default (else) branch of the if tree.
+    rt_type: Type
+        The returned type of the if tree.
+    '''
+
+    cond_branches: List[CondBranch]
+    else_branch: Optional[ASTNode]
+    _span: TextSpan
+
+    rt_type: Type = PrimitiveType.NOTHING
+
+    @property
+    def type(self) -> Type:
+        return self.rt_type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
+class WhileLoop(ASTNode):
+    '''
+    The AST node representing a while loop.
+
+    Attributes
+    ----------
+    header_var: Optional['VarDecl']
+        The header variable of the loop if it exists.
+    condition: ASTNode
+        The loop condition.
+    update_stmt: Optional[ASTNode]
+        The statement to be run at the end of each loop iteration if it exists.
+    body: ASTNode
+        The code to execute while the condition is true.
+    rt_type: Type = PrimitiveType.NOTHING
+        The returned type of the loop.
+    '''
+
+    header_var: Optional['VarDecl']
+    condition: ASTNode
+    update_stmt: Optional[ASTNode]
+    body: ASTNode
+    _span: TextSpan
+
+    rt_type: Type = PrimitiveType.NOTHING
+
+    @property
+    def type(self) -> Type:
+        return self.rt_type
 
     @property
     def span(self) -> TextSpan:
@@ -254,6 +344,50 @@ class IncDecStmt(ASTNode):
     @property
     def span(self) -> TextSpan:
         return TextSpan.over(self.lhs_operand.span, self.op.token.span)
+
+@dataclass
+class KeywordStmt(ASTNode):
+    '''
+    The AST node representing a statement denoted by a single keyword such as
+    `break` or `continue`.
+
+    Attributes
+    ----------
+    keyword: Token
+        The keyword comprising the statement.
+    '''
+
+    keyword: Token
+
+    @property
+    def type(self) -> Type:
+        return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return self.keyword.span
+
+@dataclass
+class ReturnStmt(ASTNode):
+    '''
+    The AST node represent a return statement.
+
+    Attributes
+    ----------
+    exprs: List[ASTNode]
+        The list of expression values being returned.
+    '''
+
+    exprs: List[ASTNode]
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return PrimitiveType.NOTHING
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
 
 # ---------------------------------------------------------------------------- #
 
