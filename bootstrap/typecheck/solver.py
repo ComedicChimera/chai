@@ -373,12 +373,15 @@ class Solver:
         '''
 
         for tv in self.type_vars:
+            if (oset := self.global_ctx.overload_sets.get(tv.id)) and oset.default:
+                self.unify(tv, oset.overloads[0].type)
+                self.global_ctx.update(self.local_ctx)
+                self.local_ctx = SolutionContext()
+
+        for tv in self.type_vars:
             if sub := self.global_ctx.substitutions.get(tv.id):
                 tv.value = sub.type
                 sub.finalize()
-            elif (oset := self.global_ctx.overload_sets.get(tv.id)) and oset.default:
-                tv.value = oset.overloads[0].type
-                oset.overloads[0].finalize()
             else:
                 self.error(f'unable to infer type of `{tv}`', tv.span)
 
@@ -402,7 +405,7 @@ class Solver:
                 if lhs_id == rhs_id:
                     return True
 
-                return self.unify_type_var(lhs_id, rhs)
+                return self.unify_two_type_vars(lhs, rhs)
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
@@ -422,7 +425,36 @@ class Solver:
                 return lhs == rhs
             case _:
                 return False
-            
+
+    def unify_two_type_vars(self, lhs: TypeVariable, rhs: TypeVariable) -> bool:
+        # TODO remove this function when we find a way to make overload sets
+        # bidirectional -- they keep track of the sets and variables that are
+        # waiting on them for inference.
+
+        lhs_sub = self.get_substitution(lhs.id)
+        rhs_sub = self.get_substitution(rhs.id)
+
+        if lhs_sub and rhs_sub:
+            return self.unify(lhs_sub.type, rhs_sub.type)
+        elif lhs_sub:
+            return self.unify(lhs_sub.type, rhs)
+        elif rhs_sub:
+            return self.unify(lhs, rhs_sub.type)
+
+        lhs_overloads = self.get_overload_set(lhs.id)
+        rhs_overloads = self.get_overload_set(rhs.id)
+
+        if lhs_overloads and rhs_overloads:
+            return self.prune_overloads(lhs.id, lhs_overloads, rhs)
+        elif lhs_overloads:
+            self.local_ctx.substitutions[rhs.id] = BasicSubstitution(lhs)
+        elif rhs_overloads:
+            self.local_ctx.substitutions[lhs.id] = BasicSubstitution(rhs)
+        else:
+            lhs.id = rhs.id
+
+        return True
+        
     def unify_type_var(self, id: int, typ: Type) -> bool:
         if sub := self.get_substitution(id):
             return self.unify(sub.type, typ)
