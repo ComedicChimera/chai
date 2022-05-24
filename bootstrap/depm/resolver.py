@@ -3,14 +3,11 @@
 __all__ = ['Resolver']
 
 from typing import Dict, List
-from itertools import product
-
-from bootstrap.report.reporter import CompileError
 
 from . import *
 from .source import Package, SourceFile
 from report import TextSpan
-from report.reporter import Reporter
+from report.reporter import Reporter, CompileError
 
 class Resolver:
     '''
@@ -63,7 +60,7 @@ class Resolver:
         '''Checks for operator conflicts in global and file namespaces.'''
 
         for pkg in self.dep_graph.values():
-            for ops in pkg.operator_table:
+            for ops in pkg.operator_table.values():
                 # TODO update to call with imported operators as well
                 for op in ops:
                     self.find_colliding_overloads(op.op_sym, op.overloads)

@@ -1,8 +1,8 @@
 from typing import List, Optional, Deque 
 from dataclasses import dataclass
 from collections import deque
-from bootstrap.llvm.ir import PHIIncoming
 
+from report import TextSpan
 import llvm.ir as ir
 import llvm.value as llvalue
 import llvm.types as lltypes
@@ -119,7 +119,7 @@ class PredicateGenerator:
 
             self.irb.move_to_end(if_then)
             if ll_value := self.generate_expr(cond_branch.body):
-                incoming.append(PHIIncoming(ll_value, if_then))
+                incoming.append(ir.PHIIncoming(ll_value, if_then))
 
             if not if_then.terminator:
                 self.irb.build_br(if_end)

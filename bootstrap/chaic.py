@@ -22,7 +22,11 @@ def run_compiler(root_dir: str, build_options: BuildOptions):
 
     # Create and run the compiler.
     c = Compiler(root_dir, build_options)
-    exit(c.compile())
+    if isinstance(rt_code := c.compile(), int):
+        exit(rt_code)
+    else:
+        exit(-1)
+
 
 if __name__ == '__main__':
     # Declare the command-line argument parser.

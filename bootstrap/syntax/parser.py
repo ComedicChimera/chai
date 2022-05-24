@@ -10,14 +10,21 @@ from .ast import *
 from .token import Token
 from .lexer import Lexer
 
-SWALLOW_TOKENS = {
-    Token.Kind.LPAREN,
+SWALLOW_BEFORE_TOKENS = {
     Token.Kind.RPAREN,
-    Token.Kind.LBRACE,
-    Token.Kind.RBRACE,
-    Token.Kind.LBRACKET,
     Token.Kind.RBRACKET,
+    Token.Kind.RBRACKET,
+    Token.Kind.ELIF,
+    Token.Kind.ELSE,
+    Token.Kind.END
+}
+
+SWALLOW_AFTER_TOKENS = {
+    Token.Kind.LPAREN,
+    Token.Kind.LBRACE,
+    Token.Kind.LBRACKET,
     Token.Kind.COMMA,
+    Token.Kind.ASSIGN,
 }
 
 class Parser:
@@ -403,11 +410,11 @@ class Parser:
     def parse_block_expr(self) -> ASTNode:
         '''block_expr := if_tree | while_loop ;'''
 
-        match (tok := self.tok()).kind:
+        match self.tok().kind:
             case Token.Kind.IF:
-                pass
+                return self.parse_if_tree()
             case Token.Kind.WHILE:
-                pass
+                return self.parse_while_loop()
 
     def parse_if_tree(self) -> ASTNode:
         '''
@@ -620,7 +627,7 @@ class Parser:
 
         lhs_exprs = [parse_lhs_expr()]
 
-        if self.has(Token.Kind.COMMA, False):
+        if self.has(Token.Kind.COMMA):
             self.advance()
 
             lhs_exprs.append(parse_lhs_expr())
@@ -633,12 +640,17 @@ class Parser:
         elif next_op_tok.kind == Token.Kind.ASSIGN:
             compound_op_tok = None  
         elif len(lhs_exprs) == 1:
-            if next_op_tok.kind in {Token.Kind.INCREMENT, Token.Kind.DECREMENT}:
-                self.advance()
+            match next_op_tok.kind:
+                case Token.Kind.INCREMENT:
+                    self.advance()
 
-                return IncDecStmt(lhs_exprs[0], next_op_tok)
-            else:
-                return lhs_exprs[0]
+                    return IncDecStmt(lhs_exprs[0], AppliedOperator(Token(Token.Kind.PLUS, '+', next_op_tok.span)))
+                case Token.Kind.DECREMENT:
+                    self.advance()
+
+                    return IncDecStmt(lhs_exprs[0], AppliedOperator(Token(Token.Kind.MINUS, '-', next_op_tok.span)))
+                case _:
+                    return lhs_exprs[0]                
         else:
             self.reject()    
 
@@ -666,7 +678,7 @@ class Parser:
             case _:
                 expr = self.parse_binary_expr(0)
 
-                if self.has(Token.Kind.AS, False):
+                if self.has(Token.Kind.AS):
                     self.advance()
 
                     dest_type = self.parse_type_label()
@@ -678,7 +690,7 @@ class Parser:
     # The table of binary operators ordered by precedence: lowest to highest.
     PRED_TABLE = [
         {Token.Kind.OR, Token.Kind.PIPE},
-        {Token.Kind.XOR},
+        {Token.Kind.CARRET},
         {Token.Kind.AND, Token.Kind.AMP},
         {Token.Kind.LT, Token.Kind.GT, Token.Kind.LTEQ, Token.Kind.GTEQ, Token.Kind.EQ, Token.Kind.NEQ},
         {Token.Kind.LSHIFT, Token.Kind.RSHIFT},
@@ -719,12 +731,12 @@ class Parser:
 
         lhs = self.parse_binary_expr(pred_level + 1)
 
-        while (op_tok := self.tok().kind) in self.PRED_TABLE[pred_level]:
+        while (op_tok := self.tok()).kind in self.PRED_TABLE[pred_level]:
             self.advance()
 
             rhs = self.parse_binary_expr(pred_level + 1)
 
-            lhs = BinaryOpApp(op_tok, lhs, rhs)
+            lhs = BinaryOpApp(AppliedOperator(op_tok), lhs, rhs)
 
         return lhs
         
@@ -738,7 +750,7 @@ class Parser:
         lhs = self.parse_binary_expr(self.COMP_PRED_LEVEL + 1)
         prev_operand = None
 
-        while (op_tok := self.tok().kind) in self.PRED_TABLE[self.COMP_PRED_LEVEL]:
+        while (op_tok := self.tok()).kind in self.PRED_TABLE[self.COMP_PRED_LEVEL]:
             self.advance()
 
             rhs = self.parse_binary_expr(self.COMP_PRED_LEVEL + 1)
@@ -750,7 +762,7 @@ class Parser:
                     lhs, rhs
                 )
             else:
-                lhs = BinaryOpApp(op_tok, lhs, rhs)
+                lhs = BinaryOpApp(AppliedOperator(op_tok), lhs, rhs)
 
             prev_operand = rhs
 
@@ -897,7 +909,7 @@ class Parser:
         type_label := prim_type_label | ptr_type_label ;
         prim_type_label := 'bool' | 'i8' | 'u8' | 'u16' | 'i32' | 'u32'
             | 'i64' | 'u64' | 'f32' | 'f64' | 'nothing' ;
-        ptr_type_label := '*' type_label ;
+        ptr_type_label := '*' ['const'] type_label ;
         '''
 
         match self.tok().kind:
@@ -927,7 +939,12 @@ class Parser:
                 typ = PrimitiveType.NOTHING
             case Token.Kind.STAR:
                 self.advance()
-                return PointerType(self.parse_type_label())
+
+                if self.has(Token.Kind.CONST):
+                    self.advance()
+                    return PointerType(self.parse_type_label(), True)
+
+                return PointerType(self.parse_type_label(), False)
             case _:
                 self.reject()
 
@@ -953,7 +970,7 @@ class Parser:
     def has_swallow_behind(self):
         '''Returns whether the lookbehind is a swallow token.'''
 
-        return self._lookbehind and self._lookbehind.kind in SWALLOW_TOKENS
+        return self._lookbehind and self._lookbehind.kind in SWALLOW_AFTER_TOKENS
 
     def swallow(self):
         '''Consumes newlines until the parser reaches a non-newline token.'''
@@ -975,6 +992,9 @@ class Parser:
 
         if kind == Token.Kind.NEWLINE or not swallow:
             return self._tok.kind == kind
+
+        if kind in SWALLOW_BEFORE_TOKENS:
+            self.swallow()
 
         return self.tok().kind == kind
 
@@ -999,7 +1019,7 @@ class Parser:
             if self._tok.kind != kind and self._tok.kind != Token.Kind.EOF:
                 self.reject()
         else:
-            if kind in SWALLOW_TOKENS or self.has_swallow_behind():
+            if kind in SWALLOW_BEFORE_TOKENS or self.has_swallow_behind():
                 self.swallow()        
 
             if self._tok.kind != kind:

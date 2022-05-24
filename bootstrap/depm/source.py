@@ -76,7 +76,6 @@ class SourceFile:
 
         return None
 
-
 @dataclass
 class Package:
     '''
@@ -114,7 +113,7 @@ class Package:
     files: List[SourceFile] = field(default_factory=list)
 
     symbol_table: Dict[str, Symbol] = field(default_factory=dict)
-    operator_table = Dict[Token.Kind, List[Operator]] = field(default_factory=dict)
+    operator_table: Dict[Token.Kind, List[Operator]] = field(default_factory=dict)
 
     def __post_init__(self):
         '''Calculates the package ID based on its absolute path.'''

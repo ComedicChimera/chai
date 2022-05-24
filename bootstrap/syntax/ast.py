@@ -13,7 +13,7 @@ from .token import Token
 __all__ = [
     'ValueCategory',
     'ASTNode',
-    'AppliedOperator'
+    'AppliedOperator',
     'Annotations',
     'FuncDef',
     'OperDef',
@@ -443,9 +443,11 @@ class BinaryOpApp(ASTNode):
 
     rt_type: Type = PrimitiveType.NOTHING
 
+    @property
     def type(self) -> Type:
         return self.rt_type
 
+    @property
     def span(self) -> TextSpan:
         return TextSpan.over(self.lhs.span, self.rhs.span)
 
@@ -473,9 +475,11 @@ class UnaryOpApp(ASTNode):
     
     rt_type: Type = PrimitiveType.NOTHING
 
+    @property
     def type(self) -> Type:
         return self.rt_type
 
+    @property
     def span(self) -> TextSpan:
         return self._span
 
@@ -496,7 +500,7 @@ class Indirect(ASTNode):
         Whether this indirection acts as an allocation.
     '''
 
-    __match_args__ = ('elem', '_ptr_type', 'const', '_span')
+    __match_args__ = ('elem', 'const', '_ptr_type', '_span')
 
     elem: ASTNode
     const: bool

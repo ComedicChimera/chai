@@ -95,6 +95,7 @@ class OperatorOverload:
     '''
 
     parent_id: int
+    file_number: int
     signature: Type
     def_span: TextSpan
     id: int = field(init=False)
@@ -119,7 +120,7 @@ class OperatorOverload:
             case (FuncType(param_types=self_params), FuncType(param_types=other_params)):
                 return self_params == other_params
             case _:
-                raise TypeError()
+                raise TypeError(other)
 
 @dataclass
 class Operator:

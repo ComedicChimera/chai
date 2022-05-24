@@ -133,6 +133,7 @@ class Type(ABC):
 
     def __str__(self) -> str:
         '''Returns the string representation of a type.'''
+
         return repr(self)
 
 typedataclass = dataclass(eq=False)
@@ -249,6 +250,6 @@ class FuncType(Type):
         if len(self.param_types) == 1:
             param_str = repr(self.param_types[0])
         else:
-            param_str = '(' + ', '.join(self.param_types) + ')'
+            param_str = '(' + ', '.join(str(x) for x in self.param_types) + ')'
 
         return f'{param_str} -> {self.rt_type}'

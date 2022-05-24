@@ -4,14 +4,12 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
 
-from bootstrap.syntax.ast import AppliedOperator
-
 from . import *
 from report import TextSpan
 from report.reporter import CompileError
 from depm import OperatorOverload
 from depm.source import SourceFile
-from syntax.ast import UnaryOpApp, BinaryOpApp
+from syntax.ast import AppliedOperator
 
 @typedataclass
 class TypeVariable(Type):
@@ -431,7 +429,7 @@ class Solver:
         elif oset := self.get_overload_set(id):
             return self.prune_overloads(id, oset, typ)
         else:
-            self.local_ctx.substitutions[id] = Substitution(typ)
+            self.local_ctx.substitutions[id] = BasicSubstitution(typ)
             return True
 
     def get_substitution(self, id: int) -> Optional[Substitution]:
@@ -477,6 +475,6 @@ class Solver:
         if sub := self.get_substitution(tv.id):
             return repr(sub.type)
         elif oset := self.get_overload_set(tv.id):
-            return '{' + ' | '.join(x.type for x in oset.overloads) + '}'
+            return '{' + ' | '.join(str(x.type) for x in oset.overloads) + '}'
         else:
             return '{_}'

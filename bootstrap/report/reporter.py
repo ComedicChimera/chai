@@ -90,8 +90,8 @@ class Reporter:
         '''
 
         if self.log_level != LogLevel.SILENT:
-            print('[fatal error] ' + str(ferr))
-            traceback.print_exc(ferr)
+            print('[fatal error]:')
+            traceback.print_exception(ferr)
             exit(-1)
 
     def report_error(self, msg: str, kind: str):
@@ -124,7 +124,8 @@ def display_compile_error(cerr: CompileError):
     '''
 
     print(f'[error] ({cerr.src_file.parent.display_path}) {cerr.src_file.rel_path}:', end='')
-    print(f'{cerr.span.start_line}:{cerr.span.start_col}: {cerr.message}', end='\n\n')
+    escaped_msg = cerr.message.replace('\n', '\\n')
+    print(f'{cerr.span.start_line}:{cerr.span.start_col}: {escaped_msg}', end='\n\n')
 
     lines = []
     with open(cerr.src_file.abs_path) as f:
