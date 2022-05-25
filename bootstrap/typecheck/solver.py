@@ -1,7 +1,7 @@
 '''Provides the type solver and its associated constructs.'''
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TypeVar
 from abc import ABC, abstractmethod
 
 from . import *
@@ -19,7 +19,7 @@ class TypeVariable(Type):
     Attributes
     ----------
     id: int
-        The unique ID of the type variable.
+        The unique node ID of the type variable.
     span: TextSpan
         The span to error on if the type variable cannot be inferred.
     display_name: Optional[str]
@@ -131,47 +131,6 @@ class OperatorSubstitution(Substitution):
 # ---------------------------------------------------------------------------- #
 
 @dataclass
-class Overload:
-    '''
-    Represents a single possible overload in an overload set.
-
-    Attributes
-    ----------
-    substitution: Substitution
-        The substitution associated with this overload.
-    context: 'SolutionContext'
-        The persistent solution context that is associated with this overload:
-        it is accumulated through many test unifications.
-    '''
-
-    substitution: Substitution
-    context: 'SolutionContext' = None
-
-    def __post_init__(self):
-        if not self.context:
-            self.context = SolutionContext()
-
-@dataclass
-class OverloadSet:
-    '''
-    Represents a set of possible substitutions for a type variable.
-
-    Attributes
-    ----------
-    overloads: List[Substitution]
-        The possible overloads for the type variable.
-    default: bool
-        Whether to select the first element of substitution's list as the final
-        type value for the associated type variable if no other type value can
-        be inferred.  This mechanism is used by literals.
-    '''
-
-    overloads: List[Overload]
-    default: bool
-
-# ---------------------------------------------------------------------------- #
-
-@dataclass
 class CastAssert:
     '''
     Represents an assertion that a given cast is possible between two types.
@@ -190,53 +149,22 @@ class CastAssert:
     dest: Type
     span: TextSpan
 
-# ---------------------------------------------------------------------------- #    
+# ---------------------------------------------------------------------------- #
 
 @dataclass
-class SolutionContext:
-    '''
-    Represents a set of possible substitutions and overload sets that result
-    from a particular unification or set of unifications.  Solution contexts
-    effectively contain (part of) the state of the solver at a particular time
-    thereby allowing the solver to consider multiple possible sequences of
-    deductions ie. perform "test unifications."  This construct is particularly
-    useful when deducing the types of overloaded type variables as it allows the
-    solver to "prune" possibilities based on what it can infer about the program
-    so far.
+class Node:
+    id: int
+    value: TypeVariable | Substitution
+    edges: List['Node'] = field(default_factory=list)
+    default: bool = False
 
-    Attributes
-    ----------
-    substitutions: Dict[int, Substitution]
-        The applied substitutions in this solution context.
-    overload_sets: Dict[int, OverloadSet]
-        The applied overload sets in this solution context.
+    def __eq__(self, other: object):
+        if isinstance(other, Node):
+            return self.id == other.id
 
-    Methods
-    -------
-    update(sub_ctx: SolutionContext)  
-    copy() -> SolutionContext
-    '''
+        return super().__eq__(other)
 
-    substitutions: Dict[int, Substitution] = field(default_factory=dict)
-    overload_sets: Dict[int, OverloadSet] = field(default_factory=dict)
-    
-    def update(self, sub_ctx: 'SolutionContext'):
-        '''
-        Updates this context with the deductions made in another context.
-
-        Params
-        ------
-        sub_ctx: SolutionContext
-            The context to update from.
-        '''
-
-        self.substitutions |= sub_ctx.substitutions
-        self.overload_sets |= sub_ctx.overload_sets
-
-    def copy(self) -> 'SolutionContext':
-        '''Returns a copy of this solution context.'''
-
-        return SolutionContext(self.substitutions.copy(), self.overload_sets.copy())
+# ---------------------------------------------------------------------------- #
 
 class Solver:
     '''
@@ -259,18 +187,16 @@ class Solver:
     # The source file in which this solver is operating.
     src_file: SourceFile
 
-    # The list of type variables defined in the global solution context.
-    type_vars: List[TypeVariable]
+    # The counter used to generate new node IDs.
+    id_counter: int
 
-    # The global solution context: the finalized result of all unifications.
-    global_ctx: SolutionContext
+    # The solution graph.
+    graph: Dict[int, Node]
 
-    # The local solution context: used to temporarily store results of
-    # unifications until they are either discarded or used to update a parent
-    # context.
-    local_ctx: SolutionContext
+    # The list of type variable nodes in the solution graph.
+    type_var_nodes: List[Node]
 
-    # The list of cast assertions applied in the global solution context.
+    # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
 
     def __init__(self, src_file: SourceFile):
@@ -299,8 +225,14 @@ class Solver:
             The (optional) display name for the type variable.
         '''
 
-        tv = TypeVariable(len(self.type_vars), span, name, self)
-        self.type_vars.append(tv)
+        node_id = self.id_counter
+        self.id_counter += 1
+
+        tv = TypeVariable(len(node_id), span, name, self)
+        tv_node = Node(node_id, tv)
+        self.graph[node_id] = tv_node
+        self.type_var_nodes.append(tv_node)
+
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -316,10 +248,13 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
-        self.global_ctx.overload_sets[tv.id] = OverloadSet(
-            [Overload(BasicSubstitution(typ)) for typ in overloads],
-            True
-        )
+        tv_node = self.graph[tv.id]
+        tv_node.default = True
+
+        for overload in overloads:
+            sub_node = self.add_substitution(tv_node, BasicSubstitution(overload))
+           
+            tv_node.edges.append(sub_node)
 
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
@@ -337,10 +272,12 @@ class Solver:
             The list of operator overloads for the operator.
         '''
 
-        self.global_ctx.overload_sets[tv.id] = OverloadSet(
-            [Overload(OperatorSubstitution(op, overload)) for overload in overloads],
-            False
-        )
+        tv_node = self.graph[tv.id]
+
+        for overload in overloads:
+            sub_node = self.add_substitution(tv_node, OperatorSubstitution(op, overload))
+
+            tv_node.edges.append(sub_node)
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -356,23 +293,8 @@ class Solver:
             The text span to error over if the assertion fails.
         '''
 
-        # NOTE The unification for an equivalency assertion takes place in a
-        # "blank" local context (instead of starting in the global context) to
-        # minimize copying during overload pruning.  If we were to use the
-        # global context here, any overload pruning that happened in that base
-        # context would have to copy the entire global context for each overload
-        # which far exceeds the slight performance cost of using a blank local
-        # context for every assertion.
-
-        # Unify to test equivalency: report an error if it fails.
         if not self.unify(lhs, rhs):
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
-
-        # If unification succeeds, update the global context with the results of
-        # the unification and clear the local context for the next equivalency
-        # assertion.
-        self.global_ctx.update(self.local_ctx)
-        self.local_ctx = SolutionContext()
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -397,18 +319,18 @@ class Solver:
         constraints will be provided.  This does NOT reset the solver.
         '''
 
-        for tv in self.type_vars:
-            if (oset := self.global_ctx.overload_sets.get(tv.id)) and oset.default:
-                self.substitute_overload(tv.id, oset.overloads[0])
-                self.global_ctx.update(self.local_ctx)
-                self.local_ctx = SolutionContext()
+        for node in self.type_var_nodes:
+            if len(node.edges) > 1 and node.default:
+                for edge in node.edges[1:]:
+                    self.prune_substitution(node, edge)
 
-        for tv in self.type_vars:
-            if sub := self.global_ctx.substitutions.get(tv.id):
-                tv.value = sub.type
+        for node in self.type_var_nodes:
+            if len(node.edges) == 1:
+                sub = node.edges[0].value
+                node.value.value = sub.type
                 sub.finalize()
             else:
-                self.error(f'unable to infer type of `{tv}`', tv.span)
+                self.error(f'unable to infer type of `{node.value}`', node.value.span)
 
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
@@ -417,17 +339,16 @@ class Solver:
     def reset(self):
         '''Resets the solver to its default state.'''
 
-        self.type_vars = []
-        self.global_ctx = SolutionContext()
-        self.local_ctx = SolutionContext()
+        self.id_counter = 0
+        self.graph = {}
+        self.type_var_nodes = []
         self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
 
     def unify(self, lhs: Type, rhs: Type) -> bool:
         '''
-        Attempts to make two types equal by substitution and overload pruning.
-        The results of its deductions are stored in the local solution context.
+        Attempts to make two types equal by substitution.
 
         Params
         ------
@@ -444,10 +365,10 @@ class Solver:
 
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
-                if lhs_id == rhs_id:
-                    return True
+                if lhs_id != rhs_id:
+                    self.connect_edges(lhs_id, rhs_id)
 
-                return self.unify_type_var(lhs_id, rhs)
+                return True
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
@@ -467,129 +388,32 @@ class Solver:
                 return lhs == rhs
             case _:
                 return False
-        
+
+    def connect_edges(self, lhs_id: int, rhs_id: int):
+        pass
+
     def unify_type_var(self, id: int, typ: Type) -> bool:
-        '''
-        Performs unification involving a type variable.
+        pass
 
-        Params
-        ------
-        id: int
-            The ID of the type variable to unify against.
-        typ: Type
-            The type to unify the type variable with.
+    # ---------------------------------------------------------------------------- #
 
-        Returns
-        -------
-        ok: bool
-            Whether type variable unification succeeded.
-        '''
+    def add_substitution(self, root: Substitution, sub: Substitution) -> Node:
+        sub_node = Node(self.id_counter, sub)
+        self.id_counter += 1
 
-        if sub := self.get_substitution(id):
-            return self.unify(sub.type, typ)
-        elif oset := self.get_overload_set(id):
-            return self.prune_overloads(id, oset, typ)
-        else:
-            self.local_ctx.substitutions[id] = BasicSubstitution(typ)
-            return True
+        self.graph[sub_node.id] = sub_node
+        sub_node.edges.append(root)
+        return sub_node
 
-    def get_substitution(self, id: int) -> Optional[Substitution]:
-        '''
-        Returns the substitution corresponding to the given type variable if it
-        exists in any context.
+    def prune_substitution(self, root: Node, to_prune: Node) -> Node:
+        root.edges.remove(to_prune)
 
-        Params
-        ------
-        id: int
-            The ID of the type variable whose substitution to look up.
-        '''
+        if isinstance(to_prune.value, Substitution):
+            for node in to_prune.edges:
+                if len(node.edges) == 1:
+                    self.prune_substitution(to_prune, node)
 
-        if sub := self.local_ctx.substitutions.get(id):
-            return sub
-        elif sub := self.global_ctx.substitutions.get(id):
-            return sub
-
-    def get_overload_set(self, id: int) -> Optional[OverloadSet]:
-        '''
-        Returns the overload set corresponding to the given type variable if it
-        exists in any context.
-
-        Params
-        ------
-        id: int
-            The ID of the type variable whose overload set to look up.
-        '''
-
-        if oset := self.local_ctx.overload_sets.get(id):
-            return oset
-        elif oset := self.global_ctx.overload_sets.get(id):
-            return oset
-
-    def prune_overloads(self, id: int, oset: OverloadSet, typ: Type) -> bool:
-        '''
-        Attempts to unify an overload set with a type by pruning all types in
-        the overload set which cannot be individually unified with the type.  If
-        a single type remains after pruning, then that type becomes the
-        substitution for the type variable associated with the given overload
-        set. If no substitutions remain, the pruning fails.  Otherwise, the
-        local overload set is updated to contain only the overloads which
-        survived pruning.
-
-        Params
-        ------
-        id: int
-            The ID of the type variable whose overload set is being pruned.
-        oset: OverloadSet
-            The overload set to prune.
-        typ: Type
-            The type to unify with the overload set.
-        
-        Returns
-        -------
-        ok: bool
-            Whether pruning succeeded.
-        '''
-
-        outer_ctx = self.local_ctx
-        
-        new_overloads = []
-        for overload in oset.overloads:
-            self.local_ctx = outer_ctx.copy()
-            self.local_ctx.update(overload.context)
-
-            if self.unify(overload.substitution.type, typ):
-                new_overloads.append(Overload(overload.substitution, self.local_ctx))
-
-        self.local_ctx = outer_ctx
-
-        match len(new_overloads):
-            case 0:
-                return False
-            case 1:
-                self.substitute_overload(id, new_overloads[0])
-            case _:
-                # TODO figure out how to make the relationship between the context elements
-                # and the operator bidirectional
-                self.local_ctx.overload_sets[id] = OverloadSet(new_overloads, oset.default)
-
-        return True
-
-    def substitute_overload(self, id: int, overload: Overload):
-        '''
-        Unifies an overload as the substitution for a type variable.  This
-        function assumes the overload is valid as a substitution for the type
-        variable.
-
-        Params
-        ------
-        id: int
-            The type variable whose substitution to update.
-        overload: Overload
-            The overload to apply as a substitution.
-        '''
-
-        self.local_ctx.update(overload.context)
-        self.local_ctx.substitutions[id] = overload.substitution
+            del self.graph[to_prune.id]
 
     # ---------------------------------------------------------------------------- #
 
@@ -617,9 +441,4 @@ class Solver:
             The type variable whose string representation to return.
         '''
 
-        if sub := self.get_substitution(tv.id):
-            return repr(sub.type)
-        elif oset := self.get_overload_set(tv.id):
-            return '{' + ' | '.join(str(x.type) for x in oset.overloads) + '}'
-        else:
-            return '{_}'
+        # TODO
