@@ -131,6 +131,27 @@ class OperatorSubstitution(Substitution):
 # ---------------------------------------------------------------------------- #
 
 @dataclass
+class Overload:
+    '''
+    Represents a single possible overload in an overload set.
+
+    Attributes
+    ----------
+    substitution: Substitution
+        The substitution associated with this overload.
+    context: 'SolutionContext'
+        The persistent solution context that is associated with this overload:
+        it is accumulated through many test unifications.
+    '''
+
+    substitution: Substitution
+    context: 'SolutionContext' = None
+
+    def __post_init__(self):
+        if not self.context:
+            self.context = SolutionContext()
+
+@dataclass
 class OverloadSet:
     '''
     Represents a set of possible substitutions for a type variable.
@@ -138,15 +159,17 @@ class OverloadSet:
     Attributes
     ----------
     overloads: List[Substitution]
-        The possible substitutions for the type variable.
+        The possible overloads for the type variable.
     default: bool
         Whether to select the first element of substitution's list as the final
         type value for the associated type variable if no other type value can
         be inferred.  This mechanism is used by literals.
     '''
 
-    overloads: List[Substitution]
+    overloads: List[Overload]
     default: bool
+
+# ---------------------------------------------------------------------------- #
 
 @dataclass
 class CastAssert:
@@ -294,7 +317,8 @@ class Solver:
         '''
 
         self.global_ctx.overload_sets[tv.id] = OverloadSet(
-            [BasicSubstitution(typ) for typ in overloads], True
+            [Overload(BasicSubstitution(typ)) for typ in overloads],
+            True
         )
 
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
@@ -314,7 +338,8 @@ class Solver:
         '''
 
         self.global_ctx.overload_sets[tv.id] = OverloadSet(
-            [OperatorSubstitution(op, overload) for overload in overloads], False
+            [Overload(OperatorSubstitution(op, overload)) for overload in overloads],
+            False
         )
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
@@ -374,7 +399,7 @@ class Solver:
 
         for tv in self.type_vars:
             if (oset := self.global_ctx.overload_sets.get(tv.id)) and oset.default:
-                self.unify(tv, oset.overloads[0].type)
+                self.substitute_overload(tv.id, oset.overloads[0])
                 self.global_ctx.update(self.local_ctx)
                 self.local_ctx = SolutionContext()
 
@@ -400,12 +425,29 @@ class Solver:
     # ---------------------------------------------------------------------------- #
 
     def unify(self, lhs: Type, rhs: Type) -> bool:
+        '''
+        Attempts to make two types equal by substitution and overload pruning.
+        The results of its deductions are stored in the local solution context.
+
+        Params
+        ------
+        lhs: Type
+            The LHS type.
+        rhs: Type
+            The RHS type.
+
+        Returns
+        -------
+        ok: bool
+            Whether unification succeeded.
+        '''
+
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
                 if lhs_id == rhs_id:
                     return True
 
-                return self.unify_two_type_vars(lhs, rhs)
+                return self.unify_type_var(lhs_id, rhs)
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
@@ -425,37 +467,24 @@ class Solver:
                 return lhs == rhs
             case _:
                 return False
-
-    def unify_two_type_vars(self, lhs: TypeVariable, rhs: TypeVariable) -> bool:
-        # TODO remove this function when we find a way to make overload sets
-        # bidirectional -- they keep track of the sets and variables that are
-        # waiting on them for inference.
-
-        lhs_sub = self.get_substitution(lhs.id)
-        rhs_sub = self.get_substitution(rhs.id)
-
-        if lhs_sub and rhs_sub:
-            return self.unify(lhs_sub.type, rhs_sub.type)
-        elif lhs_sub:
-            return self.unify(lhs_sub.type, rhs)
-        elif rhs_sub:
-            return self.unify(lhs, rhs_sub.type)
-
-        lhs_overloads = self.get_overload_set(lhs.id)
-        rhs_overloads = self.get_overload_set(rhs.id)
-
-        if lhs_overloads and rhs_overloads:
-            return self.prune_overloads(lhs.id, lhs_overloads, rhs)
-        elif lhs_overloads:
-            self.local_ctx.substitutions[rhs.id] = BasicSubstitution(lhs)
-        elif rhs_overloads:
-            self.local_ctx.substitutions[lhs.id] = BasicSubstitution(rhs)
-        else:
-            lhs.id = rhs.id
-
-        return True
         
     def unify_type_var(self, id: int, typ: Type) -> bool:
+        '''
+        Performs unification involving a type variable.
+
+        Params
+        ------
+        id: int
+            The ID of the type variable to unify against.
+        typ: Type
+            The type to unify the type variable with.
+
+        Returns
+        -------
+        ok: bool
+            Whether type variable unification succeeded.
+        '''
+
         if sub := self.get_substitution(id):
             return self.unify(sub.type, typ)
         elif oset := self.get_overload_set(id):
@@ -465,27 +494,71 @@ class Solver:
             return True
 
     def get_substitution(self, id: int) -> Optional[Substitution]:
+        '''
+        Returns the substitution corresponding to the given type variable if it
+        exists in any context.
+
+        Params
+        ------
+        id: int
+            The ID of the type variable whose substitution to look up.
+        '''
+
         if sub := self.local_ctx.substitutions.get(id):
             return sub
         elif sub := self.global_ctx.substitutions.get(id):
             return sub
 
     def get_overload_set(self, id: int) -> Optional[OverloadSet]:
+        '''
+        Returns the overload set corresponding to the given type variable if it
+        exists in any context.
+
+        Params
+        ------
+        id: int
+            The ID of the type variable whose overload set to look up.
+        '''
+
         if oset := self.local_ctx.overload_sets.get(id):
             return oset
         elif oset := self.global_ctx.overload_sets.get(id):
             return oset
 
     def prune_overloads(self, id: int, oset: OverloadSet, typ: Type) -> bool:
+        '''
+        Attempts to unify an overload set with a type by pruning all types in
+        the overload set which cannot be individually unified with the type.  If
+        a single type remains after pruning, then that type becomes the
+        substitution for the type variable associated with the given overload
+        set. If no substitutions remain, the pruning fails.  Otherwise, the
+        local overload set is updated to contain only the overloads which
+        survived pruning.
+
+        Params
+        ------
+        id: int
+            The ID of the type variable whose overload set is being pruned.
+        oset: OverloadSet
+            The overload set to prune.
+        typ: Type
+            The type to unify with the overload set.
+        
+        Returns
+        -------
+        ok: bool
+            Whether pruning succeeded.
+        '''
+
         outer_ctx = self.local_ctx
         
         new_overloads = []
         for overload in oset.overloads:
             self.local_ctx = outer_ctx.copy()
+            self.local_ctx.update(overload.context)
 
-            if self.unify(overload.type, typ):
-                new_overloads.append(overload)
-                updated_ctx = self.local_ctx
+            if self.unify(overload.substitution.type, typ):
+                new_overloads.append(Overload(overload.substitution, self.local_ctx))
 
         self.local_ctx = outer_ctx
 
@@ -493,17 +566,57 @@ class Solver:
             case 0:
                 return False
             case 1:
-                self.local_ctx.update(updated_ctx)
-                self.local_ctx.substitutions[id] = new_overloads[0]
+                self.substitute_overload(id, new_overloads[0])
             case _:
+                # TODO figure out how to make the relationship between the context elements
+                # and the operator bidirectional
                 self.local_ctx.overload_sets[id] = OverloadSet(new_overloads, oset.default)
 
         return True
 
+    def substitute_overload(self, id: int, overload: Overload):
+        '''
+        Unifies an overload as the substitution for a type variable.  This
+        function assumes the overload is valid as a substitution for the type
+        variable.
+
+        Params
+        ------
+        id: int
+            The type variable whose substitution to update.
+        overload: Overload
+            The overload to apply as a substitution.
+        '''
+
+        self.local_ctx.update(overload.context)
+        self.local_ctx.substitutions[id] = overload.substitution
+
+    # ---------------------------------------------------------------------------- #
+
     def error(self, msg: str, span: TextSpan):
+        '''
+        Raise a compile error indicating a type solution failure.
+
+        Params
+        ------
+        msg: str
+            The error message.
+        span: TextSpan
+            The text span of the erroneous source text.
+        '''
+
         raise CompileError(msg, self.src_file, span)
 
     def repr_unnamed_type_var(self, tv: TypeVariable) -> str:
+        '''
+        Returns the string representation of an unnamed type variable.
+
+        Params
+        ------
+        tv: TypeVariable
+            The type variable whose string representation to return.
+        '''
+
         if sub := self.get_substitution(tv.id):
             return repr(sub.type)
         elif oset := self.get_overload_set(tv.id):
