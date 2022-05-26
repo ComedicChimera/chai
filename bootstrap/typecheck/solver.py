@@ -1,7 +1,7 @@
 '''Provides the type solver and its associated constructs.'''
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, TypeVar
+from typing import List, Dict, Optional, Tuple, TypeVar
 from abc import ABC, abstractmethod
 
 from . import *
@@ -34,9 +34,8 @@ class TypeVariable(Type):
     id: int
     span: TextSpan
     display_name: Optional[str]
-    
-    _parent: 'Solver'
 
+    default: bool = False
     value: Optional[Type] = None
 
     def _compare(self, other: Type) -> bool:
@@ -61,6 +60,7 @@ class TypeVariable(Type):
 
 # ---------------------------------------------------------------------------- #
 
+@dataclass
 class Substitution(ABC):
     '''
     Represents the solver's "guess" for what type should be inferred for a given
@@ -79,6 +79,10 @@ class Substitution(ABC):
         of type inference (eg. setting the package ID of the operator that was
         selected).
     '''
+
+    id: int
+    parent: TypeVariable
+    edges: Dict[int, 'Substitution']
 
     @property
     @abstractmethod
@@ -151,21 +155,6 @@ class CastAssert:
 
 # ---------------------------------------------------------------------------- #
 
-@dataclass
-class Node:
-    id: int
-    value: TypeVariable | Substitution
-    edges: List['Node'] = field(default_factory=list)
-    default: bool = False
-
-    def __eq__(self, other: object):
-        if isinstance(other, Node):
-            return self.id == other.id
-
-        return super().__eq__(other)
-
-# ---------------------------------------------------------------------------- #
-
 class Solver:
     '''
     Represents Chai's type solver.  The type solver is the primary mechanism for
@@ -187,14 +176,17 @@ class Solver:
     # The source file in which this solver is operating.
     src_file: SourceFile
 
-    # The counter used to generate new node IDs.
+    # The list of type variable in the solution graph.
+    type_vars: List[TypeVariable]
+
+    # The dictionary of substitutions organized by type variable.
+    graph: Dict[int, Dict[int, Substitution]]
+
+    # The counter used to generate new substitution IDs.
     id_counter: int
 
-    # The solution graph.
-    graph: Dict[int, Node]
-
-    # The list of type variable nodes in the solution graph.
-    type_var_nodes: List[Node]
+    # The table of type variables which are currently have no substitutions.
+    unknowns: Dict[int, bool]
 
     # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
@@ -225,14 +217,10 @@ class Solver:
             The (optional) display name for the type variable.
         '''
 
-        node_id = self.id_counter
-        self.id_counter += 1
-
-        tv = TypeVariable(len(node_id), span, name, self)
-        tv_node = Node(node_id, tv)
-        self.graph[node_id] = tv_node
-        self.type_var_nodes.append(tv_node)
-
+        tv = TypeVariable(len(self.type_vars), span, name)
+        self.type_vars.append(tv)
+        self.graph[tv.id] = {}
+        self.unknowns[tv.id] = True
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -248,13 +236,13 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
-        tv_node = self.graph[tv.id]
-        tv_node.default = True
+        tv.default = True
+        del self.unknowns[tv.id]
 
         for overload in overloads:
-            sub_node = self.add_substitution(tv_node, BasicSubstitution(overload))
-           
-            tv_node.edges.append(sub_node)
+            sub = BasicSubstitution(self.id_counter, tv, {}, overload)
+            self.id_counter += 1
+            self.graph[tv.id][sub.id] = sub
 
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
@@ -272,12 +260,12 @@ class Solver:
             The list of operator overloads for the operator.
         '''
 
-        tv_node = self.graph[tv.id]
+        del self.unknowns[tv.id]
 
         for overload in overloads:
-            sub_node = self.add_substitution(tv_node, OperatorSubstitution(op, overload))
-
-            tv_node.edges.append(sub_node)
+            sub = OperatorSubstitution(self.id_counter, tv, {}, op, overload)
+            self.id_counter += 1
+            self.graph[tv.id][sub.id] = sub
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -293,8 +281,10 @@ class Solver:
             The text span to error over if the assertion fails.
         '''
 
-        if not self.unify(lhs, rhs):
+        if not self.unify(None, lhs, rhs):
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
+
+        self.unknowns = {tv_id: remain for tv_id, remain in self.unknowns.items() if remain}
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -339,81 +329,87 @@ class Solver:
     def reset(self):
         '''Resets the solver to its default state.'''
 
-        self.id_counter = 0
+        self.type_vars = []
         self.graph = {}
-        self.type_var_nodes = []
+        self.unknowns = {}
+        self.id_counter = 0
         self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
 
-    def unify(self, lhs: Type, rhs: Type) -> bool:
-        '''
-        Attempts to make two types equal by substitution.
-
-        Params
-        ------
-        lhs: Type
-            The LHS type.
-        rhs: Type
-            The RHS type.
-
-        Returns
-        -------
-        ok: bool
-            Whether unification succeeded.
-        '''
-
+    def unify(self, root: Optional[Substitution], lhs: Type, rhs: Type) -> bool:
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
-                if lhs_id != rhs_id:
-                    self.connect_edges(lhs_id, rhs_id)
-
-                return True
+                if lhs_id == rhs_id:
+                    return True
+                    
+                # TODO
             case (TypeVariable(lhs_id), _):
-                return self.unify_type_var(lhs_id, rhs)
+                return self.unify_type_var(root, lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
-                return self.unify_type_var(rhs_id, lhs)
+                return self.unify_type_var(root, rhs_id, lhs)
             case (PointerType(lhs_elem), PointerType(rhs_elem)):
-                return self.unify(lhs_elem, rhs_elem)
+                return self.unify(root, lhs_elem, rhs_elem)
             case (FuncType(lhs_params, lhs_rt_type), FuncType(rhs_params, rhs_rt_type)):
                 if len(lhs_params) != len(rhs_params):
                     return False
 
                 for lparam, rparam in zip(lhs_params, rhs_params):
-                    if not self.unify(lparam, rparam):
+                    if not self.unify(root, lparam, rparam):
                         return False
 
-                return self.unify(lhs_rt_type, rhs_rt_type)
+                return self.unify(root, lhs_rt_type, rhs_rt_type)
             case (PrimitiveType(), PrimitiveType()):
                 return lhs == rhs
             case _:
                 return False
 
-    def connect_edges(self, lhs_id: int, rhs_id: int):
-        pass
+    def unify_type_var(self, root: Optional[Substitution], tv_id: int, typ: Type) -> bool:
+        if root:
+            self.join_edges(root, tv_id, typ)
+            return True    
+        else:
+            return self.prune_edges(tv_id, typ)
 
-    def unify_type_var(self, id: int, typ: Type) -> bool:
-        pass
+    def join_edges(self, root: Substitution, tv_id: int, sub_type: Type):
+        if tv_id in self.unknowns:
+            self.unknowns[tv_id] = False
 
-    # ---------------------------------------------------------------------------- #
+            sub = BasicSubstitution(self.id_counter, self.type_vars[tv_id], {}, sub_type)
+            self.id_counter += 1
+            self.graph[tv_id][sub.id] = sub
+            self.add_edge(root, sub)
+        else:
+            for edge_sub in self.graph[tv_id].values():
+                if edge_sub.type == sub_type:
+                    self.add_edge(root, edge_sub)
 
-    def add_substitution(self, root: Substitution, sub: Substitution) -> Node:
-        sub_node = Node(self.id_counter, sub)
-        self.id_counter += 1
+    def prune_edges(self, tv_id: int, typ: Type) -> bool:
+        if tv_id in self.unknowns:
+            self.unknowns[tv_id] = False
 
-        self.graph[sub_node.id] = sub_node
-        sub_node.edges.append(root)
-        return sub_node
+            # TODO
+        else:
+            matched_any = False
+            for sub in self.graph[tv_id].values():
+                if self.unify(sub, sub.type, typ):
+                    matched_any = True
+                else:
+                    self.prune_substitution(sub)
 
-    def prune_substitution(self, root: Node, to_prune: Node) -> Node:
-        root.edges.remove(to_prune)
+            return matched_any
 
-        if isinstance(to_prune.value, Substitution):
-            for node in to_prune.edges:
-                if len(node.edges) == 1:
-                    self.prune_substitution(to_prune, node)
+    def add_edge(self, a: Substitution, b: Substitution):
+        a.edges[b.id] = b
+        b.edges[a.id] = a
 
-            del self.graph[to_prune.id]
+    def prune_substitution(self, sub: Substitution):
+        for edge_sub in sub.edges.values():
+            del edge_sub.edges[sub.id]
+
+            self.prune_substitution(edge_sub)
+
+        del self.graph[sub.parent.id][sub.id]
 
     # ---------------------------------------------------------------------------- #
 
