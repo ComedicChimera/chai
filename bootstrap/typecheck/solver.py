@@ -34,6 +34,7 @@ class TypeVariable(Type):
     id: int
     span: TextSpan
     display_name: Optional[str]
+    _parent: 'Solver'
 
     default: bool = False
     value: Optional[Type] = None
@@ -79,10 +80,6 @@ class Substitution(ABC):
         of type inference (eg. setting the package ID of the operator that was
         selected).
     '''
-
-    id: int
-    parent: TypeVariable
-    edges: Dict[int, 'Substitution']
 
     @property
     @abstractmethod
@@ -155,6 +152,47 @@ class CastAssert:
 
 # ---------------------------------------------------------------------------- #
 
+@dataclass
+class Node:
+    id: int
+    value_edges: List['ValueEdge'] = field(default_factory=list, init=False)
+    tv_edges: List['TypeVarEdge'] = field(default_factory=list, init=False)
+
+@typedataclass
+class NodeVar(Type):
+    node_id: int = -1
+    value: Type = PrimitiveType.NOTHING
+
+    # TODO: NodeVar type definition
+
+@dataclass
+class Edge:
+    lhs_pattern: Type
+    rhs_pattern: Type
+
+@dataclass
+class ValueNode(Node):
+    value: Substitution
+
+@dataclass
+class ValueEdge(Edge):
+    node: ValueNode
+
+@dataclass
+class TypeVarNode(Node):
+    type_var: TypeVariable
+
+@dataclass
+class TypeVarEdge(Edge):
+    node: TypeVarNode 
+
+# ---------------------------------------------------------------------------- #
+
+@dataclass
+class TypeVarEdge:
+    edge_pattern: Type
+    node: TypeVarNode
+
 class Solver:
     '''
     Represents Chai's type solver.  The type solver is the primary mechanism for
@@ -176,17 +214,14 @@ class Solver:
     # The source file in which this solver is operating.
     src_file: SourceFile
 
-    # The list of type variable in the solution graph.
-    type_vars: List[TypeVariable]
+    # The type solution graph.
+    graph: List[Node]
 
-    # The dictionary of substitutions organized by type variable.
-    graph: Dict[int, Dict[int, Substitution]]
+    # The list of type variable node IDs.
+    type_var_ids: List[int]
 
-    # The counter used to generate new substitution IDs.
+    # The counter used to generate new node IDs.
     id_counter: int
-
-    # The table of type variables which are currently have no substitutions.
-    unknowns: Dict[int, bool]
 
     # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
@@ -217,10 +252,9 @@ class Solver:
             The (optional) display name for the type variable.
         '''
 
-        tv = TypeVariable(len(self.type_vars), span, name)
-        self.type_vars.append(tv)
-        self.graph[tv.id] = {}
-        self.unknowns[tv.id] = True
+        tv = TypeVariable(self.id_counter, span, name, self)
+        self.graph.append(TypeVarNode(tv.id, tv))
+        self.id_counter += 1
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -237,12 +271,8 @@ class Solver:
         '''
 
         tv.default = True
-        del self.unknowns[tv.id]
+        
 
-        for overload in overloads:
-            sub = BasicSubstitution(self.id_counter, tv, {}, overload)
-            self.id_counter += 1
-            self.graph[tv.id][sub.id] = sub
 
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
@@ -258,14 +288,7 @@ class Solver:
             constraint.
         *overloads: OperatorOverload
             The list of operator overloads for the operator.
-        '''
-
-        del self.unknowns[tv.id]
-
-        for overload in overloads:
-            sub = OperatorSubstitution(self.id_counter, tv, {}, op, overload)
-            self.id_counter += 1
-            self.graph[tv.id][sub.id] = sub
+        '''        
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -280,11 +303,6 @@ class Solver:
         span: TextSpan
             The text span to error over if the assertion fails.
         '''
-
-        if not self.unify(None, lhs, rhs):
-            self.error(f'type mismatch: {lhs} v. {rhs}', span)
-
-        self.unknowns = {tv_id: remain for tv_id, remain in self.unknowns.items() if remain}
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -309,18 +327,7 @@ class Solver:
         constraints will be provided.  This does NOT reset the solver.
         '''
 
-        for node in self.type_var_nodes:
-            if len(node.edges) > 1 and node.default:
-                for edge in node.edges[1:]:
-                    self.prune_substitution(node, edge)
-
-        for node in self.type_var_nodes:
-            if len(node.edges) == 1:
-                sub = node.edges[0].value
-                node.value.value = sub.type
-                sub.finalize()
-            else:
-                self.error(f'unable to infer type of `{node.value}`', node.value.span)
+        # TODO
 
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
@@ -329,9 +336,8 @@ class Solver:
     def reset(self):
         '''Resets the solver to its default state.'''
 
-        self.type_vars = []
         self.graph = {}
-        self.unknowns = {}
+        self.type_var_ids = []
         self.id_counter = 0
         self.cast_asserts = []
 
@@ -365,51 +371,7 @@ class Solver:
                 return False
 
     def unify_type_var(self, root: Optional[Substitution], tv_id: int, typ: Type) -> bool:
-        if root:
-            self.join_edges(root, tv_id, typ)
-            return True    
-        else:
-            return self.prune_edges(tv_id, typ)
-
-    def join_edges(self, root: Substitution, tv_id: int, sub_type: Type):
-        if tv_id in self.unknowns:
-            self.unknowns[tv_id] = False
-
-            sub = BasicSubstitution(self.id_counter, self.type_vars[tv_id], {}, sub_type)
-            self.id_counter += 1
-            self.graph[tv_id][sub.id] = sub
-            self.add_edge(root, sub)
-        else:
-            for edge_sub in self.graph[tv_id].values():
-                if edge_sub.type == sub_type:
-                    self.add_edge(root, edge_sub)
-
-    def prune_edges(self, tv_id: int, typ: Type) -> bool:
-        if tv_id in self.unknowns:
-            self.unknowns[tv_id] = False
-
-            # TODO
-        else:
-            matched_any = False
-            for sub in self.graph[tv_id].values():
-                if self.unify(sub, sub.type, typ):
-                    matched_any = True
-                else:
-                    self.prune_substitution(sub)
-
-            return matched_any
-
-    def add_edge(self, a: Substitution, b: Substitution):
-        a.edges[b.id] = b
-        b.edges[a.id] = a
-
-    def prune_substitution(self, sub: Substitution):
-        for edge_sub in sub.edges.values():
-            del edge_sub.edges[sub.id]
-
-            self.prune_substitution(edge_sub)
-
-        del self.graph[sub.parent.id][sub.id]
+        pass
 
     # ---------------------------------------------------------------------------- #
 
