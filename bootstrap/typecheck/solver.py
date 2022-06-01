@@ -1,7 +1,7 @@
 '''Provides the type solver and its associated constructs.'''
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, TypeVar
+from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
 
 from . import *
@@ -154,8 +154,7 @@ class CastAssert:
 @dataclass
 class TypeVarNode:
     type_var: TypeVariable
-    tv_edges: Dict[int, 'TypeVarNode'] = field(default_factory=dict)
-    sub_edges: Dict[int, 'SubNode'] = field(default_factory=dict)
+    substitutions: Dict[int, 'SubNode'] = field(default_factory=dict)
     default: bool = False
 
     @property
@@ -181,7 +180,7 @@ class SubNode:
 
     @property
     def is_overload(self) -> bool:
-        return len(self.parent.sub_edges) > 1
+        return len(self.parent.substitutions) > 1
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, SubNode):
@@ -218,6 +217,11 @@ class Solver:
     # The counter used to generate substitution IDs.
     sub_id_counter: int
 
+    # The list of type variables which are still unknown: the boolean flag
+    # indicates whether or not the variable is still an unknown at the end of a
+    # type unification.  
+    unknowns: Dict[int, bool]
+
     # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
 
@@ -249,6 +253,7 @@ class Solver:
 
         tv = TypeVariable(len(self.type_var_nodes), span, name, self)
         self.type_var_nodes.append(tv)
+        self.unknowns[tv.id] = True
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -264,10 +269,14 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
-        self.type_var_nodes[tv.id].default = True
+        tv_node = self.type_var_nodes[tv.id]
+
+        tv_node.default = True
 
         for overload in overloads:
-            self.add_substitution(tv.id, BasicSubstitution(overload))
+            self.add_substitution(tv_node, BasicSubstitution(overload))
+
+        del self.unknowns[tv.id]
         
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
@@ -285,8 +294,12 @@ class Solver:
             The list of operator overloads for the operator.
         ''' 
 
+        tv_node = self.type_var_nodes[tv.id]
+
         for overload in overloads:
-            self.add_substitution(tv.id, OperatorSubstitution(op, overload))       
+            self.add_substitution(tv_node, OperatorSubstitution(op, overload))   
+
+        del self.unknowns[tv.id]    
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -330,11 +343,11 @@ class Solver:
 
         for tv_node in self.type_var_nodes:
             if tv_node.default and len(tv_node.tv_edges) > 1:
-                self.unify(None, tv_node.type_var, tv_node.sub_edges[0].type)
+                self.unify(None, tv_node.type_var, tv_node.substitutions[0].type)
 
         for tv_node in self.type_var_nodes:
-            if len(tv_node.sub_edges) == 1:
-                tv_node.type_var.value = tv_node.sub_edges[0].type
+            if len(tv_node.substitutions) == 1:
+                tv_node.type_var.value = tv_node.substitutions[0].type
             else:
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
@@ -348,6 +361,7 @@ class Solver:
         self.type_var_nodes = []
         self.sub_nodes = {}
         self.sub_id_counter = 0
+        self.unknowns = {}
         self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
@@ -386,53 +400,98 @@ class Solver:
             # TODO overloaded case
             pass
         else:
-            lhs_node.tv_edges[rhs_node.id] = rhs_node
-            rhs_node.tv_edges[lhs_node.id] = lhs_node
-
-            match (len(lhs_node.sub_edges), len(rhs_node.sub_edges)):
+            match (len(lhs_node.substitutions), len(rhs_node.substitutions)):
                 case (0, 0):
-                    pass
+                    self.add_substitution(lhs_node, rhs_node.type_var)
+
+                    self.unknowns[lhs_node.id] = False
                 case (0, _):
-                    for sub_node in rhs_node.sub_edges.values():
-                        lhs_node.sub_edges[sub_node.id] = sub_node
+                    for sub_node in rhs_node.substitutions.values():
+                        self.add_substitution(lhs_node, sub_node.sub)
 
-                    # TODO unknowns ...
+                    self.unknowns[lhs_node.id] = False
                 case (_, 0):
-                    for sub_node in lhs_node.sub_edges.values():
-                        rhs_node.sub_edges[sub_node.id] = sub_node
+                    for sub_node in lhs_node.substitutions.values():
+                        self.add_substitution(rhs_node, sub_node.sub)
 
-                    # TODO unknowns ...
+                    self.unknowns[rhs_node.id] = False
                 case _:
-                    return self.merge_substitutions(root, lhs_node, rhs_node)
+                    return self.intersect_substitutions(root, lhs_node, rhs_node)
 
+            self.update_unknowns(root)
             return True
     
-    def merge_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
+    def intersect_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
+        # TODO
         pass
 
     def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> bool:
-        pass
+        tv_node = self.type_var_nodes[tv_id]
+
+        if len(tv_node.substitutions) == 0:
+            self.add_substitution(tv_node, BasicSubstitution(typ))
+            self.unknowns[tv_id] = False
+
+            if root:
+                self.add_edge(root, tv_node.substitutions[0])
+
+            self.update_unknowns(root)
+            return True
+        elif root:
+            for sub_node in tv_node.substitutions.values():
+                if sub_node == root:
+                    continue
+
+                ok = self.unify(root, sub_node.type, typ)
+
+                if ok:
+                    self.add_edge(root, sub_node)
+                    break
+                elif root.is_overload:
+                    continue
+                else:
+                    self.prune_substitution(sub_node)
+            else:
+                return False
+
+            self.update_unknowns(root)
+            return True
+        else:
+            for sub_node in tv_node.substitutions.values():
+                if not self.unify(None, sub_node.type, typ):
+                    self.prune_substitution(sub_node)
+
+            self.update_unknowns(root)
+            return len(tv_node.substitutions) > 0
+
+    def update_unknowns(self, root: Optional[SubNode]):
+        if not root or not root.is_overload:
+            self.unknowns = {uid: remain for uid, remain in self.unknowns.items() if remain}
 
     # ---------------------------------------------------------------------------- #
 
-    def add_substitution(self, parent_id: int, sub: Substitution) -> SubNode:
-        parent = self.type_var_nodes[parent_id]
-
+    def add_substitution(self, parent: TypeVarNode, sub: Substitution) -> SubNode:
         sub_node = SubNode(self.sub_id_counter, sub, parent)
         self.sub_id_counter += 1
 
         self.sub_nodes[sub_node.id] = sub_node
-        parent.sub_edges[sub_node.id] = sub_node
+        parent.substitutions[sub_node.id] = sub_node
 
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode):
-        for edge in sub_node.edges.values():
+        for eid, edge in sub_node.edges.items():
+            del sub_node.edges[eid]
+
             self.prune_substitution(edge)
 
-        del sub_node.parent.sub_edges[sub_node.id]
+        del sub_node.parent.substitutions[sub_node.id]
 
         del self.sub_nodes[sub_node.id]
+
+    def add_edge(self, a: SubNode, b: SubNode):
+        a.edges[b.id] = b
+        b.edges[a.id] = a
 
     # ---------------------------------------------------------------------------- #
 
