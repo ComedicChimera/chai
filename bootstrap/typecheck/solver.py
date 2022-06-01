@@ -396,34 +396,80 @@ class Solver:
     def link_type_vars(self, root: Optional[SubNode], lhs_id: int, rhs_id: int) -> bool:
         lhs_node, rhs_node = self.type_var_nodes[lhs_id], self.type_var_nodes[rhs_id]
 
-        if root and root.is_overload:
-            # TODO overloaded case
-            pass
-        else:
-            match (len(lhs_node.substitutions), len(rhs_node.substitutions)):
-                case (0, 0):
-                    self.add_substitution(lhs_node, rhs_node.type_var)
+        match (len(lhs_node.substitutions), len(rhs_node.substitutions)):
+            case (0, 0):
+                sub = self.add_substitution(lhs_node, rhs_node.type_var)
 
-                    self.unknowns[lhs_node.id] = False
-                case (0, _):
-                    for sub_node in rhs_node.substitutions.values():
-                        self.add_substitution(lhs_node, sub_node.sub)
+                if root:
+                    self.add_edge(root, sub)
 
-                    self.unknowns[lhs_node.id] = False
-                case (_, 0):
-                    for sub_node in lhs_node.substitutions.values():
-                        self.add_substitution(rhs_node, sub_node.sub)
+                self.unknowns[lhs_node.id] = False
+            case (0, _):
+                for sub_node in rhs_node.substitutions.values():
+                    sub = self.add_substitution(lhs_node, sub_node.sub)
 
-                    self.unknowns[rhs_node.id] = False
-                case _:
+                    if root:
+                        self.add_edge(root, sub)
+
+                self.unknowns[lhs_node.id] = False
+            case (_, 0):
+                for sub_node in lhs_node.substitutions.values():
+                    sub = self.add_substitution(rhs_node, sub_node.sub)
+
+                    if root:
+                        self.add_edge(root, sub)
+
+                self.unknowns[rhs_node.id] = False
+            case _:
+                if root and root.is_overload:
+                    return self.union_substitutions(root, lhs_node, rhs_node)
+                else:
                     return self.intersect_substitutions(root, lhs_node, rhs_node)
 
-            self.update_unknowns(root)
-            return True
+        self.update_unknowns(root)
+        return True
+
+    def union_substitutions(self, root: SubNode, lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
+        matches = []
+
+        for lhs_sub_node in lhs_node.substitutions.values():
+            for rhs_sub_node in rhs_node.substitutions.values():
+                if self.unify(root, lhs_sub_node.type, rhs_sub_node.type):
+                    matches.append((lhs_sub_node, rhs_sub_node))
+
+        for a, b in matches:
+            self.add_edge(root, a)
+            self.add_edge(root, b)
+
+        self.update_unknowns(root)
+        return len(matches) > 0         
     
     def intersect_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
-        # TODO
-        pass
+        matches = []
+
+        for lhs_sub_node in lhs_node.substitutions.values():
+            no_match = True
+
+            for rhs_sub_node in rhs_node.substitutions.values():
+                if self.unify(root, lhs_sub_node.type, rhs_sub_node.type):
+                    matches.append((lhs_sub_node, rhs_sub_node))
+                    no_match = False
+                else:
+                    self.prune_substitution(rhs_sub_node)
+
+            if no_match:
+                self.prune_substitution(lhs_sub_node)
+
+        if root:
+            for a, b in matches:
+                self.add_edge(root, a)
+                self.add_edge(root, b)
+        else:
+            for a, b in matches:
+                self.add_edge(a, b)   
+
+        self.update_unknowns(root)
+        return len(matches) > 0             
 
     def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> bool:
         tv_node = self.type_var_nodes[tv_id]
@@ -480,6 +526,9 @@ class Solver:
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode):
+        for eid, edge in sub_node.edges.items():
+            del edge.edges[eid]
+
         for eid, edge in sub_node.edges.items():
             del sub_node.edges[eid]
 
