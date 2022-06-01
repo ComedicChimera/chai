@@ -36,7 +36,6 @@ class TypeVariable(Type):
     display_name: Optional[str]
     _parent: 'Solver'
 
-    default: bool = False
     value: Optional[Type] = None
 
     def _compare(self, other: Type) -> bool:
@@ -153,53 +152,49 @@ class CastAssert:
 # ---------------------------------------------------------------------------- #
 
 @dataclass
-class Node:
-    id: int
-    value_edges: List['ValueEdge'] = field(default_factory=list, init=False)
-    tv_edges: List['TypeVarEdge'] = field(default_factory=list, init=False)
-
-@typedataclass
-class NodeVar(Type):
-    node_id: int = -1
-    value: Type = PrimitiveType.NOTHING
-
-    # TODO: NodeVar type definition
-
-@dataclass
-class Edge:
-    lhs_pattern: Type
-    rhs_pattern: Type
-
-@dataclass
-class ValueNode(Node):
-    value: Substitution
-
-@dataclass
-class ValueEdge(Edge):
-    node: ValueNode
-
-@dataclass
-class TypeVarNode(Node):
+class TypeVarNode:
     type_var: TypeVariable
+    tv_edges: Dict[int, 'TypeVarNode'] = field(default_factory=dict)
+    sub_edges: Dict[int, 'SubNode'] = field(default_factory=dict)
+    default: bool = False
+
+    @property
+    def id(self) -> int:
+        return self.type_var.id
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, TypeVarNode):
+            return self.id == other.id
+
+        return False
 
 @dataclass
-class TypeVarEdge(Edge):
-    node: TypeVarNode 
+class SubNode:
+    id: int
+    sub: Substitution
+    parent: TypeVarNode
+    edges: Dict[int, 'SubNode'] = field(default_factory=dict)
+
+    @property
+    def type(self) -> Type:
+        return self.sub.type
+
+    @property
+    def is_overload(self) -> bool:
+        return len(self.parent.sub_edges) > 1
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, SubNode):
+            return self.id == other.id
+
+        return False
 
 # ---------------------------------------------------------------------------- #
-
-@dataclass
-class TypeVarEdge:
-    edge_pattern: Type
-    node: TypeVarNode
 
 class Solver:
     '''
     Represents Chai's type solver.  The type solver is the primary mechanism for
-    performing type deduction: it is based on the Hindley-Milner type
-    inferencing algorithm -- the algorithm used by the solver has been extended
-    to support overloading as well as several other complexities of Chai's type
-    system.
+    performing type deduction.  TODO describe type solving algorithm
 
     Methods
     -------
@@ -214,14 +209,14 @@ class Solver:
     # The source file in which this solver is operating.
     src_file: SourceFile
 
-    # The type solution graph.
-    graph: List[Node]
+    # The list of type variable nodes in the solution graph.
+    type_var_nodes: List[TypeVarNode]
 
-    # The list of type variable node IDs.
-    type_var_ids: List[int]
+    # The dictionary of type substitution nodes in the solution graph.
+    sub_nodes: Dict[int, SubNode]
 
-    # The counter used to generate new node IDs.
-    id_counter: int
+    # The counter used to generate substitution IDs.
+    sub_id_counter: int
 
     # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
@@ -252,9 +247,8 @@ class Solver:
             The (optional) display name for the type variable.
         '''
 
-        tv = TypeVariable(self.id_counter, span, name, self)
-        self.graph.append(TypeVarNode(tv.id, tv))
-        self.id_counter += 1
+        tv = TypeVariable(len(self.type_var_nodes), span, name, self)
+        self.type_var_nodes.append(tv)
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -270,10 +264,11 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
-        tv.default = True
+        self.type_var_nodes[tv.id].default = True
+
+        for overload in overloads:
+            self.add_substitution(tv.id, BasicSubstitution(overload))
         
-
-
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
         Binds an overload set for an operator application comprised of the given
@@ -288,7 +283,10 @@ class Solver:
             constraint.
         *overloads: OperatorOverload
             The list of operator overloads for the operator.
-        '''        
+        ''' 
+
+        for overload in overloads:
+            self.add_substitution(tv.id, OperatorSubstitution(op, overload))       
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -303,6 +301,9 @@ class Solver:
         span: TextSpan
             The text span to error over if the assertion fails.
         '''
+
+        if not self.unify(None, lhs, rhs):
+            self.error(f'type mismatch: {lhs} v. {rhs}', span)
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -327,7 +328,15 @@ class Solver:
         constraints will be provided.  This does NOT reset the solver.
         '''
 
-        # TODO
+        for tv_node in self.type_var_nodes:
+            if tv_node.default and len(tv_node.tv_edges) > 1:
+                self.unify(None, tv_node.type_var, tv_node.sub_edges[0].type)
+
+        for tv_node in self.type_var_nodes:
+            if len(tv_node.sub_edges) == 1:
+                tv_node.type_var.value = tv_node.sub_edges[0].type
+            else:
+                self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
@@ -336,20 +345,20 @@ class Solver:
     def reset(self):
         '''Resets the solver to its default state.'''
 
-        self.graph = {}
-        self.type_var_ids = []
-        self.id_counter = 0
+        self.type_var_nodes = []
+        self.sub_nodes = {}
+        self.sub_id_counter = 0
         self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
 
-    def unify(self, root: Optional[Substitution], lhs: Type, rhs: Type) -> bool:
+    def unify(self, root: Optional[SubNode], lhs: Type, rhs: Type) -> bool:
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
                 if lhs_id == rhs_id:
                     return True
                     
-                # TODO
+                return self.link_type_vars(root, lhs_id, rhs_id)
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(root, lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
@@ -370,8 +379,32 @@ class Solver:
             case _:
                 return False
 
+    def link_type_vars(self, root: Optional[SubNode], lhs_id: int, rhs_id: int) -> bool:
+        pass
+
     def unify_type_var(self, root: Optional[Substitution], tv_id: int, typ: Type) -> bool:
         pass
+
+    # ---------------------------------------------------------------------------- #
+
+    def add_substitution(self, parent_id: int, sub: Substitution) -> SubNode:
+        parent = self.type_var_nodes[parent_id]
+
+        sub_node = SubNode(self.sub_id_counter, sub, parent)
+        self.sub_id_counter += 1
+
+        self.sub_nodes[sub_node.id] = sub_node
+        parent.sub_edges[sub_node.id] = sub_node
+
+        return sub_node
+
+    def prune_substitution(self, sub_node: SubNode):
+        for edge in sub_node.edges.values():
+            self.prune_substitution(edge)
+
+        del sub_node.parent.sub_edges[sub_node.id]
+
+        del self.sub_nodes[sub_node.id]
 
     # ---------------------------------------------------------------------------- #
 
