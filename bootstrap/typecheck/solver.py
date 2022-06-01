@@ -380,9 +380,37 @@ class Solver:
                 return False
 
     def link_type_vars(self, root: Optional[SubNode], lhs_id: int, rhs_id: int) -> bool:
+        lhs_node, rhs_node = self.type_var_nodes[lhs_id], self.type_var_nodes[rhs_id]
+
+        if root and root.is_overload:
+            # TODO overloaded case
+            pass
+        else:
+            lhs_node.tv_edges[rhs_node.id] = rhs_node
+            rhs_node.tv_edges[lhs_node.id] = lhs_node
+
+            match (len(lhs_node.sub_edges), len(rhs_node.sub_edges)):
+                case (0, 0):
+                    pass
+                case (0, _):
+                    for sub_node in rhs_node.sub_edges.values():
+                        lhs_node.sub_edges[sub_node.id] = sub_node
+
+                    # TODO unknowns ...
+                case (_, 0):
+                    for sub_node in lhs_node.sub_edges.values():
+                        rhs_node.sub_edges[sub_node.id] = sub_node
+
+                    # TODO unknowns ...
+                case _:
+                    return self.merge_substitutions(root, lhs_node, rhs_node)
+
+            return True
+    
+    def merge_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
         pass
 
-    def unify_type_var(self, root: Optional[Substitution], tv_id: int, typ: Type) -> bool:
+    def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> bool:
         pass
 
     # ---------------------------------------------------------------------------- #
