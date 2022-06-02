@@ -1,7 +1,7 @@
 '''Provides the type solver and its associated constructs.'''
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set, Tuple
 from abc import ABC, abstractmethod
 
 from . import *
@@ -154,7 +154,7 @@ class CastAssert:
 @dataclass
 class TypeVarNode:
     type_var: TypeVariable
-    substitutions: Dict[int, 'SubNode'] = field(default_factory=dict)
+    sub_nodes: Dict[int, 'SubNode'] = field(default_factory=dict)
     default: bool = False
 
     @property
@@ -180,7 +180,7 @@ class SubNode:
 
     @property
     def is_overload(self) -> bool:
-        return len(self.parent.substitutions) > 1
+        return len(self.parent.sub_nodes) > 1
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, SubNode):
@@ -189,6 +189,41 @@ class SubNode:
         return False
 
 # ---------------------------------------------------------------------------- #
+
+@dataclass
+class UnifyResult:
+    unified: bool
+    visited: Dict[int, bool] = field(default_factory=dict)
+    completes: Set[int] = field(default_factory=set)
+
+    def __and__(self, other: object) -> 'UnifyResult':
+        if isinstance(other, UnifyResult):
+            return UnifyResult(
+                self.unified and other.unified, 
+                {
+                    k: self.visited.get(k, True) and other.visited.get(k, True)
+                    for k in self.visited | other.visited
+                },
+                self.completes & other.completes,
+            )
+
+        raise TypeError()
+
+    def __or__(self, other: object) -> 'UnifyResult':
+        if isinstance(other, UnifyResult):
+            return UnifyResult(
+                self.unified and other.unified,
+                {
+                    k: self.visited.get(k, False) or other.visited.get(k, False)
+                    for k in self.visited | other.visited
+                },
+                self.completes | other.completes
+            )
+
+        raise TypeError()
+
+    def __bool__(self) -> bool:
+        return self.unified
 
 class Solver:
     '''
@@ -217,10 +252,9 @@ class Solver:
     # The counter used to generate substitution IDs.
     sub_id_counter: int
 
-    # The list of type variables which are still unknown: the boolean flag
-    # indicates whether or not the variable is still an unknown at the end of a
-    # type unification.  
-    unknowns: Dict[int, bool]
+    # The set of type variables that are complete: they cannot have more
+    # substitutions added to them.
+    completes: Set[int]
 
     # The list of applied cast assertions.
     cast_asserts: List[CastAssert]
@@ -253,7 +287,6 @@ class Solver:
 
         tv = TypeVariable(len(self.type_var_nodes), span, name, self)
         self.type_var_nodes.append(TypeVarNode(tv))
-        self.unknowns[tv.id] = True
         return tv
 
     def add_literal_overloads(self, tv: TypeVariable, overloads: List[Type]):
@@ -276,7 +309,7 @@ class Solver:
         for overload in overloads:
             self.add_substitution(tv_node, BasicSubstitution(overload))
 
-        del self.unknowns[tv.id]
+        self.completes.add(tv.id)
         
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
         '''
@@ -299,7 +332,7 @@ class Solver:
         for overload in overloads:
             self.add_substitution(tv_node, OperatorSubstitution(op, overload))   
 
-        del self.unknowns[tv.id]    
+        self.completes.add(tv.id)    
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
         '''
@@ -315,8 +348,13 @@ class Solver:
             The text span to error over if the assertion fails.
         '''
 
-        if not self.unify(None, lhs, rhs):
+        result = self.unify(None, lhs, rhs)
+        if not result:
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
+
+        for sid, prune in result.visited.items():
+            if prune:
+                self.prune_substitution(self.sub_nodes[sid])
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -342,12 +380,12 @@ class Solver:
         '''
 
         for tv_node in self.type_var_nodes:
-            if tv_node.default and len(tv_node.substitutions) > 1:
-                self.unify(None, tv_node.type_var, next(iter(tv_node.substitutions.values())).type)
+            if tv_node.default and len(tv_node.sub_nodes) > 1:
+                self.assert_equiv(tv_node.type_var, next(iter(tv_node.sub_nodes.values())).type, None)
 
         for tv_node in self.type_var_nodes:
-            if len(tv_node.substitutions) == 1:
-                tv_node.type_var.value = next(iter(tv_node.substitutions.values())).type
+            if len(tv_node.sub_nodes) == 1:
+                tv_node.type_var.value = next(iter(tv_node.sub_nodes.values())).type
             else:
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
@@ -361,18 +399,18 @@ class Solver:
         self.type_var_nodes = []
         self.sub_nodes = {}
         self.sub_id_counter = 0
-        self.unknowns = {}
+        self.completes = set()
         self.cast_asserts = []
 
     # ---------------------------------------------------------------------------- #
 
-    def unify(self, root: Optional[SubNode], lhs: Type, rhs: Type) -> bool:
+    def unify(self, root: Optional[SubNode], lhs: Type, rhs: Type) -> UnifyResult:
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
                 if lhs_id == rhs_id:
-                    return True
+                    return UnifyResult(True)
                     
-                return self.link_type_vars(root, lhs_id, rhs_id)
+                return self.unify_type_var(root, lhs_id, rhs)
             case (TypeVariable(lhs_id), _):
                 return self.unify_type_var(root, lhs_id, rhs)
             case (_, TypeVariable(rhs_id)):
@@ -383,140 +421,56 @@ class Solver:
                 if len(lhs_params) != len(rhs_params):
                     return False
 
+                result = UnifyResult(True)
                 for lparam, rparam in zip(lhs_params, rhs_params):
-                    if not self.unify(root, lparam, rparam):
-                        return False
+                    if not (result | self.unify(root, lparam, rparam)):
+                        return result
 
-                return self.unify(root, lhs_rt_type, rhs_rt_type)
+                return result | self.unify(root, lhs_rt_type, rhs_rt_type)
             case (PrimitiveType(), PrimitiveType()):
-                return lhs == rhs
+                return UnifyResult(lhs == rhs)
             case _:
-                return False
+                return UnifyResult(False)         
 
-    def link_type_vars(self, root: Optional[SubNode], lhs_id: int, rhs_id: int) -> bool:
-        lhs_node, rhs_node = self.type_var_nodes[lhs_id], self.type_var_nodes[rhs_id]
-
-        match (len(lhs_node.substitutions), len(rhs_node.substitutions)):
-            case (0, 0):
-                sub_node = self.add_substitution(lhs_node, rhs_node.type_var)
-
-                if root:
-                    self.add_edge(root, sub_node)
-
-                self.unknowns[lhs_node.id] = False
-            case (0, _):
-                for sub_node in rhs_node.substitutions.values():
-                    sub_node = self.add_substitution(lhs_node, sub_node.sub)
-
-                    if root:
-                        self.add_edge(root, sub_node)
-
-                self.unknowns[lhs_node.id] = False
-            case (_, 0):
-                for sub_node in lhs_node.substitutions.values():
-                    sub_node = self.add_substitution(rhs_node, sub_node.sub)
-
-                    if root:
-                        self.add_edge(root, sub_node)
-
-                self.unknowns[rhs_node.id] = False
-            case _:
-                if root and root.is_overload:
-                    return self.union_substitutions(root, lhs_node, rhs_node)
-                else:
-                    return self.intersect_substitutions(root, lhs_node, rhs_node)
-
-        self.update_unknowns(root)
-        return True
-
-    def union_substitutions(self, root: SubNode, lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
-        matches = []
-
-        for lhs_sub_node in lhs_node.substitutions.values():
-            for rhs_sub_node in rhs_node.substitutions.values():
-                if self.unify(root, lhs_sub_node.type, rhs_sub_node.type):
-                    matches.append((lhs_sub_node, rhs_sub_node))
-
-        for a, b in matches:
-            self.add_edge(root, a)
-            self.add_edge(root, b)
-
-        self.update_unknowns(root)
-        return len(matches) > 0         
-    
-    def intersect_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
-        matches = []
-
-        for lhs_sub_node in list(lhs_node.substitutions.values()):
-            no_match = True
-
-            for rhs_sub_node in list(rhs_node.substitutions.values()):
-                if self.unify(root, lhs_sub_node.type, rhs_sub_node.type):
-                    matches.append((lhs_sub_node, rhs_sub_node))
-                    no_match = False
-                else:
-                    self.prune_substitution(rhs_sub_node)
-
-            if no_match:
-                self.prune_substitution(lhs_sub_node)
-
-        if root:
-            for a, b in matches:
-                self.add_edge(root, a)
-                self.add_edge(root, b)
-        else:
-            for a, b in matches:
-                self.add_edge(a, b)   
-
-        self.update_unknowns(root)
-        return len(matches) > 0             
-
-    def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> bool:
+    def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> UnifyResult:
         tv_node = self.type_var_nodes[tv_id]
 
-        if len(tv_node.substitutions) == 0:
-            sub_node = self.add_substitution(tv_node, BasicSubstitution(typ))
-            self.unknowns[tv_id] = False
+        result = UnifyResult(True)
 
-            if root:
-                self.add_edge(root, sub_node)
+        if tv_id not in self.completes:
+            result.completes.add(tv_id)
 
-            self.update_unknowns(root)
-            return True
-        elif root:
-            for sub_node in list(tv_node.substitutions.values()):
-                if sub_node == root:
-                    continue
-
-                ok = self.unify(sub_node, sub_node.type, typ)
-
-                if ok:
-                    self.add_edge(root, sub_node)
+            for sub_node in tv_node.sub_nodes:
+                if self.unify(sub_node, sub_node.type, typ):
                     break
-                elif root.is_overload:
-                    continue
-                else:
-                    self.prune_substitution(sub_node)
             else:
-                return False
-
-            self.update_unknowns(root)
-            return True
+                sub_node = self.add_substitution(tv_node, BasicSubstitution(typ))
+                
+                if root:
+                    self.add_edge(root, sub_node)
         else:
-            for sub_node in list(tv_node.substitutions.values()):
-                if not self.unify(sub_node, sub_node.type, typ):
-                    self.prune_substitution(sub_node)
+            result.visited = {k: True for k in tv_node.sub_nodes}
 
-            # TODO prune all substitutions that aren't matched by any overload:
-            # eg. (i64, i64) -> bool v. (i64, {i64 | i32, ...}) -> {_} should
-            # prune all `i32`, ... but right now it doesn't
+            for i, sub_node in enumerate(tv_node.sub_nodes.values()):
+                if uresult := self.unify(sub_node, sub_node.type, typ):
+                    if i == 0:
+                        result |= uresult
+                    else:
+                        result &= uresult
 
-            self.update_unknowns(root)
-            return len(tv_node.substitutions) > 0
+                    result.visited[sub_node.id] = False
 
-    def update_unknowns(self, root: Optional[SubNode]):
+                    if root:
+                        self.add_edge(root, sub_node)
+
+                    break
+            else:
+                result.unified = False
+
         if not root or not root.is_overload:
-            self.unknowns = {uid: remain for uid, remain in self.unknowns.items() if remain}
+            self.completes |= result.completes
+
+        return result
 
     # ---------------------------------------------------------------------------- #
 
@@ -525,12 +479,12 @@ class Solver:
         self.sub_id_counter += 1
 
         self.sub_nodes[sub_node.id] = sub_node
-        parent.substitutions[sub_node.id] = sub_node
+        parent.sub_nodes[sub_node.id] = sub_node
 
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode):
-        for edge in list(sub_node.edges.values()):
+        for edge in sub_node.edges.values():
             del edge.edges[sub_node.id]
 
         for eid, edge in list(sub_node.edges.items()):
@@ -538,7 +492,7 @@ class Solver:
 
             self.prune_substitution(edge)
 
-        del sub_node.parent.substitutions[sub_node.id]
+        del sub_node.parent.sub_nodes[sub_node.id]
 
         del self.sub_nodes[sub_node.id]
 
@@ -572,7 +526,7 @@ class Solver:
             The type variable whose string representation to return.
         '''
 
-        type_str = ' | '.join(repr(sub_node.type) for sub_node in self.type_var_nodes[tv.id].substitutions.values())
+        type_str = ' | '.join(repr(sub_node.type) for sub_node in self.type_var_nodes[tv.id].sub_nodes.values())
 
         if len(type_str) == 0:
             type_str = '_'
