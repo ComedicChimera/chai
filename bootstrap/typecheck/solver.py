@@ -252,7 +252,7 @@ class Solver:
         '''
 
         tv = TypeVariable(len(self.type_var_nodes), span, name, self)
-        self.type_var_nodes.append(tv)
+        self.type_var_nodes.append(TypeVarNode(tv))
         self.unknowns[tv.id] = True
         return tv
 
@@ -342,12 +342,12 @@ class Solver:
         '''
 
         for tv_node in self.type_var_nodes:
-            if tv_node.default and len(tv_node.tv_edges) > 1:
-                self.unify(None, tv_node.type_var, tv_node.substitutions[0].type)
+            if tv_node.default and len(tv_node.substitutions) > 1:
+                self.unify(None, tv_node.type_var, next(iter(tv_node.substitutions.values())).type)
 
         for tv_node in self.type_var_nodes:
             if len(tv_node.substitutions) == 1:
-                tv_node.type_var.value = tv_node.substitutions[0].type
+                tv_node.type_var.value = next(iter(tv_node.substitutions.values())).type
             else:
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
@@ -398,26 +398,26 @@ class Solver:
 
         match (len(lhs_node.substitutions), len(rhs_node.substitutions)):
             case (0, 0):
-                sub = self.add_substitution(lhs_node, rhs_node.type_var)
+                sub_node = self.add_substitution(lhs_node, rhs_node.type_var)
 
                 if root:
-                    self.add_edge(root, sub)
+                    self.add_edge(root, sub_node)
 
                 self.unknowns[lhs_node.id] = False
             case (0, _):
                 for sub_node in rhs_node.substitutions.values():
-                    sub = self.add_substitution(lhs_node, sub_node.sub)
+                    sub_node = self.add_substitution(lhs_node, sub_node.sub)
 
                     if root:
-                        self.add_edge(root, sub)
+                        self.add_edge(root, sub_node)
 
                 self.unknowns[lhs_node.id] = False
             case (_, 0):
                 for sub_node in lhs_node.substitutions.values():
-                    sub = self.add_substitution(rhs_node, sub_node.sub)
+                    sub_node = self.add_substitution(rhs_node, sub_node.sub)
 
                     if root:
-                        self.add_edge(root, sub)
+                        self.add_edge(root, sub_node)
 
                 self.unknowns[rhs_node.id] = False
             case _:
@@ -447,10 +447,10 @@ class Solver:
     def intersect_substitutions(self, root: Optional[SubNode], lhs_node: TypeVarNode, rhs_node: TypeVarNode) -> bool:
         matches = []
 
-        for lhs_sub_node in lhs_node.substitutions.values():
+        for lhs_sub_node in list(lhs_node.substitutions.values()):
             no_match = True
 
-            for rhs_sub_node in rhs_node.substitutions.values():
+            for rhs_sub_node in list(rhs_node.substitutions.values()):
                 if self.unify(root, lhs_sub_node.type, rhs_sub_node.type):
                     matches.append((lhs_sub_node, rhs_sub_node))
                     no_match = False
@@ -475,20 +475,20 @@ class Solver:
         tv_node = self.type_var_nodes[tv_id]
 
         if len(tv_node.substitutions) == 0:
-            self.add_substitution(tv_node, BasicSubstitution(typ))
+            sub_node = self.add_substitution(tv_node, BasicSubstitution(typ))
             self.unknowns[tv_id] = False
 
             if root:
-                self.add_edge(root, tv_node.substitutions[0])
+                self.add_edge(root, sub_node)
 
             self.update_unknowns(root)
             return True
         elif root:
-            for sub_node in tv_node.substitutions.values():
+            for sub_node in list(tv_node.substitutions.values()):
                 if sub_node == root:
                     continue
 
-                ok = self.unify(root, sub_node.type, typ)
+                ok = self.unify(sub_node, sub_node.type, typ)
 
                 if ok:
                     self.add_edge(root, sub_node)
@@ -503,9 +503,13 @@ class Solver:
             self.update_unknowns(root)
             return True
         else:
-            for sub_node in tv_node.substitutions.values():
-                if not self.unify(None, sub_node.type, typ):
+            for sub_node in list(tv_node.substitutions.values()):
+                if not self.unify(sub_node, sub_node.type, typ):
                     self.prune_substitution(sub_node)
+
+            # TODO prune all substitutions that aren't matched by any overload:
+            # eg. (i64, i64) -> bool v. (i64, {i64 | i32, ...}) -> {_} should
+            # prune all `i32`, ... but right now it doesn't
 
             self.update_unknowns(root)
             return len(tv_node.substitutions) > 0
@@ -526,10 +530,10 @@ class Solver:
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode):
-        for eid, edge in sub_node.edges.items():
-            del edge.edges[eid]
+        for edge in list(sub_node.edges.values()):
+            del edge.edges[sub_node.id]
 
-        for eid, edge in sub_node.edges.items():
+        for eid, edge in list(sub_node.edges.items()):
             del sub_node.edges[eid]
 
             self.prune_substitution(edge)
@@ -568,4 +572,9 @@ class Solver:
             The type variable whose string representation to return.
         '''
 
-        # TODO
+        type_str = ' | '.join(repr(sub_node.type) for sub_node in self.type_var_nodes[tv.id].substitutions.values())
+
+        if len(type_str) == 0:
+            type_str = '_'
+                
+        return '{' + type_str + '}'
