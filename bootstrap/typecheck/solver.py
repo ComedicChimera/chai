@@ -353,8 +353,8 @@ class Solver:
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
 
         for sid, prune in result.visited.items():
-            if prune:
-                self.prune_substitution(self.sub_nodes[sid])
+            if prune and sid in self.sub_nodes:
+                self.prune_substitution(self.sub_nodes[sid], set())
 
     def assert_cast(self, src: Type, dest: Type, span: TextSpan):
         '''
@@ -483,14 +483,14 @@ class Solver:
 
         return sub_node
 
-    def prune_substitution(self, sub_node: SubNode):
-        for edge in sub_node.edges.values():
-            del edge.edges[sub_node.id]
+    def prune_substitution(self, sub_node: SubNode, pruning: Set[int]):
+        pruning.add(sub_node.id)
 
-        for eid, edge in list(sub_node.edges.items()):
-            del sub_node.edges[eid]
-
-            self.prune_substitution(edge)
+        while len(sub_node.edges) > 0:
+            edge = sub_node.edges.popitem()[1]
+             
+            if edge.id not in pruning:
+                self.prune_substitution(edge, pruning)
 
         del sub_node.parent.sub_nodes[sub_node.id]
 
