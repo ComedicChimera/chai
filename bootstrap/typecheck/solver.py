@@ -154,7 +154,7 @@ class CastAssert:
 @dataclass
 class TypeVarNode:
     type_var: TypeVariable
-    sub_nodes: Dict[int, 'SubNode'] = field(default_factory=dict)
+    sub_nodes: Set['SubNode'] = field(default_factory=set)
     default: bool = False
 
     @property
@@ -172,7 +172,7 @@ class SubNode:
     id: int
     sub: Substitution
     parent: TypeVarNode
-    edges: Dict[int, 'SubNode'] = field(default_factory=dict)
+    edges: List['SubNode'] = field(default_factory=list)
 
     @property
     def type(self) -> Type:
@@ -187,6 +187,9 @@ class SubNode:
             return self.id == other.id
 
         return False
+
+    def __hash__(self) -> int:
+        return self.id
 
 # ---------------------------------------------------------------------------- #
 
@@ -381,11 +384,11 @@ class Solver:
 
         for tv_node in self.type_var_nodes:
             if tv_node.default and len(tv_node.sub_nodes) > 1:
-                self.assert_equiv(tv_node.type_var, next(iter(tv_node.sub_nodes.values())).type, None)
+                self.assert_equiv(tv_node.type_var, next(iter(tv_node.sub_nodes)).type, None)
 
         for tv_node in self.type_var_nodes:
             if len(tv_node.sub_nodes) == 1:
-                tv_node.type_var.value = next(iter(tv_node.sub_nodes.values())).type
+                tv_node.type_var.value = next(iter(tv_node.sub_nodes)).type
             else:
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
@@ -449,9 +452,9 @@ class Solver:
                 if root:
                     self.add_edge(root, sub_node)
         else:
-            result.visited = {k: True for k in tv_node.sub_nodes}
+            result.visited = {x.id: True for x in tv_node.sub_nodes}
 
-            for i, sub_node in enumerate(tv_node.sub_nodes.values()):
+            for i, sub_node in enumerate(tv_node.sub_nodes):
                 if uresult := self.unify(sub_node, sub_node.type, typ):
                     if i == 0:
                         result |= uresult
@@ -479,26 +482,26 @@ class Solver:
         self.sub_id_counter += 1
 
         self.sub_nodes[sub_node.id] = sub_node
-        parent.sub_nodes[sub_node.id] = sub_node
+        parent.sub_nodes.add(sub_node)
 
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode, pruning: Set[int]):
         pruning.add(sub_node.id)
 
-        while len(sub_node.edges) > 0:
-            edge = sub_node.edges.popitem()[1]
-             
+        for edge in sub_node.edges:
             if edge.id not in pruning:
                 self.prune_substitution(edge, pruning)
 
-        del sub_node.parent.sub_nodes[sub_node.id]
+        sub_node.edges.clear()
+
+        sub_node.parent.sub_nodes.remove(sub_node)
 
         del self.sub_nodes[sub_node.id]
 
     def add_edge(self, a: SubNode, b: SubNode):
-        a.edges[b.id] = b
-        b.edges[a.id] = a
+        a.edges.append(b)
+        b.edges.append(a)
 
     # ---------------------------------------------------------------------------- #
 
@@ -526,7 +529,7 @@ class Solver:
             The type variable whose string representation to return.
         '''
 
-        type_str = ' | '.join(repr(sub_node.type) for sub_node in self.type_var_nodes[tv.id].sub_nodes.values())
+        type_str = ' | '.join(repr(sub_node.type) for sub_node in self.type_var_nodes[tv.id].sub_nodes)
 
         if len(type_str) == 0:
             type_str = '_'

@@ -57,14 +57,9 @@ class Walker:
         self.control_contexts = deque()
 
     def walk_definition(self, defin: ASTNode):
-        try:
-            match defin:
-                case FuncDef():
-                    self.walk_func_def(defin)
-
-            self.solver.solve()
-        finally:
-            self.solver.reset()
+        match defin:
+            case FuncDef():
+                self.walk_func_def(defin)
 
     # ---------------------------------------------------------------------------- #
 
@@ -148,22 +143,27 @@ class Walker:
         return expects_body
 
     def walk_func_body(self, fd: FuncDef | OperDef):
-        self.push_scope(fd.type)
-        self.push_context(Control.FUNC)
+        try:
+            self.push_scope(fd.type)
+            self.push_context(Control.FUNC)
 
-        for param in fd.params:
-            self.define_local(param)
+            for param in fd.params:
+                self.define_local(param)
 
-        if fd.type.rt_type == PrimitiveType.NOTHING:
-            self.walk_expr(fd.body, False, False)
-        else:
-            self.walk_expr(fd.body, True, False)
+            if fd.type.rt_type == PrimitiveType.NOTHING:
+                self.walk_expr(fd.body, False, False)
+            else:
+                self.walk_expr(fd.body, True, False)
 
-            if self.curr_control != Control.FUNC:
-                self.solver.assert_equiv(fd.type.rt_type, fd.body.type, fd.body.span)
+                if self.curr_control != Control.FUNC:
+                    self.solver.assert_equiv(fd.type.rt_type, fd.body.type, fd.body.span)
 
-        self.pop_context()
-        self.pop_scope()
+            self.pop_context()
+            self.pop_scope()
+
+            self.solver.solve()
+        finally:
+            self.solver.reset()
 
     # ---------------------------------------------------------------------------- #
 
