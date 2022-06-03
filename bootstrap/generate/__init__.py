@@ -1,13 +1,11 @@
-from lib2to3.pytree import generate_matches
 from typing import List
 
-import llvm.ir as ir
 import llvm.value as llvalue
 import llvm.types as lltypes
 from llvm.module import Module
 from depm.source import Package
 from syntax.ast import *
-from .type_util import conv_type
+from .type_util import conv_type, is_nothing
 from .predicate import Predicate, PredicateGenerator
 
 class Generator:
@@ -33,6 +31,8 @@ class Generator:
                 match defin:
                     case FuncDef():
                         self.generate_func_def(defin)
+                    case OperDef():
+                        self.generate_oper_def(defin)
 
         for predicate in self.predicates:
             self.pred_gen.generate(predicate)
@@ -75,7 +75,7 @@ class Generator:
         fd.symbol.ll_value = ll_func
 
         if fd.body:
-            self.predicates.append(Predicate(ll_func, fd.params, fd.body))
+            self.predicates.append(Predicate(ll_func, fd.params, not is_nothing(fd.type.rt_type), fd.body))
 
     def generate_oper_def(self, od: OperDef):
         if 'intrinsic' in od.annots:
@@ -99,7 +99,7 @@ class Generator:
         od.overload.ll_value = ll_func
 
         if od.body:
-            self.predicates.append(Predicate(ll_func, od.params, od.body))
+            self.predicates.append(Predicate(ll_func, od.params, not is_nothing(od.overload.signature.rt_type), od.body))
 
 
             

@@ -115,6 +115,12 @@ class Compiler:
 
                 # m.dump()
 
+                msg, ok = m.verify()
+                if not ok:
+                    print(msg)
+                    m.dump()
+                    return 1
+
                 target = Target(triple=Target.default_triple())
                 machine = target.create_machine()
                 m.data_layout = machine.data_layout

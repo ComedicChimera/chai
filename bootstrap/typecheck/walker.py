@@ -60,6 +60,8 @@ class Walker:
         match defin:
             case FuncDef():
                 self.walk_func_def(defin)
+            case OperDef():
+                self.walk_oper_def(defin)
 
     # ---------------------------------------------------------------------------- #
 
@@ -116,7 +118,7 @@ class Walker:
 
     INTRINSIC_OPS = {
         'iadd', 'fadd', 'isub', 'fsub', 'imul', 'fmul', 'sdiv', 'udiv', 'fdiv',
-        'smod', 'umod', 'fmod', 'slt', 'ult', 'flt', 'sgt' 'ugt', 'fgt', 'slteq', 
+        'smod', 'umod', 'fmod', 'slt', 'ult', 'flt', 'sgt', 'ugt', 'fgt', 'slteq', 
         'ulteq', 'flteq', 'sgteq', 'ugteq', 'fgteq', 'ieq', 'feq', 'ineq', 'fneq',
         'land', 'lor', 'lnot', 'ineg', 'fneg', 'band', 'bor', 'bxor', 'shl', 'ashr', 
         'lshr', 'compl'
@@ -328,6 +330,9 @@ class Walker:
 
     def walk_inc_dec_stmt(self, incdec: IncDecStmt):
         self.walk_expr(incdec.lhs_operand, True)
+
+        if not self.try_mark_mutable(incdec.lhs_operand):
+            self.error('cannot mutate an immutable value', incdec.lhs_operand)
 
         int_type_var = self.solver.new_type_var(incdec.op.token.span)
         self.solver.add_literal_overloads(int_type_var, self.INT_TYPES)

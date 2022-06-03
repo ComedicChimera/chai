@@ -155,7 +155,7 @@ def main()
     let fib10 = fibonacci(10)
     puti(h, fib10)
 
-    fizz_buzz(h)
+    fizz_buzz(h, 10)
 
     let ack22 = ack(2, 2)
     puti(h, ack22)

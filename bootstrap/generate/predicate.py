@@ -18,6 +18,7 @@ from .type_util import conv_type, is_nothing
 class Predicate:
     ll_func: ir.Function
     func_params: List[Symbol]
+    returns_value: bool
     expr: ASTNode
     store_result: Optional[Symbol] = None
 
@@ -91,14 +92,14 @@ class PredicateGenerator:
             self.irb.move_to_end(prev_block)
             self.irb.build_br(self.var_block)
             self.irb.move_to_end(final_block)
-
-        if result:
-            if pred.store_result:
-                self.irb.build_store(result, pred.store_result.ll_value)
-            else:
+        
+        if pred.store_result:
+            pass
+        elif not self.irb.block.terminator:
+            if pred.returns_value and result:
                 self.irb.build_ret(result)
-        elif not pred.store_result:
-            self.irb.build_ret()
+            else:
+                self.irb.build_ret()
 
     # ---------------------------------------------------------------------------- #
 
@@ -163,6 +164,8 @@ class PredicateGenerator:
             self.irb.build_br(loop_header)
 
             loop_continue = loop_update
+
+            self.irb.move_to_end(loop_header)
         else:
             loop_continue = loop_header
 
@@ -175,7 +178,7 @@ class PredicateGenerator:
         self.irb.move_to_end(loop_body)
         self.push_loop_context(loop_exit, loop_continue)
         self.generate_expr(while_loop.body)
-        self.build_br(loop_continue)
+        self.irb.build_br(loop_continue)
 
         self.irb.move_to_end(loop_exit)
 
@@ -224,6 +227,7 @@ class PredicateGenerator:
 
                 if sym.mutability == Symbol.Mutability.MUTABLE:
                     ll_var = self.alloc_var(sym.type)
+                    self.irb.build_store(ll_init, ll_var)
                 else:
                     ll_var = var_ll_init
 
@@ -242,7 +246,7 @@ class PredicateGenerator:
                 rhss = [
                     self.generate_binary_op_app(BinaryOpApp(
                         op, 
-                        LLVMValueNode(self.irb.build_load(lhs_expr.type, lhs), lhs_expr.type, lhs_expr.span), 
+                        LLVMValueNode(self.irb.build_load(lhs.type, lhs), lhs_expr.type, lhs_expr.span), 
                         rhs_expr, lhs_expr.type
                     ))
                     for lhs, lhs_expr, rhs_expr, op in
@@ -256,7 +260,7 @@ class PredicateGenerator:
             raise NotImplementedError()
 
     def generate_incdec(self, incdec: IncDecStmt):
-        lhs_ptr = self.generate_lhs_expr(incdec)
+        lhs_ptr = self.generate_lhs_expr(incdec.lhs_operand)
         lhs_ll_type = conv_type(incdec.lhs_operand.type)
         lhs_value = self.irb.build_load(lhs_ll_type, lhs_ptr)
         one_value = llvalue.Constant.Int(lltypes.IntegerType.from_type(lhs_ll_type), 1)

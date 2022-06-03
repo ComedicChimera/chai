@@ -154,7 +154,7 @@ class CastAssert:
 @dataclass
 class TypeVarNode:
     type_var: TypeVariable
-    sub_nodes: Set['SubNode'] = field(default_factory=set)
+    sub_nodes: List['SubNode'] = field(default_factory=list)
     default: bool = False
 
     @property
@@ -204,10 +204,10 @@ class UnifyResult:
             return UnifyResult(
                 self.unified and other.unified, 
                 {
-                    k: self.visited.get(k, True) and other.visited.get(k, True)
+                    k: self.visited.get(k, False) or other.visited.get(k, False)
                     for k in self.visited | other.visited
                 },
-                self.completes & other.completes,
+                self.completes | other.completes,
             )
 
         raise TypeError()
@@ -215,12 +215,12 @@ class UnifyResult:
     def __or__(self, other: object) -> 'UnifyResult':
         if isinstance(other, UnifyResult):
             return UnifyResult(
-                self.unified and other.unified,
+                self.unified or other.unified,
                 {
-                    k: self.visited.get(k, False) or other.visited.get(k, False)
+                    k: self.visited.get(k, True) and other.visited.get(k, True)
                     for k in self.visited | other.visited
                 },
-                self.completes | other.completes
+                self.completes & other.completes
             )
 
         raise TypeError()
@@ -388,7 +388,9 @@ class Solver:
 
         for tv_node in self.type_var_nodes:
             if len(tv_node.sub_nodes) == 1:
-                tv_node.type_var.value = next(iter(tv_node.sub_nodes)).type
+                sub = next(iter(tv_node.sub_nodes)).sub
+                tv_node.type_var.value = sub.type
+                sub.finalize()
             else:
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
@@ -422,14 +424,15 @@ class Solver:
                 return self.unify(root, lhs_elem, rhs_elem)
             case (FuncType(lhs_params, lhs_rt_type), FuncType(rhs_params, rhs_rt_type)):
                 if len(lhs_params) != len(rhs_params):
-                    return False
+                    return UnifyResult(False)
 
                 result = UnifyResult(True)
                 for lparam, rparam in zip(lhs_params, rhs_params):
-                    if not (result | self.unify(root, lparam, rparam)):
+                    result &= self.unify(root, lparam, rparam)
+                    if not result:
                         return result
 
-                return result | self.unify(root, lhs_rt_type, rhs_rt_type)
+                return result & self.unify(root, lhs_rt_type, rhs_rt_type)
             case (PrimitiveType(), PrimitiveType()):
                 return UnifyResult(lhs == rhs)
             case _:
@@ -455,20 +458,17 @@ class Solver:
             result.visited = {x.id: True for x in tv_node.sub_nodes}
 
             for i, sub_node in enumerate(tv_node.sub_nodes):
-                if uresult := self.unify(sub_node, sub_node.type, typ):
-                    if i == 0:
-                        result |= uresult
-                    else:
-                        result &= uresult
+                uresult = self.unify(sub_node, sub_node.type, typ)
+                if i == 0:
+                    result &= uresult
+                else:
+                    result |= uresult
 
+                if uresult:
                     result.visited[sub_node.id] = False
 
                     if root:
                         self.add_edge(root, sub_node)
-
-                    break
-            else:
-                result.unified = False
 
         if not root or not root.is_overload:
             self.completes |= result.completes
@@ -482,7 +482,7 @@ class Solver:
         self.sub_id_counter += 1
 
         self.sub_nodes[sub_node.id] = sub_node
-        parent.sub_nodes.add(sub_node)
+        parent.sub_nodes.append(sub_node)
 
         return sub_node
 

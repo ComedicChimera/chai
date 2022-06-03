@@ -48,12 +48,11 @@ class Module(LLVMObject):
 
     def verify(self) -> Tuple[str, bool]:
         p = c_char_p()
-        ok = LLVMVerifyModule(self, 2, byref(p))
         
-        if ok:
+        if LLVMVerifyModule(self, 2, byref(p)) == 0:
             return "", True
 
-        return str(p.contents, encoding='utf-8'), False
+        return str(p.value, encoding='utf-8'), False
 
     def dump(self):
         LLVMDumpModule(self)
