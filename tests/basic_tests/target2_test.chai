@@ -1,0 +1,166 @@
+package basic_tests
+
+@entry
+def _start()
+    main()
+    ExitProcess(0)
+end
+
+@[extern, callconv("win64")]
+def ExitProcess(code: u32) end
+
+@[extern, callconv("win64")]
+def GetStdHandle(nStdHandle: u32) *u8 end
+
+@[extern, callconv("win64")]
+def WriteConsoleA(
+    hConsoleOutput, lpBuffer: *u8, 
+    nNumberOfCharsToWrite: u32, 
+    lpNumberOfCharsWritten: *u32, 
+    lpReserved: *u8
+) bool end
+
+def get_stdout() *u8 = GetStdHandle(4_294_967_285)
+
+def putc(handle: *u8, c: u32) 
+    WriteConsoleA(handle, &(c as u8), 1, null, null)
+end
+
+@intrinsic("iadd")
+oper (+) (a, b: u32) u32 end
+
+@intrinsic("iadd")
+oper (+) (a, b: i64) i64 end
+
+@intrinsic("isub")
+oper (-) (a, b: i64) i64 end
+
+@intrinsic("imul")
+oper (*) (a, b: i64) i64 end
+
+@intrinsic("sdiv")
+oper (/) (a, b: i64) i64 end
+
+@intrinsic("smod")
+oper (%) (a, b: i64) i64 end
+
+@intrinsic("ineg")
+oper (-) (a: i64) i64 end
+
+@intrinsic("ieq")
+oper (==) (a, b: i64) bool end
+
+@intrinsic("slt")
+oper (<) (a, b: i64) bool end
+
+@intrinsic("sgt")
+oper (>) (a, b: i64) bool end
+
+@intrinsic("sgteq")
+oper (>=) (a, b: i64) bool end
+
+@intrinsic("land")
+oper (&&) (a, b: bool) bool end
+
+def puti(handle: *u8, a: i64)
+    if a == 0
+        putc(handle, '0')
+        putc(handle, '\n')
+        return
+    elif a < 0
+        putc(handle, '-')
+        a = -a
+    end
+    
+    while let pow = 1_000_000_000_000_000_000; pow > 0; pow /= 10
+        if a >= pow
+            putc(handle, (a / pow % 10 as u32) + '0')
+        end  
+    end
+
+    putc(handle, '\n')
+end
+
+def factorial(x: i64) i64 =
+    if x > 1 => x * factorial(x - 1)
+    else => 1
+end
+
+def fibonacci(n: i64) i64
+    let a = 0, b = 1
+
+    while b < n
+        a, b = b, a + b
+    end
+
+    a
+end
+
+def print_fizz(handle: *u8)
+    putc(handle, 'F')
+    putc(handle, 'i')
+    putc(handle, 'z')
+    putc(handle, 'z')
+end
+
+def print_buzz(handle: *u8)
+    putc(handle, 'B')
+    putc(handle, 'u')
+    putc(handle, 'z')
+    putc(handle, 'z')
+end
+
+def fizz_buzz(handle: *u8, n: i64)
+    while let i = 0; i < n; i++
+        if i % 5 == 0 && i % 3 == 0
+            print_fizz(handle)
+            print_buzz(handle)
+            putc(handle, '\n')
+        elif i % 3 == 0
+            print_fizz(handle)
+            putc(handle, '\n')
+        elif i % 5 == 0
+            print_buzz(handle)
+            putc(handle, '\n')
+        else
+            puti(handle, i)
+        end
+    end
+end
+
+def ack(m, n: i64) i64
+    if m == 0
+        return n + 1
+    elif n == 0
+        return ack(m - 1, 1)
+    else
+        return ack(m - 1, ack(m, n - 1))
+    end
+end
+
+def n_times_with_break(handle: *u8, n: i64)
+    while let a = 0; true; a++
+        if a == n
+            break
+        end
+
+        puti(handle, a)
+    end
+end
+
+def main()
+    let h = get_stdout()
+
+    let fac5 = factorial(5)
+    puti(h, fac5)
+
+    let fib10 = fibonacci(10)
+    puti(h, fib10)
+
+    fizz_buzz(h, 10)
+
+    let ack22 = ack(2, 2)
+    puti(h, ack22)
+
+    n_times_with_break(h, 10)
+end

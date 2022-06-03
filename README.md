@@ -24,8 +24,6 @@ documentation can be found in the
 
 - [Features](#features)
 - [Progress](#progress)
-  * [Compiler](#compiler-prog)
-  * [Standard Library](#std-lib-prog)
 - [Building the Compiler](#building)
 - [Compilation Pipeline](#pipeline)
 - [Development](#development)
@@ -86,62 +84,103 @@ documentation can be found in the
 This section details the progress made on the compiler as of now.  It is not
 perfectly up to date but should help to give some idea of where we are.
 
-*NB: Alpha Chai is the name for the reduced subset of Chai being implemented for bootstrapping purposes.*
+*NOTE: This section refers to progress on the bootstrap compiler.*
 
-### <a name="compiler-prog"/> Compiler
+### Target 1:
 
-- [ ] Alpha Chai in Go <--
-- [ ] Chai in Alpha Chai
-- [ ] Chai in Chai
+- [x] Function Definitions
+- [x] Basic Annotations
+- [x] Blocks and Variables
+- [x] Function Calls
+- [x] Bool, Int, Float, and Rune Literals
+- [x] Graceful Shutdown
+- [x] Naive Pointers
 
-### <a name="std-lib-prog"/> Standard Library
+### Target 2:
 
-*These are only the planned features of Alpha Chai*
+- [x] Operator Definitions
+- [x] Arithmetic Operators
+- [x] Bitwise Operators
+- [x] Conditional and Logical Operators
+- [x] Const Pointers
+- [x] Assignment
+- [x] Constants
+- [x] If/Elif/Else
+- [x] While Loops
+- [x] Break, Continue, and Return
 
-- [ ] Builtin Types
-  * [ ] `Buff`
-  * [ ] String
-  * [ ] `List`
-  * [ ] `Dict`
-  * [ ] `Iter` 
-- [ ] Runtime
-  * [ ] Program Startup
-  * [x] Graceful Exit
-  * [x] Global Initializers
-  * [ ] `init` functions
-  * [ ] Signaling
-  * [ ] Panics
-  * [ ] Allocator
-  * [ ] Garbage Collector
-  * [ ] Argc and Argv
-- [ ] Standard I/O
-  * [ ] `println`
-  * [ ] `printf`
-- [ ] String Manipulation
-  * [ ] `StringBuilder`
-  * [ ] `starts_with`
-  * [ ] `ends_with`
-  * [ ] `contains`
-  * [ ] `trim_left`
-  * [ ] `trim_right`
-  * [ ] `parse_int`
-  * [ ] `parse_float`
-  * [ ] `parse_int`
-  * [ ] `pad_right`
-  * [ ] `pad_left`
-  * [ ] `to_string`
-- [ ] File I/O
-  * [ ] Open and Close
-  * [ ] Read File
-  * [ ] Write File
-  * [ ] Create File
-  * [ ] Basic Path Manipulation
-  * [ ] Walk Directory
-  * [ ] Create Directory
-- [ ] TOML
-  * [ ] Parsing
-  * [ ] Serialization
-  * [ ] Deserialization (needs reflection?)
+### Target 3:
+
+- [ ] LLVM Debug + Metadata Bindings
+- [ ] Add Debug v. Release compiler flag
+- [ ] Generate debug info for all constructs so far
+
+*Note:* Debug info will be included on all constructs from here on.
+
+### Target 4:
+
+- [ ] Structure Definitions
+- [ ] The `.` Operator
+- [ ] Aliases
+- [ ] Strings and String Literals
+
+### Target 5:
+
+- [ ] Import Statements and Import Resolution
+- [ ] Visibility (`pub` keyword)
+- [ ] The Prelude
+- [ ] The Main Function (full implementation)
+- [ ] Global Variables
+
+### Target 6:
+
+- [ ] Allocator (`malloc`, `realloc`, `free`)
+- [ ] Garbage Collector (`gc_malloc`, `gc_realloc`)
+- [ ] Safe Referencing and Dereferencing (escape analysis, etc.)
+- [ ] Nullability and `core.unsafe`
+- [ ] Proper Signal and Panic Handling
+
+### Target 7:
+
+- [ ] Type Generics
+- [ ] Function and Operator Generics
+- [ ] Buffer Types
+
+### Target 8:
+
+- [ ] Function Spaces
+- [ ] Built-in String Space
+- [ ] Built-in Buffer Space
+- [ ] Type Classes
+- [ ] Type Unions
+
+### Target 9:
+
+- [ ] Lists
+- [ ] Dictionaries
+- [ ] Sequences and Iterators
+- [ ] For Loops
+- [ ] Loop Generators
+
+### Target 10:
+
+- [ ] Tuples
+- [ ] Tuple Pattern Matching
+- [ ] Sum Types
+- [ ] Sum Pattern Matching
+- [ ] Hybrid Types
+- [ ] Struct Pattern Matching
+
+### Target 11:
+
+- [ ] `Monad`
+- [ ] `Option` and `Result`
+- [ ] Monadic Operators
+
+### Target 12:
+
+- [ ] `cmixin` package
+- [ ] C Binding
 
 ## <a name="building"> Building the Compiler
 
@@ -171,11 +210,7 @@ iteration of the compiler but in general the flow is as follows:
        |
        * - Chai MIR
        |
-    > Generator
-       |
-       * - LLVM IR
-       |
-    > LLC (LLVM Static Compiler)
+    > Generator + LLVM
        |
        * - Object Code
        |
@@ -198,15 +233,14 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-The compiler is being bootstrapped.  I am going to write a Go implementation of
-the compiler using the Go's LLVM IR generation library (this LLVM source text
-will then be piped to the LLVM compiler, Go's LLVM bindings don't work) -- this
-compiler will compile a simple subset of Chai called Alpha Chai.  Once that is
-finished, a full Chai compiler will be implemented in Chai rendering the
-language fully self-hosting. Eventually, the compiler will be able to compile
-itself.
+The compiler is being bootstrapped.  I am going to write a Python implementation
+of the compiler using the LLVM C API with Python's `ctypes` module.  This
+compiler may exclude some features not necessary to implement the compiler.
+Once that is finished, a full Chai compiler will be implemented in Chai
+rendering the language fully self-hosting. Eventually, the compiler will be able
+to compile itself.
 
-The `bootstrap` directory contains the Go implementation.  Once that
+The `bootstrap` directory contains the Python implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
 
