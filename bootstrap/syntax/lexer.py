@@ -204,8 +204,14 @@ class Lexer:
 
         # This loop implements newline merging: multiple newlines in sequence
         # are all simply merged together into one newline token.
-        while self.peek() == '\n':
-            self.read()
+        while c := self.peek():
+            match c:
+                case '\n':
+                    self.read()
+                case ' ' | '\r' | '\t' | '\v' | '\f':
+                    self.skip()
+                case _:
+                    break
 
         return self.make_token(Token.Kind.NEWLINE)
 

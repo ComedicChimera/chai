@@ -137,7 +137,7 @@ class Constant(Value):
 
     @staticmethod
     def Bool(b: bool) -> 'Constant':
-        return Constant.Int(Int1Type, int(b))
+        return Constant.Int(Int1Type(), int(b))
 
     @property
     def null(self) -> bool:

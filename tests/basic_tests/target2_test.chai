@@ -63,18 +63,19 @@ oper (>=) (a, b: i64) bool end
 oper (&&) (a, b: bool) bool end
 
 def puti(handle: *u8, a: i64)
-    if a < 0
+    if a == 0
+        putc(handle, '0')
+        putc(handle, '\n')
+        return
+    elif a < 0
         putc(handle, '-')
         a = -a
     end
-
-    let pow = 1_000_000_000_000_000_000
-    while pow > 0
+    
+    while let pow = 1_000_000_000_000_000_000; pow > 0; pow /= 10
         if a >= pow
             putc(handle, (a / pow % 10 as u32) + '0')
-        end
-
-        pow /= 10
+        end  
     end
 
     putc(handle, '\n')
@@ -88,7 +89,7 @@ end
 def fibonacci(n: i64) i64
     let a = 0, b = 1
 
-    while a < n
+    while b < n
         a, b = b, a + b
     end
 
@@ -100,7 +101,6 @@ def print_fizz(handle: *u8)
     putc(handle, 'i')
     putc(handle, 'z')
     putc(handle, 'z')
-    putc(handle, '\n')
 end
 
 def print_buzz(handle: *u8)
@@ -108,7 +108,6 @@ def print_buzz(handle: *u8)
     putc(handle, 'u')
     putc(handle, 'z')
     putc(handle, 'z')
-    putc(handle, '\n')
 end
 
 def fizz_buzz(handle: *u8, n: i64)
@@ -116,10 +115,13 @@ def fizz_buzz(handle: *u8, n: i64)
         if i % 5 == 0 && i % 3 == 0
             print_fizz(handle)
             print_buzz(handle)
+            putc(handle, '\n')
         elif i % 3 == 0
             print_fizz(handle)
+            putc(handle, '\n')
         elif i % 5 == 0
             print_buzz(handle)
+            putc(handle, '\n')
         else
             puti(handle, i)
         end

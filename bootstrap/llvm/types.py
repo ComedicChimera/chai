@@ -1,6 +1,6 @@
 from ctypes import c_uint, POINTER
 from enum import auto
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 from . import *
 
@@ -138,31 +138,31 @@ def LLVMGetIntTypeWidth(int_type: IntegerType) -> c_uint:
     pass
 
 @llvm_api
-def LLVMInt1Type() -> c_object_p:
+def LLVMInt1TypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMInt8Type() -> c_object_p:
+def LLVMInt8TypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMInt16Type() -> c_object_p:
+def LLVMInt16TypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMInt32Type() -> c_object_p:
+def LLVMInt32TypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMInt64Type() -> c_object_p:
+def LLVMInt64TypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMFloatType() -> c_object_p:
+def LLVMFloatTypeInContext() -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDoubleType() -> c_object_p:
+def LLVMDoubleTypeInContext() -> c_object_p:
     pass
 
 @llvm_api
@@ -203,25 +203,40 @@ def LLVMGetPointerAddressSpace(ptr_typ: PointerType) -> c_uint:
     pass
 
 @llvm_api
-def LLVMVoidType() -> c_object_p:
+def LLVMVoidTypeInContext(ctx: Context) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMLabelType() -> c_object_p:
+def LLVMLabelTypeInContext(ctx: Context) -> c_object_p:
     pass
 
 # ---------------------------------------------------------------------------- #
 
-# Utility Type Constants
+# Utility Type Constructors
 
-Int1Type = IntegerType(LLVMInt1Type())
-Int8Type = IntegerType(LLVMInt8Type())
-Int16Type = IntegerType(LLVMInt16Type())
-Int32Type = IntegerType(LLVMInt32Type())
-Int64Type = IntegerType(LLVMInt64Type())
+def Int1Type() -> IntegerType:
+    return IntegerType(LLVMInt1TypeInContext(get_context()))
 
-FloatType = Type(LLVMFloatType())
-DoubleType = Type(LLVMDoubleType())
+def Int8Type() -> IntegerType:
+    return IntegerType(LLVMInt8TypeInContext(get_context()))
 
-VoidType = Type(LLVMVoidType())
-LabelType = Type(LLVMLabelType())
+def Int16Type() -> IntegerType:
+    return IntegerType(LLVMInt16TypeInContext(get_context()))
+
+def Int32Type() -> IntegerType:
+    return IntegerType(LLVMInt32TypeInContext(get_context()))
+
+def Int64Type() -> IntegerType:
+    return IntegerType(LLVMInt64TypeInContext(get_context()))
+
+def FloatType() -> Type:
+    return Type(LLVMFloatTypeInContext(get_context()))
+
+def DoubleType() -> Type:
+    return Type(LLVMDoubleTypeInContext(get_context()))
+
+def VoidType() -> Type:
+    return Type(LLVMVoidTypeInContext(get_context()))
+
+def LabelType() -> Type:
+    return Type(LLVMLabelTypeInContext(get_context()))

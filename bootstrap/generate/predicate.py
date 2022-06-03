@@ -49,11 +49,12 @@ class PredicateGenerator:
 
     loop_contexts: Deque[LoopContext]
 
-    nothing_value: llvalue.Value = llvalue.Constant.Null(lltypes.Int1Type)
+    nothing_value: llvalue.Value
 
     def __init__(self):
         self.irb = IRBuilder()
         self.loop_contexts = deque()
+        self.nothing_value = llvalue.Constant.Null(lltypes.Int1Type())
 
     def generate(self, pred: Predicate):
         self.body = pred.ll_func.body
@@ -107,6 +108,7 @@ class PredicateGenerator:
         incoming = []
 
         if_end = self.body.append()
+        never_end = True
 
         for cond_branch in if_tree.cond_branches:
             if cond_branch.header_var:
@@ -119,27 +121,44 @@ class PredicateGenerator:
             self.irb.build_cond_br(ll_cond, if_then, if_else)
 
             self.irb.move_to_end(if_then)
-            if ll_value := self.generate_expr(cond_branch.body):
-                incoming.append(ir.PHIIncoming(ll_value, if_then))
+            ll_value = self.generate_expr(cond_branch.body)
 
-            if not if_then.terminator:
+            if not self.irb.block.terminator:
+                never_end = False
                 self.irb.build_br(if_end)
+
+                if ll_value:
+                    incoming.append(ir.PHIIncoming(ll_value, if_then))
 
             self.irb.move_to_end(if_else)
 
         if if_tree.else_branch:
-            self.generate_expr(if_tree.else_branch)
+            ll_value = self.generate_expr(if_tree.else_branch)
+
+            if ll_value:
+                incoming.append(ir.PHIIncoming(ll_value, if_else))
+
+            never_end = bool(self.irb.block.terminator)
+        else:
+            never_end = False
         
-        self.irb.build_br(if_end)
+        if not self.irb.block.terminator:
+            self.irb.build_br(if_end)
+ 
+        if never_end:
+            self.body.remove(if_end)
+            return None
+
         self.irb.move_to_end(if_end)
 
         if is_nothing(if_tree.type):
             return None
 
-        phi_node = self.irb.build_phi(conv_type(if_tree.type))
-        phi_node.incoming.add(*incoming)
+        if len(incoming) > 0:
+            phi_node = self.irb.build_phi(conv_type(if_tree.type))
+            phi_node.incoming.add(*incoming)
 
-        return phi_node
+            return phi_node
 
     def generate_while_loop(self, while_loop: WhileLoop):
         if while_loop.header_var:
@@ -148,6 +167,12 @@ class PredicateGenerator:
         loop_header = self.body.append()
         self.irb.build_br(loop_header)
         self.irb.move_to_end(loop_header)
+
+        loop_body = self.body.append()
+        loop_exit = self.body.append()
+
+        ll_cond = self.generate_expr(while_loop.condition)
+        self.irb.build_cond_br(ll_cond, loop_body, loop_exit)
 
         if while_loop.update_stmt:
             loop_update = self.body.append()
@@ -161,24 +186,21 @@ class PredicateGenerator:
                 case _:
                     self.generate_expr(stmt)
 
-            self.irb.build_br(loop_header)
+            if not self.irb.block.terminator:
+                self.irb.build_br(loop_header)
 
             loop_continue = loop_update
-
-            self.irb.move_to_end(loop_header)
         else:
             loop_continue = loop_header
 
-        loop_body = self.body.append()
-        loop_exit = self.body.append()
-
-        ll_cond = self.generate_expr(while_loop.condition)
-        self.irb.build_cond_br(ll_cond, loop_body, loop_exit)
-
         self.irb.move_to_end(loop_body)
+
         self.push_loop_context(loop_exit, loop_continue)
         self.generate_expr(while_loop.body)
-        self.irb.build_br(loop_continue)
+        self.pop_loop_context()
+
+        if not self.irb.block.terminator:
+            self.irb.build_br(loop_continue)
 
         self.irb.move_to_end(loop_exit)
 
@@ -227,7 +249,9 @@ class PredicateGenerator:
 
                 if sym.mutability == Symbol.Mutability.MUTABLE:
                     ll_var = self.alloc_var(sym.type)
-                    self.irb.build_store(ll_init, ll_var)
+
+                    if ll_init:
+                        self.irb.build_store(ll_init, ll_var)
                 else:
                     ll_var = var_ll_init
 
@@ -246,7 +270,7 @@ class PredicateGenerator:
                 rhss = [
                     self.generate_binary_op_app(BinaryOpApp(
                         op, 
-                        LLVMValueNode(self.irb.build_load(lhs.type, lhs), lhs_expr.type, lhs_expr.span), 
+                        LLVMValueNode(self.irb.build_load(lltypes.PointerType.from_type(lhs.type).elem_type, lhs), lhs_expr.type, lhs_expr.span), 
                         rhs_expr, lhs_expr.type
                     ))
                     for lhs, lhs_expr, rhs_expr, op in
@@ -378,7 +402,7 @@ class PredicateGenerator:
                 self.irb.build_br(exit_block)
 
                 self.irb.move_to_end(exit_block)
-                and_result = self.irb.build_phi(lltypes.Int1Type)
+                and_result = self.irb.build_phi(lltypes.Int1Type())
                 and_result.incoming.add(ir.PHIIncoming(llvalue.Constant.Bool(False), start_block))
                 and_result.incoming.add(ir.PHIIncoming(rhs, true_block))
 
@@ -395,7 +419,7 @@ class PredicateGenerator:
                 self.irb.build_br(exit_block)
 
                 self.irb.move_to_end(exit_block)
-                or_result = self.irb.build_phi(lltypes.Int1Type)
+                or_result = self.irb.build_phi(lltypes.Int1Type())
                 or_result.incoming.add(ir.PHIIncoming(llvalue.Constant.Bool(True), start_block))
                 or_result.incoming.add(ir.PHIIncoming(rhs, false_block))
                 
@@ -524,7 +548,7 @@ class PredicateGenerator:
             case Token.Kind.FLOATLIT:
                 return llvalue.Constant.Real(conv_type(lit.type), float(lit.value.replace('_', '')))
             case Token.Kind.RUNELIT:
-                return llvalue.Constant.Int(lltypes.Int32Type, get_rune_char_code(lit.value))
+                return llvalue.Constant.Int(lltypes.Int32Type(), get_rune_char_code(lit.value))
             case Token.Kind.NUMLIT:
                 return llvalue.Constant.Int(conv_type(lit.type), int(lit.value.replace('_', '')))
 
