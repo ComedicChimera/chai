@@ -1,7 +1,7 @@
 '''Provides the type solver and its associated constructs.'''
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set, Tuple
+from typing import List, Dict, Optional, Set
 from abc import ABC, abstractmethod
 
 from . import *
@@ -153,6 +153,24 @@ class CastAssert:
 
 @dataclass
 class TypeVarNode:
+    '''
+    Represents a type variable within the solution graph.
+
+    Attributes
+    ----------
+    type_var: TypeVariable
+        The type variable represented by this node.
+    sub_nodes: List[SubNode]
+        The substitution nodes associated with this type variable.
+    default: bool
+        Whether or not to default to the first substitution in the list of
+        substitution nodes if there is more than one possible substitution when
+        finalizing type deduction for this type variable.
+    id: int
+        The unique ID of the type variable node (which is the same as the ID of
+        the type variable it represents).
+    '''
+
     type_var: TypeVariable
     sub_nodes: List['SubNode'] = field(default_factory=list)
     default: bool = False
@@ -169,6 +187,28 @@ class TypeVarNode:
 
 @dataclass
 class SubNode:
+    '''
+    Represents a substitution within the solution graph.
+
+    Attributes
+    ----------
+    id: int
+        The unique ID of this substitution node.
+    sub: Substitution
+        The substitution represented by this substitution node.
+    parent: TypeVarNode
+        The parent type variable node to this substitution: the type variable
+        for which this node represents a possible substitution.
+    edges: List[SubNode]
+        The list of substitution nodes this node shares an edge with.
+    type: Type 
+        The resultant type of the substitution associated with this node.
+    is_overload: bool
+        Whether or not the substitution node is an overload of the type variable
+        it is associated with: ie. whether its parent type variable has more
+        than one possible substitution.
+    '''
+
     id: int
     sub: Substitution
     parent: TypeVarNode
@@ -195,11 +235,32 @@ class SubNode:
 
 @dataclass
 class UnifyResult:
+    '''
+    Represents the complex result of unification.
+
+    Attributes
+    ----------
+    unified: bool
+        Whether or not unification was successful.
+    visited: Dict[int, bool]
+        The map of substitution node IDs visited during substitution associated
+        with whether or not they should be pruned once the equivalency assertion
+        which caused this unification completes (true => prune).
+    completes: Set[int]
+        The set of nodes that were completed (ie. given substitutions) by this
+        unification.
+    '''
+
     unified: bool
     visited: Dict[int, bool] = field(default_factory=dict)
     completes: Set[int] = field(default_factory=set)
 
     def __and__(self, other: object) -> 'UnifyResult':
+        '''
+        Combines two unification results in such a way that both unification
+        must hold in order for the yielded unification result to hold.
+        '''
+
         if isinstance(other, UnifyResult):
             return UnifyResult(
                 self.unified and other.unified, 
@@ -213,6 +274,11 @@ class UnifyResult:
         raise TypeError()
 
     def __or__(self, other: object) -> 'UnifyResult':
+        '''
+        Combines two unification results in such a way that either unification
+        can hold in order for the yielded unification result to hold.
+        '''
+
         if isinstance(other, UnifyResult):
             return UnifyResult(
                 self.unified or other.unified,
@@ -231,7 +297,44 @@ class UnifyResult:
 class Solver:
     '''
     Represents Chai's type solver.  The type solver is the primary mechanism for
-    performing type deduction.  TODO describe type solving algorithm
+    performing type deduction.  
+
+    Chai's type deduction algorithm is loosely based on the Algorithm J for the
+    Hindley-Milner type system.  However, it has been extended and redesigned to
+    support generalized type overloading.
+
+    The algorithm works by considering a *solution graph* comprised of
+    *type variable nodes* and *substitution nodes*.  The type variable nodes
+    represent the undetermined types of the given solution context (eg. inside a
+    given function).  The substitution nodes represent the possible values for
+    those undetermined type variables.  Each type variable node has a number
+    of substitution nodes associated with it that represent the possible types
+    this node can have.  
+    
+    These substitution nodes can be determined either before unification
+    involving that type variable begins or during the unifications involving the
+    type variable: type variable nodes which are *complete* can no longer has
+    substitutions added to them.
+
+    All substitution nodes have *edges* which represent relationships between
+    substitution nodes.  More precisely, if two substitution nodes, A and B,
+    share an edge, then substitution A is valid if and only if substitution B is
+    valid.
+
+    The principle mechanism of Chai's type deduction algorithm is *unification*:
+    the process by which the solver attempts to make two types equal by
+    unification. This process fails if the two types cannot be made equal (eg.
+    are of a different shape or represent different primitive types).  The
+    wrinkle to this algorithm that Chai's type solver adds (extending from
+    Algorithm J) is that the unification algorithm also takes into account the
+    substitution that led to the unification: eg. if we are unifying a type
+    against a substitution of a type variable, different behavior may occur.
+    This substitution node is called the *unification root* and may not be
+    present if the unification is occurring at the top level (ie. between two
+    types which are not currently substitutions of any type variable).
+
+    The exact formulation of the unification algorithm can be inferred from the
+    implementation below using the context and terminology established above.
 
     Methods
     -------
@@ -410,8 +513,29 @@ class Solver:
     # ---------------------------------------------------------------------------- #
 
     def unify(self, root: Optional[SubNode], lhs: Type, rhs: Type) -> UnifyResult:
+        '''
+        Makes two types equal to each other by substitution with respect to the
+        given root substitution.  
+
+        Params
+        ------
+        root: Optional[SubNode]
+            The unification root substitution.  This can be `None` if there is
+            no root.
+        lhs: Type
+            The left-hand type.
+        rhs: Type
+            The right-hand type.
+        '''
+
+        # NOTE For all composite types, we use `&` to combine results of
+        # sub-unifications since all sub-results must be true in order for
+        # unification to succeed.
+
+        # Match the shape of the types first.
         match (lhs, rhs):
             case (TypeVariable(lhs_id), TypeVariable(rhs_id)):
+                # Make sure we don't unify a type variable with itself.
                 if lhs_id == rhs_id:
                     return UnifyResult(True)
                     
@@ -439,45 +563,98 @@ class Solver:
                 return UnifyResult(False)         
 
     def unify_type_var(self, root: Optional[SubNode], tv_id: int, typ: Type) -> UnifyResult:
+        '''
+        Attempts to make a type variable equal to a given type by substitution
+        with respect to a given root substitution.
+
+        Params
+        ------
+        root: Optional[SubNode]
+            The unification root substitution.  This can be `None` if there is
+            no root.
+        tv_id: int
+            The type variable ID.
+        typ: Type
+            The type to unify the type variable with.
+        '''
+
         tv_node = self.type_var_nodes[tv_id]
 
         result = UnifyResult(True)
 
+        # Handle incomplete type variables.
         if tv_id not in self.completes:
+            # Mark the type variable as completed by this unification.
             result.completes.add(tv_id)
 
+            # Add a substitution of the given type to the type variable if it
+            # does not already have a substitution which is equivalent to the
+            # given type.
             for sub_node in tv_node.sub_nodes:
                 if self.unify(sub_node, sub_node.type, typ):
                     break
             else:
                 sub_node = self.add_substitution(tv_node, BasicSubstitution(typ))
-                
-                if root:
-                    self.add_edge(root, sub_node)
+
+             # Add an edge between the root and matching/new substitution.
+            if root:
+                self.add_edge(root, sub_node) 
+        # Handle complete type variables.
         else:
-            result.visited = {x.id: True for x in tv_node.sub_nodes}
-
+            # Go through each substitution of the given type variable.
             for i, sub_node in enumerate(tv_node.sub_nodes):
-                uresult = self.unify(sub_node, sub_node.type, typ)
-                if i == 0:
-                    result &= uresult
-                else:
-                    result |= uresult
+                # Unify the substitution with the inputted type making the
+                # substitution the root of unification.
+                sub_result = self.unify(sub_node, sub_node.type, typ)
 
-                if uresult:
+                # Merge the substitution unification result with the global
+                # unification result.
+                if i == 0:
+                    result = sub_result
+                else:
+                    result |= sub_result
+
+                # If the local unification succeeded, ...
+                if sub_result:
+                    # Indicate that this substitution node should not be pruned.
                     result.visited[sub_node.id] = False
 
+                    # If there is a root, add an edge between this substitution
+                    # and that unification root.
                     if root:
                         self.add_edge(root, sub_node)
+                else:
+                    # Otherwise, indicate that this substitution should be pruned.
+                    result.visited[sub_node.id] = True
 
+        # If we are not dealing with an overload substitution, update the global
+        # list of completed type variables with the completed type variables of
+        # the overall result.
         if not root or not root.is_overload:
             self.completes |= result.completes
 
+        # Return the generated unification result.
         return result
 
     # ---------------------------------------------------------------------------- #
 
     def add_substitution(self, parent: TypeVarNode, sub: Substitution) -> SubNode:
+        '''
+        Adds a substitution node to a type variable node.
+
+        Params
+        ------
+        parent: TypeVarNode
+            The type variable node to add the substitution to.
+        sub: Substitution
+            The substitution to add as a substitution node.
+
+        Returns
+        -------
+        SubNode
+            The created substitution node.
+        '''
+
         sub_node = SubNode(self.sub_id_counter, sub, parent)
         self.sub_id_counter += 1
 
@@ -487,6 +664,20 @@ class Solver:
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode, pruning: Set[int]):
+        '''
+        Removes a substitution node from the solution graph as well as all
+        substitutions which are related to it by an edge.
+
+        Params
+        ------
+        sub_node: SubNode
+            The substitution node to prune.
+        pruning: Set[int]
+            The set of IDs of substitution nodes already marked for pruning: to
+            prevent cyclic pruning.  This should be an empty set when called
+            externally.
+        '''
+
         pruning.add(sub_node.id)
 
         for edge in sub_node.edges:
@@ -500,6 +691,17 @@ class Solver:
         del self.sub_nodes[sub_node.id]
 
     def add_edge(self, a: SubNode, b: SubNode):
+        '''
+        Relates two substitution nodes by an edge.
+
+        Params
+        ------
+        a: SubNode
+            The first node in the pair.
+        b: SubNode
+            The second node in the pair.
+        '''
+
         a.edges.append(b)
         b.edges.append(a)
 
