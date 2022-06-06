@@ -1,5 +1,4 @@
-from collections import deque
-from typing import Deque, Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass, field
 from enum import Flag, auto
 from functools import reduce
@@ -14,54 +13,153 @@ from . import *
 from .solver import Solver
 import util
 
-class Control(Flag):
+@dataclass
+class Scope:
+    '''
+    Represents a semantic scope in user code.
+
+    Attributes
+    ----------
+    rt_type: Optional[Type]
+        The return type within the given scope.
+    symbols: Dict[str, Symbol]
+        The map of symbols that are defined within this lexical scope.
+    '''
+
+    rt_type: Optional[Type]
+    symbols: Dict[str, Symbol] = field(default_factory=dict)
+
+class ControlAction(Flag):
+    '''
+    Used to represent the control flow actions that can terminate a control
+    frame division.  This is a flag primarily to allow for efficient enumeration
+    of the kinds of control flow that are valid within a control frame.  It also
+    allows us to AND control actions together to determine the "net" control of
+    an entire frame.
+    '''
+
     NONE = 0
     LOOP = auto()
     FUNC = auto()
 
 @dataclass
-class Scope:
-    func: Optional[FuncType]
-    symbols: Dict[str, Symbol] = field(default_factory=dict)
+class ControlFrame:
+    '''
+    Represents the control flow structure of a function: each frame is the local
+    control flow context of a given logical block structure.  Frames are
+    comprised of divisions (divs) which contain component control flow actions
+    of the given logical block structure: eg. each branch of an if tree is a
+    single division within the control frame representing the if tree as a
+    whole.  This system is used to check exhaustivity and perform block-type
+    checking intuitively.
 
-@dataclass
-class ControlContext:
-    valid_control: Control
-    context_divs: Deque[Control] = field(default_factory=deque)
+    Attributes
+    ----------
+    valid_actions: ControlAction
+        A flag representing the valid control actions within a this control
+        frame.  This flag can be comprised of multiple possible control actions:
+        you can check if an action is valid by ANDing it with this field.
+    divs: List[ControlAction]
+        The list of frame divisions.
+    div_action: ControlAction
+        The action of the current division.  Note that this is actually a
+        property with a special setter that updates the division action only if
+        that division does not already have a meaningful action assigned to it:
+        since a block can only be terminated by one kind of control flow.
+    '''
+
+    valid_actions: ControlAction
+    divs: List[ControlAction] = field(default_factory=list)
 
     @property
-    def curr_control(self) -> Control:
-        return self.context_divs[0]
+    def div_action(self) -> ControlAction:
+        return self.divs[-1]
 
-    @curr_control.setter
-    def curr_control(self, control: Control):
-        if not self.curr_control:
-            self.context_divs[0] = control
+    @div_action.setter
+    def div_action(self, control: ControlAction):
+        if not self.div_action:
+            self.divs[-1] = control
 
     def new_div(self):
-        self.context_divs.appendleft(Control.NONE)
+        '''Adds a new division to the frame.'''
 
-    def merge(self) -> Control:
-        return reduce(lambda a, b: a & b, self.context_divs)
+        self.divs.append(ControlAction.NONE)
+
+    def merge(self) -> ControlAction:
+        '''Returns the net control action of the frame.'''
+        
+        return reduce(lambda a, b: a & b, self.divs)
+
+    def is_valid(self, action: ControlAction) -> bool:
+        '''
+        Checks whether the given control action is valid within the frame.
+
+        Params
+        ------
+        action: ControlAction
+            The action to check.
+        
+        '''
+
+        return bool(self.valid_actions & action)
+
+# ---------------------------------------------------------------------------- #
 
 class Walker:
+    '''
+    Responsible for performing semantic analysis by walking Chai's AST.
+
+    Methods
+    -------
+    walk_definition(defin: ASTNode)
+    '''
+
+    # The source file of the AST nodes being walked.
     src_file: SourceFile
+
+    # THe global type solver used for type checking.
     solver: Solver
-    scopes: Deque[Scope]
-    control_contexts: Deque[ControlContext]
+
+    # The semantic scope stack: this should not be accessed directly within
+    # walking methods, but rather using the helper methods defined at the bottom
+    # of Walker.
+    scopes: List[Scope]
+
+    # The control frame stack: this should not be accessed directly within
+    # walking methods, but rather using the helper methods defined at the bottom
+    # of Walker.
+    frames: List[ControlFrame]
 
     def __init__(self, src_file: SourceFile):
+        '''
+        Params
+        ------
+        src_file: SourceFile
+            The source file of the AST nodes being walked.
+        '''
+
         self.src_file = src_file
         self.solver = Solver(src_file)
-        self.scopes = deque()
-        self.control_contexts = deque()
+        self.scopes = []
+        self.frames = []
 
     def walk_definition(self, defin: ASTNode):
+        '''
+        Walks a definition AST node.
+
+        Params
+        ------
+        defin: ASTNode
+            The definition AST node to walk.
+        '''
+
         match defin:
             case FuncDef():
                 self.walk_func_def(defin)
             case OperDef():
                 self.walk_oper_def(defin)
+            case _:
+                raise NotImplementedError()
 
     # ---------------------------------------------------------------------------- #
 
@@ -146,8 +244,8 @@ class Walker:
 
     def walk_func_body(self, fd: FuncDef | OperDef):
         try:
-            self.push_scope(fd.type)
-            self.push_context(Control.FUNC)
+            self.push_scope(fd.type.rt_type)
+            self.push_frame(ControlAction.FUNC)
 
             for param in fd.params:
                 self.define_local(param)
@@ -157,10 +255,10 @@ class Walker:
             else:
                 self.walk_expr(fd.body, True, False)
 
-                if self.curr_control != Control.FUNC:
+                if self.div_action != ControlAction.FUNC:
                     self.solver.assert_equiv(fd.type.rt_type, fd.body.type, fd.body.span)
 
-            self.pop_context()
+            self.pop_frame()
             self.pop_scope()
 
             self.solver.solve()
@@ -172,11 +270,11 @@ class Walker:
     def walk_if_tree(self, if_tree: IfTree, expects_value: bool, must_yield: bool):
         if_rt_type = None
 
-        self.push_context(initial_div=False)  
+        self.push_frame(initial_div=False)  
 
         for cond_branch in if_tree.cond_branches:
             self.push_scope()
-            self.add_context_div()
+            self.curr_frame.new_div()
 
             if cond_branch.header_var:
                 self.walk_var_decl(cond_branch.header_var)
@@ -186,7 +284,7 @@ class Walker:
                  
             self.walk_expr(cond_branch.body, expects_value, False)
 
-            if expects_value and not self.curr_control:
+            if expects_value and not self.div_action:
                 if if_rt_type:
                     self.solver.assert_equiv(cond_branch.body.type, if_rt_type, cond_branch.body.span)
                 else:
@@ -196,11 +294,11 @@ class Walker:
 
         if if_tree.else_branch:
             self.push_scope()
-            self.add_context_div()
+            self.curr_frame.new_div()
 
             self.walk_expr(if_tree.else_branch, expects_value, False)
 
-            if expects_value and not self.curr_control:
+            if expects_value and not self.div_action:
                 self.solver.assert_equiv(if_tree.else_branch.type, if_rt_type, if_tree.else_branch.span)
 
             self.pop_scope()
@@ -212,7 +310,7 @@ class Walker:
         elif expects_value and must_yield:
             self.error('unconditional jump when value is expected', if_tree.span)
 
-        self.pop_context()
+        self.pop_frame()
             
     def walk_while_loop(self, while_loop: WhileLoop, expects_value: bool):
         if expects_value:
@@ -229,9 +327,9 @@ class Walker:
         if while_loop.update_stmt:
             self.walk_stmt(while_loop.update_stmt, False, False)
         
-        self.push_context(Control.LOOP)
+        self.push_frame(ControlAction.LOOP)
         self.walk_expr(while_loop.body, False)
-        self.pop_context()
+        self.pop_frame()
 
         self.pop_scope()
 
@@ -251,8 +349,8 @@ class Walker:
 
                 match keyword.kind:
                     case Token.Kind.BREAK | Token.Kind.CONTINUE:
-                        if Control.LOOP & self.valid_control:
-                            self.curr_control = Control.LOOP
+                        if self.curr_frame.is_valid(ControlAction.LOOP):
+                            self.div_action = ControlAction.LOOP
                         else:
                             self.error(f'{keyword.value} cannot be used outside a loop', keyword.span)
             case ReturnStmt(exprs):
@@ -262,16 +360,16 @@ class Walker:
                 for expr in exprs:
                     self.walk_expr(expr, True)
 
-                if Control.FUNC & self.valid_control:
-                    self.curr_control = Control.FUNC
+                if self.curr_frame.is_valid(ControlAction.FUNC):
+                    self.div_action = ControlAction.FUNC
                 else:
                     self.error(f'return cannot be used outside a function', stmt.span)
 
                 match len(exprs):
                     case 0:
-                        self.solver.assert_equiv(self.curr_scope.func.rt_type, PrimitiveType.NOTHING, stmt.span)
+                        self.solver.assert_equiv(self.curr_scope.rt_type, PrimitiveType.NOTHING, stmt.span)
                     case 1:
-                        self.solver.assert_equiv(self.curr_scope.func.rt_type, exprs[0].type, stmt.span)
+                        self.solver.assert_equiv(self.curr_scope.rt_type, exprs[0].type, stmt.span)
                     case _:
                         raise NotImplementedError()
             case _:
@@ -525,48 +623,45 @@ class Walker:
 
     @property
     def curr_scope(self) -> Scope:
-        return self.scopes[0]
+        return self.scopes[-1]
 
-    def push_scope(self, func: Optional[FuncType] = None):
-        if func or len(self.scopes) == 0:
-            self.scopes.appendleft(Scope(func))
+    def push_scope(self, rt_type: Optional[Type] = None):
+        if rt_type or len(self.scopes) == 0:
+            self.scopes.append(Scope(rt_type))
         else:
-            self.scopes.appendleft(Scope(self.curr_scope.func))
+            self.scopes.append(Scope(self.curr_scope.rt_type))
 
     def pop_scope(self):
-        self.scopes.popleft()
+        self.scopes.pop()
 
     # ---------------------------------------------------------------------------- #
 
     @property
-    def curr_control(self) -> Control:
-        return self.control_contexts[0].curr_control
+    def curr_frame(self) -> ControlFrame:
+        return self.frames[-1]
 
-    @curr_control.setter
-    def curr_control(self, control: Control):
-        self.control_contexts[0].curr_control = control
-
-    @property
-    def valid_control(self) -> Control:
-        return self.control_contexts[0].valid_control
-
-    def push_context(self, valid_control: Control = Control.NONE, initial_div: bool = True):
-        if len(self.control_contexts) == 0:
-            self.control_contexts.appendleft(ControlContext(valid_control))
+    def push_frame(self, valid_control: ControlAction = ControlAction.NONE, initial_div: bool = True):
+        if len(self.frames) == 0:
+            self.frames.append(ControlFrame(valid_control))
         else:
-            self.control_contexts.appendleft(ControlContext(self.valid_control | valid_control))
+            self.frames.append(ControlFrame(self.curr_frame.valid_actions | valid_control))
 
         if initial_div:
-            self.control_contexts[0].new_div()
+            self.curr_frame.new_div()
 
-    def add_context_div(self):
-        self.control_contexts[0].new_div()
+    def pop_frame(self):
+        frame = self.frames.pop()
 
-    def pop_context(self):
-        ctx = self.control_contexts.popleft()
+        if len(self.frames) > 0:
+            self.div_action = frame.merge()
 
-        if len(self.control_contexts) > 0:
-            self.curr_control = ctx.merge()
+    @property
+    def div_action(self) -> ControlAction:
+        return self.curr_frame.div_action
+
+    @div_action.setter
+    def div_action(self, action: ControlAction):
+        self.curr_frame.div_action = action
 
     # ---------------------------------------------------------------------------- #
 

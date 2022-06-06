@@ -408,13 +408,17 @@ class Solver:
             The list of type overloads for the literal.
         '''
 
+        # Get the type variable node associated with the given type variable.
         tv_node = self.type_var_nodes[tv.id]
 
+        # Set it to default (since literal overloads always default).
         tv_node.default = True
 
+        # Add all the substitutions to the type variable node.
         for overload in overloads:
             self.add_substitution(tv_node, BasicSubstitution(overload))
 
+        # Mark the type variable node as complete.
         self.completes.add(tv.id)
         
     def add_operator_overloads(self, tv: TypeVariable, op: AppliedOperator, overloads: List[OperatorOverload]):
@@ -433,11 +437,14 @@ class Solver:
             The list of operator overloads for the operator.
         ''' 
 
+        # Get the type variable node associated with the given type variable.
         tv_node = self.type_var_nodes[tv.id]
 
+        # Add all the substitutions to the type variable node.
         for overload in overloads:
             self.add_substitution(tv_node, OperatorSubstitution(op, overload))   
 
+        # Mark the type variable node as complete.
         self.completes.add(tv.id)    
 
     def assert_equiv(self, lhs: Type, rhs: Type, span: TextSpan):
@@ -454,11 +461,17 @@ class Solver:
             The text span to error over if the assertion fails.
         '''
 
+        # Unify the given LHS type with the RHS type with no unification root,
         result = self.unify(None, lhs, rhs)
+
+        # Raise an error if unification fails.
         if not result:
             self.error(f'type mismatch: {lhs} v. {rhs}', span)
 
+        # Prune all nodes which the unification algorithm marked for pruning.
         for sid, prune in result.visited.items():
+            # Note that we need to check to make sure the `sid` has not already
+            # been pruned through its connection to another pruned node.
             if prune and sid in self.sub_nodes:
                 self.prune_substitution(self.sub_nodes[sid], set())
 
@@ -485,18 +498,30 @@ class Solver:
         constraints will be provided.  This does NOT reset the solver.
         '''
 
+        # Unify the first type substitution for any type variable nodes which
+        # should default and have more than one remaining possible substitution.
         for tv_node in self.type_var_nodes:
             if tv_node.default and len(tv_node.sub_nodes) > 1:
+                # We use `assert_equiv` to perform the unification so we can
+                # avoid rewriting all the boiler-plate code written inside
+                # `assert_equiv` for top level unification, but we pass in a
+                # position of `None` since this operation *should* never fail.
                 self.assert_equiv(tv_node.type_var, next(iter(tv_node.sub_nodes)).type, None)
 
+        # Go through each type variable and make final deductions based on
+        # remaining nodes in the solution graph.  
         for tv_node in self.type_var_nodes:
+            # Any remaining type variable which has exactly one substitution
+            # associated with it is considered solved.
             if len(tv_node.sub_nodes) == 1:
                 sub = next(iter(tv_node.sub_nodes)).sub
                 tv_node.type_var.value = sub.type
                 sub.finalize()
             else:
+                # Otherwise, report an appropriate error.
                 self.error(f'unable to infer type for {tv_node.type_var}', tv_node.type_var.span)
 
+        # Apply all cast assertions.
         for ca in self.cast_asserts:
             if not ca.src < ca.dest:
                 self.error(f'cannot cast {ca.src} to {ca.dest}', ca.span)
@@ -655,12 +680,15 @@ class Solver:
             The created substitution node.
         '''
 
+        # Create the new substitution node.
         sub_node = SubNode(self.sub_id_counter, sub, parent)
         self.sub_id_counter += 1
 
+        # Add it to the graph and to the given parent.
         self.sub_nodes[sub_node.id] = sub_node
         parent.sub_nodes.append(sub_node)
 
+        # Return the newly created substitution node.
         return sub_node
 
     def prune_substitution(self, sub_node: SubNode, pruning: Set[int]):
@@ -673,21 +701,26 @@ class Solver:
         sub_node: SubNode
             The substitution node to prune.
         pruning: Set[int]
-            The set of IDs of substitution nodes already marked for pruning: to
+            The set of IDs of substitution nodes already being pruned: to
             prevent cyclic pruning.  This should be an empty set when called
             externally.
         '''
 
+        # First, mark the current node as already being pruned so that we don't
+        # try to prune it multiple times and get caught in a cycle while pruning
+        # the graph.
         pruning.add(sub_node.id)
 
+        # Go through each edge of the current substitution node and prune them
+        # if they are not already being pruned.
         for edge in sub_node.edges:
             if edge.id not in pruning:
                 self.prune_substitution(edge, pruning)
 
-        sub_node.edges.clear()
-
+        # Remove the substitution from its parent type variable node.
         sub_node.parent.sub_nodes.remove(sub_node)
 
+        # Remove the substitution from the substitution graph.
         del self.sub_nodes[sub_node.id]
 
     def add_edge(self, a: SubNode, b: SubNode):
