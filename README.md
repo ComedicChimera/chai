@@ -177,8 +177,10 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 12:
 
-- [ ] `cmixin` package
-- [ ] C Binding
+- [ ] `require` directive
+- [ ] `cffi` package
+- [ ] C Binding Compiler Flags
+- [ ] `csrc` directive
 
 ## <a name="building"> Building the Compiler
 

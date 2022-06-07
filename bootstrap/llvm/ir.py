@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from . import *
 from .types import Type
 from .value import UserValue, Value, GlobalValue
+from .metadata import DISubprogram
 
 class Attribute(LLVMObject):
     class Kind(LLVMEnum):
@@ -873,6 +874,14 @@ class Function(GlobalValue):
     def body(self) -> FuncBody:
         return FuncBody(self)
 
+    @property
+    def di_sub_program(self) -> DISubprogram:
+        return DISubprogram(LLVMGetSubprogram(self))
+
+    @di_sub_program.setter
+    def di_sub_program(self, dsp: DISubprogram):
+        LLVMSetSubprogram(self, dsp)
+
 # ---------------------------------------------------------------------------- #
 
 @llvm_api
@@ -1138,3 +1147,11 @@ def LLVMGetICmpPredicate(icmp: ICmpInstruction) -> c_enum:
 @llvm_api
 def LLVMGetFCmpPredicate(fcmp: FCmpInstruction) -> c_enum:
     pass
+
+@llvm_api
+def LLVMGetSubprogram(func: Function) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMSetSubprogram(func: Function, dsp: DISubprogram):
+    pass 

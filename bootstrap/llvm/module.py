@@ -1,9 +1,11 @@
-from ctypes import c_size_t, byref, c_char_p, POINTER
+from ctypes import c_size_t, byref, c_char_p, POINTER, c_uint
+from ctypes import Array as c_array
 from typing import Optional, Iterator, Tuple
 
 from . import *
 from .types import FunctionType
 from .ir import Function
+from .value import Value
 
 class Module(LLVMObject):
     def __init__(self, name: str):
@@ -112,8 +114,90 @@ class Module(LLVMObject):
     def functions(self) -> _Functions:
         return Module._Functions(self) 
 
+    class _NamedMetadataNodes:
+        mod: 'Module'
+
+        def __init__(self, mod: 'Module'):
+            self.mod = mod
+        
+        def __iter__(self) -> Iterator['NamedMetadataNode']:
+            named_md_ptr = LLVMGetFirstNamedMetadata(self.mod)
+
+            while named_md_ptr:
+                yield NamedMetadataNode(named_md_ptr)
+
+                named_md_ptr = LLVMGetNextNamedMetadata(self.mod)
+
+        def __reversed__(self) -> Iterator['NamedMetadataNode']:
+            named_md_ptr = LLVMGetLastNamedMetadata(self.mod)
+
+            while named_md_ptr:
+                yield NamedMetadataNode(named_md_ptr)
+
+                named_md_ptr = LLVMGetPreviousNamedMetadata(self.mod)
+
+        def __getitem__(self, key: str) -> 'NamedMetadataNode':
+            key_bytes = key.encode()
+            named_md_ptr = LLVMGetNamedMetadata(self.mod, key_bytes, len(key_bytes))
+
+            if named_md_ptr:
+                return named_md_ptr
+
+            raise KeyError(key)
+
+        def add(self, key: str) -> 'NamedMetadataNode':
+            key_bytes = key.encode()
+            named_md_ptr = LLVMGetOrInsertNamedMetadata(self.mod, key_bytes, len(key_bytes))
+            return NamedMetadataNode(named_md_ptr)
+            
+    @property
+    def named_md_nodes(self) -> _NamedMetadataNodes:
+        return Module._NamedMetadataNodes(self)
+
 # This import has to go down here to handle an import cycle.
 from .target import TargetData
+
+class NamedMetadataNode(LLVMObject):
+    parent: Module
+
+    def __init__(self, ptr: c_object_p, parent: Module):
+        super().__init__(ptr)
+        self.parent = parent
+
+    @property
+    def name(self) -> str:
+        return str(LLVMGetNamedMetadataName(self, byref(c_size_t())), encoding='utf-8')
+
+    class _NamedMDOperands:
+        named_md: 'NamedMetadataNode'
+
+        def __init__(self, named_md: 'NamedMetadataNode'):
+            self.named_md = named_md
+
+        def __len__(self) -> int:
+            return LLVMGetNamedMetadataNumOperands(self.named_md.parent, self.named_md.name.encode('utf-8'))
+
+        def __iter__(self) -> Iterator[Value]:
+            for item in self._get_operands():
+                yield Value(item)
+
+        def __getitem__(self, ndx: int) -> Value:
+            if 0 <= ndx < len(self):
+                return self._get_operands()[ndx]
+
+            raise IndexError(ndx)
+
+        def add(self, item: Value):
+            LLVMAddNamedMetadataOperand(self.named_md.parent, self.named_md.name, item)
+
+        def _get_operands(self) -> c_array:
+            op_arr = (c_object_p * len(self))()
+            LLVMGetNamedMetadataOperands(self.named_md.parent, self.named_md.name, op_arr)
+            return op_arr
+
+    @property
+    def operands(self) -> _NamedMDOperands:
+        return self._NamedMDOperands(self)
 
 # ---------------------------------------------------------------------------- #
 
@@ -187,4 +271,44 @@ def LLVMGetPreviousFunction(func_iter: c_object_p) -> c_object_p:
 
 @llvm_api
 def LLVMVerifyModule(m: Module, verifier_action: c_enum, out_message: POINTER(c_char_p)) -> c_enum:
+    pass
+
+@llvm_api
+def LLVMGetNamedMetadataName(named_md: NamedMetadataNode, name_len: POINTER(c_size_t)) -> c_char_p:
+    pass
+
+@llvm_api
+def LLVMGetNamedMetadataNumOperands(m: Module, name: c_char_p) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMGetNamedMetadataOperands(m: Module, name: c_char_p, dest: POINTER(c_object_p)):
+    pass
+
+@llvm_api
+def LLVMAddNamedMetadataOperand(m: Module, name: c_char_p, val: Value):
+    pass
+
+@llvm_api
+def LLVMGetFirstNamedMetadata(m: Module) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetLastNamedMetadata(m: Module) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetNextNamedMetadata(named_m_d_node: NamedMetadataNode) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetPreviousNamedMetadata(named_m_d_node: NamedMetadataNode) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetNamedMetadata(m: Module, name: c_char_p, name_len: c_size_t) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetOrInsertNamedMetadata(m: Module, name: c_char_p, name_len: c_size_t) -> c_object_p:
     pass

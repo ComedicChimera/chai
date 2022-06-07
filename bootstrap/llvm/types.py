@@ -210,6 +210,10 @@ def LLVMVoidTypeInContext(ctx: Context) -> c_object_p:
 def LLVMLabelTypeInContext(ctx: Context) -> c_object_p:
     pass
 
+@llvm_api
+def LLVMMetadataTypeInContext(ctx: Context) -> c_object_p:
+    pass
+
 # ---------------------------------------------------------------------------- #
 
 # Utility Type Constructors
@@ -240,3 +244,6 @@ def VoidType() -> Type:
 
 def LabelType() -> Type:
     return Type(LLVMLabelTypeInContext(get_context()))
+
+def MetadataType() -> Type:
+    return Type(LLVMMetadataTypeInContext(get_context()))
