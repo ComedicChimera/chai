@@ -5,6 +5,20 @@ from enum import Flag, auto
 from . import *
 from .value import Value
 
+__all__ = [
+    'Metadata',
+    'MDString',
+    'MDNode',
+    'DIFlags',
+    'DIFile',
+    'DIScope',
+    'DILocation',
+    'DIVariable',
+    'DIGlobalVarExpr',
+    'DISubprogram',
+    'DIType'
+]
+
 class Metadata(LLVMObject):
     class Kind(LLVMEnum):
         MD_STRING = auto()
