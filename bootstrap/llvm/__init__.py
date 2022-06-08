@@ -2,10 +2,11 @@
 
 import os
 from ctypes import cdll, POINTER, c_void_p, c_int, CDLL
+from ctypes import Array as c_array
 from functools import wraps
 from enum import Enum
 import threading
-from typing import Callable, get_type_hints, List, Optional
+from typing import Callable, Collection, get_type_hints, List, Optional
 import atexit
 
 __all__ = [
@@ -16,7 +17,8 @@ __all__ = [
     'llvm_api',
     'Context',
     'get_context',
-    'get_api_lib'
+    'get_api_lib',
+    'create_object_array'
 ]
 
 # This is the type to be used whenever an LLVM API function accepts or returns a
@@ -123,7 +125,22 @@ def llvm_api(f: Callable) -> Callable:
     return wrapper
 
 def get_api_lib() -> CDLL:
+    '''Returns a reference to the `LLVM-C` DLL used by the C bindings.'''
+
     return lib
+
+def create_object_array(items: Collection[LLVMObject]) -> c_array:
+    '''
+    Converts a collection of LLVM objects into a C array of object pointers.
+
+    Params
+    ------
+    items: Collection[LLVMObject]
+        The collection of items to convert.
+    '''
+
+    return (c_object_p * len(items))(item.ptr for item in items)
+
 
 # ---------------------------------------------------------------------------- #
 

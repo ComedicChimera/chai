@@ -1,14 +1,15 @@
 from enum import auto
 from ctypes import c_size_t, c_uint32, c_uint64, c_int64, c_char_p, c_uint, POINTER
+from typing import List, Optional 
 
 from . import *
 from .module import Module
 from .metadata import *
 from .value import Value
-from .ir import BasicBlock
+from .ir import BasicBlock, Instruction, CallInstruction
 
 class DWARFSourceLanguage(LLVMEnum):
-    C89 = auto()
+    C89 = 1
     C = auto()
     ADA83 = auto()
     C_PLUS_PLUS = auto()
@@ -56,13 +57,13 @@ class DWARFEmissionKind(LLVMEnum):
 
 class DWARFMacroInfoRecordType(LLVMEnum):
     DEFINE = 1
-    MACRO = 2
+    UNDEF = 2
     START_FILE = 3
     END_FILE = 4
     VENDOR_EXT = 0xff
 
 class DWARFTypeEncoding(LLVMEnum):
-    ADDRESS = auto()
+    ADDRESS = 1
     BOOLEAN = auto()
     COMPLEX_FLOAT = auto()
     FLOAT = auto()
@@ -77,6 +78,19 @@ class DWARFTypeEncoding(LLVMEnum):
     SIGNED_FIXED = auto()
     UNSIGNED_FIXED = auto()
     DECIMAL_FLOAT = auto()
+    UTF = auto()
+    UCS = auto()
+    ASCII = auto()
+
+class DWARFTypeQualifier(LLVMEnum):
+    ATOMIC = 0x47
+    CONST = 0x26
+    IMMUTABLE = 0x4b
+    PACKED = 0x2d
+    RESTRICT = 0x37
+    RVALUE_REFERENCE = 0x42
+    SHARED = 0x40
+    VOLATILE = 0x35
 
 # ---------------------------------------------------------------------------- #
 
@@ -177,7 +191,7 @@ class DIBuilder(LLVMObject):
         file: DIFile,
         line: int,
         func_type: DIType,
-        externally_visible: bool,
+        internal: bool,
         is_definition: bool,
         scope_line: int,
         flags: DIFlags = DIFlags.ZERO,
@@ -196,7 +210,7 @@ class DIBuilder(LLVMObject):
             file,
             line,
             func_type,
-            int(externally_visible),
+            int(internal),
             int(is_definition),
             scope_line,
             flags,
@@ -211,8 +225,427 @@ class DIBuilder(LLVMObject):
             col,
         ))
 
+    def create_namespace(self, parent_scope: DIScope, name: str, exports_symbols: bool = False) -> MDNode:
+        name_bytes = name.encode()
+
+        return MDNode(ptr=LLVMDIBuilderCreateNameSpace(
+            self, 
+            parent_scope, 
+            name_bytes,
+            len(name_bytes),
+            int(exports_symbols)
+        ))
+
+    def create_imported_namespace(self, parent_scope: DIScope, file: DIFile, line: int) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateImportedModuleFromNamespace(
+            self,
+            parent_scope,
+            file,
+            line
+        ))
+
+    def create_aliased_imported_module(
+        self, 
+        parent_scope: DIScope, 
+        alias_entity: MDNode, 
+        file: DIFile, 
+        line: int, 
+        renamed: List[Metadata] = []
+    ) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateImportedModuleFromAlias(
+            self,
+            parent_scope,
+            alias_entity,
+            file,
+            line,
+            create_object_array(renamed),
+            len(renamed)
+        ))
+
+    def create_imported_module(
+        self,
+        parent_scope: DIScope,
+        mod: Module,
+        file: DIFile,
+        line: int,
+        renamed: List[Metadata] = []
+    ) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateImportedModuleFromModule(
+            self,
+            parent_scope,
+            mod,
+            file,
+            line,
+            create_object_array(renamed),
+            len(renamed)
+        ))
+
+    def create_imported_decl(
+        self,
+        parent_scope: DIScope,
+        decl: MDNode,
+        file: DIFile,
+        line: int,
+        name: str,
+        renamed: List[Metadata] = []
+    ) -> MDNode:
+        name_bytes = name.encode()
+
+        return MDNode(ptr=LLVMDIBuilderCreateImportedDeclaration(
+            self,
+            parent_scope,
+            decl,
+            file,
+            line,
+            name_bytes,
+            len(name_bytes),
+            create_object_array(renamed),
+            len(renamed)
+        ))
+
+    def create_type_array(self, *types: DIType) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderGetOrCreateTypeArray(self, create_object_array(types), len(types)))
+
+    def create_subroutine_type(self, file: DIFile, *param_types: DIType, flags: DIFlags = DIFlags.ZERO) -> DIType:
+        return DIType(LLVMDIBuilderCreateSubroutineType(self, file, create_object_array(param_types), len(param_types), flags))
+
+    def create_enum_value(self, name: str, value: int, unsigned: bool = False) -> MDNode:
+        name_bytes = name.encode()
+
+        return MDNode(ptr=LLVMDIBuilderCreateEnumerator(self, name_bytes, len(name_bytes), value, int(unsigned)))
+
+    def create_enum_type(
+        self, 
+        scope: DIScope, 
+        file: DIFile, 
+        name: str, 
+        line: int,
+        bit_size: int,
+        bit_align: int,
+        *elements: MDNode,
+        underlying_type: Optional[DIType] = None
+    ) -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreateEnumerationType(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file, 
+            line,
+            bit_size,
+            bit_align,
+            create_object_array(elements),
+            len(elements),
+            underlying_type
+        ))
+
+    def create_union_type(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        name: str,
+        line: int,
+        bit_size: int,
+        bit_align: int,
+        *elements: DIType,
+        flags: DIFlags = DIFlags.ZERO,
+        unique_id: str = "",
+        runtime_ver: int = 0
+    ) -> DIType:
+        name_bytes = name.encode()
+        unique_id_bytes = unique_id.encode() if unique_id else name_bytes
+
+        return DIType(LLVMDIBuilderCreateUnionType(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            bit_size,
+            bit_align,
+            flags,
+            create_object_array(elements),
+            len(elements),
+            runtime_ver,
+            unique_id_bytes,
+            len(unique_id_bytes)
+        ))
+
+    def create_array_type(self, elem_type: DIType, bit_size: int, bit_align: int, *subranges: MDNode) -> DIType:
+        subranges_arr = (c_object_p * len(subranges))([x.ptr for x in subranges])
+
+        return DIType(LLVMDIBuilderCreateArrayType(self, bit_size, bit_align, elem_type, subranges_arr, len(subranges)))
+
+    def create_vector_type(self, elem_type: DIType, bit_size: int, bit_align: int, *subranges: MDNode) -> DIType:
+        subranges_arr = (c_object_p * len(subranges))([x.ptr for x in subranges])
+
+        return DIType(LLVMDIBuilderCreateVectorType(self, bit_size, bit_align, elem_type, subranges_arr, len(subranges)))
+
+    def create_basic_type(self, name: str, bit_size: int, encoding: DWARFTypeEncoding, flags: DIFlags = DIFlags.ZERO) -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreateBasicType(self, name_bytes, len(name_bytes), bit_size, encoding, flags))
+
+    def create_pointer_type(self, elem_type: DIType, bit_size: int, bit_align: int, addr_space: int = 0, name: str = "") -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreatePointerType(
+            self, 
+            elem_type, 
+            bit_size, 
+            bit_align, 
+            addr_space, 
+            name_bytes, 
+            len(name_bytes)
+        ))
+
+    def create_struct_type(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        name: str,
+        line: int,
+        bit_size: int,
+        bit_align: int,
+        *elements: DIType,
+        derived_from: Optional[DIType] = None,
+        vtable_holder: Optional[DIType] = None,
+        runtime_ver: int = 0,
+        unique_id: str = "",
+        flags: DIFlags = DIFlags.ZERO 
+    ) -> DIType:
+        name_bytes = name.encode()
+        unique_id_bytes = unique_id.encode() if unique_id else name_bytes
+
+        return DIType(LLVMDIBuilderCreateStructType(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            bit_size,
+            bit_align,
+            flags,
+            derived_from,
+            create_object_array(elements),
+            len(elements),
+            runtime_ver,
+            vtable_holder,
+            unique_id_bytes,
+            len(unique_id_bytes)
+        ))
+
+    def create_member_type(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        parent_type: DIType,
+        name: str,
+        line: int,
+        bit_size: int,
+        bit_align: int,
+        bit_offset: int,
+        flags: DIFlags = DIFlags.ZERO
+    ) -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreateMemberType(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            bit_size,
+            bit_align,
+            bit_offset,
+            flags,
+            parent_type
+        ))
+
+    def create_static_member_type(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        name: str,
+        line: int,
+        member_type: DIType,
+        bit_align: int,
+        const_init: Optional[MDNode] = None,
+        flags: DIFlags = DIFlags.ZERO
+    ) -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreateStaticMemberType(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            member_type,
+            flags,
+            const_init,
+            bit_align
+        ))
+
+    def create_pointer_to_member_type(
+        self,
+        class_type: DIType,
+        elem_type: DIType,
+        bit_size: int,
+        bit_align: int,
+        flags: DIFlags = DIFlags.ZERO,
+    ) -> DIType:
+        return DIType(LLVMDIBuilderCreateMemberPointerType(self, elem_type, class_type, bit_size, bit_align, flags))
+
+    def create_object_pointer_type(self, obj_type: DIType) -> DIType:
+        return DIType(LLVMDIBuilderCreateObjectPointerType(self, obj_type))
+
+    def create_qualified_type(self, qualifier: DWARFTypeQualifier, typ: DIType) -> DIType:
+        return DIType(LLVMDIBuilderCreateQualifiedType(self, qualifier, typ))
+
+    def create_typedef(self, scope: DIScope, file: DIFile, name: str, line: int, typ: DIType, bit_align: int) -> DIType:
+        name_bytes = name.encode()
+
+        return DIType(LLVMDIBuilderCreateTypedef(
+            self, 
+            typ, 
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            scope,
+            bit_align
+        ))
+
+    def create_subrange(self, lower_bound: int, upper_bound: int) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderGetOrCreateSubrange(self, lower_bound, upper_bound))
+
+    def create_array(self, *data: MDNode) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderGetOrCreateArray(self, create_object_array(data), len(data)))
+
+    def create_expression(self, *addr_ops: MDNode) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateExpression(self, create_object_array(addr_ops), len(addr_ops)))
+
+    def create_const_value(self, value: int) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateConstantValueExpression(self, value))
+
+    def create_global_var_expr(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        name: str,
+        mangled_name: str,
+        line: int,
+        var_type: DIType,
+        var_expr: MDNode,
+        global_var_decl: MDNode,
+        bit_align: int,
+        internal: bool
+    ) -> DIGlobalVarExpr:
+        name_bytes = name.encode()
+        mangled_bytes = mangled_name.encode()
+
+        return DIGlobalVarExpr(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            mangled_bytes,
+            len(mangled_bytes),
+            file,
+            line,
+            var_type,
+            int(internal),
+            var_expr,
+            global_var_decl,
+            bit_align
+        )
+
+    def create_param_variable(
+        self, 
+        scope: DIScope, 
+        file: DIFile, 
+        name: str, 
+        arg_n: int,
+        line: int, 
+        param_type: DIType,
+        survives_optimizations: bool = True,
+        flags: DIFlags = DIFlags.ZERO
+    ) -> DIVariable:
+        name_bytes = name.encode()
+
+        return DIVariable(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            arg_n,
+            file,
+            line,
+            param_type,
+            int(survives_optimizations),
+            flags,
+        )
     
-    
+    def insert_debug_declare(
+        self,
+        var: Value,
+        var_info: DIVariable,
+        expr_info: MDNode,
+        debug_loc: DILocation,
+        on: Instruction | BasicBlock
+    ) -> CallInstruction:
+        if isinstance(on, Instruction):
+            return CallInstruction(LLVMDIBuilderInsertDeclareBefore(
+                self,
+                var,
+                var_info,
+                expr_info,
+                debug_loc,
+                on
+            ))
+        else:
+            return CallInstruction(LLVMDIBuilderInsertDeclareAtEnd(
+                self,
+                var,
+                var_info,
+                expr_info,
+                debug_loc,
+                on
+            ))
+
+    def insert_debug_value(
+        self,
+        val: Value,
+        var_info: DIVariable,
+        expr_info: MDNode,
+        debug_loc: DILocation,
+        on: Instruction | BasicBlock
+    ) -> CallInstruction:
+        if isinstance(on, Instruction):
+            return CallInstruction(LLVMDIBuilderInsertDbgValueBefore(
+                self,
+                val,
+                var_info,
+                expr_info,
+                debug_loc,
+                on
+            ))
+        else:
+            return CallInstruction(LLVMDIBuilderInsertDbgValueAtEnd(
+                self,
+                val,
+                var_info,
+                expr_info,
+                debug_loc,
+                on
+            ))
 
 # ---------------------------------------------------------------------------- #
 
@@ -250,10 +683,6 @@ def LLVMDIBuilderCreateLexicalBlock(builder: DIBuilder, scope: DIScope, file: DI
 
 @llvm_api
 def LLVMDIBuilderCreateImportedDeclaration(builder: DIBuilder, scope: DIScope, decl: MDNode, file: DIFile, line: c_uint, name: c_char_p, name_len: c_size_t, elements: POINTER(c_object_p), num_elements: c_uint) -> c_object_p:
-    pass
-
-@llvm_api
-def LLVMDIBuilderCreateDebugLocation(ctx: Context, line: c_uint, column: c_uint, scope: DIScope, inlined_at: DILocation) -> c_object_p:
     pass
 
 @llvm_api
@@ -313,7 +742,7 @@ def LLVMDIBuilderCreateGlobalVariableExpression(builder: DIBuilder, scope: DISco
     pass
 
 @llvm_api
-def LLVMDIBuilderInsertDeclareBefore(builder: DIBuilder, storage: Value, var_info: DIVariable, expr: Metadata, debug_loc: DILocation, instr: Value) -> c_object_p:
+def LLVMDIBuilderInsertDeclareBefore(builder: DIBuilder, storage: Value, var_info: DIVariable, expr: Metadata, debug_loc: DILocation, instr: Instruction) -> c_object_p:
     pass
 
 @llvm_api
@@ -321,7 +750,7 @@ def LLVMDIBuilderInsertDeclareAtEnd(builder: DIBuilder, storage: Value, var_info
     pass
 
 @llvm_api
-def LLVMDIBuilderInsertDbgValueBefore(builder: DIBuilder, val: Value, var_info: DIVariable, expr: Metadata, debug_loc: DILocation, instr: Value) -> c_object_p:
+def LLVMDIBuilderInsertDbgValueBefore(builder: DIBuilder, val: Value, var_info: DIVariable, expr: Metadata, debug_loc: DILocation, instr: Instruction) -> c_object_p:
     pass
 
 @llvm_api
@@ -333,34 +762,45 @@ def LLVMDIBuilderCreateParameterVariable(builder: DIBuilder, scope: DIScope, nam
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateNameSpace(builder: DIBuilder, parent_scope: Metadata, name: c_char_p, name_len: c_size_t, export_symbols: c_enum) -> c_object_p:
+def LLVMDIBuilderCreateNameSpace(builder: DIBuilder, parent_scope: DIScope, name: c_char_p, name_len: c_size_t, export_symbols: c_enum) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateImportedModuleFromNamespace(builder: DIBuilder, scope: Metadata, n_s: Metadata, file: Metadata, line: c_uint) -> c_object_p:
+def LLVMDIBuilderCreateImportedModuleFromNamespace(builder: DIBuilder, scope: DIScope, n_s: Metadata, file: DIFile, line: c_uint) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateImportedModuleFromAlias(builder: DIBuilder, scope: Metadata, imported_entity: Metadata, file: Metadata, line: c_uint, *_elements: Metadata, num_elements: c_uint) -> c_object_p:
+def LLVMDIBuilderCreateImportedModuleFromAlias(builder: DIBuilder, scope: DIScope, imported_entity: Metadata, file: DIFile, line: c_uint, elements: POINTER(c_object_p), num_elements: c_uint) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateImportedModuleFromModule(builder: DIBuilder, scope: Metadata, m: Metadata, file: Metadata, line: c_uint, *_elements: Metadata, num_elements: c_uint) -> c_object_p:
+def LLVMDIBuilderCreateImportedModuleFromModule(builder: DIBuilder, scope: DIScope, m: Metadata, file: DIFile, line: c_uint, elements: POINTER(c_object_p), num_elements: c_uint) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateArrayType(builder: DIBuilder, size: c_uint64, align_in_bits: c_uint32, ty: Metadata, *_subscripts: Metadata, num_subscripts: c_uint) -> c_object_p:
+def LLVMDIBuilderCreateArrayType(builder: DIBuilder, size: c_uint64, align_in_bits: c_uint32, ty: DIType, subscripts: POINTER(c_object_p), num_subscripts: c_uint) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateVectorType(builder: DIBuilder, size: c_uint64, align_in_bits: c_uint32, ty: Metadata, *_subscripts: Metadata, num_subscripts: c_uint) -> c_object_p:
+def LLVMDIBuilderCreateVectorType(builder: DIBuilder, size: c_uint64, align_in_bits: c_uint32, ty: DIType, subscripts: POINTER(c_object_p), num_subscripts: c_uint) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateMemberPointerType(builder: DIBuilder, pointee_type: Metadata, class_type: Metadata, size_in_bits: c_uint64, align_in_bits: c_uint32, flags: DIFlags) -> c_object_p:
+def LLVMDIBuilderCreateMemberPointerType(builder: DIBuilder, pointee_type: DIType, class_type: DIType, size_in_bits: c_uint64, align_in_bits: c_uint32, flags: DIFlags) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateObjectPointerType(builder: DIBuilder, type: Metadata) -> c_object_p:
+def LLVMDIBuilderCreateObjectPointerType(builder: DIBuilder, type: DIType) -> c_object_p:
     pass
 
+@llvm_api
+def LLVMDIBuilderCreateSubroutineType(builder: DIBuilder, file: DIFile, param_types: POINTER(c_object_p), num_param_types: c_uint, flags: DIFlags) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMDIBuilderCreateQualifiedType(builder: DIBuilder, qualifier: DWARFTypeQualifier, base_type: DIType) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMDIBuilderCreateConstantValueExpression(builder: DIBuilder, value: c_uint64) -> c_object_p:
+    pass

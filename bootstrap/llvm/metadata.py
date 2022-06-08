@@ -184,8 +184,25 @@ class DIScope(MDNode):
         return DIFile(LLVMDIScopeGetFile(self))
 
 class DILocation(MDNode):
-    def __init__(self, ptr: c_object_p):
-        super().__init__(ptr=ptr)
+    def __init__(self, 
+        scope: DIScope, 
+        line: int, 
+        col: int, 
+        inlined_at: Optional['DILocation'] = None,
+        ptr: Optional[c_object_p] = None
+    ):
+        if ptr:
+            super().__init__(ptr=ptr)
+        else:
+            loc_ptr = LLVMDIBuilderCreateDebugLocation(
+                get_context(),
+                line,
+                col,
+                scope,
+                inlined_at,
+            )
+            
+            super().__init__(ptr=loc_ptr)
 
     @property
     def scope(self) -> DIScope:
@@ -200,8 +217,12 @@ class DILocation(MDNode):
         return LLVMDILocationGetColumn(self)
 
     @property
-    def inlined_at(self) -> 'DILocation':
-        return LLVMDILocationGetInlinedAt(self)
+    def inlined_at(self) -> Optional['DILocation']:
+        loc_ptr = LLVMDILocationGetInlinedAt(self)
+        if loc_ptr:
+            return DILocation(None, 0, 0, ptr=loc_ptr)
+
+        return None
 
 class DIType(MDNode):
     def __init__(self, ptr: c_object_p):
@@ -355,6 +376,10 @@ def LLVMDITypeGetLine(d_type: Metadata) -> c_uint:
 
 @llvm_api
 def LLVMDITypeGetFlags(d_type: Metadata) -> c_enum:
+    pass
+
+@llvm_api
+def LLVMDIBuilderCreateDebugLocation(ctx: Context, line: c_uint, column: c_uint, scope: DIScope, inlined_at: DILocation) -> c_object_p:
     pass
 
 @llvm_api
