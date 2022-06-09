@@ -175,6 +175,9 @@ class DIFile(MDNode):
     def source(self) -> str:
         return str(LLVMDIFileGetSource(self, byref(c_uint())), encoding='utf-8')
 
+    def as_scope(self) -> 'DIScope':
+        return DIScope(self.ptr)
+
 class DIScope(MDNode):
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr=ptr)
