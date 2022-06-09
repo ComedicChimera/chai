@@ -1,5 +1,14 @@
 from typing import Tuple, List
 
+# The debug name of this Chai compiler.
+CHAI_NAME = 'pybs-chaic'
+
+# The current Chai version.
+CHAI_VERSION = '0.3.0'
+
+# The target pointer size in bytes.
+POINTER_SIZE = 8
+
 def merge_metaclasses(*cls_list: List):
     '''
     Returns a merged meta class that is a child of all the metaclasses of the

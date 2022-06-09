@@ -196,11 +196,11 @@ class DIBuilder(LLVMObject):
         scope_line: int,
         flags: DIFlags = DIFlags.ZERO,
         is_optimized: bool = False
-    ) -> MDNode:
+    ) -> DISubprogram:
         name_bytes = name.encode()
         mangled_bytes = mangled_name.encode()
 
-        return MDNode(ptr=LLVMDIBuilderCreateFunction(
+        return DISubprogram(LLVMDIBuilderCreateFunction(
             self,
             func_scope,
             name_bytes,

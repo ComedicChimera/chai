@@ -3,6 +3,8 @@ import os
 import llvm.debug as lldbg
 import llvm.metadata as llmeta
 from depm.source import *
+from syntax.ast import *
+from typecheck import *
 from llvm.module import Module as LLModule
 
 class DebugInfoEmitter:
@@ -59,3 +61,38 @@ class DebugInfoEmitter:
         # Create the debug info file and file local scope.
         self.di_file = self.dib.create_file(src_file.abs_path, os.getcwd())
         self.di_file_scope = self.di_file.as_scope()
+
+    def emit_function_info(self, fd: FuncDef, mangled_name: str):
+        '''
+        Emits the debug information for a function definition.
+        
+        Params
+        ------
+        fd: FuncDef
+            The function definition whose debug information is being emitted.
+        mangled_name: str
+            The mangled name of the function being defined.
+        '''
+
+        self.dib.create_function(
+            self.di_pkg_scope,
+            self.di_file,
+            fd.symbol.name,
+            mangled_name,
+            fd.span.start_line,
+            self.get_di_type(fd.type),
+            'extern' not in fd.annots,
+            bool(fd.body),
+            fd.body.span.start_line if fd.body else fd.span.start_line,
+        )
+
+    # ---------------------------------------------------------------------------- #
+
+    def get_di_type(self, typ: Type) -> llmeta.DIType:
+        match typ:
+            case PrimitiveType():
+                pass
+            case PointerType(elem_type):
+                return self.dib.create_pointer_type(elem_type, typ.bit_size, typ.bit_align)
+            case FuncType(param_types):
+                return self.dib.create_subroutine_type(self.di_file, *map(self.get_di_type, param_types))

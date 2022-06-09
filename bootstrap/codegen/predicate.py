@@ -372,7 +372,7 @@ class PredicateGenerator:
                 # int to int
                 if dest_itype.is_integral and src_itype.is_integral:
                     # small int to large int
-                    if src_itype.size < dest_itype.size:
+                    if src_itype.usable_width < dest_itype.usable_width:
                         # small signed int to large signed int 
                         if src_itype.is_signed and dest_itype.is_signed:
                             return self.irb.build_sext(src_ll_val, dest_ll_type)

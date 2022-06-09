@@ -49,6 +49,11 @@ class Type(ABC):
             The type to cast from.
         '''
 
+    @property
+    @abstractmethod
+    def size(self) -> int:
+        '''Returns the size of the type in bytes.'''
+
     # ---------------------------------------------------------------------------- #
 
     def inner_type(self) -> 'Type':
@@ -73,6 +78,28 @@ class Type(ABC):
         result = self.inner_type()._compare(other.inner_type())
         self._compare_exact = False
         return result
+
+    # ---------------------------------------------------------------------------- #
+
+    @property
+    def bit_size(self) -> int:
+        '''Returns the size of the type in bits.'''
+
+        return self.size * 8
+
+    @property
+    def align(self) -> int:
+        '''Returns the alignment of the type in bytes.'''
+
+        return self.size
+
+    @property
+    def bit_align(self) -> int:
+        '''Returns the alignment of the type in bits.'''
+
+        return self.bit_size
+
+    # ---------------------------------------------------------------------------- #
 
     def __eq__(self, other: object) -> bool:
         '''
@@ -171,19 +198,41 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
 
     @property
     def is_integral(self) -> bool:
+        '''Returns whether this primitive is an integral type.'''
+
         return self.value > 4
 
     @property
     def is_floating(self) -> bool:
+        '''Returns whether this primitive is a floating-point type.'''
+
         return self.value == 2 or self.value == 3
 
     @property
     def is_signed(self) -> bool:
+        '''Returns whether this primitive type is signed.'''
+
         return self.value % 2 == 1
 
     @property
-    def size(self) -> int:
+    def usable_width(self) -> int:
+        '''
+        If this type is integral, returns the usable width of the type in bits.
+        '''
+
         return self.value
+
+    @property
+    def size(self) -> int:
+        match self:
+            case PrimitiveType.NOTHING | PrimitiveType.BOOL | PrimitiveType.I8 | PrimitiveType.U8:
+                return 1
+            case PrimitiveType.I16 | PrimitiveType.U16:
+                return 2
+            case PrimitiveType.I32 | PrimitiveType.U32 | PrimitiveType.F32:
+                return 4
+            case PrimitiveType.I64 | PrimitiveType.U64 | PrimitiveType.F64:
+                return 8
 
 @typedataclass
 class PointerType(Type):
@@ -221,6 +270,10 @@ class PointerType(Type):
         else:
             return f'*{self.elem_type}'
 
+    @property
+    def size(self) -> int:
+        return util.POINTER_SIZE
+
 @typedataclass
 class FuncType(Type):
     '''
@@ -253,3 +306,6 @@ class FuncType(Type):
             param_str = '(' + ', '.join(str(x) for x in self.param_types) + ')'
 
         return f'{param_str} -> {self.rt_type}'
+
+    def size(self) -> int:
+        return util.POINTER_SIZE
