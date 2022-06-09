@@ -14,7 +14,7 @@ from typecheck.walker import Walker
 from depm.source import Package, SourceFile
 from depm.resolver import Resolver
 from llvm import Context
-from generate import Generator
+from codegen import Generator
 from llvm.target import Target
 from report.reporter import Reporter, LogLevel, CompileError
 from linker import *

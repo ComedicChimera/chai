@@ -1,5 +1,10 @@
 '''Provides the relevant definitions for Chai's package system.'''
 
+__all__ = [ 
+    'SourceFile',
+    'Package'
+]
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 import os

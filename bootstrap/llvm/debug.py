@@ -186,9 +186,9 @@ class DIBuilder(LLVMObject):
     def create_function(
         self,
         func_scope: DIScope,
+        file: DIFile,
         name: str,
         mangled_name: str,
-        file: DIFile,
         line: int,
         func_type: DIType,
         internal: bool,

@@ -15,12 +15,23 @@ import util
 from .type_util import conv_type, is_nothing
 
 @dataclass
-class Predicate:
+class BodyPredicate:
+    '''
+    Represents an function or operator body that needs to be lowered.
+
+    Attributes
+    ----------
+    ll_func: ir.Function
+        The LLVM function this predicate is the body of.
+    func_params: List[Symbol]
+        The parameters to that function.
+    expr: ASTNode
+        The AST expression representing the body.
+    '''
+
     ll_func: ir.Function
     func_params: List[Symbol]
-    returns_value: bool
     expr: ASTNode
-    store_result: Optional[Symbol] = None
 
 @dataclass
 class LLVMValueNode(ASTNode):
@@ -51,53 +62,48 @@ class PredicateGenerator:
 
     nothing_value: llvalue.Value
 
+    body_preds: List[BodyPredicate]
+
     def __init__(self):
         self.irb = IRBuilder()
         self.loop_contexts = deque()
         self.nothing_value = llvalue.Constant.Null(lltypes.Int1Type())
+        self.body_preds = []
 
-    def generate(self, pred: Predicate):
-        self.body = pred.ll_func.body
+    def add_predicate(self, pred: BodyPredicate):
+        if isinstance(pred, BodyPredicate):
+            self.body_preds.append(pred)
 
-        if len(self.body) > 0:
-            prev_block = self.body.last()
-        else:
-            prev_block = None
+    def generate(self):
+        for body_pred in self.body_preds:
+            self.generate_body_predicate(self, body_pred.ll_func, body_pred.func_params, body_pred.expr)
+
+    # ---------------------------------------------------------------------------- #
+
+    def generate_body_predicate(self, ll_func: ir.Function, func_params: List[Symbol], body_expr: ASTNode):
+        self.body = ll_func.body
 
         self.var_block = self.body.append('vars')
         self.irb.move_to_start(self.var_block)
 
-        for param in pred.func_params:
+        for param in func_params:
             if param.mutability == Symbol.Mutability.MUTABLE:
-                param_var = self.irb.build_alloca(conv_type(param.type))
+                param_var = self.irb.build_alloca(conv_type(param.type, True))
                 self.irb.build_store(param.ll_value, param_var)
                 param.ll_value = param_var
         
-        bb = pred.ll_func.body.append()
+        bb = ll_func.body.append()
         self.irb.build_br(bb)
 
         self.irb.move_to_start(bb)
 
-        result = self.generate_expr(pred.expr)
+        result = self.generate_expr(body_expr)
 
         if self.var_block.instructions.first().is_terminator:
             self.body.remove(self.var_block)
-
-            if prev_block:
-                final_block = self.irb.block
-                self.irb.move_to_end(prev_block)
-                self.irb.build_br(bb)
-                self.irb.move_to_end(final_block)
-        elif prev_block:
-            final_block = self.irb.block
-            self.irb.move_to_end(prev_block)
-            self.irb.build_br(self.var_block)
-            self.irb.move_to_end(final_block)
         
-        if pred.store_result:
-            pass
-        elif not self.irb.block.terminator:
-            if pred.returns_value and result:
+        if not self.irb.block.terminator:
+            if result:
                 self.irb.build_ret(result)
             else:
                 self.irb.build_ret()
