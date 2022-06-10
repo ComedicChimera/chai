@@ -36,13 +36,13 @@ class Generator:
     # The LLVM module being generated from the package.
     mod: LLModule
 
-    # The debug info emitter: this may be None if no debug info is to be emitted.
-    die: Optional[DebugInfoEmitter]
+    # The debug info emitter.
+    die: DebugInfoEmitter
 
     # The predicate generator: used to convert expressions into LLVM IR.
     pred_gen: PredicateGenerator
 
-    def __init__(self, pkg: Package, debug: bool):
+    def __init__(self, pkg: Package):
         '''
         Params
         ------
@@ -57,10 +57,7 @@ class Generator:
 
         self.mod = LLModule(pkg.name)
 
-        if debug:
-            self.die = DebugInfoEmitter(pkg, self.mod)
-        else:
-            self.die = None
+        self.die = DebugInfoEmitter(pkg, self.mod)
 
         self.pred_gen = PredicateGenerator(self.die)
 
@@ -71,8 +68,7 @@ class Generator:
 
         # Start by generating all the global declarations.
         for src_file in self.pkg.files:
-            if self.die:
-                self.die.emit_file_header(src_file)
+            self.die.emit_file_header(src_file)
 
             for defin in src_file.definitions:
                 match defin:
@@ -86,9 +82,8 @@ class Generator:
         # generate them last so that all the declarations are visible.
         self.pred_gen.generate()
 
-        # Finalize debug info if it exists.
-        if self.die:
-            self.die.finalize()
+        # Finalize debug info.
+        self.die.finalize()
 
         # Return the completed module.
         return self.mod
@@ -159,8 +154,7 @@ class Generator:
             self.pred_gen.add_predicate(BodyPredicate(ll_func, fd.params, fd.body))
 
         # Emit function debug info as necessary.
-        if self.die:
-            self.die.emit_function_info(fd, ll_name)
+        self.die.emit_function_info(fd, ll_name)
 
     def generate_oper_def(self, od: OperDef):
         '''
@@ -206,13 +200,4 @@ class Generator:
             self.pred_gen.add_predicate(BodyPredicate(ll_func, od.params, od.body))
 
         # Emit operator debug info if necessary.
-        if self.die:
-            self.die.emit_oper_info(od, ll_name)
-
-
-            
-
-
-
-
-
+        self.die.emit_oper_info(od, ll_name)

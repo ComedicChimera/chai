@@ -170,18 +170,20 @@ class PredicateGenerator:
         self.var_block = self.body.append('vars')
         self.irb.move_to_start(self.var_block)
 
-        for param in func_params:
-            if param.mutability == Symbol.Mutability.MUTABLE:
-                param_var = self.irb.build_alloca(conv_type(param.type, True))
-                self.irb.build_store(param.ll_value, param_var)
-                param.ll_value = param_var
-        
-        bb = ll_func.body.append()
-        self.irb.build_br(bb)
+        with self.die.emit_scope():
+            for i, param in enumerate(func_params):
+                self.die.emit_param_info(i, param)
 
-        self.irb.move_to_start(bb)
+                if param.mutability == Symbol.Mutability.MUTABLE:
+                    param_var = self.irb.build_alloca(conv_type(param.type, True))
+                    self.irb.build_store(param.ll_value, param_var)
+                    param.ll_value = param_var
+            
+            bb = ll_func.body.append()
+            self.irb.build_br(bb)
 
-        with self.maybe_debug_scope(body_expr.span):
+            self.irb.move_to_start(bb)
+
             result = self.generate_expr(body_expr)
 
         if self.var_block.instructions.first().is_terminator:
@@ -672,11 +674,10 @@ class PredicateGenerator:
 
     # ---------------------------------------------------------------------------- #
 
-    def maybe_emit_location(self, span: TextSpan):
-        if self.die:
-            self.irb.debug_location = self.die.as_di_location(span)
+    def update_dbg_location(self, span: TextSpan):
+        self.irb.debug_location = self.die.as_di_location(span)
 
-    @contextlib.contextmanager
+    
     def maybe_debug_scope(self, span: TextSpan):
         if self.die:
             self.die.push_scope(span)

@@ -3,12 +3,13 @@
 __all__ = ['DebugInfoEmitter']
 
 import os
-from typing import Deque
-from collections import deque
+from contextlib import contextmanager
+from typing import Optional
 
 import llvm.debug as lldbg
 import llvm.metadata as llmeta
 from report import TextSpan
+from depm import *
 from depm.source import *
 from syntax.ast import *
 from typecheck import *
@@ -29,8 +30,8 @@ class DebugInfoEmitter:
     # The debug info entry for the file's local scop0e.
     di_file_scope: llmeta.DIScope
 
-    # The stack of lexical scopes defined within the debug builder.
-    scopes: Deque[llmeta.DIScope]
+    # The current local scope of the debug builder.
+    local_scope: Optional[llmeta.DIScope]
 
     def __init__(self, pkg: Package, mod: LLModule):
         '''
@@ -58,8 +59,8 @@ class DebugInfoEmitter:
             "pybs-chaic v0.3.0"
         )
 
-        # Initialize the lexical scope stack.
-        self.scopes = deque()
+        # Initialize the local lexical scope.
+        self.local_scope = None
 
     def finalize(self):
         '''Finalizes debug info.'''
@@ -133,10 +134,51 @@ class DebugInfoEmitter:
 
     # ---------------------------------------------------------------------------- #
 
-    def emit_param_var_decl(self, vd: VarDecl):
+    def emit_param_info(self, ndx: int, sym: Symbol):
         '''
         Emits the debug information for a variable declaration.
+
+        Params
+        ------
+        ndx: int
+            The parameter's index in the argument list.
+        sym: Symbol
+            The parameter symbol.
         '''
+
+        self.dib.create_param_variable(
+            self.scope, 
+            self.di_file, 
+            sym.name,
+            ndx + 1,
+            sym.def_span.start_line,
+            self.as_di_type(sym.type),
+        )
+
+    @contextmanager
+    def emit_scope(self, span: TextSpan):
+        '''
+        Emits a new debug scope.
+
+        Params
+        ------
+        span: TextSpan
+            The starting text span of the debug scope.
+
+        Returns
+        -------
+        ContextManager[None]
+            A context manager used to manage the scope.
+        '''
+
+        scope = self.dib.create_lexical_block(self.scope, self.di_file, span.start_line, span.start_col)
+
+        outer_scope = self.local_scope
+        self.local_scope = scope
+
+        yield
+
+        self.local_scope = outer_scope
 
     # ---------------------------------------------------------------------------- #
 
@@ -168,27 +210,5 @@ class DebugInfoEmitter:
     @property
     def scope(self) -> llmeta.DIScope:
         '''Returns the current enclosing scope.'''
-
-        if len(self.scopes) > 0:
-            return self.scopes[0]
         
-        return self.di_pkg_scope
-
-    def push_scope(self, span: TextSpan):
-        '''
-        Pushes a new scope onto the scope stack.
-
-        Params
-        ------
-        span: TextSpan
-            The span beginning the scope.
-        '''
-
-        scope = self.dib.create_lexical_block(self.scope, self.di_file, span.start_line, span.start_col)
-        self.scopes.appendleft(scope)
-
-    def pop_scope(self):
-        '''Pops a scope off of the scope stack.'''
-
-        self.scopes.popleft()
-
+        return self.local_scope or self.di_pkg_scope
