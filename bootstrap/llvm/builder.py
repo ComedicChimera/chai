@@ -4,6 +4,7 @@ from . import *
 from .ir import *
 from .value import Value
 from .types import Type
+from .metadata import DILocation
 
 class IRBuilder(LLVMObject):
     def __init__(self):
@@ -34,6 +35,14 @@ class IRBuilder(LLVMObject):
 
     def move_to_end(self, bb: BasicBlock):
         LLVMPositionBuilderAtEnd(self, bb)
+
+    @property
+    def debug_location(self) -> DILocation:
+        return DILocation(None, 0, 0, ptr=LLVMGetCurrentDebugLocation2(self))
+
+    @debug_location.setter
+    def debug_location(self, new_loc: DILocation):
+        LLVMSetCurrentDebugLocation2(self, new_loc)
 
     # ---------------------------------------------------------------------------- #
 
@@ -521,4 +530,12 @@ def LLVMBuildIsNull(p0: IRBuilder, val: Value, name: c_char_p) -> c_object_p:
 
 @llvm_api
 def LLVMBuildIsNotNull(p0: IRBuilder, val: Value, name: c_char_p) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetCurrentDebugLocation2(builder: IRBuilder) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMSetCurrentDebugLocation2(builder: IRBuilder, loc: DILocation):
     pass

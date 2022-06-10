@@ -86,6 +86,10 @@ class Generator:
         # generate them last so that all the declarations are visible.
         self.pred_gen.generate()
 
+        # Finalize debug info if it exists.
+        if self.die:
+            self.die.finalize()
+
         # Return the completed module.
         return self.mod
 

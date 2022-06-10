@@ -1,7 +1,14 @@
+'''The module responsible for emitting debug information.'''
+
+__all__ = ['DebugInfoEmitter']
+
 import os
+from typing import Deque
+from collections import deque
 
 import llvm.debug as lldbg
 import llvm.metadata as llmeta
+from report import TextSpan
 from depm.source import *
 from syntax.ast import *
 from typecheck import *
@@ -21,6 +28,9 @@ class DebugInfoEmitter:
 
     # The debug info entry for the file's local scop0e.
     di_file_scope: llmeta.DIScope
+
+    # The stack of lexical scopes defined within the debug builder.
+    scopes: Deque[llmeta.DIScope]
 
     def __init__(self, pkg: Package, mod: LLModule):
         '''
@@ -47,6 +57,16 @@ class DebugInfoEmitter:
             lldbg.DWARFSourceLanguage.C99,
             "pybs-chaic v0.3.0"
         )
+
+        # Initialize the lexical scope stack.
+        self.scopes = deque()
+
+    def finalize(self):
+        '''Finalizes debug info.'''
+
+        self.dib.finalize()
+
+    # ---------------------------------------------------------------------------- #
 
     def emit_file_header(self, src_file: SourceFile):
         '''
@@ -113,6 +133,13 @@ class DebugInfoEmitter:
 
     # ---------------------------------------------------------------------------- #
 
+    def emit_param_var_decl(self, vd: VarDecl):
+        '''
+        Emits the debug information for a variable declaration.
+        '''
+
+    # ---------------------------------------------------------------------------- #
+
     def as_di_type(self, typ: Type) -> llmeta.DIType:
         '''
         Converts a Chai data type into a DI equivalent.
@@ -130,3 +157,38 @@ class DebugInfoEmitter:
                 return self.dib.create_pointer_type(elem_type, typ.bit_size, typ.bit_align)
             case FuncType(param_types):
                 return self.dib.create_subroutine_type(self.di_file, *map(self.as_di_type, param_types))
+
+    def as_di_location(self, span: TextSpan) -> llmeta.DILocation:
+        '''Returns the given text span as a debug location.'''
+        
+        return llmeta.DILocation(self.scope, span.start_line, span.start_col)
+
+    # ---------------------------------------------------------------------------- #
+
+    @property
+    def scope(self) -> llmeta.DIScope:
+        '''Returns the current enclosing scope.'''
+
+        if len(self.scopes) > 0:
+            return self.scopes[0]
+        
+        return self.di_pkg_scope
+
+    def push_scope(self, span: TextSpan):
+        '''
+        Pushes a new scope onto the scope stack.
+
+        Params
+        ------
+        span: TextSpan
+            The span beginning the scope.
+        '''
+
+        scope = self.dib.create_lexical_block(self.scope, self.di_file, span.start_line, span.start_col)
+        self.scopes.appendleft(scope)
+
+    def pop_scope(self):
+        '''Pops a scope off of the scope stack.'''
+
+        self.scopes.popleft()
+

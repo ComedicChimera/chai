@@ -1,3 +1,11 @@
+'''The module responsible for converting Chai predicates to LLVM.'''
+
+__all__ = [
+    'BodyPredicate',
+    'PredicateGenerator'
+]
+
+import contextlib
 from typing import List, Optional, Deque 
 from dataclasses import dataclass
 from collections import deque
@@ -173,7 +181,8 @@ class PredicateGenerator:
 
         self.irb.move_to_start(bb)
 
-        result = self.generate_expr(body_expr)
+        with self.maybe_debug_scope(body_expr.span):
+            result = self.generate_expr(body_expr)
 
         if self.var_block.instructions.first().is_terminator:
             self.body.remove(self.var_block)
@@ -660,6 +669,21 @@ class PredicateGenerator:
 
     def pop_loop_context(self):
         self.loop_contexts.popleft()
+
+    # ---------------------------------------------------------------------------- #
+
+    def maybe_emit_location(self, span: TextSpan):
+        if self.die:
+            self.irb.debug_location = self.die.as_di_location(span)
+
+    @contextlib.contextmanager
+    def maybe_debug_scope(self, span: TextSpan):
+        if self.die:
+            self.die.push_scope(span)
+            yield
+            self.die.pop_scope()
+        else:
+            yield
 
 def get_rune_char_code(rune_val: str) -> int:
     match rune_val:
