@@ -69,7 +69,7 @@ class DebugInfoEmitter:
         Params
         ------
         fd: FuncDef
-            The function definition whose debug information is being emitted.
+            The function definition whose debug information to emit.
         mangled_name: str
             The mangled name of the function being defined.
         '''
@@ -80,19 +80,53 @@ class DebugInfoEmitter:
             fd.symbol.name,
             mangled_name,
             fd.span.start_line,
-            self.get_di_type(fd.type),
+            self.as_di_type(fd.type),
             'extern' not in fd.annots,
             bool(fd.body),
             fd.body.span.start_line if fd.body else fd.span.start_line,
         )
 
+    def emit_oper_info(self, od: OperDef, mangled_name: str):
+        '''
+        Emits the debug information for an operator definition.
+
+        Params
+        ------
+        od: OperDef
+            The operator definition whose debug information to emit.
+        mangled_name: str
+            The mangled name of the operator function being defined.
+        '''
+
+        self.dib.create_function(
+            self.di_pkg_scope,
+            self.di_file,
+            od.op_sym,
+            mangled_name,
+            od.span.start_line,
+            self.as_di_type(od.overload.signature),
+            # TODO update to be external when necessary
+            True,
+            bool(od.body),
+            od.body.span.start_line if od.body else od.span.start_line,
+        )
+
     # ---------------------------------------------------------------------------- #
 
-    def get_di_type(self, typ: Type) -> llmeta.DIType:
+    def as_di_type(self, typ: Type) -> llmeta.DIType:
+        '''
+        Converts a Chai data type into a DI equivalent.
+
+        Params
+        ------
+        typ: Type
+            The type to convert.
+        '''
+
         match typ:
             case PrimitiveType():
                 pass
             case PointerType(elem_type):
                 return self.dib.create_pointer_type(elem_type, typ.bit_size, typ.bit_align)
             case FuncType(param_types):
-                return self.dib.create_subroutine_type(self.di_file, *map(self.get_di_type, param_types))
+                return self.dib.create_subroutine_type(self.di_file, *map(self.as_di_type, param_types))

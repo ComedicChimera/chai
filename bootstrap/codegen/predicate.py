@@ -2,17 +2,20 @@ from typing import List, Optional, Deque
 from dataclasses import dataclass
 from collections import deque
 
-from report import TextSpan
 import llvm.ir as ir
 import llvm.value as llvalue
 import llvm.types as lltypes
+import util
+
+from report import TextSpan
 from llvm.builder import IRBuilder
 from syntax.ast import *
 from syntax.token import Token
 from depm import Symbol
 from typecheck import *
-import util
+
 from .type_util import conv_type, is_nothing
+from .debug_info import DebugInfoEmitter
 
 @dataclass
 class BodyPredicate:
@@ -35,6 +38,16 @@ class BodyPredicate:
 
 @dataclass
 class LLVMValueNode(ASTNode):
+    '''
+    An psuedo AST node that is used to "reinsert" LLVM values into the AST so
+    that generation code can be easily reused for "desugaring" code.
+
+    Attributes
+    ----------
+    ll_value: llvalue.Value
+        The LLVM value stored by the node.
+    '''
+
     ll_value: llvalue.Value
 
     _type: Type
@@ -50,31 +63,94 @@ class LLVMValueNode(ASTNode):
 
 @dataclass
 class LoopContext:
+    '''
+    Stores the basic blocks to jump to when loop control flow is encountered.
+
+    Attributes
+    ----------
+    break_block: ir.BasicBlock
+        The block to jump to when a break is encountered.
+    continue_block: ir.BasicBlock
+        The block to jump to when a continue is encountered.
+    '''
+
     break_block: ir.BasicBlock
     continue_block: ir.BasicBlock
 
+# ---------------------------------------------------------------------------- #
+
 class PredicateGenerator:
+    '''
+    Responsible for converting predicates (ie. executable expressions such as
+    function bodies and initializers) into LLVM IR.
+
+    Methods
+    -------
+    add_predicate(pred: BodyPredicate)
+    generate()
+    '''
+
+    # The LLVM IR builder.
     irb: IRBuilder
+
+    # The LLVM debug info emitter: may be None if no info is to be emitted.
+    die: Optional[DebugInfoEmitter]
+
+    # The block at the start of the predicate used to store the actual variable
+    # allocations: the compiler automatically factors all variable allocations
+    # to a special block at the start of the predicate to ensure memory is used
+    # efficiently.  NOTE There may be an LLVM optimization pass that does this
+    # automatically, but this is fairly easy to implement and possibly saves
+    # the optimizer some time.
     var_block: ir.BasicBlock
+
+    # The function body to append basic blocks to.
     body: ir.FuncBody
 
+    # The stack of look contexts.  This should be accessed through the helper
+    # methods defined at the bottom of the PredicateGenerator.
     loop_contexts: Deque[LoopContext]
 
+    # A reusable LLVM value used whenever `()` must be treated as an actual
+    # value: ie. cannot be pruned from source code.
     nothing_value: llvalue.Value
 
+    # The list of body predicates to generate.
     body_preds: List[BodyPredicate]
 
-    def __init__(self):
+    def __init__(self, die: Optional[DebugInfoEmitter]):
+        '''
+        Params
+        ------
+        die: Optional[DebugInfoEmitter]
+            The optional debug info emitter: `None` if no debug info is to be
+            emitted.
+        '''
+
         self.irb = IRBuilder()
+        self.die = die
+
         self.loop_contexts = deque()
         self.nothing_value = llvalue.Constant.Null(lltypes.Int1Type())
         self.body_preds = []
 
     def add_predicate(self, pred: BodyPredicate):
+        '''
+        Adds a predicate to the list of predicates to generate.
+
+        Params
+        ------
+        pred: BodyPredicate
+            The predicate to generate.
+        '''
+
+        # Predicate is a body predicate...
         if isinstance(pred, BodyPredicate):
             self.body_preds.append(pred)
 
     def generate(self):
+        '''Generates all the added predicates.'''
+
         for body_pred in self.body_preds:
             self.generate_body_predicate(self, body_pred.ll_func, body_pred.func_params, body_pred.expr)
 

@@ -119,6 +119,8 @@ class OperDef(ASTNode):
 
     Attributes
     ----------
+    op_sym: str
+        The string value of the operator used when displaying it.
     overload: OperatorOverload
         The operator overload corresponding to this operator definition. 
     params: List[Symbol]
@@ -129,6 +131,7 @@ class OperDef(ASTNode):
         The operator's annotations.
     '''
 
+    op_sym: str
     overload: OperatorOverload
     params: List[Symbol]
     body: Optional[ASTNode]

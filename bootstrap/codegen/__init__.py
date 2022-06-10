@@ -36,11 +36,11 @@ class Generator:
     # The LLVM module being generated from the package.
     mod: LLModule
 
-    # The predicate generator: used to convert expressions into LLVM IR.
-    pred_gen: PredicateGenerator
-    
     # The debug info emitter: this may be None if no debug info is to be emitted.
     die: Optional[DebugInfoEmitter]
+
+    # The predicate generator: used to convert expressions into LLVM IR.
+    pred_gen: PredicateGenerator
 
     def __init__(self, pkg: Package, debug: bool):
         '''
@@ -57,12 +57,12 @@ class Generator:
 
         self.mod = LLModule(pkg.name)
 
-        self.pred_gen = PredicateGenerator()
-
         if debug:
             self.die = DebugInfoEmitter(pkg, self.mod)
         else:
             self.die = None
+
+        self.pred_gen = PredicateGenerator(self.die)
 
     def generate(self) -> LLModule:
         '''
@@ -200,6 +200,10 @@ class Generator:
         # Add the overload body as a predicate to generate if it exists.
         if od.body:
             self.pred_gen.add_predicate(BodyPredicate(ll_func, od.params, od.body))
+
+        # Emit operator debug info if necessary.
+        if self.die:
+            self.die.emit_oper_info(od, ll_name)
 
 
             

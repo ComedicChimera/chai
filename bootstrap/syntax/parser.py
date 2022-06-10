@@ -361,6 +361,7 @@ class Parser:
         self.define_operator_overload(op_tok.kind, op_sym, oper_overload, len(oper_params))
 
         return OperDef(
+            op_sym,
             oper_overload,
             oper_params,
             oper_body,
