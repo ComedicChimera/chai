@@ -200,10 +200,13 @@ class DebugInfoEmitter:
             case FuncType(param_types):
                 return self.dib.create_subroutine_type(self.di_file, *map(self.as_di_type, param_types))
 
-    def as_di_location(self, span: TextSpan) -> llmeta.DILocation:
+    def as_di_location(self, span: Optional[TextSpan]) -> Optional[llmeta.DILocation]:
         '''Returns the given text span as a debug location.'''
         
-        return llmeta.DILocation(self.scope, span.start_line, span.start_col)
+        if span:
+            return llmeta.DILocation(self.scope, span.start_line, span.start_col)
+
+        return None
 
     # ---------------------------------------------------------------------------- #
 

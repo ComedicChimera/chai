@@ -37,11 +37,14 @@ class IRBuilder(LLVMObject):
         LLVMPositionBuilderAtEnd(self, bb)
 
     @property
-    def debug_location(self) -> DILocation:
-        return DILocation(None, 0, 0, ptr=LLVMGetCurrentDebugLocation2(self))
+    def debug_location(self) -> Optional[DILocation]:
+        if ptr := LLVMGetCurrentDebugLocation2(self):
+            return DILocation(None, 0, 0, ptr=ptr)
+
+        return None
 
     @debug_location.setter
-    def debug_location(self, new_loc: DILocation):
+    def debug_location(self, new_loc: Optional[DILocation]):
         LLVMSetCurrentDebugLocation2(self, new_loc)
 
     # ---------------------------------------------------------------------------- #

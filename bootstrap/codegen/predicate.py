@@ -159,37 +159,74 @@ class PredicateGenerator:
     def generate(self):
         '''Generates all the added predicates.'''
 
+        # Generate all the body predicates.
         for body_pred in self.body_preds:
             self.generate_body_predicate(self, body_pred.ll_func, body_pred.func_params, body_pred.expr)
 
     # ---------------------------------------------------------------------------- #
 
     def generate_body_predicate(self, ll_func: ir.Function, func_params: List[Symbol], body_expr: ASTNode):
+        '''
+        Generates a body predicate.
+        
+        Params
+        ------
+        ll_func: ir.Function
+            The IR function whose body is being generated.
+        func_params: List[Symbol]
+            The parameters to the function whose body is being generated.
+        body_expr: ASTNode
+            The predicate expression of the function body.
+        '''
+
+        # Set the predicate generator's body to the function body.
         self.body = ll_func.body
 
+        # Begin the variable block: all variables are allocated at the start of
+        # the function body in this block to avoid unnecessary allocations.
         self.var_block = self.body.append('vars')
         self.irb.move_to_start(self.var_block)
 
+        # Emit a lexical scope to contain the body of the function.
         with self.die.emit_scope():
+            # Generate the parameter prelude.
             for i, param in enumerate(func_params):
+                # Emit appropriate debug information for each parameter.
                 self.die.emit_param_info(i, param)
 
+                # Allocate a mutable variable for all mutable parameters.
                 if param.mutability == Symbol.Mutability.MUTABLE:
                     param_var = self.irb.build_alloca(conv_type(param.type, True))
                     self.irb.build_store(param.ll_value, param_var)
                     param.ll_value = param_var
+
+                    # TODO determine if we need to add variable debug
+                    # declaration here
             
-            bb = ll_func.body.append()
-            self.irb.build_br(bb)
+            # Add the entry block to the function body and jump to it from the
+            # variable block.
+            entry_b = ll_func.body.append('entry')
+            self.irb.build_br(entry_b)
 
-            self.irb.move_to_start(bb)
+            # Position the builder at the start of the entry block so it can
+            # start generating the actual body of the function.
+            self.irb.move_to_start(entry_b)
 
+            # Generate the function body.
             result = self.generate_expr(body_expr)
 
+        # If the variable block contains only a terminator instruction, then
+        # there are no variables declared so we can just remove the variable
+        # block.
         if self.var_block.instructions.first().is_terminator:
             self.body.remove(self.var_block)
         
+        # If the last block does not already have a terminator (eg. from a
+        # return), then we add an appropriate function return terminator for it.
         if not self.irb.block.terminator:
+            # Generate a return from the resultant value is it is not a unit
+            # value.  If it is, then (effectively) nothing is returned from the
+            # function so we can just generate a `ret void`.
             if result:
                 self.irb.build_ret(result)
             else:
@@ -198,103 +235,174 @@ class PredicateGenerator:
     # ---------------------------------------------------------------------------- #
 
     def generate_if_tree(self, if_tree: IfTree) -> Optional[llvalue.Value]:
+        '''
+        Generates an if/elif/else tree expression.
+
+        Params
+        ------
+        if_tree: IfTree
+            The if/elif/else tree to generate.
+        '''
+
+        # Prepare a list to store the incoming conditional blocks of the if
+        # expression so we can build the PHI node at the end of the expressin as
+        # necessary.
         incoming = []
 
+        # Append the closing block of the if statement so we can jump to it from
+        # the conditional blocks.
         if_end = self.body.append()
+
+        # Whether the conditional branches ever actually reach the else block.
         never_end = True
 
+        # Generate all the conditional branches of the block.
         for cond_branch in if_tree.cond_branches:
-            if cond_branch.header_var:
-                self.generate_var_decl(cond_branch.header_var)
+            # Emit a debug scope to contain the block.
+            with self.die.emit_scope(cond_branch.body.span):
+                # Generate the header variable as necessary.
+                if cond_branch.header_var:
+                    self.generate_var_decl(cond_branch.header_var)
 
-            if_then = self.body.append()
-            if_else = self.body.append()
+                # Append the then and else blocks so we can reference them in
+                # the conditional break of the if statement.
+                if_then = self.body.append()
+                if_else = self.body.append()
 
-            ll_cond = self.generate_expr(cond_branch.condition)
-            self.irb.build_cond_br(ll_cond, if_then, if_else)
+                # Generate the condition and use it to create the conditional branch.
+                ll_cond = self.generate_expr(cond_branch.condition)
+                self.irb.build_cond_br(ll_cond, if_then, if_else)
 
-            self.irb.move_to_end(if_then)
-            ll_value = self.generate_expr(cond_branch.body)
+                # Generate the then block body.
+                self.irb.move_to_end(if_then)
+                ll_value = self.generate_expr(cond_branch.body)
 
+            # If the then block isn't already terminated,
             if not self.irb.block.terminator:
-                never_end = False
+                # Jump to the end of the if statement.
                 self.irb.build_br(if_end)
 
+                # Indicate the if block reaches the if_end.
+                never_end = False
+
+                # If there is a value, add it the list of incoming values to the
+                # PHI node.
                 if ll_value:
                     incoming.append(ir.PHIIncoming(ll_value, if_then))
 
+            # Position the builder at the end of the else block for the start of
+            # the next condition or else branch.
             self.irb.move_to_end(if_else)
 
+        # Generate the else branch if it exists.
         if if_tree.else_branch:
-            ll_value = self.generate_expr(if_tree.else_branch)
-
-            if ll_value:
-                incoming.append(ir.PHIIncoming(ll_value, if_else))
-
-            never_end = bool(self.irb.block.terminator)
-        else:
-            never_end = False
+            # Generate the body of the else branch within its own scope.
+            with self.die.emit_scope(if_tree.else_branch.span):
+                ll_value = self.generate_expr(if_tree.else_branch)
         
-        if not self.irb.block.terminator:
+            # If the else branch is not already terminated, ...
+            if not self.irb.block.terminator:
+                # Jump to the ending block.
+                self.irb.build_br(if_end)
+
+                # Indicate the if block reaches the if_end.
+                never_end = False
+
+                # If there is a value, add it to the list of incoming values to
+                # the if PHI node.
+                if ll_value:
+                    incoming.append(ir.PHIIncoming(ll_value, if_else))
+        else:
+            # Branch from the else block to the end of the if block.
             self.irb.build_br(if_end)
+
+            # Since there is no else, the if expression can always reach the
+            # terminator (if none of the conditions are true).
+            never_end = False
  
+        # If the if block never reaches the end block, then we can just remove
+        # the end block and return nothing since all other branches exit early.
         if never_end:
             self.body.remove(if_end)
             return None
 
+        # Otherwise, move the builder to the end block so it can continue
+        # generating from the end of the if statement.
         self.irb.move_to_end(if_end)
 
-        if is_nothing(if_tree.type):
-            return None
-
-        if len(incoming) > 0:
+        # If the if tree yields a value, then we build a PHI node of the
+        # incoming values so handle the outbound values.
+        if not is_nothing(if_tree.type):
+            # The debug location should always be None if we reach this point so
+            # we don't need to clear it again.
             phi_node = self.irb.build_phi(conv_type(if_tree.type))
             phi_node.incoming.add(*incoming)
 
             return phi_node
 
     def generate_while_loop(self, while_loop: WhileLoop):
-        if while_loop.header_var:
-            self.generate_var_decl(while_loop.header_var)
+        # Create a debug scope for the body of the loop.
+        with self.die.emit_scope(while_loop.body.span):
+            # Generate the loop header variable if it exists.
+            if while_loop.header_var:
+                self.generate_var_decl(while_loop.header_var)
 
-        loop_header = self.body.append()
-        self.irb.build_br(loop_header)
-        self.irb.move_to_end(loop_header)
+            # Generate the loop header.
+            loop_header = self.body.append()
+            self.irb.build_br(loop_header)
+            self.irb.move_to_end(loop_header)
 
-        loop_body = self.body.append()
-        loop_exit = self.body.append()
+            # Add the loop body and loop exit blocks so we can
+            # jump to them from within the loop.
+            loop_body = self.body.append()
+            loop_exit = self.body.append()
 
-        ll_cond = self.generate_expr(while_loop.condition)
-        self.irb.build_cond_br(ll_cond, loop_body, loop_exit)
+            # Generate the conditional branch instruction to begin the loop.
+            ll_cond = self.generate_expr(while_loop.condition)
+            self.irb.build_cond_br(ll_cond, loop_body, loop_exit)
 
-        if while_loop.update_stmt:
-            loop_update = self.body.append()
-            self.irb.move_to_start(loop_update)
-            
-            match stmt := while_loop.update_stmt:
-                case Assignment():
-                    self.generate_assignment(stmt)
-                case IncDecStmt():
-                    self.generate_incdec(stmt)
-                case _:
-                    self.generate_expr(stmt)
+            # If there is a loop update statement (C-style loop), ...
+            if while_loop.update_stmt:
+                # Add the update block.
+                loop_update = self.body.append()
+                self.irb.move_to_start(loop_update)
+                
+                # Generate the statements contained therein.
+                match stmt := while_loop.update_stmt:
+                    case Assignment():
+                        self.generate_assignment(stmt)
+                    case IncDecStmt():
+                        self.generate_incdec(stmt)
+                    case _:
+                        self.generate_expr(stmt)
 
-            if not self.irb.block.terminator:
-                self.irb.build_br(loop_header)
+                # Add a terminator if the update block does not self terminate
+                # so that it can jump back to the loop header.
+                if not self.irb.block.terminator:
+                    self.irb.build_br(loop_header)
 
-            loop_continue = loop_update
-        else:
-            loop_continue = loop_header
+                # Set the loop continue block to the update block so that it is
+                # jumped to at the end of each iteration and after any continues
+                # which occur in the loop.
+                loop_continue = loop_update
+            else:
+                # Otherwise, the loop continue is just the header.
+                loop_continue = loop_header
 
-        self.irb.move_to_end(loop_body)
+            # Position the body at the start of the loop body.
+            self.irb.move_to_start(loop_body)
 
-        self.push_loop_context(loop_exit, loop_continue)
-        self.generate_expr(while_loop.body)
-        self.pop_loop_context()
+            # Create the loop context and generate the while loop's body.
+            self.push_loop_context(loop_exit, loop_continue)
+            self.generate_expr(while_loop.body)
+            self.pop_loop_context()
 
+        # Add a terminator the loop block if necessary.
         if not self.irb.block.terminator:
             self.irb.build_br(loop_continue)
 
+        # Position the builder at the end of the loop so it can continue
+        # generating.
         self.irb.move_to_end(loop_exit)
 
     # ---------------------------------------------------------------------------- #
@@ -674,10 +782,9 @@ class PredicateGenerator:
 
     # ---------------------------------------------------------------------------- #
 
-    def update_dbg_location(self, span: TextSpan):
+    def update_dbg_location(self, span: Optional[TextSpan]):
         self.irb.debug_location = self.die.as_di_location(span)
 
-    
     def maybe_debug_scope(self, span: TextSpan):
         if self.die:
             self.die.push_scope(span)
