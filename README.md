@@ -117,7 +117,7 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 4:
 
-- [ ] Structure Definitions
+- [ ] Record Definitions
 - [ ] The `.` Operator
 - [ ] Aliases
 - [ ] Strings and String Literals
@@ -167,7 +167,7 @@ perfectly up to date but should help to give some idea of where we are.
 - [ ] Sum Types
 - [ ] Sum Pattern Matching
 - [ ] Hybrid Types
-- [ ] Struct Pattern Matching
+- [ ] Record Pattern Matching
 
 ### Target 11:
 

@@ -19,6 +19,8 @@ This document is the definitive reference for the Chai programming language.
 **Generics**
 **Function Spaces**
 **Monads**
+**Import Statements**
 **Concurrency**
 **System Interfacing**
+**Runtime Behaviors**
 **Appendices**
