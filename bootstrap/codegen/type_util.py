@@ -4,7 +4,7 @@ import llvm.types as lltypes
 def conv_type(typ: Type, alloc_type: bool = False, rt_type: bool = False) -> lltypes.Type:
     match inner_typ := typ.inner_type():
         case PrimitiveType():
-            if rt_type and is_nothing(inner_typ):
+            if rt_type and is_unit(inner_typ):
                 return lltypes.VoidType()
 
             return conv_prim_type(inner_typ)
@@ -15,7 +15,7 @@ def conv_type(typ: Type, alloc_type: bool = False, rt_type: bool = False) -> llt
 
 def conv_prim_type(prim_typ: PrimitiveType) -> lltypes.Type:
     match prim_typ:
-        case PrimitiveType.BOOL | PrimitiveType.NOTHING:
+        case PrimitiveType.BOOL | PrimitiveType.UNIT:
             return lltypes.Int1Type()
         case PrimitiveType.U8 | PrimitiveType.I8:
             return lltypes.Int8Type()
@@ -30,5 +30,5 @@ def conv_prim_type(prim_typ: PrimitiveType) -> lltypes.Type:
         case PrimitiveType.F64:
             return lltypes.DoubleType()
 
-def is_nothing(typ: Type) -> bool:
-    return typ == PrimitiveType.NOTHING
+def is_unit(typ: Type) -> bool:
+    return typ == PrimitiveType.UNIT

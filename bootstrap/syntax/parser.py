@@ -174,7 +174,7 @@ class Parser:
 
         match self.tok(False).kind:
             case Token.Kind.NEWLINE | Token.Kind.ASSIGN | Token.Kind.END:
-                func_rt_type = PrimitiveType.NOTHING
+                func_rt_type = PrimitiveType.UNIT
             case _:
                 func_rt_type = self.parse_type_label()
 
@@ -329,7 +329,7 @@ class Parser:
 
         match self.tok(False).kind:
             case Token.Kind.NEWLINE | Token.Kind.END | Token.Kind.ASSIGN:
-                rt_type = PrimitiveType.NOTHING
+                rt_type = PrimitiveType.UNIT
             case _:
                 rt_type = self.parse_type_label()
 
@@ -909,7 +909,7 @@ class Parser:
         '''
         type_label := prim_type_label | ptr_type_label ;
         prim_type_label := 'bool' | 'i8' | 'u8' | 'u16' | 'i32' | 'u32'
-            | 'i64' | 'u64' | 'f32' | 'f64' | 'nothing' ;
+            | 'i64' | 'u64' | 'f32' | 'f64' | 'unit' ;
         ptr_type_label := '*' ['const'] type_label ;
         '''
 
@@ -936,8 +936,8 @@ class Parser:
                 typ = PrimitiveType.F32
             case Token.Kind.F64:
                 typ = PrimitiveType.F64
-            case Token.Kind.NOTHING:
-                typ = PrimitiveType.NOTHING
+            case Token.Kind.UNIT:
+                typ = PrimitiveType.UNIT
             case Token.Kind.STAR:
                 self.advance()
 

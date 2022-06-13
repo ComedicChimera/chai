@@ -184,7 +184,7 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
 
     F32 = 2
     F64 = 3
-    NOTHING = 4
+    UNIT = 4
 
     def _compare(self, other: Type) -> bool:
         return super.__eq__(self, other)
@@ -225,7 +225,7 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
     @property
     def size(self) -> int:
         match self:
-            case PrimitiveType.NOTHING | PrimitiveType.BOOL | PrimitiveType.I8 | PrimitiveType.U8:
+            case PrimitiveType.UNIT | PrimitiveType.BOOL | PrimitiveType.I8 | PrimitiveType.U8:
                 return 1
             case PrimitiveType.I16 | PrimitiveType.U16:
                 return 2

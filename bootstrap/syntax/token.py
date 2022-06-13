@@ -55,7 +55,7 @@ class Token:
         U64 = auto()
         F32 = auto()
         F64 = auto()
-        NOTHING = auto()
+        UNIT = auto()
 
         PLUS = auto()
         MINUS = auto()

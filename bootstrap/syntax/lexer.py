@@ -54,7 +54,7 @@ KEYWORDS = {
     'u64': Token.Kind.U64,
     'f32': Token.Kind.F32,
     'f64': Token.Kind.F64,
-    'nothing': Token.Kind.NOTHING,
+    'unit': Token.Kind.UNIT,
 
     'true': Token.Kind.BOOLLIT,
     'false': Token.Kind.BOOLLIT,

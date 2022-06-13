@@ -186,7 +186,7 @@ class IfTree(ASTNode):
     else_branch: Optional[ASTNode]
     _span: TextSpan
 
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -211,7 +211,7 @@ class WhileLoop(ASTNode):
         The statement to be run at the end of each loop iteration if it exists.
     body: ASTNode
         The code to execute while the condition is true.
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
         The returned type of the loop.
     '''
 
@@ -221,7 +221,7 @@ class WhileLoop(ASTNode):
     body: ASTNode
     _span: TextSpan
 
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -251,7 +251,7 @@ class Block(ASTNode):
         if len(self.stmts) > 0:
             return self.stmts[-1].type
         else:
-            return PrimitiveType.NOTHING
+            return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -290,7 +290,7 @@ class VarDecl(ASTNode):
 
     @property
     def type(self) -> Type:
-        return PrimitiveType.NOTHING
+        return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -318,7 +318,7 @@ class Assignment(ASTNode):
 
     @property
     def type(self) -> Type:
-        return PrimitiveType.NOTHING
+        return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -342,7 +342,7 @@ class IncDecStmt(ASTNode):
 
     @property
     def type(self) -> Type:
-        return PrimitiveType.NOTHING
+        return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -364,7 +364,7 @@ class KeywordStmt(ASTNode):
 
     @property
     def type(self) -> Type:
-        return PrimitiveType.NOTHING
+        return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -386,7 +386,7 @@ class ReturnStmt(ASTNode):
 
     @property
     def type(self) -> Type:
-        return PrimitiveType.NOTHING
+        return PrimitiveType.UNIT
 
     @property
     def span(self) -> TextSpan:
@@ -444,7 +444,7 @@ class BinaryOpApp(ASTNode):
     lhs: ASTNode
     rhs: ASTNode
 
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -476,7 +476,7 @@ class UnaryOpApp(ASTNode):
     operand: ASTNode
     _span: TextSpan
     
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -509,7 +509,7 @@ class Indirect(ASTNode):
     const: bool
     _span: TextSpan
 
-    ptr_type: Type = PrimitiveType.NOTHING
+    ptr_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -540,7 +540,7 @@ class Dereference(ASTNode):
 
     ptr: ASTNode
     _span: TextSpan
-    elem_type: Type = PrimitiveType.NOTHING
+    elem_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -570,7 +570,7 @@ class FuncCall(ASTNode):
     func: ASTNode
     args: List[ASTNode]
     _span: TextSpan
-    rt_type: Type = PrimitiveType.NOTHING
+    rt_type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -631,7 +631,7 @@ class Literal(ASTNode):
     kind: Token.Kind
     value: str
     _span: TextSpan
-    _type: Type = PrimitiveType.NOTHING
+    _type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:
@@ -659,7 +659,7 @@ class Null(ASTNode):
     '''
 
     _span: TextSpan
-    _type: Type = PrimitiveType.NOTHING
+    _type: Type = PrimitiveType.UNIT
 
     @property
     def type(self) -> Type:

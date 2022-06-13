@@ -250,7 +250,7 @@ class Walker:
             for param in fd.params:
                 self.define_local(param)
 
-            if fd.type.rt_type == PrimitiveType.NOTHING:
+            if fd.type.rt_type == PrimitiveType.UNIT:
                 self.walk_expr(fd.body, False, False)
             else:
                 self.walk_expr(fd.body, True, False)
@@ -367,7 +367,7 @@ class Walker:
 
                 match len(exprs):
                     case 0:
-                        self.solver.assert_equiv(self.curr_scope.rt_type, PrimitiveType.NOTHING, stmt.span)
+                        self.solver.assert_equiv(self.curr_scope.rt_type, PrimitiveType.UNIT, stmt.span)
                     case 1:
                         self.solver.assert_equiv(self.curr_scope.rt_type, exprs[0].type, stmt.span)
                     case _:
