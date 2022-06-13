@@ -529,8 +529,12 @@ class DIBuilder(LLVMObject):
     def create_array(self, *data: MDNode) -> MDNode:
         return MDNode(ptr=LLVMDIBuilderGetOrCreateArray(self, create_object_array(data), len(data)))
 
-    def create_expression(self, *addr_ops: MDNode) -> MDNode:
-        return MDNode(ptr=LLVMDIBuilderCreateExpression(self, create_object_array(addr_ops), len(addr_ops)))
+    def create_expression(self, *addr_ops: int) -> MDNode:
+        return MDNode(ptr=LLVMDIBuilderCreateExpression(
+            self, 
+            (c_uint64 * len(addr_ops))([x for x in addr_ops]), 
+            len(addr_ops))
+        )
 
     def create_const_value(self, value: int) -> MDNode:
         return MDNode(ptr=LLVMDIBuilderCreateConstantValueExpression(self, value))
@@ -597,7 +601,7 @@ class DIBuilder(LLVMObject):
         self,
         var: Value,
         var_info: DIVariable,
-        expr_info: MDNode,
+        addr_expr: MDNode,
         debug_loc: DILocation,
         on: Instruction | BasicBlock
     ) -> CallInstruction:
@@ -606,7 +610,7 @@ class DIBuilder(LLVMObject):
                 self,
                 var,
                 var_info,
-                expr_info,
+                addr_expr,
                 debug_loc,
                 on
             ))
@@ -615,7 +619,7 @@ class DIBuilder(LLVMObject):
                 self,
                 var,
                 var_info,
-                expr_info,
+                addr_expr,
                 debug_loc,
                 on
             ))
@@ -624,7 +628,7 @@ class DIBuilder(LLVMObject):
         self,
         val: Value,
         var_info: DIVariable,
-        expr_info: MDNode,
+        addr_expr: MDNode,
         debug_loc: DILocation,
         on: Instruction | BasicBlock
     ) -> CallInstruction:
@@ -633,7 +637,7 @@ class DIBuilder(LLVMObject):
                 self,
                 val,
                 var_info,
-                expr_info,
+                addr_expr,
                 debug_loc,
                 on
             ))
@@ -642,7 +646,7 @@ class DIBuilder(LLVMObject):
                 self,
                 val,
                 var_info,
-                expr_info,
+                addr_expr,
                 debug_loc,
                 on
             ))

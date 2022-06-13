@@ -503,6 +503,8 @@ class PredicateGenerator:
             The variable declaration to generate.
         '''
 
+        # TODO generate DWARF debugging info for variables
+
         for var_list in vd.var_lists:
             # If the variable list has an initializer, generate it.
             if var_list.initializer:
@@ -544,6 +546,8 @@ class PredicateGenerator:
         assign: Assignment
             The assignment statement to generate.
         '''
+
+        # TODO generate DWARF debugging info for assignment
 
         # Generate all the LHS value pointers for the assignment.
         lhss = [self.generate_lhs_expr(lhs_expr) for lhs_expr in assign.lhs_exprs]
