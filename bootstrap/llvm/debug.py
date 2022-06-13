@@ -92,6 +92,24 @@ class DWARFTypeQualifier(LLVMEnum):
     SHARED = 0x40
     VOLATILE = 0x35
 
+class DWARFExprOpCode(LLVMEnum):
+    DEREF = 0x06
+    PLUS = 0x22
+    MINUS = 0x1c
+    PLUS_UCONST = 0x23
+    SWAP = 0x16
+    XDEREF = 0x18
+    STACK_VALUE = 0x9f
+    BREG = 0x92
+    PUSH_OBJECT_ADDR = 0x97
+    OVER = 0x14
+    LLVM_FRAGMENT = 0x1000
+    LLVM_CONVERT = 0x1001
+    LLVM_TAG_OFFSET = 0x1002
+    LLVM_ENTRY_VALUE = 0x1003
+    LLVM_IMPLICIT_PTR = 0x1004
+    LLVM_ARG = 0x1005
+
 # ---------------------------------------------------------------------------- #
 
 class DIBuilder(LLVMObject):
@@ -529,10 +547,10 @@ class DIBuilder(LLVMObject):
     def create_array(self, *data: MDNode) -> MDNode:
         return MDNode(ptr=LLVMDIBuilderGetOrCreateArray(self, create_object_array(data), len(data)))
 
-    def create_expression(self, *addr_ops: int) -> MDNode:
+    def create_expression(self, *addr_ops: DWARFExprOpCode) -> MDNode:
         return MDNode(ptr=LLVMDIBuilderCreateExpression(
             self, 
-            (c_uint64 * len(addr_ops))([x for x in addr_ops]), 
+            (c_uint64 * len(addr_ops))([x.value for x in addr_ops]), 
             len(addr_ops))
         )
 
@@ -623,6 +641,32 @@ class DIBuilder(LLVMObject):
                 debug_loc,
                 on
             ))
+
+    def create_local_var(
+        self,
+        scope: DIScope,
+        file: DIFile,
+        name: str,
+        line: int,
+        typ: DIType,
+        bit_align: int,
+        survives_optimizations: bool = True,
+        flags: DIFlags = DIFlags.ZERO
+    ) -> DIVariable:
+        name_bytes = name.encode()
+
+        return DIVariable(LLVMDIBuilderCreateAutoVariable(
+            self,
+            scope,
+            name_bytes,
+            len(name_bytes),
+            file,
+            line,
+            typ,
+            int(survives_optimizations),
+            flags,
+            bit_align
+        ))
 
     def insert_debug_value(
         self,
@@ -807,4 +851,19 @@ def LLVMDIBuilderCreateQualifiedType(builder: DIBuilder, qualifier: DWARFTypeQua
 
 @llvm_api
 def LLVMDIBuilderCreateConstantValueExpression(builder: DIBuilder, value: c_uint64) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMDIBuilderCreateAutoVariable(
+    builder: DIBuilder,
+    scope: DIScope,
+    file: DIFile,
+    name: c_char_p,
+    name_len: c_size_t,
+    line: c_uint,
+    ty: DIType,
+    always_preserve: c_enum,
+    flags: DIFlags,
+    align_in_bits: c_uint32
+) -> c_object_p:
     pass

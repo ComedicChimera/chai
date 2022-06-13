@@ -4,16 +4,67 @@ __all__ = ['DebugInfoEmitter']
 
 import os
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, List, Dict
 
 import llvm.debug as lldbg
 import llvm.metadata as llmeta
+import llvm.value as llvalue
+import llvm.ir as ir
 from report import TextSpan
 from depm import *
 from depm.source import *
 from syntax.ast import *
 from typecheck import *
 from llvm.module import Module as LLModule
+
+class DIExprBuilder:
+    '''
+    A utility class used to build DI expressions.
+
+    Methods
+    -------
+    deref() -> DIExprBuilder
+    expr() -> llmeta.MDNode
+    '''
+
+    # The parent emitter's DI builder.
+    dib: lldbg.DIBuilder
+
+    # The stack of DWARF expression op codes.
+    stack: List[lldbg.DWARFExprOpCode]
+
+    def __init__(self, dib: lldbg.DIBuilder):
+        '''
+        Params
+        ------
+        dib: lldbg.DIBuilder
+            The parent emitter's DI builder.
+        '''
+
+        self.dib = dib
+        self.stack = []
+
+    def deref(self) -> 'DIExprBuilder':
+        '''
+        Adds a dereference operation to the expression.
+
+        Returns
+        -------
+        DIExprBuilder
+            The updated DI expression builder.
+        '''
+
+        self.stack.append(lldbg.DWARFExprOpCode.LLVM_IMPLICIT_PTR)
+        return self
+
+    def expr(self) -> llmeta.MDNode:
+        '''
+        Returns the built DI expression.
+        '''
+
+        return self.dib.create_expression(*self.stack)
+
+# ---------------------------------------------------------------------------- #
 
 class DebugInfoEmitter:
     '''Responsible for emitting LLVM debug info.'''
@@ -32,6 +83,9 @@ class DebugInfoEmitter:
 
     # The current local scope of the debug builder.
     local_scope: Optional[llmeta.DIScope]
+
+    # The dictionary of local variables.
+    local_vars: Dict[Symbol, llmeta.DIVariable]
 
     def __init__(self, pkg: Package, mod: LLModule):
         '''
@@ -61,6 +115,9 @@ class DebugInfoEmitter:
 
         # Initialize the local lexical scope.
         self.local_scope = None
+
+        # Initialize the dictionary of variables.
+        self.local_vars = {}
 
     def finalize(self):
         '''Finalizes debug info.'''
@@ -155,6 +212,66 @@ class DebugInfoEmitter:
             self.as_di_type(sym.type),
         )
 
+    def emit_local_var_decl(self, sym: Symbol, ll_value: llvalue.Value, at: ir.Instruction | ir.BasicBlock):
+        '''
+        Emits the debug information for a local variable declaration.
+
+        Params
+        ------
+        sym: Symbol
+            The local variable symbol being declared.
+        ll_value: llvalue.Value
+            The LLVM value of the variable.
+        at: ir.Instruction | ir.BasicBlock
+            If `at` is an instruction, the instruction to insert the debug declaration before.
+            If `at` is a basic block, the block to insert the instruction at the end of.
+        '''
+
+        if sym in self.local_vars:
+            di_var = self.local_vars[sym]
+        else:
+            di_var = self.dib.create_local_var(
+                self.scope, 
+                self.di_file, 
+                sym.name, 
+                sym.def_span.start_line, 
+                self.as_di_type(sym.typ),
+                sym.typ.bit_align
+            )
+
+        self.dib.insert_debug_declare(ll_value, di_var, self.dib.create_expression(), self.as_di_location(sym.def_span), at)
+
+    def emit_assign(self, sym: Symbol, new_value: llvalue.Value, lhs_di_expr: llmeta.MDNode, at: ir.Instruction | ir.BasicBlock):
+        '''
+        Emits the debug information for an assignment/value update.
+
+        Params
+        ------
+        sym: Symbol
+            The local variable symbol being updated (even if indirectly).
+        new_value: llvalue.Value
+            The value the local variable is being set to.
+        lhs_di_expr: llmeta.MDNode
+            The DI expression describing how to access the LHS.
+        at: ir.Instruction | ir.BasicBlock
+            If `at` is an instruction, the instruction to insert the debug declaration before.
+            If `at` is a basic block, the block to insert the instruction at the end of.
+        '''
+
+        if sym in self.local_vars:
+            di_var = self.local_vars[sym]
+        else:
+            di_var = self.dib.create_local_var(
+                self.scope, 
+                self.di_file, 
+                sym.name, 
+                sym.span.start_line, 
+                self.as_di_type(sym.typ),
+                sym.typ.bit_align
+            )
+
+        self.dib.insert_debug_value(new_value, di_var, lhs_di_expr, self.as_di_location(sym.def_span), at)
+
     @contextmanager
     def emit_scope(self, span: TextSpan):
         '''
@@ -179,6 +296,11 @@ class DebugInfoEmitter:
         yield
 
         self.local_scope = outer_scope
+
+        # If there is no new local scope, then we just exited the outer-most
+        # local scope and so all the local variables are no longer usable.
+        if not self.local_scope:
+            self.local_vars.clear()
 
     # ---------------------------------------------------------------------------- #
 

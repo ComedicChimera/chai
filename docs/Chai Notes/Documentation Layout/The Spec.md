@@ -24,3 +24,7 @@ This document is the definitive reference for the Chai programming language.
 **System Interfacing**
 **Runtime Behaviors**
 **Appendices**
+- Appendix A: The Prelude
+- Appendix B: Standard Library Requirements
+- Appendix C: Operator Precedence Table
+- Appendix D: Formal Language Grammar

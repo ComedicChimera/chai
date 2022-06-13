@@ -13,6 +13,7 @@ from collections import deque
 import llvm.ir as ir
 import llvm.value as llvalue
 import llvm.types as lltypes
+import llvm.metadata as llmeta
 import util
 
 from report import TextSpan
@@ -84,6 +85,22 @@ class LoopContext:
 
     break_block: ir.BasicBlock
     continue_block: ir.BasicBlock
+
+@dataclass
+class LHSLLData:
+    '''
+    Stores the data needed to generate an assignment to an LHS expression.
+
+    Attributes
+    ----------
+    value_ptr: llvalue.Value
+        The LLVM value pointer
+    di_expr: llmeta.MDNode
+        The DWARF DIExpression describing the `value_ptr` calculations.
+    '''
+
+    value_ptr: llvalue.Value
+    di_expr: llmeta.MDNode
 
 # ---------------------------------------------------------------------------- #
 
@@ -503,8 +520,6 @@ class PredicateGenerator:
             The variable declaration to generate.
         '''
 
-        # TODO generate DWARF debugging info for variables
-
         for var_list in vd.var_lists:
             # If the variable list has an initializer, generate it.
             if var_list.initializer:
@@ -530,10 +545,16 @@ class PredicateGenerator:
 
                         # ll_init is never None so it is always safe to store it.
                         self.irb.build_store(ll_init, ll_var)
+
+                    # Emit the debug information for the variable.
+                    self.die.emit_local_var_decl(sym, ll_var, self.var_block.instructions.last())
                 else:
                     # Otherwise, we can just point the symbol the yielded value
                     # of the initializer.
                     ll_var = var_ll_init
+
+                    # Emit the debug information for the variable.
+                    self.die.emit_local_var_decl(sym, ll_var, self.irb.block)
 
                 sym.ll_value = ll_var        
 
@@ -627,7 +648,7 @@ class PredicateGenerator:
             # Store the result of the sum back into the LHS value pointer.
             self.irb.build_store(rhs_value, lhs_ptr)
 
-    def generate_lhs_expr(self, lhs_expr: ASTNode) -> llvalue.Value:
+    def generate_lhs_expr(self, lhs_expr: ASTNode) -> LHSLLData:
         '''
         Generate the LLVM IR for accessing the value pointer for a mutable
         value.  This is used to assign to mutable values which are actually just
@@ -643,6 +664,9 @@ class PredicateGenerator:
         lhs_expr: ASTNode
             The LHS expression to generate.
         '''
+
+        # NOTE I don't know that we actually need to use llvm.dbg.value... I am
+        # not exactly sure when it should be used.
 
         match lhs_expr:
             case Identifier(symbol=sym):
