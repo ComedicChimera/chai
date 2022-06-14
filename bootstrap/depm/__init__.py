@@ -52,6 +52,7 @@ class Symbol:
 
         VALUE = auto()
         FUNC = auto()
+        TYPEDEF = auto()
 
     class Mutability(Enum):
         '''

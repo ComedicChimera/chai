@@ -28,6 +28,9 @@ class Token:
         PACKAGE = auto()
         DEF = auto()
         OPER = auto()
+        RECORD = auto()
+        NEWTYPE = auto()
+        ALIAS = auto()
 
         LET = auto()
         CONST = auto()

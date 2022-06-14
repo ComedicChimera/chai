@@ -27,6 +27,9 @@ KEYWORDS = {
     'package': Token.Kind.PACKAGE,
     'def': Token.Kind.DEF,
     'oper': Token.Kind.OPER,
+    'record': Token.Kind.RECORD,
+    'newtype': Token.Kind.NEWTYPE,
+    'alias': Token.Kind.ALIAS,
     
     'let': Token.Kind.LET,
     'const': Token.Kind.CONST,

@@ -109,9 +109,8 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 3:
 
-- [ ] LLVM Debug + Metadata Bindings
-- [ ] Add Debug v. Release compiler flag
-- [ ] Generate debug info for all constructs so far
+- [x] LLVM Debug + Metadata Bindings
+- [x] Generate debug info for all constructs so far
 
 *Note:* Debug info will be included on all constructs from here on.
 
@@ -120,6 +119,7 @@ perfectly up to date but should help to give some idea of where we are.
 - [ ] Record Definitions
 - [ ] The `.` Operator
 - [ ] Aliases
+- [ ] Newtypes
 - [ ] Strings and String Literals
 
 ### Target 5:

@@ -38,7 +38,7 @@ class TypeVariable(Type):
 
     value: Optional[Type] = None
 
-    def _compare(self, other: Type) -> bool:
+    def _equals(self, other: Type) -> bool:
         raise TypeError('unable to compare to an undetermined type variable')
 
     def _cast_from(self, other: Type) -> bool:

@@ -1,9 +1,9 @@
 '''Represents Chai's type system.'''
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import List
+from typing import List, Dict, Optional, Iterator
 
 import util
 
@@ -18,13 +18,10 @@ __all__ = [
 class Type(ABC):
     '''An abstract base class for all types.'''
 
-    _compare_exact: bool = False
-
     @abstractmethod
-    def _compare(self, other: 'Type') -> bool:
+    def _equals(self, other: 'Type') -> bool:
         '''
-        Returns whether this type is exactly equal or equivalent to the other
-        type depending on the value of `_compare_exact`.
+        Returns whether this type is exactly equal to the other type.
 
         .. warning: This method should only be called by `Type`.
 
@@ -64,21 +61,6 @@ class Type(ABC):
         '''
         return self
 
-    def exact_equals(self, other: 'Type') -> bool:
-        '''
-        Returns whether this type is exactly equal to the other type.
-
-        Params
-        ------
-        other: Type
-            The type to compare this type to.
-        '''
-
-        self._compare_exact = True
-        result = self.inner_type()._compare(other.inner_type())
-        self._compare_exact = False
-        return result
-
     # ---------------------------------------------------------------------------- #
 
     @property
@@ -112,7 +94,7 @@ class Type(ABC):
         '''
 
         if isinstance(other, Type):
-            return self.inner_type()._compare(other.inner_type())
+            return self.inner_type()._equals(other.inner_type())
 
         return False
 
@@ -130,8 +112,12 @@ class Type(ABC):
             self_inner = self.inner_type()
             other_inner = other.inner_type()
 
-            if self_inner._compare(other_inner):
+            if self_inner._equals(other_inner):
                 return True
+
+            # Handle the special case of synthetic type casting.
+            if isinstance(self_inner, SynthType):
+                return other_inner._cast_from(self_inner.base_type.inner_type())
 
             return other_inner._cast_from(self_inner)
 
@@ -151,8 +137,12 @@ class Type(ABC):
             self_inner = self.inner_type()
             other_inner = other.inner_type()
 
-            if self_inner._compare(other_inner):
+            if self_inner._equals(other_inner):
                 return True
+
+            # Handle the special case of synthetic type casting.
+            if isinstance(other_inner, SynthType):
+                return self_inner._cast_from(other_inner.base_type.inner_type())
 
             return self_inner._cast_from(other_inner)
 
@@ -186,7 +176,7 @@ class PrimitiveType(Type, Enum, metaclass=util.merge_metaclasses(Type, Enum)):
     F64 = 3
     UNIT = 4
 
-    def _compare(self, other: Type) -> bool:
+    def _equals(self, other: Type) -> bool:
         return super.__eq__(self, other)
 
     def _cast_from(self, other: Type) -> bool:
@@ -250,7 +240,7 @@ class PointerType(Type):
     elem_type: Type
     const: bool
 
-    def _compare(self, other: Type) -> bool:
+    def _equals(self, other: Type) -> bool:
         if isinstance(other, PointerType):
             return self.elem_type == other.elem_type
 
@@ -290,7 +280,7 @@ class FuncType(Type):
     param_types: List[Type]
     rt_type: Type
 
-    def _compare(self, other: Type) -> bool:
+    def _equals(self, other: Type) -> bool:
         if isinstance(other, FuncType):
             return all(a == b for a, b in zip(self.param_types, other.param_types)) \
                 and self.rt_type == other.rt_type
@@ -309,3 +299,152 @@ class FuncType(Type):
 
     def size(self) -> int:
         return util.POINTER_SIZE
+
+# ---------------------------------------------------------------------------- #
+
+@typedataclass
+class DefinedType(Type):
+    '''
+    A parent class for defined types.
+
+    Attributes
+    ----------
+    name: str
+        The name of the defined type.
+    parent_id: int
+        The ID of the parent package to this type.
+    parent_name: str
+        The name of the parent package to this type.
+    '''
+
+    name: str
+    parent_id: int
+    parent_name: str
+
+    def _equals(self, other: Type) -> bool:
+        if isinstance(other, DefinedType):
+            return self.name == other.name and self.parent_id == other.parent_id
+
+        return False
+
+    def __repr__(self) -> str:
+        return self.parent_name + '.' + self.name
+
+@dataclass
+class RecordField:
+    '''
+    Represents a field in a record type.
+
+    Attributes
+    ----------
+    name: str
+        The name of the field.
+    type: Type
+        The type of the field.
+    const: bool
+        Whether the field is constant.
+    requires_init: bool
+        Whether the field must be initialized.
+    '''
+
+    name: str
+    type: Type
+    const: bool 
+    requires_init: bool
+
+@typedataclass
+class RecordType(DefinedType):
+    '''
+    Represents a record type.
+
+    Attributes
+    ----------
+    fields: Dict[str, RecordField]
+        The ordered dictionary of fields of the record.
+    extends: List[RecordType]
+        The list of records this record extends.
+    packed: bool
+        Whether or not the struct is packed.
+    '''
+
+    fields: Dict[str, RecordField]
+    extends: List['RecordType'] = field(default_factory=list)
+    packed: bool = False
+
+    def _cast_from(self, other: 'Type') -> bool:
+        # Records can't be cast to any other type.
+        return False
+
+    @property
+    def size(self) -> int:
+        r_size = 0
+
+        for field in self.all_fields:
+            # Account for alignment padding when computing the size.
+            if (off := r_size % field.type.align) != 0:
+                r_size += field.type.align - off
+
+            r_size += field.type.size
+
+        # Account for any end padding for alignment.
+        return r_size + self.align - r_size % self.align
+
+    @property
+    def align(self) -> int:
+        return max(field.align for field in self.all_fields)
+
+    def lookup_field(self, name: str) -> Optional[RecordField]:
+        '''
+        Finds and returns the field by the given name if it exists.
+
+        Params
+        ------
+        name: str
+            The field name to lookup.
+        '''
+
+        if name in self.fields:
+            return self.fields[name]
+
+        for extend in self.extends:
+            if efield := extend.lookup_field(name):
+                return efield
+
+        return None
+
+    @property
+    def all_fields(self) -> Iterator[RecordField]:
+        '''
+        Returns an iterator over the fields of the record and the fields of the
+        various records it extends.
+        '''
+
+        for field in self.fields:
+            yield field
+
+        for extend in self.extends:
+            for efield in extend.fields:
+                yield efield
+
+class SynthType(DefinedType):
+    '''
+    Represents a synthetic type declared via `newtype`.
+
+    Attributes
+    ----------
+    base_type: Type
+        The type used as the base for this synthetic type.
+    '''
+
+    base_type: Type
+
+    def _cast_from(self, other: 'Type') -> bool:
+        return self.base_type.inner_type()._cast_from(other)
+
+    @property
+    def size(self) -> int:
+        return self.base_type.size
+
+    @property
+    def align(self) -> int:
+        return self.base_type.align
