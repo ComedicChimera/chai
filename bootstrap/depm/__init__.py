@@ -22,6 +22,8 @@ class Symbol:
 
     Attributes
     ----------
+    id: int
+        The unique ID of the symbol.
     name: str
         The symbol's name.
     parent_id: int
@@ -42,6 +44,8 @@ class Symbol:
         The LLVM value that this symbol refers to.  This value is `None` until
         generation begins.
     '''
+
+    _id_counter: ClassVar[int] = 0
 
     class Kind(Enum):
         '''Enumerates the different kinds of symbols.'''
@@ -68,7 +72,14 @@ class Symbol:
     mutability: Mutability
     def_span: TextSpan
     used: bool = False
+    id: int = 0
     ll_value: Optional[Value] = None
+
+    def __post_init__(self):
+        '''Determine the unique ID of the symbol.'''
+
+        self.id = Symbol._id_counter
+        Symbol._id_counter += 1
 
 @dataclass
 class OperatorOverload:

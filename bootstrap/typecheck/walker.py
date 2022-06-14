@@ -197,9 +197,9 @@ class Walker:
                         self.error(f'no intrinsic function named `{func_name}`', aspan)
 
                     expect_body = False
-                case 'entry':
+                case 'abientry':
                     if aval != '':
-                        self.error('@entry does not take an argument', aspan)
+                        self.error('@abientry does not take an argument', aspan)
 
         return expect_body
 

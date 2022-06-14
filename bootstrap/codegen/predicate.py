@@ -39,11 +39,14 @@ class BodyPredicate:
         The parameters to that function.
     expr: ASTNode
         The AST expression representing the body.
+    returns_value: bool
+        Whether or not the function returns a value.
     '''
 
     ll_func: ir.Function
     func_params: List[Symbol]
     expr: ASTNode
+    returns_value: bool
 
 @dataclass
 class LLVMValueNode(ASTNode):
@@ -178,26 +181,22 @@ class PredicateGenerator:
 
         # Generate all the body predicates.
         for body_pred in self.body_preds:
-            self.generate_body_predicate(body_pred.ll_func, body_pred.func_params, body_pred.expr)
+            self.generate_body_predicate(body_pred)
 
     # ---------------------------------------------------------------------------- #
 
-    def generate_body_predicate(self, ll_func: ir.Function, func_params: List[Symbol], body_expr: ASTNode):
+    def generate_body_predicate(self, body_pred: BodyPredicate):
         '''
         Generates a body predicate.
         
         Params
         ------
-        ll_func: ir.Function
-            The IR function whose body is being generated.
-        func_params: List[Symbol]
-            The parameters to the function whose body is being generated.
-        body_expr: ASTNode
-            The predicate expression of the function body.
+        body_pred: BodyPredicate
+            The body predicate to generate.
         '''
 
         # Set the predicate generator's body to the function body.
-        self.body = ll_func.body
+        self.body = body_pred.ll_func.body
 
         # Begin the variable block: all variables are allocated at the start of
         # the function body in this block to avoid unnecessary allocations.
@@ -205,9 +204,9 @@ class PredicateGenerator:
         self.irb.move_to_start(self.var_block)
 
         # Emit a lexical scope to contain the body of the function.
-        with self.die.emit_scope(body_expr.span):
+        with self.die.emit_func_scope(body_pred.ll_func):
             # Generate the parameter prelude.
-            for i, param in enumerate(func_params):
+            for i, param in enumerate(body_pred.func_params):
                 # Emit appropriate debug information for each parameter.
                 self.die.emit_param_info(i, param)
 
@@ -222,7 +221,7 @@ class PredicateGenerator:
             
             # Add the entry block to the function body and jump to it from the
             # variable block.
-            entry_b = ll_func.body.append('entry')
+            entry_b = body_pred.ll_func.body.append('entry')
             self.irb.build_br(entry_b)
 
             # Position the builder at the start of the entry block so it can
@@ -230,7 +229,7 @@ class PredicateGenerator:
             self.irb.move_to_start(entry_b)
 
             # Generate the function body.
-            result = self.generate_expr(body_expr)
+            result = self.generate_expr(body_pred.expr)
 
         # If the variable block contains only a terminator instruction, then
         # there are no variables declared so we can just remove the variable
@@ -244,7 +243,7 @@ class PredicateGenerator:
             # Generate a return from the resultant value is it is not a unit
             # value.  If it is, then (effectively) nothing is returned from the
             # function so we can just generate a `ret void`.
-            if result:
+            if body_pred.returns_value:
                 self.irb.build_ret(result)
             else:
                 self.irb.build_ret()

@@ -294,6 +294,9 @@ class DISubprogram(MDNode):
     def line(self) -> int:
         return LLVMDISubprogramGetLine(self)
 
+    def as_scope(self) -> DIScope:
+        return DIScope(self.ptr)
+
 # ---------------------------------------------------------------------------- #
 
 @llvm_api

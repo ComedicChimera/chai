@@ -12,7 +12,7 @@ from llvm.module import Module as LLModule
 from depm.source import Package
 from syntax.ast import *
 
-from .type_util import conv_type
+from .type_util import conv_type, is_unit
 from .predicate import BodyPredicate, PredicateGenerator
 from .debug_info import DebugInfoEmitter
 
@@ -112,12 +112,10 @@ class Generator:
 
         for annot in fd.annots:
             match annot:
-                case 'extern' | 'entry':
-                    # Both @extern and @entry stop name mangling and make the
-                    # symbol public.  @entry because the name of the entry point
-                    # is hard-coded in the linker flags and @extern because the
-                    # name of the function has to match the name of the external
-                    # symbol.
+                case 'extern' | 'abientry':
+                    # Both @extern and @abientry stop name mangling and make
+                    # the symbol public.  @extern because the name of the
+                    # function has to match the name of the external symbol.
                     mangle = False
                     public = True
 
@@ -151,10 +149,11 @@ class Generator:
 
         # Add the function body as a predicate to generate if it exists.
         if fd.body:
-            self.pred_gen.add_predicate(BodyPredicate(ll_func, fd.params, fd.body))
+            self.pred_gen.add_predicate(BodyPredicate(ll_func, fd.params, fd.body, not is_unit(fd.type.rt_type)))
 
-        # Emit function debug info as necessary.
-        self.die.emit_function_info(fd, ll_name)
+        # Emit function debug info if it is not external/bodiless.
+        if fd.body:
+            ll_func.di_sub_program = self.die.emit_function_info(fd, ll_name)
 
     def generate_oper_def(self, od: OperDef):
         '''
@@ -197,7 +196,7 @@ class Generator:
 
         # Add the overload body as a predicate to generate if it exists.
         if od.body:
-            self.pred_gen.add_predicate(BodyPredicate(ll_func, od.params, od.body))
+            self.pred_gen.add_predicate(BodyPredicate(ll_func, od.params, od.body, not is_unit(od.overload.signature.rt_type)))
 
-        # Emit operator debug info if necessary.
-        self.die.emit_oper_info(od, ll_name)
+        # Emit operator debug info.
+        ll_func.di_sub_program = self.die.emit_oper_info(od, ll_name)

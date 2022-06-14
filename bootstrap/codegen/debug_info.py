@@ -85,7 +85,7 @@ class DebugInfoEmitter:
     local_scope: Optional[llmeta.DIScope]
 
     # The dictionary of local variables.
-    local_vars: Dict[Symbol, llmeta.DIVariable]
+    local_vars: Dict[int, llmeta.DIVariable]
 
     def __init__(self, pkg: Package, mod: LLModule):
         '''
@@ -140,7 +140,7 @@ class DebugInfoEmitter:
         self.di_file = self.dib.create_file(src_file.abs_path, os.getcwd())
         self.di_file_scope = self.di_file.as_scope()
 
-    def emit_function_info(self, fd: FuncDef, mangled_name: str):
+    def emit_function_info(self, fd: FuncDef, mangled_name: str) -> lldbg.DISubprogram:
         '''
         Emits the debug information for a function definition.
         
@@ -150,9 +150,14 @@ class DebugInfoEmitter:
             The function definition whose debug information to emit.
         mangled_name: str
             The mangled name of the function being defined.
+
+        Returns
+        -------
+        lldbg.DISubprogram
+            The created DI subprogram.
         '''
 
-        self.dib.create_function(
+        return self.dib.create_function(
             self.di_pkg_scope,
             self.di_file,
             fd.symbol.name,
@@ -164,7 +169,7 @@ class DebugInfoEmitter:
             fd.body.span.start_line if fd.body else fd.span.start_line,
         )
 
-    def emit_oper_info(self, od: OperDef, mangled_name: str):
+    def emit_oper_info(self, od: OperDef, mangled_name: str) -> lldbg.DISubprogram:
         '''
         Emits the debug information for an operator definition.
 
@@ -174,9 +179,14 @@ class DebugInfoEmitter:
             The operator definition whose debug information to emit.
         mangled_name: str
             The mangled name of the operator function being defined.
+
+        Returns
+        -------
+        lldbg.DISubprogram
+            The created DI subprogram.
         '''
 
-        self.dib.create_function(
+        return self.dib.create_function(
             self.di_pkg_scope,
             self.di_file,
             od.op_sym,
@@ -228,17 +238,19 @@ class DebugInfoEmitter:
         '''
 
         # TODO scope stack
-        if sym in self.local_vars:
-            di_var = self.local_vars[sym]
+        if sym.id in self.local_vars:
+            di_var = self.local_vars[sym.id]
         else:
             di_var = self.dib.create_local_var(
                 self.scope, 
                 self.di_file, 
                 sym.name, 
                 sym.def_span.start_line, 
-                self.as_di_type(sym.typ),
-                sym.typ.bit_align
+                self.as_di_type(sym.type),
+                sym.type.bit_align
             )
+
+            self.local_vars[sym.id] = di_var
 
         self.dib.insert_debug_declare(ll_value, di_var, self.dib.create_expression(), self.as_di_location(sym.def_span), at)
 
@@ -259,19 +271,19 @@ class DebugInfoEmitter:
             If `at` is a basic block, the block to insert the instruction at the end of.
         '''
 
-        if sym in self.local_vars:
-            di_var = self.local_vars[sym]
-        else:
-            di_var = self.dib.create_local_var(
-                self.scope, 
-                self.di_file, 
-                sym.name, 
-                sym.span.start_line, 
-                self.as_di_type(sym.typ),
-                sym.typ.bit_align
-            )
+        self.dib.insert_debug_value(new_value, self.local_vars[sym.id], lhs_di_expr, self.as_di_location(sym.def_span), at)
 
-        self.dib.insert_debug_value(new_value, di_var, lhs_di_expr, self.as_di_location(sym.def_span), at)
+    # ---------------------------------------------------------------------------- #
+
+    @contextmanager
+    def emit_func_scope(self, ll_func: ir.Function):
+        '''Emits the enclosing scope for a function.'''
+
+        self.local_scope = ll_func.di_sub_program.as_scope()
+
+        yield
+
+        self.local_scope = None
 
     @contextmanager
     def emit_scope(self, span: TextSpan):
@@ -315,7 +327,7 @@ class DebugInfoEmitter:
             The type to convert.
         '''
 
-        match typ:
+        match typ.inner_type():
             case PrimitiveType():
                 return self.dib.create_basic_type(repr(typ), typ.bit_size, get_prim_type_encoding(typ))
             case PointerType(elem_type):

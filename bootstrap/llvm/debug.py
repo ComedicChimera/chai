@@ -9,7 +9,7 @@ from .value import Value
 from .ir import BasicBlock, Instruction, CallInstruction
 
 class DWARFSourceLanguage(LLVMEnum):
-    C89 = 1
+    C89 = auto()
     C = auto()
     ADA83 = auto()
     C_PLUS_PLUS = auto()
@@ -854,9 +854,9 @@ def LLVMDIBuilderCreateConstantValueExpression(builder: DIBuilder, value: c_uint
 def LLVMDIBuilderCreateAutoVariable(
     builder: DIBuilder,
     scope: DIScope,
-    file: DIFile,
     name: c_char_p,
     name_len: c_size_t,
+    file: DIFile,
     line: c_uint,
     ty: DIType,
     always_preserve: c_enum,
