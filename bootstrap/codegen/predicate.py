@@ -178,7 +178,7 @@ class PredicateGenerator:
 
         # Generate all the body predicates.
         for body_pred in self.body_preds:
-            self.generate_body_predicate(self, body_pred.ll_func, body_pred.func_params, body_pred.expr)
+            self.generate_body_predicate(body_pred.ll_func, body_pred.func_params, body_pred.expr)
 
     # ---------------------------------------------------------------------------- #
 
@@ -205,7 +205,7 @@ class PredicateGenerator:
         self.irb.move_to_start(self.var_block)
 
         # Emit a lexical scope to contain the body of the function.
-        with self.die.emit_scope():
+        with self.die.emit_scope(body_expr.span):
             # Generate the parameter prelude.
             for i, param in enumerate(func_params):
                 # Emit appropriate debug information for each parameter.

@@ -45,7 +45,7 @@ class IRBuilder(LLVMObject):
 
     @debug_location.setter
     def debug_location(self, new_loc: Optional[DILocation]):
-        LLVMSetCurrentDebugLocation2(self, new_loc)
+        LLVMSetCurrentDebugLocation2(self, new_loc.ptr if new_loc else None)
 
     # ---------------------------------------------------------------------------- #
 
@@ -540,5 +540,5 @@ def LLVMGetCurrentDebugLocation2(builder: IRBuilder) -> c_object_p:
     pass
 
 @llvm_api
-def LLVMSetCurrentDebugLocation2(builder: IRBuilder, loc: DILocation):
+def LLVMSetCurrentDebugLocation2(builder: IRBuilder, loc: c_object_p):
     pass

@@ -139,7 +139,10 @@ def create_object_array(items: Collection[LLVMObject]) -> c_array:
         The collection of items to convert.
     '''
 
-    return (c_object_p * len(items))(item.ptr for item in items)
+    if len(items) == 0:
+        return None
+
+    return (c_object_p * len(items))(*(item.ptr for item in items))
 
 
 # ---------------------------------------------------------------------------- #

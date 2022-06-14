@@ -64,8 +64,7 @@ class FunctionType(Type):
         if len(param_types) == 0:
             param_arr = None
         else:
-            param_arr_type = c_object_p * len(param_types)
-            param_arr = param_arr_type(*(x.ptr for x in param_types)) 
+            param_arr = create_object_array(param_types)
 
         ptr = LLVMFunctionType(rt_type, param_arr, len(param_types), int(is_var_arg))
         super().__init__(ptr)

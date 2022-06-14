@@ -235,8 +235,9 @@ class DIBuilder(LLVMObject):
             int(is_optimized)
         ))
 
-    def create_lexical_block(self, scope: DIScope, file: DIFile, line: int, col: int) -> MDNode:
-        return MDNode(ptr=LLVMDIBuilderCreateLexicalBlock(
+    def create_lexical_block(self, scope: DIScope, file: DIFile, line: int, col: int) -> DIScope:
+        return DIScope(LLVMDIBuilderCreateLexicalBlock(
+            self,
             scope,
             file,
             line,
@@ -393,14 +394,10 @@ class DIBuilder(LLVMObject):
         ))
 
     def create_array_type(self, elem_type: DIType, bit_size: int, bit_align: int, *subranges: MDNode) -> DIType:
-        subranges_arr = (c_object_p * len(subranges))([x.ptr for x in subranges])
-
-        return DIType(LLVMDIBuilderCreateArrayType(self, bit_size, bit_align, elem_type, subranges_arr, len(subranges)))
+        return DIType(LLVMDIBuilderCreateArrayType(self, bit_size, bit_align, elem_type, create_object_array(subranges), len(subranges)))
 
     def create_vector_type(self, elem_type: DIType, bit_size: int, bit_align: int, *subranges: MDNode) -> DIType:
-        subranges_arr = (c_object_p * len(subranges))([x.ptr for x in subranges])
-
-        return DIType(LLVMDIBuilderCreateVectorType(self, bit_size, bit_align, elem_type, subranges_arr, len(subranges)))
+        return DIType(LLVMDIBuilderCreateVectorType(self, bit_size, bit_align, elem_type, create_object_array(subranges), len(subranges)))
 
     def create_basic_type(self, name: str, bit_size: int, encoding: DWARFTypeEncoding, flags: DIFlags = DIFlags.ZERO) -> DIType:
         name_bytes = name.encode()
@@ -550,7 +547,7 @@ class DIBuilder(LLVMObject):
     def create_expression(self, *addr_ops: DWARFExprOpCode) -> MDNode:
         return MDNode(ptr=LLVMDIBuilderCreateExpression(
             self, 
-            (c_uint64 * len(addr_ops))([x.value for x in addr_ops]), 
+            (c_uint64 * len(addr_ops))(*(x.value for x in addr_ops)), 
             len(addr_ops))
         )
 
@@ -602,7 +599,7 @@ class DIBuilder(LLVMObject):
     ) -> DIVariable:
         name_bytes = name.encode()
 
-        return DIVariable(
+        return DIVariable(LLVMDIBuilderCreateParameterVariable(
             self,
             scope,
             name_bytes,
@@ -613,7 +610,7 @@ class DIBuilder(LLVMObject):
             param_type,
             int(survives_optimizations),
             flags,
-        )
+        ))
     
     def insert_debug_declare(
         self,

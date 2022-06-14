@@ -102,10 +102,10 @@ class MDNode(Metadata):
         if ptr:
             super().__init__(ptr)
         else:
-            md_arr = (c_object_p * len(mds))([
+            md_arr = (c_object_p * len(mds))(*(
                 x.ptr if isinstance(x, Metadata) else Metadata.from_value(x).ptr
                 for x in mds
-            ])
+            ))
             super().__init__(LLVMMDNodeInContext2(get_context(), md_arr, len(mds)))
 
     @staticmethod
@@ -159,6 +159,9 @@ class DIFlags(Flag):
     ACCESSIBILITY = PRIVATE | PROTECTED | PUBLIC
     PTR_TO_MEMBER_REP = SINGLE_INHERITANCE | MULTIPLE_INHERITANCE | VIRTUAL_INHERITANCE
 
+    def from_param(self) -> int:
+        return self.value
+
 class DIFile(MDNode):
     def __init__(self, ptr: c_object_p):
         super().__init__(ptr=ptr)
@@ -202,7 +205,7 @@ class DILocation(MDNode):
                 line,
                 col,
                 scope,
-                inlined_at,
+                inlined_at.ptr if inlined_at else None,
             )
             
             super().__init__(ptr=loc_ptr)
@@ -382,7 +385,7 @@ def LLVMDITypeGetFlags(d_type: Metadata) -> c_enum:
     pass
 
 @llvm_api
-def LLVMDIBuilderCreateDebugLocation(ctx: Context, line: c_uint, column: c_uint, scope: DIScope, inlined_at: DILocation) -> c_object_p:
+def LLVMDIBuilderCreateDebugLocation(ctx: Context, line: c_uint, column: c_uint, scope: DIScope, inlined_at: c_object_p) -> c_object_p:
     pass
 
 @llvm_api

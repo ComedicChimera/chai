@@ -227,6 +227,7 @@ class DebugInfoEmitter:
             If `at` is a basic block, the block to insert the instruction at the end of.
         '''
 
+        # TODO scope stack
         if sym in self.local_vars:
             di_var = self.local_vars[sym]
         else:
@@ -316,11 +317,13 @@ class DebugInfoEmitter:
 
         match typ:
             case PrimitiveType():
-                pass
+                return self.dib.create_basic_type(repr(typ), typ.bit_size, get_prim_type_encoding(typ))
             case PointerType(elem_type):
-                return self.dib.create_pointer_type(elem_type, typ.bit_size, typ.bit_align)
+                return self.dib.create_pointer_type(self.as_di_type(elem_type), typ.bit_size, typ.bit_align)
             case FuncType(param_types):
                 return self.dib.create_subroutine_type(self.di_file, *map(self.as_di_type, param_types))
+            case _:
+                raise NotImplementedError()
 
     def as_di_location(self, span: Optional[TextSpan]) -> Optional[llmeta.DILocation]:
         '''Returns the given text span as a debug location.'''
@@ -337,3 +340,26 @@ class DebugInfoEmitter:
         '''Returns the current enclosing scope.'''
         
         return self.local_scope or self.di_pkg_scope
+
+
+def get_prim_type_encoding(prim_type: PrimitiveType) -> lldbg.DWARFTypeEncoding:
+    '''
+    Returns the DWARF type encoding of a primitive type.
+
+    Params
+    ------
+    prim_type: PrimitiveType
+        The primitive type whose type encoding to retrieve.
+    '''
+
+    match prim_type:
+        case PrimitiveType.I8 | PrimitiveType.I16 | PrimitiveType.I32 | PrimitiveType.I64:
+            return lldbg.DWARFTypeEncoding.SIGNED
+        case PrimitiveType.U8 | PrimitiveType.U16 | PrimitiveType.U32 | PrimitiveType.U64:
+            return lldbg.DWARFTypeEncoding.UNSIGNED
+        case PrimitiveType.F32 | PrimitiveType.F64:
+            return lldbg.DWARFTypeEncoding.FLOAT
+        case PrimitiveType.UNIT:
+            return lldbg.DWARFTypeEncoding.UNSIGNED
+        case PrimitiveType.BOOL:
+            return lldbg.DWARFTypeEncoding.BOOLEAN

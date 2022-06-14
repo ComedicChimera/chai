@@ -58,6 +58,18 @@ class TypeVariable(Type):
 
         return self.display_name
 
+    @property
+    def size(self) -> int:
+        assert self.value, 'unable to calculate size of an undetermined type variable'
+
+        return self.value.size
+
+    @property
+    def align(self) -> int:
+        assert self.value, 'unable to calculate alignment of an undetermined type variable'
+
+        return self.value.align
+
 # ---------------------------------------------------------------------------- #
 
 @dataclass
