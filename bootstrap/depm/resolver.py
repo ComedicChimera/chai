@@ -111,8 +111,32 @@ class Resolver:
     def resolve_opaque_types(self):
         '''Attempts to resolve all opaque type references.'''
 
-        # NOTE The opaque type ref package ID and name need to be updated if the
-        # symbol is imported directly (eg. `import println from io.std`)
+        # Iterate over the opaque symbol references.
+        for entry in self.opaque_refs.values():
+            src_file = entry.src_file
+
+            for otype in entry.opaque_types:
+                if otype.parent_id == src_file.parent.id:
+                    # Lookup file local symbols.
+                    if sym := src_file.lookup_symbol(otype.name):
+                        # Make sure the symbol is a type definition.
+                        if sym.kind != Symbol.Kind.TYPEDEF:
+                            self.error(src_file, f'`{sym.name} is not a type definition', otype.span)
+
+                        # Set the resolved type.
+                        otype.resolved_type = sym.type
+
+                        # Update the opaque types package information in the
+                        # case where the symbol is being imported from another
+                        # package -- by default it is assigned the current
+                        # package ID rather than its true package ID>
+                        otype.parent_id = sym.parent_id
+                        otype.parent_name = self.dep_graph[sym.parent_id].name
+                    else:
+                        self.error(src_file, f'undefined symbol: `{otype.name}`', otype.span)
+                else:
+                    # TODO handle imported symbols
+                    pass
 
     # ---------------------------------------------------------------------------- #
 

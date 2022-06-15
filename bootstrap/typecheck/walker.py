@@ -158,6 +158,8 @@ class Walker:
                 self.walk_func_def(defin)
             case OperDef():
                 self.walk_oper_def(defin)
+            case RecordTypeDef():
+                self.walk_record_def(defin)
             case _:
                 raise NotImplementedError()
 
@@ -264,6 +266,13 @@ class Walker:
             self.solver.solve()
         finally:
             self.solver.reset()
+
+    def walk_record_def(self, rec_def: RecordTypeDef):
+        # TODO validate extends (check for conflicting fields)
+
+        # TODO walk and validate initializers
+
+        pass
 
     # ---------------------------------------------------------------------------- #
 
