@@ -1,10 +1,11 @@
 from re import L
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 from report import TextSpan
 from report.reporter import CompileError
 from depm import *
 from depm.source import SourceFile
+from depm.resolver import Resolver
 from typecheck import *
 from .ast import *
 from .token import Token
@@ -30,13 +31,15 @@ SWALLOW_AFTER_TOKENS = {
 class Parser:
     src_file: SourceFile
     lexer: Lexer
+    resolver: Resolver
 
     _tok: Optional[Token] = None
     _lookbehind: Optional[Token] = None
 
-    def __init__(self, src_file: SourceFile):
+    def __init__(self, resolver: Resolver, src_file: SourceFile):
         self.src_file = src_file
         self.lexer = Lexer(src_file)
+        self.resolver = resolver
 
     def __enter__(self):
         return self
@@ -405,6 +408,104 @@ class Parser:
                 arity,
                 [overload]
             )]
+
+    def parse_record_typedef(self, annots: Annotations) -> RecordTypeDef:
+        '''
+        record_type_def := 'record' 'IDENTIFIER' [':' type {',' type}] '=' record_body ;
+        record_body := '{' record_field {record_field} '}' ;
+        '''
+
+        start_span = self.want(Token.Kind.RECORD).span
+
+        id_tok = self.want(Token.Kind.IDENTIFIER)
+
+        if self.has(Token.Kind.COLON):
+            self.advance()
+
+            extends = [self.parse_type_label()]
+            while self.has(Token.Kind.COMMA):
+                self.advance()
+                
+                extends.append(self.parse_type_label())
+        else:
+            extends = []
+
+        self.want(Token.Kind.ASSIGN)
+
+        self.want(Token.Kind.LBRACE)
+
+        fields = {}
+        field_inits = {}
+        field_annots = {}
+
+        self.parse_record_field(fields, field_inits, field_annots)
+
+        while self.has(Token.Kind.IDENTIFIER):
+            self.parse_record_field(fields, field_inits, field_annots)
+
+        end_span = self.want(Token.Kind.RBRACE).span
+
+        rec_type = RecordType(fields, extends)
+        rec_sym = Symbol(
+            id_tok.value,
+            self.src_file.parent.id,
+            self.src_file.file_number,
+            rec_type,
+            Symbol.Kind.TYPEDEF,
+            Symbol.Mutability.IMMUTABLE,
+            id_tok.span,
+        )
+
+        self.define_global(rec_sym)
+
+        return RecordTypeDef(
+            rec_sym,
+            annots,
+            TextSpan.over(start_span, end_span),
+            field_inits,
+            field_annots,
+        )
+
+    def parse_record_field(
+        self, 
+        fields: Dict[str, RecordField], 
+        field_inits: Dict[str, ASTNode], 
+        field_annots: Dict[str, Annotations]
+    ):
+        '''record_field := [annotation_def] ['const'] id_list type_ext [initializer] ;'''
+
+        if self.has(Token.Kind.ATSIGN):
+            annots = self.parse_annotation_def()
+        else:
+            annots = None
+
+        if self.has(Token.Kind.CONST):
+            self.advance()
+            const = True
+        else:
+            const = False
+
+        idents = self.parse_id_list()
+        typ = self.parse_type_ext()
+
+        if self.has(Token.Kind.ASSIGN):
+            init = self.parse_initializer()
+        else:
+            init = None
+
+        for ident in idents:
+            if ident.name in fields:
+                self.error(f'multiple fields named `{ident.name}`', ident.span)
+
+            fields[ident.name] = RecordField(ident.name, typ, const, bool(init) or typ.is_nullable)
+
+            if init:
+                field_inits[ident.name] = init
+
+            if annots:
+                field_annots[ident.name] = annots
+
+        self.want(Token.Kind.NEWLINE)
 
     # ---------------------------------------------------------------------------- #
 
@@ -907,10 +1008,11 @@ class Parser:
 
     def parse_type_label(self) -> Type:
         '''
-        type_label := prim_type_label | ptr_type_label ;
+        type_label := prim_type_label | ptr_type_label | defined_type_label ;
         prim_type_label := 'bool' | 'i8' | 'u8' | 'u16' | 'i32' | 'u32'
             | 'i64' | 'u64' | 'f32' | 'f64' | 'unit' ;
         ptr_type_label := '*' ['const'] type_label ;
+        defined_type_label := 'IDENTIFIER' ['.' 'IDENTIFIER'] ;
         '''
 
         match self.tok().kind:
@@ -946,6 +1048,28 @@ class Parser:
                     return PointerType(self.parse_type_label(), True)
 
                 return PointerType(self.parse_type_label(), False)
+            case Token.Kind.IDENTIFIER:
+                first_id_tok = self.tok()
+                self.advance()
+
+                if self.advance(Token.Kind.DOT):
+                    self.advance()
+
+                    next_id_tok = self.tok()
+                    self.advance()
+
+                    # TODO imported types
+                    raise NotImplementedError()
+                else:
+                    typ = OpaqueType(
+                        first_id_tok.value, 
+                        self.src_file.parent.id,
+                        self.src_file.parent.name,
+                        first_id_tok.span
+                    )
+
+                self.resolver.add_opaque_ref(self.src_file, typ)
+                return typ
             case _:
                 self.reject()
 

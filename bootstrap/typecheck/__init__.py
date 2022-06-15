@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict, Optional, Iterator
+from bootstrap.report import TextSpan
 
 import util
 
@@ -12,6 +13,11 @@ __all__ = [
     'PrimitiveType',
     'PointerType',
     'FuncType',
+    'DefinedType',
+    'OpaqueType',
+    'RecordType',
+    'RecordField',
+    'SynthType',
     'typedataclass'
 ]
 
@@ -80,6 +86,14 @@ class Type(ABC):
         '''Returns the alignment of the type in bits.'''
 
         return self.bit_size
+
+    # ---------------------------------------------------------------------------- #
+
+    @property
+    def is_nullable(self) -> bool:
+        '''Returns whether or not the given type is nullable.'''
+
+        return True
 
     # ---------------------------------------------------------------------------- #
 
@@ -264,6 +278,9 @@ class PointerType(Type):
     def size(self) -> int:
         return util.POINTER_SIZE
 
+    def is_nullable(self) -> bool:
+        return False
+
 @typedataclass
 class FuncType(Type):
     '''
@@ -330,6 +347,40 @@ class DefinedType(Type):
     def __repr__(self) -> str:
         return self.parent_name + '.' + self.name
 
+@typedataclass
+class OpaqueType(DefinedType):
+    '''
+    Represents a reference to a defined type which has not yet been resolved.
+
+    Attributes
+    ----------
+    span: TextSpan
+        The text span where this defined type usage occurs.
+    resolved_type: Optional[Type]
+        The resolved (concrete) defined type referenced by this opaque type.
+    '''
+
+    span: TextSpan
+    resolved_type: Optional[Type] = None
+
+    def _cast_from(self, other: 'Type') -> bool:
+        raise TypeError('unable to cast check an unresolved opaque type')
+
+    def inner_type(self) -> 'Type':
+        return self.resolved_type
+
+    @property
+    def size(self) -> int:
+        assert self.resolved_type, 'unable to calculate size of an unresolved opaque type'
+
+        return self.resolved_type.size
+
+    @property
+    def align(self) -> int:
+        assert self.resolved_type, 'unable to calculate alignment of an unresolved opaque type'
+
+        return self.resolved_type.align
+    
 @dataclass
 class RecordField:
     '''
@@ -360,16 +411,13 @@ class RecordType(DefinedType):
     Attributes
     ----------
     fields: Dict[str, RecordField]
-        The ordered dictionary of fields of the record.
+        The ordered dictionary of fields of the record ordered by name.
     extends: List[RecordType]
         The list of records this record extends.
-    packed: bool
-        Whether or not the struct is packed.
     '''
 
     fields: Dict[str, RecordField]
     extends: List['RecordType'] = field(default_factory=list)
-    packed: bool = False
 
     def _cast_from(self, other: 'Type') -> bool:
         # Records can't be cast to any other type.

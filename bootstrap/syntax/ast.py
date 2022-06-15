@@ -17,6 +17,7 @@ __all__ = [
     'Annotations',
     'FuncDef',
     'OperDef',
+    'RecordTypeDef',
     'CondBranch',
     'IfTree',
     'WhileLoop',
@@ -141,6 +142,37 @@ class OperDef(ASTNode):
     @property
     def type(self) -> Type:
         return self.oper.signature
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
+class RecordTypeDef(ASTNode):
+    '''
+    The AST node representing a record type definition.
+
+    Attributes
+    ----------
+    sym: Symbol
+        The symbol defined by the record type definition.
+    annots: Annotations
+        The record's annotations.
+    field_inits: Dict[str, ASTNode]
+        The field initializer expressions ordered by field name.
+    field_annots: Dict[str, Annotations]
+        The annotations applied to fields ordered by field name.
+    '''
+
+    sym: Symbol
+    annots: Annotations
+    _span: TextSpan
+    field_inits: Dict[str, ASTNode] = field(default_factory=dict)
+    field_annots: Dict[str, Annotations] = field(default_factory=dict)
+
+    @property
+    def type(self) -> Type:
+        return self.sym.type
 
     @property
     def span(self) -> TextSpan:
