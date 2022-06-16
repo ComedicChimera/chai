@@ -165,6 +165,7 @@ class RecordTypeDef(ASTNode):
     '''
 
     sym: Symbol
+    extend_spans: List[TextSpan]
     annots: Annotations
     _span: TextSpan
     field_inits: Dict[str, ASTNode] = field(default_factory=dict)

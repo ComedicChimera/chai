@@ -422,11 +422,19 @@ class Parser:
         if self.has(Token.Kind.COLON):
             self.advance()
 
-            extends = [self.parse_type_label()]
+            extend_start_span = self.tok().span
+            extends = [(
+                self.parse_type_label(), 
+                TextSpan.over(extend_start_span, self._lookbehind.span)
+            )]
             while self.has(Token.Kind.COMMA):
                 self.advance()
                 
-                extends.append(self.parse_type_label())
+                extend_start_span = self.tok().span
+                extends.append((
+                    self.parse_type_label(),
+                    TextSpan.over(extend_start_span, self._lookbehind.span)
+                ))
         else:
             extends = []
 
@@ -445,7 +453,7 @@ class Parser:
 
         end_span = self.want(Token.Kind.RBRACE).span
 
-        rec_type = RecordType(fields, extends)
+        rec_type = RecordType(fields, [x[0] for x in extends])
         rec_sym = Symbol(
             id_tok.value,
             self.src_file.parent.id,
@@ -460,6 +468,7 @@ class Parser:
 
         return RecordTypeDef(
             rec_sym,
+            [x[1] for x in extends],
             annots,
             TextSpan.over(start_span, end_span),
             field_inits,

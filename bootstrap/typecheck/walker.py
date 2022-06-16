@@ -268,11 +268,51 @@ class Walker:
             self.solver.reset()
 
     def walk_record_def(self, rec_def: RecordTypeDef):
-        # TODO validate extends (check for conflicting fields)
+        self.validate_record_annotations(rec_def.annots)
 
-        # TODO walk and validate initializers
+        field_names = {field_name for field_name in rec_def.type.fields}
+        for extend_type, extend_span in zip(rec_def.type.extends, rec_def.extend_spans):
+            match extend_type:
+                case OpaqueType(resolved_type=ext_res_type):
+                    if isinstance(ext_res_type, RecordType):
+                        ext_rec_type = ext_res_type
+                    else:
+                        self.error(f'{extend_type} is not a record type', extend_span)
+                case _:
+                    self.error(f'{extend_type} is not a record type', extend_span)
 
-        pass
+            for ext_field in ext_rec_type.all_fields:
+                if ext_field.name in field_names:
+                    self.error(f'extended record contains field {ext_field.name} which is already present in record', extend_span)
+                else:
+                    field_names.add(ext_field.name)
+
+        for field_name, init in rec_def.field_inits.items():
+            try:
+                self.push_scope()
+                self.push_frame()
+
+                self.walk_expr(init, True)
+                self.solver.assert_equiv(rec_def.type.fields[field_name].type, init.type, init.span)
+
+                self.pop_frame()
+                self.pop_scope()
+
+                self.solver.solve()
+            finally:
+                self.solver.reset()
+
+    def validate_record_annotations(self, rec_type: RecordType, annots: Annotations):
+        for aname, (aval, aspan) in annots:
+            match aname:
+                case 'packed':
+                    if aval != '':
+                        self.error('@packed does not take an argument', aspan)
+
+                    rec_type.packed = True
+                case 'keep_order':
+                    if aval != '':
+                        self.error('@keep_order does not take an argument', aspan)
 
     # ---------------------------------------------------------------------------- #
 

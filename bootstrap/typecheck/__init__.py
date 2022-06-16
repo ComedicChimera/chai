@@ -418,6 +418,7 @@ class RecordType(DefinedType):
 
     fields: Dict[str, RecordField]
     extends: List['RecordType'] = field(default_factory=list)
+    packed: bool = False
 
     def _cast_from(self, other: 'Type') -> bool:
         # Records can't be cast to any other type.
@@ -425,6 +426,12 @@ class RecordType(DefinedType):
 
     @property
     def size(self) -> int:
+        # Handle packed records.
+        if self.packed:
+            return sum(field.size for field in self.all_fields)
+
+        # TODO recalculate for field reordering?
+
         r_size = 0
 
         for field in self.all_fields:
