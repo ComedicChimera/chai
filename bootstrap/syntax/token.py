@@ -99,9 +99,11 @@ class Token:
         COMMA = auto()
         COLON = auto()
         SEMICOLON = auto()
-        DOT = auto()
         ARROW = auto()
         ATSIGN = auto()
+        DOT = auto()
+        RANGETO = auto()
+        SPREAD = auto()
 
         STRINGLIT = auto()
         RUNELIT = auto()

@@ -561,8 +561,24 @@ class Walker:
                 func_type = FuncType([arg.type for arg in args], rt_type_var)
                 self.solver.assert_equiv(func.type, func_type, span)
                 expr.rt_type = rt_type_var
+            case RecordInit(type_expr, field_inits, spread_init):
+                rec_type = self.walk_type_expr(type_expr).inner_type()
+
+                if not isinstance(rec_type, RecordType):
+                    self.error(f'type {rec_type} is not a record', type_expr.span)
+
+                if spread_init:
+                    self.solver.assert_equiv(rec_type, spread_init.type, spread_init.span)
+
+                for name, (name_span, init_expr) in field_inits.items():
+                    if name in rec_type.fields:
+                        # TODO check visibility
+
+                        self.solver.assert_equiv(rec_type.fields[name].type, init_expr.type, init_expr.span)
+                    else:
+                        self.error(f'record {rec_type} has no field named {name}', name_span)
             case Identifier(name, span):
-                expr.symbol, expr.local = self.lookup_symbol(name, span)
+                expr.symbol, expr.local = self.lookup_value_symbol(name, span)
             case Null():
                 expr.type = self.solver.new_type_var(expr.span)
             case Literal():
@@ -588,6 +604,20 @@ class Walker:
 
         self.solver.assert_equiv(oper_var, oper_func_type, span)
         return rt_type_var
+
+    def walk_type_expr(self, type_expr: ASTNode) -> Type:
+        match type_expr:
+            case Identifier(name, span):
+                if sym := self.src_file.lookup_symbol(name):
+                    if sym.kind != Symbol.Kind.TYPE:
+                        self.error(f'cannot use {sym.kind} as a type', span)
+
+                    type_expr.symbol = sym
+                    return sym.type
+                else:
+                    self.error(f'undefined symbol {name}', span)
+            case _:
+                self.error(f'expression does not correspond to a type', type_expr.span)
     
     # ---------------------------------------------------------------------------- #
 
@@ -654,12 +684,15 @@ class Walker:
 
         self.error(f'no visible definitions for operator `{op_token.value}`', op_token.span)
 
-    def lookup_symbol(self, name: str, span: TextSpan) -> Tuple[Symbol, bool]:
+    def lookup_value_symbol(self, name: str, span: TextSpan) -> Tuple[Symbol, bool]:
         for scope in self.scopes:
             if sym := scope.symbols.get(name):
                 return sym, True
         
         if sym := self.src_file.lookup_symbol(name):
+            if sym.kind != Symbol.Kind.VALUE:
+                self.error(f'cannot use {sym.kind} as a value', span)
+
             return sym, False
 
         self.error(f'undefined symbol: `{name}`', span)

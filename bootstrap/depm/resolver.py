@@ -120,7 +120,7 @@ class Resolver:
                     # Lookup file local symbols.
                     if sym := src_file.lookup_symbol(otype.name):
                         # Make sure the symbol is a type definition.
-                        if sym.kind != Symbol.Kind.TYPEDEF:
+                        if sym.kind != Symbol.Kind.TYPE:
                             self.error(src_file, f'`{sym.name} is not a type definition', otype.span)
 
                         # Set the resolved type.

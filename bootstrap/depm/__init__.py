@@ -51,8 +51,10 @@ class Symbol:
         '''Enumerates the different kinds of symbols.'''
 
         VALUE = auto()
-        FUNC = auto()
-        TYPEDEF = auto()
+        TYPE = auto()
+
+        def __str__(self) -> str:
+            return self.name.lower()
 
     class Mutability(Enum):
         '''

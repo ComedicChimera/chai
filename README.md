@@ -117,6 +117,7 @@ perfectly up to date but should help to give some idea of where we are.
 ### Target 4:
 
 - [ ] Record Definitions
+- [ ] Record Initializer Expressions
 - [ ] The `.` Operator
 - [ ] Aliases
 - [ ] Newtypes

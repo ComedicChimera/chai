@@ -49,12 +49,12 @@ class TypeVariable(Type):
 
         return self.value.inner_type()
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         if self.value:
-            return repr(self.value)
+            return str(self.value)
 
         if not self.display_name:
-            return self._parent.repr_unnamed_type_var(self)
+            return self._parent.str_for_unnamed_type_var(self)
 
         return self.display_name
 
@@ -766,7 +766,7 @@ class Solver:
 
         raise CompileError(msg, self.src_file, span)
 
-    def repr_unnamed_type_var(self, tv: TypeVariable) -> str:
+    def str_for_unnamed_type_var(self, tv: TypeVariable) -> str:
         '''
         Returns the string representation of an unnamed type variable.
 

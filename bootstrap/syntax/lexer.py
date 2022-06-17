@@ -105,9 +105,11 @@ SYMBOLS = {
     ',': Token.Kind.COMMA,
     ':': Token.Kind.COLON,
     ';': Token.Kind.SEMICOLON,
-    '.': Token.Kind.DOT,
     '=>': Token.Kind.ARROW,
     '@': Token.Kind.ATSIGN,
+    '.': Token.Kind.DOT,
+    '..': Token.Kind.RANGETO,
+    '...': Token.Kind.SPREAD
 }
 
 class Lexer:

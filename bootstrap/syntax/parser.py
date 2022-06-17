@@ -189,7 +189,7 @@ class Parser:
             self.src_file.parent.id, 
             self.src_file.file_number,
             func_type, 
-            Symbol.Kind.FUNC, 
+            Symbol.Kind.VALUE, 
             Symbol.Mutability.IMMUTABLE, 
             func_id.span,
             'intrinsic' in annots,
@@ -459,7 +459,7 @@ class Parser:
             self.src_file.parent.id,
             self.src_file.file_number,
             rec_type,
-            Symbol.Kind.TYPEDEF,
+            Symbol.Kind.TYPE,
             Symbol.Mutability.IMMUTABLE,
             id_tok.span,
         )
@@ -919,29 +919,78 @@ class Parser:
     def parse_atom_expr(self) -> ASTNode:
         '''
         atom_expr := atom {trailer}
-        trailer := '(' expr_list ')' ;
+        trailer := '(' expr_list ')' | record_init ;
         '''
 
         atom_expr = self.parse_atom()
 
-        match self.tok(False).kind:
-            case Token.Kind.LPAREN:
-                self.advance()
+        while True:
+            match self.tok(False).kind:
+                case Token.Kind.LPAREN:
+                    self.advance()
 
-                if not self.has(Token.Kind.RPAREN):    
-                    args_list = self.parse_expr_list()
-                else:
-                    args_list = []
+                    if not self.has(Token.Kind.RPAREN):    
+                        args_list = self.parse_expr_list()
+                    else:
+                        args_list = []
 
-                rparen = self.want(Token.Kind.RPAREN)
+                    rparen = self.want(Token.Kind.RPAREN)
 
-                atom_expr = FuncCall(
-                    atom_expr, 
-                    args_list,
-                    TextSpan.over(atom_expr.span, rparen.span)
-                )
+                    atom_expr = FuncCall(
+                        atom_expr, 
+                        args_list,
+                        TextSpan.over(atom_expr.span, rparen.span)
+                    )
+                case Token.Kind.LBRACE:
+                    atom_expr = self.parse_record_init(atom_expr)
+                case _:
+                    break
 
         return atom_expr
+
+    def parse_record_init(self, atom: ASTNode) -> ASTNode:
+        '''
+        record_init := '{' ['...' expr ',' field_inits | field_inits] '}' ;
+        field_inits := 'IDENTIFIER' initializer {',' 'IDENTIFIER' initializer} ;
+        '''
+
+        field_inits = {}
+
+        def parse_field_inits():
+            while True:
+                field_id = self.want(Token.Kind.IDENTIFIER)
+
+                if field_id.value in field_inits:
+                    self.error(f'field {field_id.value} initialized multiple times', field_id.span)
+
+                init_expr = self.parse_initializer()
+
+                field_inits[field_id.value] = (field_id.span, init_expr)
+
+                if self.has(Token.Kind.COMMA):
+                    self.advance()
+                else:
+                    break
+
+        start_span = self.want(Token.Kind.LBRACE).span
+
+        if self.has(Token.Kind.SPREAD):
+            self.advance()
+            spread_init = self.parse_expr()
+
+            self.want(Token.Kind.COMMA)
+
+            parse_field_inits()
+        elif self.has(Token.Kind.IDENTIFIER):
+            parse_field_inits()
+
+            spread_init = None
+        else:
+            spread_init = None
+
+        end_span = self.want(Token.Kind.RBRACE).span
+
+        return RecordInit(atom, field_inits, spread_init, TextSpan.over(start_span, end_span))
 
     def parse_atom(self) -> ASTNode:
         '''

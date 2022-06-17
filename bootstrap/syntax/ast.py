@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Optional, Dict, Tuple
 
-from typecheck import Type, PrimitiveType, PointerType
+from typecheck import Type, PrimitiveType
 from report import TextSpan
 from depm import Symbol, OperatorOverload
 from .token import Token
@@ -34,6 +34,7 @@ __all__ = [
     'Indirect',
     'Dereference',
     'FuncCall',
+    'RecordInit',
     'Identifier',
     'Literal',
     'Null'
@@ -608,6 +609,37 @@ class FuncCall(ASTNode):
     @property
     def type(self) -> Type:
         return self.rt_type
+
+    @property
+    def span(self) -> TextSpan:
+        return self._span
+
+@dataclass
+class RecordInit(ASTNode):
+    '''
+    The AST node representing a record initialization expression.
+
+    Attributes
+    ----------
+    type_expr: ASTNode
+        The AST expression corresponding to the record type we want to
+        initialize.
+    field_inits: Dict[str, Tuple[TextSpan, ASTNode]]
+        The field initializers organized by name.  The value is a tuple
+        comprised of the text span of the field name and AST expr initializing
+        the field.
+    spread_init: Optional[ASTNode]
+        The spread initializer if it exists.
+    '''
+
+    type_expr: ASTNode
+    field_inits: Dict[str, Tuple[TextSpan, ASTNode]]
+    spread_init: Optional[ASTNode]
+    _span: TextSpan
+
+    @property
+    def type(self) -> Type:
+        return self.type_expr.type
 
     @property
     def span(self) -> TextSpan:
