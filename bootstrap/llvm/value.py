@@ -2,8 +2,8 @@ from ctypes import c_char_p, c_double, c_size_t, c_int, POINTER, byref, c_uint, 
 from enum import auto
 from typing import Iterator
 
-from . import LLVMObject, LLVMEnum, llvm_api, c_object_p, c_enum
-from .types import Int1Type, IntegerType, Type
+from . import *
+from .types import Int1Type, IntegerType, Type, StructType
 
 class Value(LLVMObject):
     class Kind(LLVMEnum):
@@ -138,6 +138,42 @@ class Constant(Value):
     @staticmethod
     def Bool(b: bool) -> 'Constant':
         return Constant.Int(Int1Type(), int(b))
+
+    @staticmethod
+    def String(s: str, null_terminate: bool = False) -> 'Constant':
+        s_bytes = s.encode()
+
+        return Constant(LLVMConstStringInContext(
+            get_context(),
+            s_bytes,
+            len(s),
+            int(not null_terminate)
+        ))
+
+    @staticmethod
+    def AnonymousStruct(*values: 'Constant', packed: bool = False) -> 'Constant':
+        return Constant(LLVMConstStructInContext(
+            get_context(),
+            create_object_array(values),
+            len(values),
+            int(packed)
+        ))
+
+    @staticmethod
+    def NamedStruct(typ: StructType, *values: 'Constant') -> 'Constant':
+        return Constant(LLVMConstNamedStruct(
+            typ,
+            create_object_array(values),
+            len(values)
+        ))
+
+    @staticmethod
+    def Array(elem_typ: Type, *values: 'Constant') -> 'Constant':
+        return Constant(LLVMConstArray(
+            elem_typ,
+            create_object_array(values),
+            len(values)
+        ))
 
     @property
     def null(self) -> bool:
@@ -356,4 +392,20 @@ def LLVMGetAlignment(val: Value) -> c_uint:
 
 @llvm_api
 def LLVMSetAlignment(val: Value, align: c_uint):
+    pass
+
+@llvm_api
+def LLVMConstStringInContext(ctx: Context, str: c_char_p, len: c_uint, dont_null_term: c_enum) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMConstStructInContext(ctx: Context, vals: POINTER(c_char_p), count: c_uint, packed: c_enum) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMConstArray(elem_typ: Type, vals: POINTER(c_char_p), len: c_uint) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMConstNamedStruct(struct_typ: StructType, vals: POINTER(c_char_p), len: c_uint) -> c_object_p:
     pass

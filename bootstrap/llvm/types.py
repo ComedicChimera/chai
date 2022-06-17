@@ -1,6 +1,7 @@
-from ctypes import c_uint, POINTER
+from ctypes import c_uint, POINTER, c_char_p
 from enum import auto
-from typing import List, Optional, Callable
+from struct import Struct
+from typing import List, Optional, Iterator
 
 from . import *
 
@@ -118,6 +119,86 @@ class PointerType(Type):
     def addr_space(self) -> int:
         return LLVMGetPointerAddressSpace(self)
 
+class StructType(Type):
+    def __init__(self, *elements: Type, name: str = "", packed: bool = False, ptr: Optional[c_object_p] = None):
+        if not ptr:  
+            if name:
+                ptr = LLVMStructCreateNamed(get_context(), name.encode())
+                LLVMStructSetBody(ptr, create_object_array(elements), len(elements), int(packed))
+            else:
+                ptr = LLVMStructTypeInContext(get_context(), create_object_array(elements), len(elements), int(packed))
+
+        super().__init__(self, ptr)
+
+    @staticmethod
+    def from_type(typ: Type) -> 'StructType':
+        assert typ.kind == Type.Kind.STRUCT
+
+        return Struct(ptr=typ.ptr)
+
+    @property
+    def name(self) -> str:
+        return str(LLVMGetStructName(self), encoding='utf-8')
+
+    @property
+    def packed(self) -> bool:
+        return bool(LLVMIsPackedStruct(self))
+
+    @property
+    def opaque(self) -> bool:
+        return bool(LLVMIsOpaqueStruct(self))
+
+    @property
+    def literal(self) -> bool:
+        return bool(LLVMIsLiteralStruct(self))
+
+    class _StructElements:
+        struct: 'StructType'
+
+        def __init__(self, struct: 'StructType'):
+            self.struct = struct
+
+        def __len__(self) -> int:
+            return LLVMCountStructElementTypes(self.struct)
+
+        def __getitem__(self, ndx: int) -> Type:
+            if 0 <= ndx < len(self):
+                return Type(LLVMStructGetTypeAtIndex(ndx))
+
+            raise IndexError(ndx)
+
+        def __iter__(self) -> Iterator[Type]:
+            for i in range(len(self)):
+                yield Type(LLVMStructGetTypeAtIndex(i))
+
+        def __reversed__(self) -> Iterator[Type]:
+            for i in range(len(self)-1, -1, -1):
+                yield Type(LLVMStructGetTypeAtIndex(i))
+
+    @property
+    def elements(self) -> _StructElements:
+        return StructType._StructElements(self)
+
+class ArrayType(Type):
+    def __init__(self, elem_type: Type, elem_count: int, ptr: Optional[c_object_p] = None):
+        if not ptr:
+            ptr = LLVMArrayType(elem_type, elem_count)
+
+        super().__init__(ptr)
+
+    @staticmethod
+    def from_type(typ: Type) -> 'ArrayType':
+        assert typ.kind == Type.Kind.ARRAY
+
+        return ArrayType(None, 0, ptr=typ.ptr)
+
+    @property
+    def elem_type(self) -> Type:
+        return Type(LLVMGetElementType(self))
+
+    def __len__(self) -> int:
+        return LLVMGetArrayLength(self)
+
 # ---------------------------------------------------------------------------- #
 
 @llvm_api
@@ -211,6 +292,54 @@ def LLVMLabelTypeInContext(ctx: Context) -> c_object_p:
 
 @llvm_api
 def LLVMMetadataTypeInContext(ctx: Context) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMStructTypeInContext(ctx: Context, elem_types: POINTER(c_object_p), elem_count: c_uint, packed: c_enum) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMStructCreateNamed(ctx: Context, name: c_char_p) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetStructName(typ: StructType) -> c_char_p:
+    pass
+
+@llvm_api
+def LLVMStructSetBody(typ: StructType, elem_types: POINTER(c_object_p), elem_count: c_uint, packed: c_enum) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMCountStructElementTypes(typ: StructType) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMStructGetTypeAtIndex(typ: StructType, ndx: c_uint) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMIsPackedStruct(typ: StructType) -> c_enum:
+    pass
+
+@llvm_api
+def LLVMIsOpaqueStruct(typ: StructType) -> c_enum:
+    pass
+
+@llvm_api
+def LLVMIsLiteralStruct(typ: StructType) -> c_enum:
+    pass
+
+@llvm_api
+def LLVMGetElementType(typ: ArrayType) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMArrayType(elem_type: Type, elem_count: c_uint) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMGetArrayLength(typ: ArrayType) -> c_uint:
     pass
 
 # ---------------------------------------------------------------------------- #

@@ -124,6 +124,7 @@ perfectly up to date but should help to give some idea of where we are.
 
 ### Target 5:
 
+- [ ] Full Package Implementation
 - [ ] Import Statements and Import Resolution
 - [ ] Visibility (`pub` keyword)
 - [ ] The Prelude
