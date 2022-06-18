@@ -2,11 +2,12 @@
 
 __all__ = [
     'BodyPredicate',
+    'RecordInfo',
     'PredicateGenerator'
 ]
 
 import contextlib
-from typing import List, Optional, Deque 
+from typing import List, Optional, Deque, Dict
 from dataclasses import dataclass
 from collections import deque
 
@@ -105,6 +106,22 @@ class LHSLLData:
     value_ptr: llvalue.Value
     di_expr: llmeta.MDNode
 
+@dataclass
+class RecordInfo:
+    '''
+    Responsible for storing the info used to generate code using records.
+
+    Params
+    ------
+    field_ndx_table: Dict[str, int]
+        Maps field names to their resultant indices in the LLVM struct.
+    initializers: Dict[str, ASTNode]
+        The table of initializers for the record.
+    '''
+
+    field_ndx_table: Dict[str, int]
+    initializers: Dict[str, ASTNode]
+
 # ---------------------------------------------------------------------------- #
 
 class PredicateGenerator:
@@ -115,6 +132,7 @@ class PredicateGenerator:
     Methods
     -------
     add_predicate(pred: BodyPredicate)
+    add_record_info(rec_type: RecordType, info: RecordInfo)
     generate()
     '''
 
@@ -123,6 +141,9 @@ class PredicateGenerator:
 
     # The LLVM debug info emitter: may be None if no info is to be emitted.
     die: Optional[DebugInfoEmitter]
+
+    # The table of record information.  The key is (package_id, rec_name).
+    record_info_table: Dict[(int, str), RecordInfo]
 
     # The block at the start of the predicate used to store the actual variable
     # allocations: the compiler automatically factors all variable allocations
@@ -158,6 +179,8 @@ class PredicateGenerator:
         self.irb = IRBuilder()
         self.die = die
 
+        self.record_info_table = {}
+
         self.loop_contexts = deque()
         self.unit_value = llvalue.Constant.Null(lltypes.Int1Type())
         self.body_preds = []
@@ -175,6 +198,20 @@ class PredicateGenerator:
         # Predicate is a body predicate...
         if isinstance(pred, BodyPredicate):
             self.body_preds.append(pred)
+
+    def add_record_info(self, rec_type: RecordType, info: RecordInfo):
+        '''
+        Adds record information to the predicate generator.
+
+        Params
+        ------
+        rec_type: RecordType
+            The record type whose information to add.
+        info: RecordInfo
+            The record information table entry.
+        '''
+
+        self.record_info_table[(rec_type.parent_id, rec_type.name)] = info
 
     def generate(self):
         '''Generates all the added predicates.'''

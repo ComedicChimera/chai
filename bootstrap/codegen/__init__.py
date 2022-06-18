@@ -4,8 +4,6 @@ The main backend of the Chai compiler: responsible for converting Chai into LLVM
 
 __all__ = ['Generator']
 
-from typing import Optional
-
 import llvm.value as llvalue
 import llvm.types as lltypes
 from llvm.module import Module as LLModule
@@ -13,7 +11,7 @@ from depm.source import Package
 from syntax.ast import *
 
 from .type_util import conv_type, is_unit
-from .predicate import BodyPredicate, PredicateGenerator
+from .predicate import *
 from .debug_info import DebugInfoEmitter
 
 class Generator:
@@ -129,7 +127,7 @@ class Generator:
         # Create the LLVM function type.
         ll_func_type = lltypes.FunctionType(
             [conv_type(x.type) for x in fd.params],
-            conv_type(fd.type.rt_type, rt_type=True)
+            conv_type(fd.type.inner_type().rt_type, rt_type=True)
         )
 
         # Create the LLVM function.
@@ -176,7 +174,7 @@ class Generator:
         # Generate the function type for the operator definition.
         ll_func_type = lltypes.FunctionType(
             [conv_type(x.type) for x in od.params],
-            conv_type(od.type.rt_type, rt_type=True)
+            conv_type(od.type.inner_type().rt_type, rt_type=True)
         )
 
         # Generate the LLVM function for the operator definition.
@@ -200,3 +198,98 @@ class Generator:
 
         # Emit operator debug info.
         ll_func.di_sub_program = self.die.emit_oper_info(od, ll_name)
+
+    def generate_record_type_def(self, rtd: RecordTypeDef):
+        '''
+        Generates a record type definition.
+
+        Params
+        ------
+        rtd: RecordTypeDef
+            The record type definition.
+        '''
+
+        # Get the associated record type.
+        rec_type = rtd.type.inner_type() 
+        
+        # Determine the order in which to generate fields.
+        if 'keep_order' in rtd.annots:
+            fields = rec_type.all_fields
+        else:
+            # Unless the user has indicated otherwise, we want to reorder fields
+            # to minimize alignment padding. 
+
+            # First, we sort the fields in descending order by size.
+            sorted_fields = sorted(
+                rec_type.all_fields, 
+                key=lambda x: x[1].size, 
+                reverse=True
+            )
+
+            # Then, until we have added all fields to the struct...
+            fields = []
+            current_offset = 0
+            while len(sorted_fields) > 0:
+                # The maximum offset % align which is corresponds to minimum
+                # padding required to insert a field.
+                max_mod = 0
+
+                # The field index in the sorted fields list with the minimum
+                # padding needed for it be inserted aligned.
+                min_padding_i = 0
+
+                # We consider each field which hasn't yet be inserted in order
+                # from largest to smallest size (this is generally more
+                # efficient).
+                for i in range(len(sorted_fields)):
+                    field = sorted_fields[i]
+
+                    mod = current_offset % field.type.align
+ 
+                    if mod == 0:
+                        # If the field can be inserted with no padding, we add
+                        # it to the struct fields, remove it from the list of
+                        # remaining fields, and stop searching.
+                        fields.append(field)
+                        sorted_fields.pop(i)
+                        break
+                    elif max_mod < mod:
+                        # Otherwise, if the padding needed to insert this field
+                        # is less than the minimum padding needed to insert any
+                        # other field we have considered so far, we mark it as
+                        # the field to insert if we can't find any zero padding
+                        # fields and record its minimum padding value
+                        # (represented by its offset % align).
+                        min_padding_i = i
+                        max_mod = mod
+                else:
+                    # If no zero padding field can be found, we insert the field
+                    # with minimum alignment padding.
+                    fields.append(sorted_fields.pop(min_padding_i))
+
+        # We then create an LLVM struct based on the record fields.
+        ll_struct = lltypes.StructType(
+            *(conv_type(field.type) for field in fields), 
+            name=self.pkg_prefix + rtd.sym.name,
+            packed="packed" in rtd.annots
+        )
+
+        # Update the record types `ll_type` appropriately.
+        rec_type.ll_type = ll_struct
+
+        # Add a record data info entry.
+        self.pred_gen.add_record_info(rec_type, RecordInfo(
+            {field.name: i for i, field in enumerate(fields)},
+            rtd.field_inits
+        ))
+
+        # Update the record type's alignment: the first field is always the
+        # largest field in the struct; therefore, it is the field determining
+        # the alignment.
+        rec_type.align = fields[0].type.align
+
+                    
+                
+
+
+

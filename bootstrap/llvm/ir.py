@@ -1,6 +1,6 @@
 from ctypes import c_char_p, c_uint, POINTER, byref, c_uint64
 from dataclasses import dataclass
-from typing import Iterator, Optional, Dict
+from typing import Iterator, Optional, Dict, Tuple
 from enum import Enum, auto
 from abc import ABC, abstractmethod
 
@@ -590,6 +590,10 @@ class GEPInstruction(Instruction):
     def in_bounds(self, in_bounds: bool):
         LLVMSetIsInBounds(self, int(in_bounds))
 
+    @property
+    def source_elem_type(self):
+        return Type(LLVMGetGEPSourceElementType(self))
+
     @staticmethod
     def from_instr(instr: Instruction) -> 'GEPInstruction':
         assert instr.opcode == OpCode.GET_ELEMENT_PTR
@@ -645,6 +649,22 @@ class PHINodeInstruction(Instruction):
     @property
     def incoming(self) -> _IncomingList:
         return PHINodeInstruction._IncomingList(self)
+
+class InsertValueInstruction(Instruction):
+    def __init__(self, ptr: c_object_p):
+        super().__init__(ptr)
+
+    @property
+    def indices(self) -> Tuple[int]:
+        ndx_ptr = LLVMGetIndices(self)
+
+        return tuple(ndx_ptr[i] for i in range(LLVMGetNumIndices(self)))
+
+    @staticmethod
+    def from_instr(inst: Instruction) -> 'InsertValueInstruction':
+        assert inst.opcode == OpCode.INSERT_VALUE
+
+        return InsertValueInstruction(inst.ptr)
 
 # ---------------------------------------------------------------------------- # 
 
@@ -1155,3 +1175,15 @@ def LLVMGetSubprogram(func: Function) -> c_object_p:
 @llvm_api
 def LLVMSetSubprogram(func: Function, dsp: DISubprogram):
     pass 
+
+@llvm_api
+def LLVMGetNumIndices(inst: InsertValueInstruction) -> c_uint:
+    pass
+
+@llvm_api
+def LLVMGetIndices(inst: InsertValueInstruction) -> POINTER(c_uint):
+    pass
+
+@llvm_api
+def LLVMGetGEPSourceElementType(inst: GEPInstruction) -> c_object_p:
+    pass

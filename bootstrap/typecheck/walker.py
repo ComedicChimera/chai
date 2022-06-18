@@ -565,10 +565,14 @@ class Walker:
                 rec_type = self.walk_type_expr(type_expr).inner_type()
 
                 if not isinstance(rec_type, RecordType):
-                    self.error(f'type {rec_type} is not a record', type_expr.span)
+                    self.error(f'type `{rec_type}` is not a record', type_expr.span)
 
                 if spread_init:
                     self.solver.assert_equiv(rec_type, spread_init.type, spread_init.span)
+                else:
+                    for field in rec_type.all_fields:
+                        if field.requires_init and field.name not in field_inits:
+                            self.error(f'field `{field.name}` requires an initializer', expr.span)
 
                 for name, (name_span, init_expr) in field_inits.items():
                     if name in rec_type.fields:
@@ -576,7 +580,7 @@ class Walker:
 
                         self.solver.assert_equiv(rec_type.fields[name].type, init_expr.type, init_expr.span)
                     else:
-                        self.error(f'record {rec_type} has no field named {name}', name_span)
+                        self.error(f'record {rec_type} has no field named `{name}`', name_span)     
             case Identifier(name, span):
                 expr.symbol, expr.local = self.lookup_value_symbol(name, span)
             case Null():

@@ -151,7 +151,7 @@ class Constant(Value):
         ))
 
     @staticmethod
-    def AnonymousStruct(*values: 'Constant', packed: bool = False) -> 'Constant':
+    def AnonymousStruct(*values: Value, packed: bool = False) -> 'Constant':
         return Constant(LLVMConstStructInContext(
             get_context(),
             create_object_array(values),
@@ -160,7 +160,7 @@ class Constant(Value):
         ))
 
     @staticmethod
-    def NamedStruct(typ: StructType, *values: 'Constant') -> 'Constant':
+    def NamedStruct(typ: StructType, *values: Value) -> 'Constant':
         return Constant(LLVMConstNamedStruct(
             typ,
             create_object_array(values),
@@ -168,7 +168,7 @@ class Constant(Value):
         ))
 
     @staticmethod
-    def Array(elem_typ: Type, *values: 'Constant') -> 'Constant':
+    def Array(elem_typ: Type, *values: Value) -> 'Constant':
         return Constant(LLVMConstArray(
             elem_typ,
             create_object_array(values),

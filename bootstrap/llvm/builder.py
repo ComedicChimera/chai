@@ -243,6 +243,12 @@ class IRBuilder(LLVMObject):
     def build_is_not_null(self, val: Value, name: str = "") -> Instruction:
         return Instruction(LLVMBuildIsNotNull(self, val, name.encode()))
 
+    def build_insert_value(self, struct_val: Value, field_ndx: int, field_val: Value, name: str = "") -> InsertValueInstruction:
+        return InsertValueInstruction(LLVMBuildInsertValue(struct_val, field_val, field_ndx, name.encode()))
+
+    def build_extract_value(self, struct_val: Value, field_ndx: int, name: str = "") -> Instruction:
+        return LLVMBuildExtractValue(struct_val, field_ndx, name.encode())
+
 # ---------------------------------------------------------------------------- #
 
 @llvm_api
@@ -541,4 +547,12 @@ def LLVMGetCurrentDebugLocation2(builder: IRBuilder) -> c_object_p:
 
 @llvm_api
 def LLVMSetCurrentDebugLocation2(builder: IRBuilder, loc: c_object_p):
+    pass
+
+@llvm_api
+def LLVMBuildInsertValue(builder: IRBuilder, agg_val: Value, elt_val: Value, ndx: c_uint, name: c_char_p) -> c_object_p:
+    pass
+
+@llvm_api
+def LLVMBuildExtractValue(builder: IRBuilder, agg_val: Value, ndx: c_uint, name: c_char_p) -> c_object_p:
     pass

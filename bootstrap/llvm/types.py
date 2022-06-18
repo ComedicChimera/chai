@@ -1,6 +1,5 @@
 from ctypes import c_uint, POINTER, c_char_p
 from enum import auto
-from struct import Struct
 from typing import List, Optional, Iterator
 
 from . import *
@@ -134,7 +133,7 @@ class StructType(Type):
     def from_type(typ: Type) -> 'StructType':
         assert typ.kind == Type.Kind.STRUCT
 
-        return Struct(ptr=typ.ptr)
+        return StructType(ptr=typ.ptr)
 
     @property
     def name(self) -> str:

@@ -4,9 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict, Optional, Iterator
-from bootstrap.report import TextSpan
 
 import util
+import llvm.types as lltypes
+
+from report import TextSpan
 
 __all__ = [
     'Type',
@@ -327,11 +329,15 @@ class DefinedType(Type):
         The ID of the parent package to this type.
     parent_name: str
         The name of the parent package to this type.
+    ll_type: Optional[lltypes.Type]
+        The LLVM type corresponding to this defined type.  This will be `None`
+        until code generation begins.
     '''
 
     name: str
     parent_id: int
     parent_name: str
+    ll_type: Optional[lltypes.Type] = None
 
     def _equals(self, other: Type) -> bool:
         if isinstance(other, DefinedType):
@@ -396,7 +402,7 @@ class RecordField:
     name: str
     type: Type
     const: bool 
-    requires_init: bool
+    requires_init: bool 
 
 @typedataclass
 class RecordType(DefinedType):
@@ -409,6 +415,8 @@ class RecordType(DefinedType):
         The ordered dictionary of fields of the record ordered by name.
     extends: List[RecordType]
         The list of records this record extends.
+    packed: bool
+        Whether or not the record type is packed.
     '''
 
     fields: Dict[str, RecordField]
