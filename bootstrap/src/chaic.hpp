@@ -8,6 +8,8 @@
 #include <format>
 #include <filesystem>
 
+#include "report.hpp"
+#include "types.hpp"
 
 // The full name of the compiler.
 #define CHAI_NAME "chaic (x86_64-windows-msvc)"
@@ -17,6 +19,40 @@
 
 namespace chai {
     class ChaiFile;
+
+    /* ---------------------------------------------------------------------- */
+
+    // Enumerates the various symbol kinds.
+    enum class SymbolKind {
+        VALUE, // A variable or constant.
+        FUNC   // A function.
+    };
+
+    // Symbol represents a Chai symbol.
+    class Symbol {
+        // The name of the symbol.
+        std::string m_name;
+
+        // The type of the symbol.
+        std::unique_ptr<Type> m_type;
+    public:
+        // The parent Chai package to this symbol.
+        ChaiPackage* parent;
+
+        // The kind of the symbol.
+        SymbolKind kind;
+
+        // The span where the symbol is defined.
+        TextSpan defSpan;
+
+        // Returns a view to the name of the symbol.
+        inline std::string_view name() const { return m_name; }
+
+        // Returns the type of the symbol.
+        inline Type* type() const { return m_type.get(); }
+    };
+
+    /* ---------------------------------------------------------------------- */
 
     // ChaiPackage represents a Chai package: a collection of Chai source files
     // which share a common global namespace.  This is the minimum Chai
@@ -56,6 +92,9 @@ namespace chai {
 
         // The display path of the Chai file.
         std::string m_displayPath;
+        
+        // The global symbol table for the package.
+        std::unordered_map<std::string_view, std::unique_ptr<Symbol>> m_symbolTable;
     public:
         // The parent package to the Chai file.
         ChaiPackage* parent;
