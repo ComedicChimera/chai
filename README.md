@@ -84,105 +84,7 @@ perfectly up to date but should help to give some idea of where we are.
 
 *NOTE: This section refers to progress on the bootstrap compiler.*
 
-### Target 1:
-
-- [x] Function Definitions
-- [x] Basic Annotations
-- [x] Blocks and Variables
-- [x] Function Calls
-- [x] Bool, Int, Float, and Rune Literals
-- [x] Graceful Shutdown
-- [x] Naive Pointers
-
-### Target 2:
-
-- [x] Operator Definitions
-- [x] Arithmetic Operators
-- [x] Bitwise Operators
-- [x] Conditional and Logical Operators
-- [x] Const Pointers
-- [x] Assignment
-- [x] Constants
-- [x] If/Elif/Else
-- [x] While Loops
-- [x] Break, Continue, and Return
-
-### Target 3:
-
-- [x] LLVM Debug + Metadata Bindings
-- [x] Generate debug info for all constructs so far
-
-*Note:* Debug info will be included on all constructs from here on.
-
-### Target 4:
-
-- [ ] Record Definitions
-- [ ] Record Initializer Expressions
-- [ ] The `.` Operator
-- [ ] Aliases
-- [ ] Newtypes
-- [ ] Strings and String Literals
-
-### Target 5:
-
-- [ ] Full Package Implementation
-- [ ] Import Statements and Import Resolution
-- [ ] Visibility (`pub` keyword)
-- [ ] The Prelude
-- [ ] The Main Function (full implementation)
-- [ ] Global Variables
-
-### Target 6:
-
-- [ ] Allocator (`malloc`, `realloc`, `free`)
-- [ ] Garbage Collector (`gc_malloc`, `gc_realloc`)
-- [ ] Safe Referencing and Dereferencing (escape analysis, etc.)
-- [ ] Nullability and `core.unsafe`
-- [ ] Proper Signal and Panic Handling
-
-### Target 7:
-
-- [ ] Type Generics
-- [ ] Function and Operator Generics
-- [ ] Buffer Types
-
-### Target 8:
-
-- [ ] Function Spaces
-- [ ] Built-in String Space
-- [ ] Built-in Buffer Space
-- [ ] Type Classes
-- [ ] Type Unions
-
-### Target 9:
-
-- [ ] Lists
-- [ ] Dictionaries
-- [ ] Sequences and Iterators
-- [ ] For Loops
-- [ ] Loop Generators
-
-### Target 10:
-
-- [ ] Tuples
-- [ ] Tuple Pattern Matching
-- [ ] Sum Types
-- [ ] Sum Pattern Matching
-- [ ] Hybrid Types
-- [ ] Record Pattern Matching
-
-### Target 11:
-
-- [ ] `Monad`
-- [ ] `Option` and `Result`
-- [ ] Monadic Operators
-
-### Target 12:
-
-- [ ] `require` directive
-- [ ] `cffi` package
-- [ ] C Binding Compiler Flags
-- [ ] `csrc` directive
+TODO
 
 ## <a name="building"> Building the Compiler
 
@@ -231,16 +133,18 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-The compiler is being bootstrapped.  I am going to write a Python implementation
-of the compiler using the LLVM C API with Python's `ctypes` module.  This
-compiler may exclude some features not necessary to implement the compiler.
-Once that is finished, a full Chai compiler will be implemented in Chai
-rendering the language fully self-hosting. Eventually, the compiler will be able
-to compile itself.
+The compiler is being bootstrapped.  I am going to write a c++ implementation of
+the compiler using the C++ LLVM library.  This compiler may exclude some
+features not necessary to implement the compiler. Once that is finished, a full
+Chai compiler will be implemented in Chai rendering the language fully
+self-hosting. Eventually, the compiler will be able to compile itself.
 
-The `bootstrap` directory contains the Python implementation.  Once that
+The `bootstrap` directory contains the c++ implementation.  Once that
 implementation is finished, the `compiler` directory will contain the actual
 self-hosted (and final) version of the compiler.
+
+Note that bootstrapping is only the plan as of now.  I may decide to just use
+the C++ compiler for the forseeable future.
 
 ### <a name="whirlwind"> Whirlwind
 

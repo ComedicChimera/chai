@@ -1,6 +1,6 @@
 **/__pycache__/
 .vscode/
-bin/
+bootstrap/out
 tools/llvm-build
 tools/bin
 *.exe

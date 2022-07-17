@@ -1,0 +1,18 @@
+package target1_test;
+
+func _start() {
+    main();
+    exit(0);
+}
+
+func main() {
+    let stdout = get_stdout();
+
+    putc(stdout, 'H');
+    putc(stdout, 'e');
+    putc(stdout, 'l');
+    putc(stdout, 'l');
+    putc(stdout, 'o');
+    putc(stdout, '!');
+    putc(stdout, '\n');
+}

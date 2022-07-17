@@ -1,0 +1,52 @@
+// Comments
+
+// Nice meme
+
+hello /* there */ my man
+
+/*hello
+king
+what's'
+poppin*/
+
+// Operators and Punctuation
+
++ * - / -- ++ = . , ; () { } 
+! @ ** & && || ^ | 
+
+// Identifiers and Keywords
+
+func let const
+oper as i32 i64 u16 
+continue break 
+
+yo whats_up  MY_MAN
+_hey _1234 MyBiggestBeanLord
+Chimera25672 M_v123ar
+
+// Numbers
+
+1231 23.123  23e67  678E-12 26.5434e23
+
+65_1234_12 1_000_000_000
+
+0b101 0o4521 0b111_01101
+
+0x234AFe 0x531bcEfa 0x543.253 0x756pA 0x6b4.53P-1A3
+
+// Runes
+' ' 'a' '1' '\v' '\f' '\0' '\''
+
+// Standard Strings
+"test"  "" " " "Hello There!~"
+"Hello\n" "vty\t\"lol" "Z35124\\"
+"\' TUV" "//" "EOR"
+
+// Raw Strings
+`hello there`
+
+`hey
+what's
+up`
+
+`\\ x` ` as \` ve ` `\\`

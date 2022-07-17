@@ -1,0 +1,6 @@
+package target1_test;
+
+// Builtin Operators
+
+@intrinsic("ineg")
+oper (-) (a: i32) i32;
