@@ -7,6 +7,9 @@ public:
     // size returns the size of the type in bytes.
     virtual size_t size() const = 0;
 
+    // repr returns the string represents of the type.
+    virtual std::string repr() const = 0;
+
     /* ---------------------------------------------------------------------- */
 
     // innerType returns the "inner type" of self.  For most types, this is just

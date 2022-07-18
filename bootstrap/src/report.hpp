@@ -75,7 +75,7 @@ namespace chai {
         // message returns a view to the compile error's error message.
         inline std::string_view message() const { return m_message; }
 
-        // span returns the text span over which the compile error occurs.
+        // span returns the span where the compile error occurs in source text.
         inline const TextSpan& span() const { return m_span; }
     };
 
