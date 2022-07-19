@@ -31,7 +31,7 @@ The *Hello World* program in Chai appears as follows:
 
     package hello;
 
-    
+    import println from io.std;
 
     func main() {
         println("Hello, world!");
