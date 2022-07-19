@@ -92,6 +92,53 @@ namespace chai {
         // then the a null pointer is returned.
         inline ASTNode* body() const { return m_body.get(); }
     };
+
+    /* ---------------------------------------------------------------------- */
+
+    // Enumeration of possible Chai value categories.
+    enum class ValueCategory {
+        LVALUE,
+        RVALUE
+    };
+
+    // ASTExpr is the base class for all AST expressions.
+    class ASTExpr : public ASTNode {
+        // The resulting type of the expression.
+        std::unique_ptr<Type> m_type;
+
+    public:
+        // constant returns whether this AST node is constant (immutable). 
+        inline virtual bool constant() const = 0;
+
+        // category returns the value category of the result of the expression.
+        inline virtual ValueCategory category() const = 0;
+
+        /* ------------------------------------------------------------------ */
+
+        // type returns the resulting type of the expression.
+        inline virtual Type* type() const { return m_type.get(); }
+    };
+
+    // AppliedOperator represents a particular application of an operator.
+    struct AppliedOperator {
+        // The token corresponding to the operator.
+        Token token;
+
+        // The operator overload used for this particular application.
+        OperatorOverload* overload;
+    };
+
+    /* ---------------------------------------------------------------------- */
+
+    // TODO: block statements
+
+    /* ---------------------------------------------------------------------- */
+
+    // TODO: simple statements
+
+    /* ---------------------------------------------------------------------- */
+
+    // TODO: expressions
 }
 
 #endif
