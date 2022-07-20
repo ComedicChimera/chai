@@ -46,6 +46,9 @@ namespace chai {
         // The kind of the symbol.
         SymbolKind kind;
 
+        // Whether or not the symbol is constant.
+        bool constant;
+
         // name returns a view to the name of the symbol.
         inline std::string_view name() const { return m_name; }
 
