@@ -1,0 +1,16 @@
+package e02_basics;
+
+import println, scanf from io.std;
+
+// fibonacci calculates the nth Fibonacci number where n is inputted by the user.
+func fibonacci() {
+    let n: i64;
+    scanf("{}", &n);
+
+    let a = 0, b = 1;
+    for let i = 0; i < n; i++ {
+        a, b = b, a + b;
+    }
+
+    println(a);
+}

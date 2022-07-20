@@ -1,0 +1,18 @@
+package e02_basics;
+
+import println from io.std;
+
+// fizzBuzz runs naive implementation of FizzBuzz from i = 1 to 100:
+// There are many better versions than this, but this is the simplest.
+func fizzBuzz() {
+    for let i = 1; i < 101; i++ {
+        if i % 3 == 0 && i % 5 == 0:
+            println("FizzBuzz");
+        elif i % 3 == 0:
+            println("Fizz");
+        elif i % 5 == 0:
+            println("Buzz");
+        else
+            println(i);
+    }
+}
