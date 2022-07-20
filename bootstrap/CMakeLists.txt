@@ -4,7 +4,7 @@ cmake_minimum_required(
 
 project(chaic)
 
-set(SOURCES "main.cpp" "args.cpp" "report.cpp" "analyze.cpp" "syntax/lexer.cpp")
+set(SOURCES "main.cpp" "args.cpp" "report.cpp" "analyze.cpp" "syntax/lexer.cpp" "types/type_repr.cpp" "types/type_eq.cpp")
 
 list(TRANSFORM SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 
