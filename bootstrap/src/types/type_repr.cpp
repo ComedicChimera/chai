@@ -5,7 +5,7 @@
 namespace chai {
     std::string IntegerType::repr() const {
         return std::format(
-            "%c%d", 
+            "{}{}", 
             isUnsigned ? 'u' : 'i',
             m_size
         );

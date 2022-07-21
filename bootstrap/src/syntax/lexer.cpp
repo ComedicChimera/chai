@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <cctype>
 
+#include "report.hpp"
+
 namespace chai {
     Token Lexer::nextToken() {
         char c;

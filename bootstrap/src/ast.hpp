@@ -1,23 +1,10 @@
 #ifndef _AST_H_
 #define _AST_H_
 
-#include <optional>
-
 #include "chaic.hpp"
+#include "syntax/token.hpp"
+
 namespace chai {
-    // ASTNode is base class of all AST nodes.
-    class ASTNode {
-        // The span over which the node occurs in source text.
-        TextSpan m_span;
-    public:
-        // span returns the span where the node occurs in source text.
-        inline virtual const TextSpan& span() const { return m_span; } 
-
-        // TODO: visiting methods.
-    };
-
-    /* ---------------------------------------------------------------------- */
-
     // Annotation represents an annotation.
     class Annotation {
         // The annotation's name.

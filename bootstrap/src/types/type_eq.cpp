@@ -2,7 +2,7 @@
 
 namespace chai {
     bool IntegerType::internalEquals(Type* other) const {
-        if (other->kind == TypeKind::INTEGER) {
+        if (other->kind() == TypeKind::INTEGER) {
             auto* it = dynamic_cast<IntegerType*>(other);
             return m_size == it->m_size && isUnsigned == it->isUnsigned;
         }
@@ -11,7 +11,7 @@ namespace chai {
     }
 
     bool FloatingType::internalEquals(Type* other) const {
-        if (other->kind == TypeKind::FLOATING) {
+        if (other->kind() == TypeKind::FLOATING) {
             auto* ft = dynamic_cast<FloatingType*>(other);
             return m_size == ft->m_size;
         }
@@ -20,7 +20,7 @@ namespace chai {
     }
 
     bool PointerType::internalEquals(Type* other) const {
-        if (other->kind == TypeKind::POINTER) {
+        if (other->kind() == TypeKind::POINTER) {
             auto* pt = dynamic_cast<PointerType*>(other);
             return isConst == pt->isConst && m_elemType->equals(pt->elemType());
         }
@@ -29,7 +29,7 @@ namespace chai {
     }
 
     bool FunctionType::internalEquals(Type* other) const {
-        if (other->kind == TypeKind::FUNCTION) {
+        if (other->kind() == TypeKind::FUNCTION) {
             auto* ft = dynamic_cast<FunctionType*>(other);
 
             if (paramTypes.size() != ft->paramTypes.size())

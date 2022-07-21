@@ -7,10 +7,7 @@
 #include <unordered_map>
 #include <format>
 #include <filesystem>
-
-#include "report.hpp"
-#include "types.hpp"
-#include "syntax/token.hpp"
+#include <memory>
 
 // The full name of the compiler.
 #define CHAI_NAME "chaic (x86_64-windows-msvc)"
@@ -18,10 +15,109 @@
 // The current Chai version string.
 #define CHAI_VERSION "0.1.0"
 
+/* -------------------------------------------------------------------------- */
+
 namespace chai {
-    class ChaiFile;
+     // Enumeration of different kinds of types.
+    enum class TypeKind {
+        UNIT,
+        BOOL,
+        INTEGER,
+        FLOATING,
+        POINTER,
+        FUNCTION,
+    };
+
+    // Type represents a Chai data type.
+    class Type {
+    public:
+        // kind returns type's kind.
+        virtual TypeKind kind() const = 0;
+
+        // size returns the size of the type in bytes.
+        virtual size_t size() const = 0;
+
+        // repr returns the string represents of the type.
+        virtual std::string repr() const = 0;
+
+        /* ---------------------------------------------------------------------- */
+
+        // innerType returns the "inner type" of self.  For most types, this is just
+        // an identity function; however, for types such as untyped and aliases
+        // which essentially just wrap other types, this method unwraps them.
+        inline virtual Type* innerType() { return this; }
+
+        // align returns the alignment of the type in bytes.
+        inline virtual size_t align() const { return size(); }
+
+        // isNullable returns whether the type is nullable.
+        inline virtual bool isNullable() const { return true; }
+
+        /* ------------------------------------------------------------------ */
+
+        // equals returns whether this type is equal the type `other`.
+        inline bool equals(Type* other) { 
+            return innerType()->internalEquals(other->innerType());
+        }
+
+        // castFrom returns whether the type `other` can be cast to this type.
+        inline bool castFrom(Type* other) {
+            return innerType()->internalCastFrom(other->innerType());
+        }
+
+        // bitSize returns the size of the type in bits.
+        inline size_t bitSize() const { return size() * 8; }
+
+        // bitAlign returns the alignment of the type in bits.
+        inline size_t bitAlign() const { return align() * 8; }
+
+    protected:
+        // internalEquals returns whether this type is equal to the type `other`.
+        // This method doesn't handle inner types and should not be called from
+        // outside the implementation of `equals`.
+        virtual bool internalEquals(Type* other) const = 0;
+
+        /* ------------------------------------------------------------------ */
+
+        // internalCastFrom returns whether you can cast the type `other` to
+        // this type. This method need only return whether a cast is strictly
+        // possible (ie. it doesn't need to check if two types are equal) and
+        // doesn't handle inner types.  It should not be called from outside the
+        // implementation of `castFrom`.
+        inline virtual bool internalCastFrom(Type* other) const { return false; }
+    };
 
     /* ---------------------------------------------------------------------- */
+
+    // TextSpan represents a positional range in user source code.
+    struct TextSpan {
+        size_t startLine { 0 }, startCol { 0 };
+        size_t endLine { 0 }, endCol { 0 };
+
+        // Creates an empty Text Span.
+        TextSpan() {}
+
+        // Creates a new span which initializes all the fields to the
+        // corresponding values.
+        TextSpan(size_t startLine, size_t startCol, size_t endLine, size_t endCol)
+        : startLine(startLine)
+        , startCol(startCol)
+        , endLine(endLine)
+        , endCol(endCol)
+        {}
+
+        // Creates a new text span spanning from `start` to `end`.
+        TextSpan(const TextSpan& start, const TextSpan& end)
+        : startLine(start.startLine)
+        , startCol(start.startCol)
+        , endLine(end.endLine)
+        , endCol(end.endCol)
+        {}
+    };
+
+    /* ---------------------------------------------------------------------- */
+
+    class ChaiFile;
 
     // Enumerates the various symbol kinds.
     enum class SymbolKind {
@@ -96,8 +192,8 @@ namespace chai {
         std::string m_opSym;
 
     public:
-        // The token kind of the operator.
-        TokenKind kind;
+        // The kind of the operator.
+        int kind;
 
         // The arity of the overloads associated with this operator.
         int arity;
@@ -142,6 +238,21 @@ namespace chai {
         inline std::string_view absPath() const { return m_absPath; } 
     };
 
+    /* ---------------------------------------------------------------------- */
+
+    // ASTNode is base class of all AST nodes.
+    class ASTNode {
+        // The span over which the node occurs in source text.
+        TextSpan m_span;
+    public:
+        // span returns the span where the node occurs in source text.
+        inline virtual const TextSpan& span() const { return m_span; } 
+
+        // TODO: visiting methods.
+    };
+
+    /* ---------------------------------------------------------------------- */
+
     // ChaiFile represents a Chai source file.
     class ChaiFile {
         // The absolute path to the Chai file.
@@ -158,6 +269,9 @@ namespace chai {
 
         // The unique number identifying the Chai source file within its package.
         size_t fileNumber;
+
+        // The AST definitions contained in the file.
+        std::vector<std::unique_ptr<ASTNode>> definitions;
 
         // Creates a new Chai file.
         ChaiFile(ChaiPackage* parent, size_t fileNumber, const std::filesystem::path& absPath)

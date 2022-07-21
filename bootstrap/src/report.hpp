@@ -2,37 +2,10 @@
 #define _REPORT_H_
 
 #include <stdexcept>
-#include <string>
-#include <string_view>
-#include <format>
+
+#include "chaic.hpp"
 
 namespace chai {
-    // TextSpan represents a positional range in user source code.
-    struct TextSpan {
-        size_t startLine { 0 }, startCol { 0 };
-        size_t endLine { 0 }, endCol { 0 };
-
-        // Creates an empty Text Span.
-        TextSpan() {}
-
-        // Creates a new span which initializes all the fields to the
-        // corresponding values.
-        TextSpan(size_t startLine, size_t startCol, size_t endLine, size_t endCol)
-        : startLine(startLine)
-        , startCol(startCol)
-        , endLine(endLine)
-        , endCol(endCol)
-        {}
-
-        // Creates a new text span spanning from `start` to `end`.
-        TextSpan(const TextSpan& start, const TextSpan& end)
-        : startLine(start.startLine)
-        , startCol(start.startCol)
-        , endLine(end.endLine)
-        , endCol(end.endCol)
-        {}
-    };
-
     // LogLevel enumerates the logging output levels of the compiler.
     enum class LogLevel {
         SILENT,   // No output.

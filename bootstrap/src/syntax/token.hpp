@@ -1,9 +1,7 @@
 #ifndef _TOKEN_H_
 #define _TOKEN_H_
 
-#include <string>
-
-#include "report.hpp"
+#include "chaic.hpp"
 
 namespace chai {
     // Enumeration of different kinds of tokens.
@@ -97,7 +95,7 @@ namespace chai {
 
     // Token represents a single lexical token.
     struct Token {
-        TokenKind kind;
+        TokenKind kind { TokenKind::END_OF_FILE };
         std::string value;
         TextSpan span;
     };
