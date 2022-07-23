@@ -1,4 +1,4 @@
-package e02_basics;
+package e03_control_flow;
 
 import println, scanf from io.std;
 

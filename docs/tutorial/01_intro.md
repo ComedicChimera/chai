@@ -1,4 +1,4 @@
-# Hello World
+# Introduction
 
 Welcome to the Chai programming language tutorial.  These documents will serve
 as the primary resource for Chai until the Chai website it completed.
@@ -206,7 +206,7 @@ Chai code and try to write some small programs as you go along.  This will help
 you to get a concrete sense for how to actually use Chai instead of just
 thinking about it in the abstract.
 
-To that end, most of the chapters in this guide, will include one or more
+To that end, most of the chapters in this guide will include one or more
 *exercises* at the end of the chapter in a section like this one.  Most of these
 exercises will be fairly short programming problems designed to help you test
 your Chai skills.  Any coding solutions to the exercises will be provided in the

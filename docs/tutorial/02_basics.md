@@ -1,19 +1,10 @@
 # The Basics
 
-This chapter of the tutorial will walk you through all the basic topics you need
-to get started writing some "useful" programs.  Although it is longer, it mainly
-focuses on topics most programmers are already familiar with so it shouldn't be
-that much of a bear.
-
 **Table of Contents**
 - [Comments](#comments)
 - [Numbers, Types, and Arithmetic](#numbers)
 - [Variables and Constants](#vars)
 - [Case Study: Adder](#adder)
-- [Conditional Control Flow](#ifs)
-- [While and C-Style For Loops](#while)
-- [Case Study: Guessing Game](#guessing)
-- [Exercises](#exercises)
 
 ## <a name="comments"> Comments
 
@@ -308,21 +299,78 @@ A simple run of the program might appear as follows:
     4 5
     4 + 5 = 9
 
-TODO
+The first two lines of the program should already be familiar to you.  The
+primary wrinkle is that we are importing a second function from `io.std` called
+`scanf` which we will later use to allow the user to input numbers.
 
-## <a name="ifs"> Conditional Control Flow
+Then, we have a fairly standard main function which contains the actual
+machinery of our program.
 
-## <a name="while"> While and C-Style For Loops
+> As an aside, all code that actually "runs" must be contained within a function
+> or an initializer.  Chai does not allow free-floating code in the global
+> scope.  The code snippets presented out of contents in this tutorial are just
+> that: snippets from larger programs.  
 
-## <a name="guessing"> Case Study: Guessing Game
+The first line of our main function:
 
-## <a name="exercises"> Exercises
+    let a, b: i64;
 
-1. Implement a simple [Fizz Buzz](https://en.wikipedia.org/wiki/Fizz_buzz)
-   program: print the first 100 fizz-buzz numbers.
+is a fairly standard variable declaration with which you should already be
+familiar. However, it does demonstrate a little bit a syntax that I didn't
+explicitly show off earlier: we can declare multiple variables of the same type
+using one type extension.  In this case, `a` and `b` are both of type `i64`.
 
-2. Write a program to print the nth Fibonacci number with `n` is given by the
-   user.
+The second line is just a call to `println` which we already studied in the
+first chapter.
 
-3. Write a program to calculate the square root of `n` where `n` is given by the
-   user using [Newton's Method](https://en.wikipedia.org/wiki/Newton%27s_method).
+The third line is probably the most "enigmatic" line of the bunch:
+
+    scanf("{} {}", &a, &b);
+
+`scanf` is a special function which is part of Chai's *formatted I/O* library.
+In essence, it allows us to read input from a stream, like standard in, in
+accordance with something called **format string** which describes what that
+input should look like.
+
+The format string in this case is the passed as the first argument to `scanf`.
+The empty braces denote places where user input is expected: ie. where the we
+expect the user to input the numbers.  Everything outside the braces is the text
+that `scanf` expects the user to enter around their input: the "punctuation" if
+you will.  In this case, we have a single space which means that we expect the
+user to enter a space between their inputted values. Putting this all together,
+we can say that the format string `"{} {}"` states that we expect the user to
+input two values with a space between them.  
+
+The next two arguments indicate the locations where we want it to store the
+values it reads in.  In this case, we want `scanf` to store its results inside
+the variables `a` and `b`.  The `&` in front of `a` and `b` denotes that we
+are giving `scanf` the locations of `a` and `b` rather than their values.
+
+More precisely, `&` is called the *indirection operator* it is used to create a
+*pointer* to a value.  Pointers are a very important topic in Chai that we will
+cover in much greater detail later.  For now, you can think of them as
+representing the "locations" of values rather than the values themselves.
+
+Going back to the overall structure of our call to `scanf`, notice that no where
+to explicitly indicate the kind of values we expect the user to input. This is
+because those values are encoded in the types of `a` and `b`: since `a` and `b`
+are both integers, `scanf` will expect the user to enter integers.
+
+Putting all these pieces together, we can then say that the line:
+
+    scanf("{} {}", &a, &b);
+
+reads two integers from standard in (ie. the command-line) separated by a space
+into the variables `a` and `b`.
+
+The final line of our main function:
+
+    println(a, "+", b, "=", a + b);
+
+is just another call to `println` with the wrinkle that we are giving it more
+than one argument.  When `println` is given multiple arguments, it simply
+prints out each of its arguments in order separated by spaces.  
+
+That's it: the full *adder* program broken down line by line.  In the next
+chapter, we are going to look at how to control the flow of our program using
+conditional logic and loops.
