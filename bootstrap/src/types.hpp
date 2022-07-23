@@ -138,8 +138,8 @@ namespace chai {
 
         // Creates a new function with the parameter types `paramTypes` and
         // return type `returnType`.
-        FunctionType(std::vector<std::unique_ptr<Type>>&& paramTypes, Type* returnType)
-        : paramTypes(paramTypes)
+        FunctionType(std::vector<std::unique_ptr<Type>>& paramTypes, Type* returnType)
+        : paramTypes(std::move(paramTypes))
         , m_returnType(returnType)
         {}
 

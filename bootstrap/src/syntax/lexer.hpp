@@ -79,7 +79,7 @@ namespace chai {
         void mark();
 
         // error throws a compile error based on the lexer's current position.
-        void error(const std::string& message);
+        void error(std::string&& message);
 
         /* ------------------------------------------------------------------ */
 

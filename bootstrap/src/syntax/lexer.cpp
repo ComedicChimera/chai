@@ -549,11 +549,11 @@ namespace chai {
     }
 
 
-    void Lexer::error(const std::string& message) {
+    void Lexer::error(std::string&& message) {
         throw CompileError(
             m_chFile->displayPath(), 
             m_chFile->absPath(), 
-            message, 
+            std::move(message), 
             TextSpan { m_startLine, m_startCol, m_line, m_col }
         );
     }

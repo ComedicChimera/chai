@@ -13,6 +13,8 @@ set(SOURCES
     "types/type_repr.cpp" 
     "types/type_eq.cpp" 
     "syntax/parser.cpp"
+    "syntax/parse_top.cpp"
+    "syntax/parse_common.cpp"
 )
 
 list(TRANSFORM SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")

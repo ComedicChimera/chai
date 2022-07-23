@@ -190,9 +190,125 @@ Note that type casting has lower precedence than any of the arithmetic operators
 
 ## <a name="vars"> Variables and Constants
 
+### Variable Declarations
 
+In Chai, you can declare variables using the `let` keyword like so:
+
+    let x = 10;
+    println(x);  // prints 10
+
+The type of `x` is inferred based on the value it is initialized with.
+
+You can specify the type of a variable using a **type extension** like so:
+
+    let pi: f64 = 3.14159265;
+
+If you specify a type extension, you don't have to explicitly initialize the
+variable: it will be initialized to its **null value** by default (which is zero
+for all numeric types).
+
+    let y: i32;  // y = 0
+
+> This kind of variable declaration only works for types which are *nullable*.
+> We will see what this means when we encounter our first non-nullable type.
+
+You can also declare multiple variables at once if you separate their
+declarations using commas:
+
+    let a = x * 4, b = y + 6 - x;
+
+### Assignment
+
+All variables declared with `let` are *mutable* meaning we can assign to them.
+Assignment in Chai is done using the `=` operator like so:
+
+    a = b;
+
+You can assign to multiple variables at once by separating the variables and
+expressions using commas. 
+
+    x, y = 5, 6;  // x = 5, y = 6;
+
+Chai fully evaluates the right-hand side expressions before it assigns them to
+the left-hand side.  This means that you can trivially swap the values of two
+variables using multi-assignment without having to use a temporary variable.
+
+    a, b = b, a;  // swaps a and b's values
+
+Often, we want to apply an operator to between the variable's value and a new
+value.  For example, if wanted to add 2 to the variable `x`, we would write:
+
+    x = x + 2;
+
+Because this kind of operation is so common, Chai provides a short-hand for
+statements like the one above called **compound assignment**:
+
+    x += 2;  // equivalent to `x = x + 2`
+
+Compound assignment can be performed with any of the binary arithmetic and
+bitwise operators:
+
+    x *= 2;   // double x
+    y /= 4;   // divide y by 4
+    a <<= 1;  // left-shift a by 1
+
+Furthermore, we can apply compound assignment between multiple values:
+
+    x, y **= 2, 3;  // square x, cube y
+
+### Constants
+
+Sometimes, we don't want to allow our variables to mutable.  Thus, Chai provides
+a special type of variable called a **constant** which is *immutable*.
+Constants are declared in the same way as variables except the `const` keyword
+is used instead of `let`.
+
+    const c: i64 = 2;
+
+    const d = x ** 4;
+
+> The expressions used to initialize constants do NOT need to be compile-time
+> constant (ie. constexpr for you C++ devs).  Chai provides a different
+> mechanism for those kinds of constants called *uniforms* that we will see
+> later.
+
+Because constants are immutable, we can't assign to them:
+
+    c = 3;  // COMPILE ERROR
 
 ## <a name="adder"> Case Study: Adder
+
+To cement all the concepts have discussed so far together, we are going to take
+a look at a simple example program which makes use of variables and arithmetic.
+
+This program is a simple *adder* which has the user input two numbers and prints
+out their sum.  Notably, this program will also demonstrate how to do basic user
+input in Chai.
+
+Let's take a look at the whole program and then we will break down how it works.
+
+    package adder;
+
+    import println, scanf from io.std;
+
+    func main() {
+        let a, b: i64;  
+
+        println("Enter the two numbers:");
+
+        scanf("{} {}", &a, &b);
+
+        println(a, "+", b, "=", a + b);
+    }
+
+A simple run of the program might appear as follows:
+
+    > ./adder
+    Enter the two numbers:
+    4 5
+    4 + 5 = 9
+
+TODO
 
 ## <a name="ifs"> Conditional Control Flow
 

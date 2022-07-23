@@ -136,6 +136,22 @@ namespace chai {
         // The span where the symbol is defined.
         TextSpan m_defSpan;
     public:
+        Symbol(
+            ChaiFile* parent,
+            std::string&& name,
+            Type* type,
+            const TextSpan& defSpan,
+            SymbolKind kind,
+            bool constant
+        )
+        : parent(parent)
+        , m_name(name)
+        , m_type(std::unique_ptr<Type>(type))
+        , m_defSpan(defSpan)
+        , kind(kind)
+        , constant(constant)
+        {}
+
         // The Chai source file containing the symbol's definition.
         ChaiFile* parent;
 
@@ -228,7 +244,7 @@ namespace chai {
         ChaiPackage(const std::filesystem::path& absPath)
         : m_name(absPath.filename().string())
         , m_absPath(absPath.string())
-        , id { std::filesystem::hash_value(absPath) }
+        , id(std::filesystem::hash_value(absPath))
         {}
 
         // Return a view to the name of the Chai package.
@@ -242,8 +258,10 @@ namespace chai {
 
     // ASTNode is base class of all AST nodes.
     class ASTNode {
+    protected:
         // The span over which the node occurs in source text.
         TextSpan m_span;
+
     public:
         // span returns the span where the node occurs in source text.
         inline virtual const TextSpan& span() const { return m_span; } 

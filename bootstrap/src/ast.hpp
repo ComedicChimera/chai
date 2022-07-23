@@ -15,11 +15,17 @@ namespace chai {
 
     public:
         // Creates a new annotation initializing fields to their given values.
-        Annotation(const std::string& name, const TextSpan& nameSpan, const std::string& value, const TextSpan& valueSpan)
-        : m_name(name)
+        Annotation(std::string& name, const TextSpan& nameSpan, std::string& value, const TextSpan& valueSpan)
+        : m_name(std::move(name))
         , nameSpan(nameSpan)
-        , m_value(value)
+        , m_value(std::move(value))
         , valueSpan(valueSpan)
+        {}
+
+        // Create a new annotation with no value.
+        Annotation(std::string& name, const TextSpan& nameSpan) 
+        : m_name(std::move(name))
+        , nameSpan(nameSpan)
         {}
 
         // The span where the name occurs in source text.
@@ -44,6 +50,22 @@ namespace chai {
         std::unique_ptr<ASTNode> m_body;
 
     public:
+        // Creates a new function definition.
+        FuncDef(
+            const TextSpan& span,
+            AnnotationMap& annots, 
+            Symbol* symbol, 
+            std::vector<std::unique_ptr<Symbol>>& params, 
+            ASTNode* body
+        )
+        : annotations(std::move(annots))
+        , symbol(symbol)
+        , params(std::move(params))
+        , m_body(std::unique_ptr<ASTNode>(body))
+        {
+            m_span = span;
+        }
+
         // The function's symbol.
         Symbol* symbol;
 

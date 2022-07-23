@@ -44,7 +44,7 @@ namespace chai {
 
             // Create the Chai source file and add it to its parent package.
             auto* chFile = new ChaiFile(pkg, pkg->files.size(), std::filesystem::absolute(file.path()));
-            pkg->files.push_back(std::unique_ptr<ChaiFile>(chFile));  
+            pkg->files.emplace_back(std::unique_ptr<ChaiFile>(chFile));  
 
             // DEBUG
             std::ifstream inf (chFile->absPath());

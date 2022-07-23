@@ -27,12 +27,12 @@ namespace chai {
         CompileError(
             std::string_view displayPath, 
             std::string_view fileAbsPath, 
-            const std::string& message, 
+            std::string&& message, 
             const TextSpan& span
         ) 
         : m_displayPath(displayPath)
         , m_fileAbsPath(fileAbsPath)
-        , m_message(std::move(message))
+        , m_message(message)
         , m_span(span)
         {}
 
