@@ -287,7 +287,7 @@ Let's take a look at the whole program and then we will break down how it works.
 
         println("Enter the two numbers:");
 
-        scanf("{} {}", &a, &b);
+        scanf("%d %d", &a, &b);
 
         println(a, "+", b, "=", a + b);
     }
@@ -325,7 +325,7 @@ first chapter.
 
 The third line is probably the most "enigmatic" line of the bunch:
 
-    scanf("{} {}", &a, &b);
+    scanf("%s %s", &a, &b);
 
 `scanf` is a special function which is part of Chai's *formatted I/O* library.
 In essence, it allows us to read input from a stream, like standard in, in
@@ -333,13 +333,14 @@ accordance with something called **format string** which describes what that
 input should look like.
 
 The format string in this case is the passed as the first argument to `scanf`.
-The empty braces denote places where user input is expected: ie. where the we
-expect the user to input the numbers.  Everything outside the braces is the text
-that `scanf` expects the user to enter around their input: the "punctuation" if
-you will.  In this case, we have a single space which means that we expect the
-user to enter a space between their inputted values. Putting this all together,
-we can say that the format string `"{} {}"` states that we expect the user to
-input two values with a space between them.  
+The `%d` denote places where user input is expected: ie. where the we expect the
+user to input the numbers: the `d` means we expect an integer to be entered.
+Everything outside that is not the `%d` is the text that `scanf` expects the
+user to enter around their input: the "punctuation" if you will.  In this case,
+we have a single space which means that we expect the user to enter a space
+between their inputted values. Putting this all together, we can say that the
+format string `"%d %d"` states that we expect the user to input two integers
+with a space between them.  
 
 The next two arguments indicate the locations where we want it to store the
 values it reads in.  In this case, we want `scanf` to store its results inside
@@ -351,14 +352,9 @@ More precisely, `&` is called the *indirection operator* it is used to create a
 cover in much greater detail later.  For now, you can think of them as
 representing the "locations" of values rather than the values themselves.
 
-Going back to the overall structure of our call to `scanf`, notice that no where
-to explicitly indicate the kind of values we expect the user to input. This is
-because those values are encoded in the types of `a` and `b`: since `a` and `b`
-are both integers, `scanf` will expect the user to enter integers.
-
 Putting all these pieces together, we can then say that the line:
 
-    scanf("{} {}", &a, &b);
+    scanf("%d %d", &a, &b);
 
 reads two integers from standard in (ie. the command-line) separated by a space
 into the variables `a` and `b`.

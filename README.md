@@ -11,8 +11,7 @@ Check out the official website to install, learn, use Chai: chai-lang.dev
 (*insert link*)
 
 *Note: The website is still in development, but the Markdown source for the
-documentation can be found in the
-[chai-lang.dev](//github.com/ComedicChimera/chai-lang.dev) repository.*
+documentation can be found in [docs/tutorial](/docs/tutorial/)
 
 **Language IP and Source Code Copyright &copy; Jordan Gaines 2018-2021**
 
@@ -133,18 +132,7 @@ nothing is happening!
 
 ### <a name="current-approach"> The Current Approach
 
-The compiler is being bootstrapped.  I am going to write a c++ implementation of
-the compiler using the C++ LLVM library.  This compiler may exclude some
-features not necessary to implement the compiler. Once that is finished, a full
-Chai compiler will be implemented in Chai rendering the language fully
-self-hosting. Eventually, the compiler will be able to compile itself.
-
-The `bootstrap` directory contains the c++ implementation.  Once that
-implementation is finished, the `compiler` directory will contain the actual
-self-hosted (and final) version of the compiler.
-
-Note that bootstrapping is only the plan as of now.  I may decide to just use
-the C++ compiler for the forseeable future.
+TODO: update when approach is decided
 
 ### <a name="whirlwind"> Whirlwind
 
