@@ -2,10 +2,9 @@
 This file discusses the "break-down" of standard functionality between the various packages of the standard library.  This is more of a guiding document until the standard library is fully implemented.  These are placed mostly in order of relative importance and are split into sections based on whether they will be included in Alpha Chai.
 
 **core**
-**core.types**
-**core.runtime**
-**core.sys**
-**core.unsafe**
+**runtime**
+**unsafe**
+**sys**
 **os**
 **io.std**
 **stringutil**
@@ -16,7 +15,7 @@ This file discusses the "break-down" of standard functionality between the vario
 **collections**
 **math**
 **rand**
-**proc**
+**process**
 **toml**
 **time**
 **encoding**
@@ -25,7 +24,7 @@ This file discusses the "break-down" of standard functionality between the vario
 **test**
 **algo**
 
-**asyncutil**
+**concurrent**
 **proc.pipe**
 **net**
 **net.url**

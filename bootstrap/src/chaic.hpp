@@ -197,7 +197,8 @@ namespace chai {
         // defSpan returns the span where the operator symbol is defined.
         inline const TextSpan& defSpan() const { return m_defSpan; }
 
-        // Returns a view to the intrinsic generator associated with this overload.
+        // intrinsicName returns a view to the intrinsic generator associated
+        // with this overload.
         inline std::string_view intrinsicName() const { return m_intrinsicName; }
     };
 
@@ -233,6 +234,9 @@ namespace chai {
         // The absolute path to the root directory.
         std::string m_absPath;
 
+        // The package's global symbol table.
+        std::unordered_map<std::string_view, std::unique_ptr<Symbol>> m_symbolTable;
+
     public:
         // The unique ID of the Chai package.
         size_t id;
@@ -247,11 +251,17 @@ namespace chai {
         , id(std::filesystem::hash_value(absPath))
         {}
 
-        // Return a view to the name of the Chai package.
+        // name returns a view to the name of the Chai package.
         inline std::string_view name() const { return m_name; }
 
-        // Returns a view to the absolute path of the Chai package.
+        // absPath returns a view to the absolute path of the Chai package.
         inline std::string_view absPath() const { return m_absPath; } 
+
+        // define attempts to define a new symbol in the package's global symbol
+        // table.  If definition succeeds, the global symbol table takes
+        // ownership of the passed in symbol.  If the definition fails, the
+        // symbol is deleted and a compile error is thrown.  
+        void define(Symbol* symbol);
     };
 
     /* ---------------------------------------------------------------------- */
@@ -278,9 +288,6 @@ namespace chai {
 
         // The display path of the Chai file.
         std::string m_displayPath;
-        
-        // The global symbol table for the package.
-        std::unordered_map<std::string_view, std::unique_ptr<Symbol>> m_symbolTable;
     public:
         // The parent package to the Chai file.
         ChaiPackage* parent;
@@ -299,10 +306,10 @@ namespace chai {
         , m_displayPath(std::format("({}) {}", parent->name(), absPath.filename().string()))
         {}
 
-        // Returns a view to the absolute path to the Chai file.
+        // absPath returns a view to the absolute path to the Chai file.
         inline std::string_view absPath() const { return m_absPath; }
 
-        // Returns a view to the display path of the Chai file. 
+        // displayPath returns a view to the display path of the Chai file. 
         inline std::string_view displayPath() const { return m_displayPath; }
     };
 }

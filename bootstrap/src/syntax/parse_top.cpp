@@ -94,7 +94,11 @@ namespace chai {
         if (returnType == nullptr)
             returnType = new UnitType();
 
-        // TODO: define the new symbol.
+        auto* symbol = new Symbol(
+            m_chFile,
+            nameTok.value,
+            // new FunctionType()
+        );
         
         return nullptr;
     }
