@@ -5,3 +5,5 @@ tools/llvm-build
 tools/bin
 *.exe
 docs/Chai Notes/.obsidian
+*.dll
+bootstrap/go.sum
