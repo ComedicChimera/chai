@@ -20,7 +20,7 @@ type Token struct {
 const (
 	TOK_PACKAGE = iota
 
-	TOK_DEF
+	TOK_FUNC
 	TOK_OPER
 
 	TOK_LET

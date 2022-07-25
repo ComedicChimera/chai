@@ -18,7 +18,7 @@ func (p *Parser) parseDefinition() {
 	var def ast.ASTNode
 
 	switch p.tok.Kind {
-	case TOK_DEF:
+	case TOK_FUNC:
 		def = p.parseFuncDef(annots)
 	case TOK_OPER:
 		def = p.parseOperDef(annots)
@@ -87,7 +87,7 @@ func (p *Parser) parseAnnotDecl() map[string]ast.AnnotValue {
 
 // func_def := 'def' 'IDENT' func_signature ;
 func (p *Parser) parseFuncDef(annots map[string]ast.AnnotValue) *ast.FuncDef {
-	startSpan := p.want(TOK_DEF).Span
+	startSpan := p.want(TOK_FUNC).Span
 
 	funcIdent := p.want(TOK_IDENT)
 

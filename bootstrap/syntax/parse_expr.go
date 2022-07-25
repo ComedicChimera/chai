@@ -176,11 +176,18 @@ func (p *Parser) parseUnaryExpr() ast.ASTExpr {
 	case TOK_BWAND:
 		p.next()
 
+		isConst := false
+		if p.has(TOK_CONST) {
+			p.next()
+			isConst = true
+		}
+
 		elem := p.parseAtomExpr()
 
 		return &ast.Indirect{
 			ExprBase: ast.NewExprBase(report.NewSpanOver(opTok.Span, elem.Span())),
 			Elem:     elem,
+			Const:    isConst,
 		}
 	default:
 		return p.parseAtomExpr()

@@ -12,7 +12,7 @@ import (
 // mustUnify asserts that two types must be equal or able to be made equal.
 func (w *Walker) mustUnify(expected, actual types.Type, span *report.TextSpan) {
 	if !types.Unify(expected, actual) {
-		w.error(span, "expected type %s but got %s", expected, actual)
+		w.error(span, "expected type %s but got %s", expected.Repr(), actual.Repr())
 	}
 }
 

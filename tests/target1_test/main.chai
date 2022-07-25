@@ -1,5 +1,6 @@
 package target1_test;
 
+@abientry
 func _start() {
     main();
     exit(0);

@@ -52,7 +52,7 @@ type bodyPredicate struct {
 // Generate generates a Chai package into an LLVM mdoule.
 func Generate(ctx *llvm.Context, pkg *depm.ChaiPackage) llvm.Module {
 	// The LLVM name of the package.
-	llPkgName := fmt.Sprintf("pkg%d", pkg.ID)
+	llPkgName := fmt.Sprintf("pkg%d", uint(pkg.ID))
 
 	// Create the LLVM module for the package.
 	mod := ctx.NewModule(llPkgName)
