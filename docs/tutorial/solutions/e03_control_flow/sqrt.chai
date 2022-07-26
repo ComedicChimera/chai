@@ -5,7 +5,7 @@ import println, scanf from io.std;
 // my_sqrt uses Newton's method to calculate square root of a user inputted number.
 func my_sqrt() {
     let n: f64;
-    scanf("{}", &n);
+    scanf("%d", &n);
 
     let x = n;
     for let i = 0; i < 10; i++ {
