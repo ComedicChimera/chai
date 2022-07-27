@@ -1,2 +1,2 @@
-cmake -S bootstrap -B bootstrap/out
+cmake -S bootstrap -B bootstrap/out -DZLIB_LIBRARY=D:/DevTools/zlib/out/Release/zlib.lib -DZLIB_INCLUDE_DIR=D:/DevTools/zlib -DLIBXML2_LIBRARY=D:/DevTools/libxml2/out/Release/libxml2.lib -DLIBXML2_INCLUDE_DIR=D:DevTools/libxml2 -DBOOST_DIR=D:/DevTools/boost_1_79_0 -DBOOST_LIB_DIR=D:/DevTools/boost_1_79_0/stage/lib -DLLVM_INSTALL_PREFIX=D:/DevTools/llvm/out
 MSBuild bootstrap/out/chaic.sln 

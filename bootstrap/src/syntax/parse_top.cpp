@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "types.hpp"
+#include "types/type_store.hpp"
 
 namespace chai {
     void Parser::parsePackageDecl() {
@@ -92,13 +93,13 @@ namespace chai {
     loop_exit:
         // Set the default type if none is given.
         if (returnType == nullptr)
-            returnType = new UnitType();
+            returnType = typeStore.unitType();
 
-        auto* symbol = new Symbol(
-            m_chFile,
-            nameTok.value,
-            // new FunctionType()
-        );
+        //auto* symbol = new Symbol(
+        //    m_chFile,
+        //    nameTok.value,
+        //    // new FunctionType()
+        //);
         
         return nullptr;
     }

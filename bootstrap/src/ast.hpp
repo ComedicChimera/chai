@@ -1,6 +1,8 @@
 #ifndef _AST_H_
 #define _AST_H_
 
+#include <optional>
+
 #include "chaic.hpp"
 #include "syntax/token.hpp"
 
@@ -115,7 +117,7 @@ namespace chai {
     class ASTExpr : public ASTNode {
     protected:
         // The resulting type of the expression.
-        std::unique_ptr<Type> m_type;
+        Type* m_type;
 
     public:
         // constant returns whether this AST node is constant (immutable). 
@@ -125,7 +127,7 @@ namespace chai {
         inline virtual ValueCategory category() const { return ValueCategory::RVALUE; }
 
         // type returns the resulting type of the expression.
-        inline virtual Type* type() const { return m_type.get(); }
+        inline virtual Type* type() const { return m_type; }
     };
 
     // AppliedOperator represents a particular application of an operator.
@@ -145,7 +147,7 @@ namespace chai {
         // The symbol associated with this identifier.
         Symbol* symbol;
 
-        inline Type* type() const override { return symbol->type(); }
+        inline Type* type() const override { return symbol->type; }
 
         inline bool constant() const override { return symbol->constant; }
 

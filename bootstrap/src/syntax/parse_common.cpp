@@ -1,6 +1,7 @@
 #include "parser.hpp"
 
 #include "types.hpp"
+#include "types/type_store.hpp"
 
 namespace chai {
     Type* Parser::parseTypeExt() {
@@ -12,34 +13,34 @@ namespace chai {
     Type* Parser::parseTypeLabel() {
         switch (m_tok.kind) {
         case TokenKind::I8:
-            return new IntegerType(1, false);
+            return typeStore.i8Type();
         case TokenKind::U8:
-            return new IntegerType(1, true);
+            return typeStore.u8Type();
         case TokenKind::I16:
-            return new IntegerType(2, false);
+            return typeStore.i16Type();
         case TokenKind::U16:
-            return new IntegerType(2, true);
+            return typeStore.u16Type();
         case TokenKind::I32:
-            return new IntegerType(4, false);
+            return typeStore.i32Type();
         case TokenKind::U32:
-            return new IntegerType(4, true);
+            return typeStore.u32Type();
         case TokenKind::I64:
-            return new IntegerType(8, false);
+            return typeStore.i64Type();
         case TokenKind::U64:
-            return new IntegerType(8, true);
+            return typeStore.u64Type();
         case TokenKind::F32:
-            return new FloatingType(4);
+            return typeStore.f32Type();
         case TokenKind::F64:
-            return new FloatingType(8);
+            return typeStore.f64Type();
         case TokenKind::BOOL:
-            return new BoolType();
+            return typeStore.boolType();
         case TokenKind::LPAREN:
             next();
             
             if (has(TokenKind::RPAREN)) {
                 next();
 
-                return new UnitType();
+                return typeStore.unitType();
             } else {
                 // TODO: tuples
             }
@@ -53,7 +54,7 @@ namespace chai {
                     isConst = true;
                 }
 
-                return new PointerType(parseTypeLabel(), isConst);
+                return typeStore.pointerType(parseTypeLabel(), isConst);
             }
         }
 

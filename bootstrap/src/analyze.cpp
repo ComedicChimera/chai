@@ -30,7 +30,7 @@ namespace chai {
     ChaiPackage* Compiler::initPackage(const std::filesystem::path& absPath) {
         // Create the package and add it to the dependency graph.
         auto* pkg = new ChaiPackage(absPath);
-        m_depGraph.insert(std::make_pair(pkg->id, std::unique_ptr<ChaiPackage>(pkg)));
+        m_depGraph.emplace(std::make_pair(pkg->id, std::unique_ptr<ChaiPackage>(pkg)));
 
         // Validate the package name.
         if (!isValidIdentifier(pkg->name())) 

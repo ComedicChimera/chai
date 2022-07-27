@@ -130,15 +130,12 @@ namespace chai {
         // The name of the symbol.
         std::string m_name;
 
-        // The type of the symbol.
-        std::unique_ptr<Type> m_type;
-
         // The span where the symbol is defined.
         TextSpan m_defSpan;
     public:
         Symbol(
             ChaiFile* parent,
-            std::string&& name,
+            const std::string& name,
             Type* type,
             const TextSpan& defSpan,
             SymbolKind kind,
@@ -146,7 +143,7 @@ namespace chai {
         )
         : parent(parent)
         , m_name(name)
-        , m_type(std::unique_ptr<Type>(type))
+        , type(type)
         , m_defSpan(defSpan)
         , kind(kind)
         , constant(constant)
@@ -158,14 +155,14 @@ namespace chai {
         // The kind of the symbol.
         SymbolKind kind;
 
+        // The type of the symbol.
+        Type *type;
+
         // Whether or not the symbol is constant.
         bool constant;
 
         // name returns a view to the name of the symbol.
         inline std::string_view name() const { return m_name; }
-
-        // type returns the type of the symbol.
-        inline Type* type() const { return m_type.get(); }
 
         // defSpan returns the span where the symbol is defined in source text.
         inline const TextSpan& defSpan() const { return m_defSpan; }

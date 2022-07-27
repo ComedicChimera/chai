@@ -6,6 +6,10 @@
 namespace chai {
     // UnitType represents a unit primitive type.
     class UnitType : public Type {
+        // Private constructor used by TypeStore.
+        friend class TypeStore;
+        UnitType() {}
+
     public:
         inline TypeKind kind() const override { return TypeKind::UNIT; }
 
@@ -19,6 +23,10 @@ namespace chai {
 
     // BoolType represents a boolean primitive type.
     class BoolType : public Type {
+        // Private constructor used by TypeStore.
+        friend class TypeStore;
+        BoolType() {}
+
     public:
         inline TypeKind kind() const override { return TypeKind::BOOL; }
 
@@ -39,16 +47,20 @@ namespace chai {
     class IntegerType : public Type {
         // The size of the integer type in bytes.
         size_t m_size;
-    
-    public:
-        // Whether the integer type is unsigned.
-        bool isUnsigned;
+
+        // Private constructor used by TypeStore.
+        friend class TypeStore;
 
         // Creates a new integer type of the given size and signedness.
         IntegerType(size_t size, bool isUnsigned)
         : m_size(size)
         , isUnsigned(isUnsigned)
         {}
+
+    
+    public:
+        // Whether the integer type is unsigned.
+        bool isUnsigned;
 
         inline TypeKind kind() const override { return TypeKind::INTEGER; }
 
@@ -70,12 +82,15 @@ namespace chai {
         // The size of the float type in bytes.
         size_t m_size;
 
-    public:
+        // Private constructor used by TypeStore.
+        friend class TypeStore;
+
         // Creates a new floating-point type of the given size.
         FloatingType(size_t size)
         : m_size(size)
         {}
 
+    public:
         inline TypeKind kind() const override { return TypeKind::FLOATING; }
 
         inline size_t size() const override { return m_size; }
@@ -93,24 +108,24 @@ namespace chai {
 
     // PointerType represents a pointer type.
     class PointerType : public Type {
-        // The element type of the pointer.
-        std::unique_ptr<Type> m_elemType;
+        // Private constructor used by TypeStore.
+        friend class TypeStore;
+
+        // Creates a new pointer type to the `elemType` with `isConst` constancy.
+        PointerType(Type* elemType, bool isConst)
+        : elemType(elemType)
+        , isConst(isConst)
+        {}
 
     public:
         // The size of a pointer on the desired target.
         static size_t pointerSize;
 
+        // The element type of the pointer.
+        Type* elemType;
+
         // Whether the pointer is constant.
         bool isConst;
-
-        // Creates a new pointer type to the `elemType` with `isConst` constancy.
-        PointerType(Type* elemType, bool isConst)
-        : m_elemType(elemType)
-        , isConst(isConst)
-        {}
-
-        // elemType returns a pointer to the element type of the pointer.
-        inline Type* elemType() const { return m_elemType.get(); }
 
         inline TypeKind kind() const override { return TypeKind::POINTER; }
 
@@ -127,24 +142,23 @@ namespace chai {
         }
     };
 
+    inline size_t PointerType::pointerSize;
+
     // FunctionType represents a function type.
     class FunctionType : public Type {
-        // The return type of the function.
-        std::unique_ptr<Type> m_returnType;
-
     public:
         // The parameter types of the function.
-        std::vector<std::unique_ptr<Type>> paramTypes;
+        std::vector<Type*> paramTypes;
+        
+        // returnType returns a pointer to the function's return type.
+        Type* returnType;
 
         // Creates a new function with the parameter types `paramTypes` and
         // return type `returnType`.
-        FunctionType(std::vector<std::unique_ptr<Type>>& paramTypes, Type* returnType)
+        FunctionType(std::vector<Type*>& paramTypes, Type* returnType)
         : paramTypes(std::move(paramTypes))
-        , m_returnType(returnType)
+        , returnType(returnType)
         {}
-
-        // returnType returns a pointer to the function's return type.
-        inline Type* returnType() const { return m_returnType.get(); }
 
         inline TypeKind kind() const override { return TypeKind::FUNCTION; }
 

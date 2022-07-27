@@ -31,7 +31,7 @@ namespace chai {
             }
 
             // Add the definition to the file.
-            m_chFile->definitions.push_back(std::unique_ptr<ASTNode>(def));
+            m_chFile->definitions.emplace_back(std::unique_ptr<ASTNode>(def));
         }
     }
 

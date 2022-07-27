@@ -22,7 +22,7 @@ namespace chai {
     bool PointerType::internalEquals(Type* other) const {
         if (other->kind() == TypeKind::POINTER) {
             auto* pt = dynamic_cast<PointerType*>(other);
-            return isConst == pt->isConst && m_elemType->equals(pt->elemType());
+            return isConst == pt->isConst && elemType->equals(pt->elemType);
         }
 
         return false;
@@ -35,11 +35,11 @@ namespace chai {
             if (paramTypes.size() != ft->paramTypes.size())
                 return false;
 
-            if (!m_returnType->equals(ft->returnType()))
+            if (!returnType->equals(ft->returnType))
                 return false;
 
             for (int i = 0; i < paramTypes.size(); i++) {
-                if (!paramTypes[i]->equals(ft->paramTypes[i].get()))
+                if (!paramTypes[i]->equals(ft->paramTypes[i]))
                     return false;
             }
             

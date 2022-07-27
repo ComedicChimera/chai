@@ -22,7 +22,7 @@ namespace chai {
             builder += "const ";
         }
 
-        return builder + m_elemType->repr();
+        return builder + elemType->repr();
     }
 
     std::string FunctionType::repr() const {
@@ -55,6 +55,6 @@ namespace chai {
 
         builder += " -> ";
 
-        return builder + m_returnType->repr();
+        return builder + returnType->repr();
     }
 }
