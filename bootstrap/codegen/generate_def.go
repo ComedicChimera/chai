@@ -3,10 +3,12 @@ package codegen
 import (
 	"chaic/ast"
 	"chaic/common"
-	"chaic/llvm"
 	"chaic/report"
 	"chaic/types"
 	"fmt"
+
+	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/enum"
 )
 
 // generateDef generates an LLVM IR definition.
@@ -85,7 +87,7 @@ func (g *Generator) generateOperDef(od *ast.OperDef) {
 	)
 }
 
-// -----------------------------------------------------------------------------
+/* -------------------------------------------------------------------------- */
 
 // generateLLFunction generates an LLVM function with the given name, visibility
 // parameters, return type, and body.  The generated function is returned.
@@ -95,36 +97,21 @@ func (g *Generator) generateLLFunction(
 	params []*common.Symbol,
 	returnType types.Type,
 	body ast.ASTNode,
-) llvm.Function {
-	// Create the LLVM function type.
-	llParamTypes := make([]llvm.Type, len(params))
+) *ir.Func {
+	// Create the LLVM function.
+	llParams := make([]*ir.Param, len(params))
 	for i, param := range params {
-		llParamTypes[i] = g.convType(param.Type)
+		llParams[i] = ir.NewParam(param.Name, g.convType(param.Type))
+		param.LLValue = llParams[i]
 	}
 
-	llFuncType := llvm.NewFunctionType(
-		g.convReturnType(returnType),
-		llParamTypes...,
-	)
-
-	// Create the LLVM function.
-	llFunc := g.mod.AddFunction(name, llFuncType)
+	llFunc := g.mod.NewFunc(name, g.convReturnType(returnType), llParams...)
 
 	// Set the function's linkage based on its visibility.
 	if public {
-		llFunc.SetLinkage(llvm.ExternalLinkage)
+		llFunc.Linkage = enum.LinkageExternal
 	} else {
-		llFunc.SetLinkage(llvm.InternalLinkage)
-	}
-
-	// Assign all the function parameters their corresponding LLVM types and
-	// update the LLVM parameters with their appropriate names.
-	for i, param := range params {
-		llParam := llFunc.GetParam(i)
-
-		llParam.SetName(param.Name)
-
-		param.LLType = llParamTypes[i]
+		llFunc.Linkage = enum.LinkageInternal
 	}
 
 	// Add the function body as a predicate to generate if it exists.
@@ -137,11 +124,10 @@ func (g *Generator) generateLLFunction(
 		})
 	}
 
-	// Return the created function.
 	return llFunc
 }
 
-// -----------------------------------------------------------------------------
+/* -------------------------------------------------------------------------- */
 
 // hasAnnot returns whether the annotation named name exists in annots.
 func hasAnnot(annots map[string]ast.AnnotValue, name string) bool {

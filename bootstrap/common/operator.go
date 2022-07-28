@@ -1,9 +1,10 @@
 package common
 
 import (
-	"chaic/llvm"
 	"chaic/report"
 	"chaic/types"
+
+	llvalue "github.com/llir/llvm/ir/value"
 )
 
 // Operator represents a set of visible definitions for an operator of a given
@@ -45,8 +46,8 @@ type OperatorOverload struct {
 	// The instrinsic generator associated with this overload if any.
 	IntrinsicName string
 
-	// LLValue is the LLVM value associated with this overload.
-	LLValue llvm.Value
+	// The LLVM value of the operator.
+	LLValue llvalue.Value
 }
 
 // GetNewOverloadID gets a new unique ID for an operator overload.

@@ -1,9 +1,10 @@
 package common
 
 import (
-	"chaic/llvm"
 	"chaic/report"
 	"chaic/types"
+
+	llvalue "github.com/llir/llvm/ir/value"
 )
 
 // Symbol represents a semantic symbol: a named value or definition.
@@ -33,11 +34,8 @@ type Symbol struct {
 	// Whether or not the symbol was actually used.
 	Used bool
 
-	// The symbol's LLVM value.
-	LLValue llvm.Value
-
-	// The symbol's LLVM type.  This may not be set on all symbols.
-	LLType llvm.Type
+	// The LLVM value of the symbol.
+	LLValue llvalue.Value
 }
 
 // Enumeration of different symbol kinds.
