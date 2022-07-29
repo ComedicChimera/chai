@@ -15,6 +15,8 @@ import (
 // generateExpr generates an expression.
 func (g *Generator) generateExpr(expr ast.ASTExpr) llvalue.Value {
 	switch v := expr.(type) {
+	case *ast.TypeCast:
+		return g.generateTypeCast(v)
 	case *ast.BinaryOpApp:
 		return g.generateBinaryOpApp(v)
 	case *ast.UnaryOpApp:
@@ -75,6 +77,101 @@ func (g *Generator) generateLHSExpr(expr ast.ASTExpr) llvalue.Value {
 
 /* -------------------------------------------------------------------------- */
 
+// generateTypeCast generates a type cast.
+func (g *Generator) generateTypeCast(tc *ast.TypeCast) llvalue.Value {
+	// Generate the source expression.
+	src := g.generateExpr(tc.SrcExpr)
+
+	// Extract the inner types we are converting between.
+	srcType := types.InnerType(tc.SrcExpr.Type())
+	destType := types.InnerType(tc.Type())
+
+	// If the two types are already equal, then no cast is needed: we can just
+	// return the source value.
+	if types.Equals(srcType, destType) {
+		return src
+	}
+
+	// Convert the destination type to its LLVM type.
+	destLLType := g.convInnerType(destType, false, false)
+
+	switch v := srcType.(type) {
+	case types.PrimitiveType:
+		return g.generatePrimTypeCast(src, v, destType.(types.PrimitiveType), destLLType)
+	case *types.PointerType:
+		// TODO: remove once it is no longer needed.
+		return g.block.NewBitCast(src, destLLType)
+	}
+
+	report.ReportICE("codegen for cast not implemented")
+	return nil
+}
+
+// generatePrimTypeCast generates a cast between primitive types.
+func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType types.PrimitiveType, destLLType lltypes.Type) llvalue.Value {
+	if srcType.IsIntegral() {
+		if destType.IsFloating() {
+			if srcType%2 == 0 {
+				// unsigned to float
+				return g.block.NewUIToFP(src, destLLType)
+			} else {
+				// signed to float
+				return g.block.NewSIToFP(src, destLLType)
+			}
+		} else if destType.IsIntegral() {
+			if srcType < destType {
+				if destType-srcType == 1 {
+					// signed to unsigned
+					return src
+				} else if srcType%2 == 1 && destType%2 == 1 {
+					// small signed to large signed
+					return g.block.NewSExt(src, destLLType)
+				} else {
+					// small signed to large unsigned
+					// small unsigned to large signed
+					// small unsigned to large unsigned
+					return g.block.NewZExt(src, destLLType)
+				}
+			} else if srcType-destType == 1 {
+				// unsigned to signed
+				return src
+			} else {
+				// large int to small int
+				return g.block.NewTrunc(src, destLLType)
+			}
+		} else if destType == types.PrimTypeBool {
+			// int to bool
+			return g.block.NewTrunc(src, destLLType)
+		}
+	} else if srcType.IsFloating() {
+		if destType.IsFloating() {
+			if srcType < destType {
+				// small float to big float
+				return g.block.NewFPExt(src, destLLType)
+			} else {
+				// big float to small float
+				return g.block.NewFPTrunc(src, destLLType)
+			}
+		} else {
+			if destType%2 == 0 {
+				// float to unsigned int
+				intrinsic := g.getOverloadedIntrinsic("fptoui.sat", destLLType, src.Type())
+				return g.callFunc(destType, intrinsic, src)
+			} else {
+				// float to signed int
+				intrinsic := g.getOverloadedIntrinsic("fptosi.sat", destLLType, src.Type())
+				return g.callFunc(destType, intrinsic, src)
+			}
+		}
+	} else if srcType == types.PrimTypeBool {
+		// bool to int
+		return g.block.NewZExt(src, destLLType)
+	}
+
+	report.ReportICE("codegen for primitive cast not implemented")
+	return nil
+}
+
 // generateBinaryOpApp generates a binary operator application.
 func (g *Generator) generateBinaryOpApp(bopApp *ast.BinaryOpApp) llvalue.Value {
 	lhs := g.generateExpr(bopApp.LHS)
@@ -120,7 +217,7 @@ func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {
 func (g *Generator) generateLiteral(lit *ast.Literal) llvalue.Value {
 	switch lit.Kind {
 	case syntax.TOK_RUNELIT:
-		return constant.NewInt(lltypes.I32, lit.Value.(int64))
+		return constant.NewInt(lltypes.I32, int64(lit.Value.(int32)))
 	case syntax.TOK_INTLIT:
 		return constant.NewInt(g.convType(lit.Type()).(*lltypes.IntType), lit.Value.(int64))
 	case syntax.TOK_FLOATLIT:

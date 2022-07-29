@@ -39,7 +39,7 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 
 		v.NodeType = &types.PointerType{
 			ElemType: v.Elem.Type(),
-			Const:    v.Const || (v.Elem.Category() == ast.RVALUE && v.Elem.Constant()),
+			Const:    v.Const || v.Elem.Constant(),
 		}
 	case *ast.Null:
 		v.NodeType = &types.UntypedNull{Span: v.Span()}

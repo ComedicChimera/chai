@@ -25,6 +25,7 @@ func (c *Compiler) InitPackage(pkgAbsPath string) (*depm.ChaiPackage, bool) {
 		AbsPath:       pkgAbsPath,
 		SymbolTable:   make(map[string]*common.Symbol),
 		OperatorTable: make(map[int][]*common.Operator),
+		TableMutex:    &sync.Mutex{},
 	}
 	c.depGraph[pkg.ID] = pkg
 

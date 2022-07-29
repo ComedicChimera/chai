@@ -106,8 +106,11 @@ func (p *Parser) parsePkgPath() []*Token {
 // defineGlobalSymbol defines a new global symbol.  It reports an error if
 // declaration fails, but does not abort parsing.
 func (p *Parser) defineGlobalSymbol(sym *common.Symbol) {
-	// TODO: handle scripts
+	// Acquire and release the table lock.
+	p.chFile.Parent.TableMutex.Lock()
+	defer p.chFile.Parent.TableMutex.Unlock()
 
+	// Try to define the global symbol: check for conflicts.
 	if _, ok := p.chFile.Parent.SymbolTable[sym.Name]; ok {
 		p.recError(sym.DefSpan, "multiple symbols named `%s` defined in global scope", sym.Name)
 	} else {
@@ -118,8 +121,11 @@ func (p *Parser) defineGlobalSymbol(sym *common.Symbol) {
 // defineOperatorOverload defines a new global operator overload.  This does not
 // check for collisions.
 func (p *Parser) defineOperatorOverload(opKind int, opRepr string, arity int, overload *common.OperatorOverload) {
-	// TODO: handle scripts
+	// Acquire and release the table lock.
+	p.chFile.Parent.TableMutex.Lock()
+	defer p.chFile.Parent.TableMutex.Unlock()
 
+	// Define the global operator creating new entries as necessary.
 	if operators, ok := p.chFile.Parent.OperatorTable[opKind]; ok {
 		for _, operator := range operators {
 			if operator.Arity == arity {

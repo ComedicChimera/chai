@@ -221,7 +221,7 @@ func (w *Walker) walkRuneLit(lit *ast.Literal) {
 					report.ReportICE("unexpected Go error parsing rune literal: %s", err)
 				}
 
-				lit.Value = int64(r)
+				lit.Value = int32(r)
 			}
 		default: // Multi-byte character.
 			{
@@ -231,10 +231,10 @@ func (w *Walker) walkRuneLit(lit *ast.Literal) {
 					return
 				}
 
-				lit.Value = int64(r)
+				lit.Value = r
 			}
 		}
 	} else {
-		lit.Value = int64(lit.Text[0])
+		lit.Value = int32(lit.Text[0])
 	}
 }

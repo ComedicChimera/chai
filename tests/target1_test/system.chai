@@ -24,6 +24,7 @@ func exit(exit_code: i32) = ExitProcess(exit_code);
 func get_stdout() *u8 = GetStdHandle(-11);
 
 func putc(h: *u8, c: i32) {
-    WriteConsoleA(h, &const (c as u8), 1, null, null);
+    const b = c as u8;
+    WriteConsoleA(h, &b, 1, null, null);
 }
 

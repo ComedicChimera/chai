@@ -4,9 +4,12 @@ import (
 	"chaic/ast"
 	"chaic/common"
 	"chaic/depm"
+	"chaic/llc"
 	"chaic/report"
 	"chaic/types"
+	"chaic/util"
 	"fmt"
+	"strings"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -31,6 +34,9 @@ type Generator struct {
 
 	// The current block instructions are being inserted in.
 	block *ir.Block
+
+	// The table of declared LLVM intrinsics.
+	llvmIntrinsics map[string]llvalue.Value
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -49,7 +55,7 @@ type bodyPredicate struct {
 }
 
 // Generate generates a Chai package into an LLVM module.
-func Generate(pkg *depm.ChaiPackage) *ir.Module {
+func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
 	// The LLVM name of the package.
 	llPkgName := fmt.Sprintf("pkg%d", uint(pkg.ID))
 
@@ -59,8 +65,9 @@ func Generate(pkg *depm.ChaiPackage) *ir.Module {
 
 	// Create the code generator for the package.
 	g := Generator{
-		mod:       mod,
-		pkgPrefix: llPkgName + ".",
+		mod:            mod,
+		pkgPrefix:      llPkgName + ".",
+		llvmIntrinsics: make(map[string]llvalue.Value),
 	}
 
 	// TODO: generate imports.
@@ -77,9 +84,20 @@ func Generate(pkg *depm.ChaiPackage) *ir.Module {
 		g.generateBodyPredicate(bodyPred)
 	}
 
-	// TODO: verify/validate?
+	// Convert the LLIR module into an LLVM module.
+	llMod, err := ctx.NewModuleFromIR(g.mod.String())
+	if err != nil {
+		report.ReportICE("failed to convert LLIR module to LLVM module:\n%s", err.Error())
+		return nil
+	}
 
-	return g.mod
+	// Verify the LLVM module.
+	if err = llMod.Verify(); err != nil {
+		report.ReportICE("failed to verify LLVM module:\n%s\n\n%s", err.Error(), g.mod.String())
+		return nil
+	}
+
+	return llMod
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,7 +109,7 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 
 	// Generate all the function parameters.
 	for _, param := range pred.Params {
-		paramVar := g.varBlock.NewAlloca(param.LLValue.Type())
+		paramVar := g.varBlock.NewAlloca(g.convAllocType(param.Type))
 		g.varBlock.NewStore(param.LLValue, paramVar)
 		param.LLValue = paramVar
 	}
@@ -110,6 +128,7 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 		}
 	} else {
 		// Body is a block.
+		g.generateBlock(pred.Body.(*ast.Block))
 	}
 
 	// If the block we are now positioned in (the last block of the function)
@@ -129,6 +148,35 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 }
 
 /* -------------------------------------------------------------------------- */
+
+// getOverloadedIntrinsic gets an overloaded LLVM intrinsic function.  This
+// function assumes that the intrinsic is overloaded by `returntype.paramtypes`.
+func (g *Generator) getOverloadedIntrinsic(name string, returnType lltypes.Type, paramTypes ...lltypes.Type) llvalue.Value {
+	// Built the full name of intrinsic function.
+	intrinsicName := fmt.Sprintf("llvm.%s.%s.%s", name, returnType.LLString(), strings.Join(
+		util.Map(paramTypes, func(pt lltypes.Type) string { return pt.LLString() }),
+		".",
+	))
+
+	// Check if such a name already exists.
+	if llvmIntrinsic, ok := g.llvmIntrinsics[intrinsicName]; ok {
+		// Return the declared value if it already exists.
+		return llvmIntrinsic
+	} else {
+		// Otherwise, create a new intrinsic declaration.
+		params := make([]*ir.Param, len(paramTypes))
+		for i, paramType := range paramTypes {
+			params[i] = ir.NewParam(fmt.Sprintf("p%d", i), paramType)
+		}
+		llvmIntrinsic := g.mod.NewFunc(intrinsicName, returnType, params...)
+
+		// Add the intrinsic to the intrinsics table
+		g.llvmIntrinsics[intrinsicName] = llvmIntrinsic
+
+		// Return the created intrinsic
+		return llvmIntrinsic
+	}
+}
 
 // callFunc calls an LLVM function with args.
 func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...llvalue.Value) llvalue.Value {

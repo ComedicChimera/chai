@@ -4,6 +4,7 @@ import (
 	"chaic/ast"
 	"chaic/common"
 	"hash/fnv"
+	"sync"
 )
 
 // ChaiFile represents a Chai source file.
@@ -51,6 +52,9 @@ type ChaiPackage struct {
 
 	// The global operator table shared between the package's source files.
 	OperatorTable map[int][]*common.Operator
+
+	// The global mutex used to synchronize access to the package's tables.
+	TableMutex *sync.Mutex
 }
 
 // GetPackageIDFromAbsPath returns a package ID based on an absolute path.
