@@ -176,7 +176,7 @@ on the types and values involved in the type cast.
 
 Note that type casting has lower precedence than any of the arithmetic operators:
 
-    2 / 4 as f32    // result is cast to f32 => 0
+    2 / 4 as f32    // Result is cast to f32 => 0
     2 / (4 as f32)  // 4 is cast to f32 => 0.5
 
 ## <a name="vars"> Variables and Constants
@@ -186,7 +186,7 @@ Note that type casting has lower precedence than any of the arithmetic operators
 In Chai, you can declare variables using the `let` keyword like so:
 
     let x = 10;
-    println(x);  // prints 10
+    println(x);  // Prints 10.
 
 The type of `x` is inferred based on the value it is initialized with.
 
@@ -198,7 +198,7 @@ If you specify a type extension, you don't have to explicitly initialize the
 variable: it will be initialized to its **null value** by default (which is zero
 for all numeric types).
 
-    let y: i32;  // y = 0
+    let y: i32;  // Implicitly: `y = 0`.
 
 > This kind of variable declaration only works for types which are *nullable*.
 > We will see what this means when we encounter our first non-nullable type.
@@ -218,13 +218,13 @@ Assignment in Chai is done using the `=` operator like so:
 You can assign to multiple variables at once by separating the variables and
 expressions using commas. 
 
-    x, y = 5, 6;  // x = 5, y = 6;
+    x, y = 5, 6;  // Equivalent to `x = 5, y = 6`.
 
 Chai fully evaluates the right-hand side expressions before it assigns them to
 the left-hand side.  This means that you can trivially swap the values of two
 variables using multi-assignment without having to use a temporary variable.
 
-    a, b = b, a;  // swaps a and b's values
+    a, b = b, a;  // Swaps a and b's values.
 
 Often, we want to apply an operator to between the variable's value and a new
 value.  For example, if wanted to add 2 to the variable `x`, we would write:
@@ -234,18 +234,18 @@ value.  For example, if wanted to add 2 to the variable `x`, we would write:
 Because this kind of operation is so common, Chai provides a short-hand for
 statements like the one above called **compound assignment**:
 
-    x += 2;  // equivalent to `x = x + 2`
+    x += 2;  // Equivalent to `x = x + 2`.
 
 Compound assignment can be performed with any of the binary arithmetic and
 bitwise operators:
 
-    x *= 2;   // double x
-    y /= 4;   // divide y by 4
-    a <<= 1;  // left-shift a by 1
+    x *= 2;   // Double x.
+    y /= 4;   // Divide y by 4.
+    a <<= 1;  // Left-shift a by 1.
 
 Furthermore, we can apply compound assignment between multiple values:
 
-    x, y **= 2, 3;  // square x, cube y
+    x, y **= 2, 3;  // Square x and cube y.
 
 Finally, Chai offers one more bit of short-hand for adding and subtracting
 one from a variable's value which happens quite often.  This short-hand comes
@@ -254,10 +254,10 @@ in the form of the **increment** and **decrement** statements.
 They are written by placing either `++` for increment or `--` for decrement
 after the variable we want to mutate.  That is:
 
-    // Increment x by 1: equivalent to x += 1
+    // Increment x by 1: equivalent to `x += 1`.
     x++;
 
-    // Decrement y by 1: equivalent to y -= 1
+    // Decrement y by 1: equivalent to `y -= 1`.
     y--;
 
 > Unlike in programming languages like C, increment and decrement are statements

@@ -163,6 +163,47 @@ of some common colors.
     else:
         println("unknown color");
 
+## <a name="ifexprs"> If Expressions
+
+In addition to regular if statements, Chai also provides **if expressions** which
+allow you to select between different expressions depending on conditions.
+
+Let's consider an example to demonstrate how if expressions work.
+
+    let abs: i64;
+    if n < 0:
+        abs = -n;
+    else:
+        abs = n; 
+
+In the above code, we are storing the absolute value of some number `n` into the
+variable `abs`.  
+
+We can make this code a lot more concise using an if expression.  If expressions look
+exactly like regular if statements except their bodies are denoted `=>` followed by an
+expression.  Here is the absolute value code above translated into an if expression:
+
+    let abs = if n < 0 => -n else => n;
+
+Note that, like with short-circuit evaluation, only the code that the if
+expression selects will be evaluated: eg. if `n` is non-negative, then the `-n`
+code won't run at all.
+
+If expressions can also have `elif` clauses.  For example:
+
+    print(n);  // `print` works like `println` but doesn't add a newline.
+
+    println(
+        if n % 10 == 1 && n % 100 != 11 => "st"
+        elif n % 10 == 2 && n % 100 != 12 => "nd"
+        elif n % 10 == 3 && n % 100 != 13 => "rd"
+        else => "th"
+    );
+
+However, unlike regular if statements, if expressions must *always* have an else
+clause. Else clauses are required to make the if expression **exhaustive**: they
+ensure that it always evaluates to something.
+
 ## <a name="loops"> Basic Loops
 
 **While loops** are a kind of block statement that repeats their body as long as
@@ -219,21 +260,211 @@ followed by the keyword `while` and the condition of the loop.  For example,
 here is some code which uses the fictious function `get_char` to read the next
 character from some stream until no more characters can be returned.
 
-    let c: rune;  // rune is the type used for characters in Chai :)
+    let c: rune;  // `rune` is the type used for characters in Chai.
     do {
         c = get_char();
         println(c);
-    } while (c != -1);
+    } while c != -1;
+
+Notice that unlike with the other block statements, a semicolon is required
+after the condition of a do-while loop.
 
 ## <a name="bc"> Break and Continue
 
-TODO: break, continue, and else clauses
+A **break statement** is used to exit out of a loop early.  
+
+Break statements are denoted with the keyword `break`.
+
+    while true {
+        let input: i64;
+        scanf("%d", &input);
+
+        if input == 0:
+            // Exit the loop when input = 0.
+            break;
+
+        println("n ** 2 =", n ** 2);
+    }
+
+A **continue statement** is used to continue to the next iteration of a loop
+immediately: thereby skipping the remaining content of the body.  Notably, when
+a continue statement is encountered, the loop condition is still checked to
+determine when to continue looping: continue statements just skip the body.
+
+Continue statements are denoted with the keyword `continue`.
+
+    while true {
+        let input: i64;
+        scanf("%d", &input);
+
+        if input == 0:
+            // Skip the `println` when the input = 0.
+            continue;
+
+        println("n ** 2 =", n ** 2);
+    }
+
+> A continue statement can often be interchanged for an else clause, but there
+> are many situations when introducing an else clause would be very inconvenient
+> and messy.  For example, if you many nested layers of control flow, it is
+> often easier to use a continue statement rather than trying to use an else
+> clause.
+
+Continue statements also highlight the single notably difference between a
+tripartite for loop and a while loop: continue will not skip the update
+statement of a tripartite for loop, but it will skip the update statement of a
+while loop.  For example:
+
+    for let i = 0; i < 100; i++ {
+        if i % 3 == 0:
+            continue;
+
+        println("i =", i);
+    }
+
+The code above will behave as intended: skipping iterations where `i` is
+divisible by 3. However, if we were to use the more verbose while loop here, you
+would find that your code gets caught in an infinite loop unless you explicitly
+placed an extra `i++` before the continue statement.
+
+All loops in Chai can have an *else clause* which will run only if the loop exits
+normally (ie. via its condition).  If the loop is broken out of using a break statement,
+then the else clause will not run.  
+
+As an example, if we use the fictious function, `get_element`, we can see where
+the behavior of an else clause would be useful:
+
+    for let i = 0; i < 10; i++ {
+        if get_element(i) == 0 {
+            println("Found a zero!");
+            break;
+        }
+    } else:
+        println("Did not find a zero.");
+
+> In later chapters, the else clause will become very useful for searching and
+> validating collections of data.
 
 ## <a name="guessing"> Case Study: Guessing Game
 
-## <a name="ifexprs"> If Expressions
+Now, let's take a look at a sample program which is going to put all the topics
+we studied in this chapter together.
 
-TODO: if expressions, exhaustivity
+This program is going to be a simple guessing game which generates a random
+number between 1 and 100 and then prompts the user to guess until they get the
+right number.
+
+We are going to put this program together piece by piece so we can make sure we
+fully understand how it works.  
+
+Let's start by adding in the boilerplate code that we covered in Chapters 1 and
+2.
+
+    // Our package declaration.
+    package guesser;
+
+    // Import our standard I/O utilities.
+    import println, scanf from io.std;
+
+    // Our main function.
+    func main() {
+        // TODO
+    }
+
+Now, the first challenge of is to actually generate a random number.  Luckily,
+Chai's standard library provides us a package called `random` which contains a
+function called `intn` that does exactly what we want.  First, let's import that
+function.
+
+    package guesser;
+
+    import printlin, scan from io.std;
+
+    // Import the `intn` function.
+    import intn from random;
+
+    func main() {
+        // TODO
+    }
+
+Then, we can call `intn` with the the arguments `1` denoting our lower bound and
+`101` denoting our exclusive upper bound to get our random number.
+
+    package guesser;
+
+    import printlin, scan from io.std;
+    import intn from random;
+
+    func main() {
+        // Generate a random number between 1 and 100.
+        let n = intn(1, 101);
+
+        // TODO
+    }
+
+Now, let's set up the guessing loop.  For this, we are just going to use a simple
+infinite loop: ie. `while true` and use a `break` to exit out when the user guesses
+correctly.  We will also add the code to get the user's guess.
+
+    package guesser;
+
+    import printlin, scan from io.std;
+    import intn from random;
+
+    func main() {
+        // Generate a random number between 1 and 100.
+        let n = intn(1, 101);
+
+        // The main guessing loop.
+        while true {
+            // Prompt our user to enter the number.
+            println("Enter your guess (1 <= n <= 100):")
+
+            // Read in user input.
+            let input: i64;
+            scanf("%d", &input);
+
+            // TODO
+        }
+    }
+
+Now, we can use a simple if statement to check the user's guess.  We will break
+out of the loop when the user guesses correctly.
+
+    package guesser;
+
+    import printlin, scan from io.std;
+    import intn from random;
+
+    func main() {
+        // Generate a random number between 1 and 100.
+        let n = intn(1, 101);
+
+        // The main guessing loop.
+        while true {
+            // Prompt our user to enter the number.
+            println("Enter your guess (1 <= n <= 100):")
+
+            // Read in user input.
+            let input: i64;
+            scanf("%d", &input);
+
+            // Check the user's guess.
+            if input == n {
+                // Correct answer => exit the loop.
+                println("Correct!");
+                break;
+            } elif input < n:
+                // Answer is too low.
+                println("Too low!");
+            else:
+                // Answer is too high.
+                println("Too high!");
+        }
+    }
+
+That's it!  A simple guessing game programmed using only the basic concepts we covered
+in this chapter.  Compile and run it on your local system to give it a try!
 
 ## <a name="exercises"> Exercises
 
