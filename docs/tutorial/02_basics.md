@@ -247,6 +247,24 @@ Furthermore, we can apply compound assignment between multiple values:
 
     x, y **= 2, 3;  // square x, cube y
 
+Finally, Chai offers one more bit of short-hand for adding and subtracting
+one from a variable's value which happens quite often.  This short-hand comes
+in the form of the **increment** and **decrement** statements.  
+
+They are written by placing either `++` for increment or `--` for decrement
+after the variable we want to mutate.  That is:
+
+    // Increment x by 1: equivalent to x += 1
+    x++;
+
+    // Decrement y by 1: equivalent to y -= 1
+    y--;
+
+> Unlike in programming languages like C, increment and decrement are statements
+> in Chai: they cannot be used as expressions.  Furthermore, there is no notion
+> of "postfix" vs. "prefix" incrementing and decrementing: the operator is
+> always placed after the the value being mutated.
+
 ### Constants
 
 Sometimes, we don't want to allow our variables to mutable.  Thus, Chai provides

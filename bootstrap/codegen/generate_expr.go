@@ -15,6 +15,8 @@ import (
 // generateExpr generates an expression.
 func (g *Generator) generateExpr(expr ast.ASTExpr) llvalue.Value {
 	switch v := expr.(type) {
+	case *ast.BinaryOpApp:
+		return g.generateBinaryOpApp(v)
 	case *ast.UnaryOpApp:
 		return g.generateUnaryOpApp(v)
 	case *ast.FuncCall:
@@ -73,6 +75,20 @@ func (g *Generator) generateLHSExpr(expr ast.ASTExpr) llvalue.Value {
 
 /* -------------------------------------------------------------------------- */
 
+// generateBinaryOpApp generates a binary operator application.
+func (g *Generator) generateBinaryOpApp(bopApp *ast.BinaryOpApp) llvalue.Value {
+	lhs := g.generateExpr(bopApp.LHS)
+	rhs := g.generateExpr(bopApp.RHS)
+
+	switch bopApp.Op.Overload.IntrinsicName {
+	case "":
+		return g.block.NewCall(bopApp.Op.Overload.LLValue, lhs, rhs)
+	default:
+		report.ReportICE("binary intrinsic codegen not implemented")
+		return nil
+	}
+}
+
 // generateUnaryOpApp generates a unary operator application.
 func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {
 	operand := g.generateExpr(uopApp.Operand)
@@ -92,8 +108,11 @@ func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {
 		return g.block.NewSub(constant.NewInt(operand.Type().(*lltypes.IntType), 0), operand)
 	case "fneg":
 		return g.block.NewFNeg(operand)
-	default:
+	case "":
 		return g.callFunc(uopApp.Type(), uopApp.Op.Overload.LLValue, operand)
+	default:
+		report.ReportICE("unary intrinsic codegen not implemented")
+		return nil
 	}
 }
 

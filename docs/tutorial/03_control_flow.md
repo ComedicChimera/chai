@@ -2,13 +2,15 @@
 
 **Table of Contents**
 
-- [Conditional Expressions](#conds)
+- [Boolean Expressions](#conds)
 - [If, Elif, and Else](#ifs)
-- [While and C-Style For Loops](#while)
+- [Basic Loops](#loops)
+- [Break and Continue](#bc)
 - [Case Study: Guessing Game](#guessing)
+- [If Expressions](#ifexprs)
 - [Exercises](#exercises)
 
-## <a name="conds"> Conditional Expressions
+## <a name="conds"> Boolean Expressions
 
 Chai's builtin *Boolean type* is identified by the type label `bool`.  The
 constants `true` and `false` correspond to the true and false Boolean truth
@@ -161,9 +163,77 @@ of some common colors.
     else:
         println("unknown color");
 
-## <a name="while"> While and C-Style For Loops
+## <a name="loops"> Basic Loops
+
+**While loops** are a kind of block statement that repeats their body as long as
+the condition in its header is true.  They allow for code to be repeatedly
+executed based on a condition.
+
+While loops begin with the keyword `while` followed by the condition of the loop.
+After the condition, the body block is placed.  Here is an example of a program
+which prints out the numbers from 1 to 10 using a while loop:
+
+    let n = 1;
+    while n <= 10 {
+        println(n);
+
+        n++;
+    }
+
+As it turns out, the pattern above is rather common: create a variable, repeat
+until a condition is true, and update the variable on each iteration.  So, Chai
+provides another kind of loop called a **tripartite for loop** (or C-style for
+loop as they aremore commonly known).  This loop just condenses the syntax above
+into a line as opposed to spreading it over many lines.  
+
+Tripartite for loops use the keyword `for` followed by the three key statements
+in order separated by semicolons: declare, check, and update.  Here is the above
+while loop rewritten as a tripartite for loop:
+
+    for let n = 1; n <= 10; n++ {
+        println(n);
+    }
+
+The code does the exact same thing, but using a much more concise syntax.
+
+> In a later chapter, we will actually see how to make this loop even shorter
+> using ranges although it doesn't work for all kinds of tripartite for loops.
+
+Note that both the variable declaration and the update statement can be elided
+in a tripartite for loop although the semicolons need to remain.  For example, if
+you wanted to be able to access the variable `n` after the loop ended:
+
+    let n = 1;
+    for ; n <= 10; n++ {
+        println(n);
+    }
+
+Now, `n` is not constrained to the scope of the loop.
+
+The final kind of loop we are going to introduce in this chapter is the 
+**do-while loop**.  Do-while loops work exactly like regular while loops except
+they always execute their bodies at least once.  
+
+Do-while loops use the keyword `do` followed by a block which is their body
+followed by the keyword `while` and the condition of the loop.  For example,
+here is some code which uses the fictious function `get_char` to read the next
+character from some stream until no more characters can be returned.
+
+    let c: rune;  // rune is the type used for characters in Chai :)
+    do {
+        c = get_char();
+        println(c);
+    } while (c != -1);
+
+## <a name="bc"> Break and Continue
+
+TODO: break, continue, and else clauses
 
 ## <a name="guessing"> Case Study: Guessing Game
+
+## <a name="ifexprs"> If Expressions
+
+TODO: if expressions, exhaustivity
 
 ## <a name="exercises"> Exercises
 
