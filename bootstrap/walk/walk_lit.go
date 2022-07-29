@@ -76,7 +76,7 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 	}
 
 	// Set the value of the literal.
-	lit.Value = x
+	lit.Value = int64(x)
 
 	// Determine the type or set of types that can represent the integer.
 	var validTypes []types.PrimitiveType
@@ -95,10 +95,12 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 		constKindName = "int"
 	}
 
-	lit.NodeType = &types.UntypedNumber{
+	numType := &types.UntypedNumber{
 		DisplayName: fmt.Sprintf("untyped %s literal", constKindName),
 		ValidTypes:  validTypes,
 	}
+	lit.NodeType = numType
+	w.numericConstants = append(w.numericConstants, numType)
 }
 
 // validIntTypes returns the valid integer types of those passed in that can
@@ -142,10 +144,12 @@ func (w *Walker) walkFloatLit(lit *ast.Literal) {
 	if x < math.SmallestNonzeroFloat32 || x > math.MaxFloat32 { // Too large/small.
 		lit.NodeType = types.PrimTypeF64
 	} else { // Can be f32.
-		lit.NodeType = &types.UntypedNumber{
+		numType := &types.UntypedNumber{
 			DisplayName: "untyped float literal",
 			ValidTypes:  []types.PrimitiveType{types.PrimTypeF64, types.PrimTypeF32},
 		}
+		lit.NodeType = numType
+		w.numericConstants = append(w.numericConstants, numType)
 	}
 
 }
@@ -166,7 +170,7 @@ func (w *Walker) walkNumLit(lit *ast.Literal) {
 	}
 
 	// The value will default to an integer.
-	lit.Value = x
+	lit.Value = int64(x)
 
 	// Get all the valid integer types for x.
 	validTypes := validIntTypes(x, intTypes...)
@@ -176,10 +180,12 @@ func (w *Walker) walkNumLit(lit *ast.Literal) {
 	validTypes = append(validTypes, types.PrimTypeF64, types.PrimTypeF32)
 
 	// Set the untyped number for the number literal.
-	lit.NodeType = &types.UntypedNumber{
+	numType := &types.UntypedNumber{
 		DisplayName: "untyped number literal",
 		ValidTypes:  validTypes,
 	}
+	lit.NodeType = numType
+	w.numericConstants = append(w.numericConstants, numType)
 }
 
 // walkRuneLit walks a rune literal.
@@ -215,7 +221,7 @@ func (w *Walker) walkRuneLit(lit *ast.Literal) {
 					report.ReportICE("unexpected Go error parsing rune literal: %s", err)
 				}
 
-				lit.Value = r
+				lit.Value = int64(r)
 			}
 		default: // Multi-byte character.
 			{
@@ -225,10 +231,10 @@ func (w *Walker) walkRuneLit(lit *ast.Literal) {
 					return
 				}
 
-				lit.Value = uint64(r)
+				lit.Value = int64(r)
 			}
 		}
 	} else {
-		lit.Value = uint64(lit.Text[0])
+		lit.Value = int64(lit.Text[0])
 	}
 }

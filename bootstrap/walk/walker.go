@@ -21,8 +21,12 @@ type Walker struct {
 	// is no enclosing function: ie. return statements are not valid.
 	enclosingReturnType types.Type
 
-	// The list of untyped nulls that occur in user source code.
+	// The list of untyped nulls that occur in the definition being walked.
 	nullValues []*types.UntypedNull
+
+	// The list of untyped numeric constants that occur in the definition being
+	// walked.
+	numericConstants []*types.UntypedNumber
 
 	// The number loops until the outermost function block.
 	loopDepth int
@@ -51,6 +55,13 @@ func (w *Walker) walkDef(def ast.ASTNode) {
 	for _, nullValue := range w.nullValues {
 		if nullValue.InferredType == nil {
 			w.recError(nullValue.Span, "cannot infer type of null")
+		}
+	}
+
+	// Deduce default types for any uninferred numeric constants.
+	for _, numConst := range w.numericConstants {
+		if numConst.InferredType == nil {
+			numConst.InferredType = numConst.ValidTypes[0]
 		}
 	}
 }

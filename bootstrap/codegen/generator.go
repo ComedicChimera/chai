@@ -9,7 +9,9 @@ import (
 	"fmt"
 
 	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/constant"
 	lltypes "github.com/llir/llvm/ir/types"
+	llvalue "github.com/llir/llvm/ir/value"
 )
 
 // Generator is responsible for converting Chai to LLVM IR.
@@ -26,6 +28,9 @@ type Generator struct {
 
 	// The variable block of the LLVM function being generated.
 	varBlock *ir.Block
+
+	// The current block instructions are being inserted in.
+	block *ir.Block
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -69,12 +74,71 @@ func Generate(pkg *depm.ChaiPackage) *ir.Module {
 
 	// Generate all the body predicates.
 	for _, bodyPred := range g.bodyPredicates {
-		_ = bodyPred
+		g.generateBodyPredicate(bodyPred)
 	}
 
 	// TODO: verify/validate?
 
 	return g.mod
+}
+
+/* -------------------------------------------------------------------------- */
+
+// generateBodyPrediate generates a body predicate.
+func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
+	// Add the variable block.
+	g.varBlock = pred.LLFunc.NewBlock("entry")
+
+	// Generate all the function parameters.
+	for _, param := range pred.Params {
+		paramVar := g.varBlock.NewAlloca(param.LLValue.Type())
+		g.varBlock.NewStore(param.LLValue, paramVar)
+		param.LLValue = paramVar
+	}
+
+	// Generate the function body itself.
+	firstBlock := pred.LLFunc.NewBlock("body")
+	g.block = firstBlock
+
+	if predExpr, ok := pred.Body.(ast.ASTExpr); ok {
+		// Body is an expression.
+		predValue := g.generateExpr(predExpr)
+
+		// If the value is non-unit, return it.
+		if !types.IsUnit(predExpr.Type()) {
+			g.block.NewRet(predValue)
+		}
+	} else {
+		// Body is a block.
+	}
+
+	// If the block we are now positioned in (the last block of the function)
+	// is missing a terminator, then we know the function must return void
+	// and so we add in the implicit `ret void` at the end.
+	if g.block.Term == nil {
+		g.block.NewRet(nil)
+	}
+
+	// Build a terminator for the var block to the first code block if the
+	// variable block is non-empty.  Otherwise, remove it.
+	if len(g.varBlock.Insts) > 0 {
+		g.varBlock.NewBr(firstBlock)
+	} else {
+		pred.LLFunc.Blocks = pred.LLFunc.Blocks[1:]
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+
+// callFunc calls an LLVM function with args.
+func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...llvalue.Value) llvalue.Value {
+	result := g.block.NewCall(fn, args...)
+
+	if types.IsUnit(returnType) {
+		return constant.NewInt(lltypes.I1, 0)
+	}
+
+	return result
 }
 
 /* -------------------------------------------------------------------------- */
