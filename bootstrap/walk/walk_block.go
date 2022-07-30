@@ -56,6 +56,8 @@ func (w *Walker) walkBlock(block *ast.Block) int {
 			w.walkWhileLoop(v)
 		case *ast.CForLoop:
 			w.walkCForLoop(v)
+		case *ast.DoWhileLoop:
+			w.walkDoWhileLoop(v)
 		default: // Must be an expression.
 			w.walkExpr(stmt.(ast.ASTExpr))
 		}
@@ -163,6 +165,29 @@ func (w *Walker) walkCForLoop(loop *ast.CForLoop) {
 	w.loopDepth--
 
 	w.popScope()
+
+	// Walk the else block if it exists.
+	if loop.ElseBlock != nil {
+		w.pushScope()
+		w.walkBlock(loop.ElseBlock)
+		w.popScope()
+	}
+}
+
+// walkDoWhileLoop walks a do-while loop.
+func (w *Walker) walkDoWhileLoop(loop *ast.DoWhileLoop) {
+	// Walk the body of the while loop.
+	w.pushScope()
+	w.loopDepth++
+
+	w.walkBlock(loop.Body)
+
+	w.loopDepth--
+	w.popScope()
+
+	// Walk the condition and make sure it is a boolean.
+	w.walkExpr(loop.Condition)
+	w.mustUnify(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
 
 	// Walk the else block if it exists.
 	if loop.ElseBlock != nil {

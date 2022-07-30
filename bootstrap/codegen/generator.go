@@ -183,6 +183,11 @@ func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...ll
 	return result
 }
 
+// appendBlock adds a new block to the current function.
+func (g *Generator) appendBlock() *ir.Block {
+	return g.block.Parent.NewBlock("")
+}
+
 /* -------------------------------------------------------------------------- */
 
 // convType converts the typ to its LLVM type.

@@ -44,6 +44,8 @@ func (p *Parser) parseStmt() ast.ASTNode {
 		return p.parseWhileLoop()
 	case TOK_FOR:
 		return p.parseForLoop()
+	case TOK_DO:
+		return p.parseDoWhileLoop()
 	default:
 		stmt = p.parseExprAssignStmt()
 	}
@@ -51,6 +53,8 @@ func (p *Parser) parseStmt() ast.ASTNode {
 	p.want(TOK_SEMI)
 	return stmt
 }
+
+/* -------------------------------------------------------------------------- */
 
 // var_decl := ('let' | 'const') var_list {',' var_list} ;
 // var_list := ident_list (initializer | type_ext [initializer]) ;

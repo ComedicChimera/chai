@@ -1,0 +1,30 @@
+package target2_test;
+
+// System Calls
+
+@[extern, callconv("win64")]
+func ExitProcess(exitCode: i32);
+
+@[extern, callconv("win64")]
+func GetStdHandle(nStdHandle: i32) *u8;
+
+@[extern, callconv("win64")]
+func WriteConsoleA(
+    hConsoleOutput: *u8,
+    lpBuffer: *const u8,
+    nNumberOfCharsToWrite: u32,
+    lpNumberOfCharsWritten: *u32,
+    lpReserved: *u8 
+) bool;
+
+// System API
+
+func exit(exit_code: i32) = ExitProcess(exit_code);
+
+func get_stdout() *u8 = GetStdHandle(-11);
+
+func putc(h: *u8, c: i32) {
+    const b = c as u8;
+    WriteConsoleA(h, &b, 1, null, null);
+}
+

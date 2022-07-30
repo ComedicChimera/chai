@@ -7,7 +7,9 @@ import (
 	"chaic/syntax"
 	"chaic/types"
 
+	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	llvalue "github.com/llir/llvm/ir/value"
 )
@@ -172,19 +174,127 @@ func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType ty
 	return nil
 }
 
+/* -------------------------------------------------------------------------- */
+
 // generateBinaryOpApp generates a binary operator application.
 func (g *Generator) generateBinaryOpApp(bopApp *ast.BinaryOpApp) llvalue.Value {
 	lhs := g.generateExpr(bopApp.LHS)
-	rhs := g.generateExpr(bopApp.RHS)
 
+	// Handle short-circuiting binary operators.
 	switch bopApp.Op.Overload.IntrinsicName {
+	case "land":
+		// The LLVM IR for logical AND is roughly:
+		//
+		//   some_block:
+		//     ...
+		//     %lhs = ...
+		//     br i1 %lhs, label %land_maybe, label %land_exit
+		//
+		//   land_maybe:
+		//     %rhs = ...
+		//     br label %land_exit
+		//
+		//   land_exit:
+		//     %land = phi i1 [i1 false, label %some_block], [i1 %rhs, label %land_maybe]
+
+		{
+			landEntry := g.block
+
+			landMaybe := g.appendBlock()
+			landExit := g.appendBlock()
+
+			g.block.NewCondBr(lhs, landMaybe, landExit)
+
+			g.block = landMaybe
+			rhs := g.generateExpr(bopApp.RHS)
+			g.block.NewBr(landExit)
+
+			// Handle the case where generating the RHS changes the block.
+			landMaybe = g.block
+
+			g.block = landExit
+			return g.block.NewPhi(
+				ir.NewIncoming(constant.NewBool(false), landEntry),
+				ir.NewIncoming(rhs, landMaybe),
+			)
+		}
+
+	case "lor":
+		// The LLVM IR for logical OR is roughyl:
+		//
+		//   some_block:
+		//     ...
+		//     %lhs = ...
+		//     br i1 %lhs, label %lor_exit, label %lor_maybe
+		//
+		//   lor_maybe:
+		//     %rhs = ...
+		//     br label %lor_exit
+		//
+		//   lor_exit:
+		//     %lor = phi i1 [i1 true, label %some_block], [i1 %rhs, label %lor_maybe]
+
+		{
+			lorEntry := g.block
+
+			lorMaybe := g.appendBlock()
+			lorExit := g.appendBlock()
+
+			g.block.NewCondBr(lhs, lorExit, lorMaybe)
+
+			g.block = lorMaybe
+			rhs := g.generateExpr(bopApp.RHS)
+			g.block.NewBr(lorExit)
+
+			// Handle the case when the RHS changes the block.
+			lorMaybe = g.block
+
+			g.block = lorExit
+			return g.block.NewPhi(
+				ir.NewIncoming(constant.NewBool(true), lorEntry),
+				ir.NewIncoming(rhs, lorMaybe),
+			)
+		}
+	}
+
+	return g.applyNonSSBinaryOp(bopApp.Op.Overload, lhs, g.generateExpr(bopApp.RHS))
+}
+
+// applyNonSSBinaryOp applies a non-short-circuiting binary operator repreanted
+// by overload to lhs and rhs.
+func (g *Generator) applyNonSSBinaryOp(overload *common.OperatorOverload, lhs, rhs llvalue.Value) llvalue.Value {
+	switch overload.IntrinsicName {
+	case "iadd":
+		return g.block.NewAdd(lhs, rhs)
+	case "isub":
+		return g.block.NewSub(lhs, rhs)
+	case "imul":
+		return g.block.NewMul(lhs, rhs)
+	case "sdiv":
+		return g.block.NewSDiv(lhs, rhs)
+	case "smod":
+		return g.block.NewSRem(lhs, rhs)
+	case "ieq":
+		return g.block.NewICmp(enum.IPredEQ, lhs, rhs)
+	case "ineq":
+		return g.block.NewICmp(enum.IPredNE, lhs, rhs)
+	case "slt":
+		return g.block.NewICmp(enum.IPredSLT, lhs, rhs)
+	case "sgt":
+		return g.block.NewICmp(enum.IPredSGT, lhs, rhs)
+	case "slteq":
+		return g.block.NewICmp(enum.IPredSLE, lhs, rhs)
+	case "sgteq":
+		return g.block.NewICmp(enum.IPredSGE, lhs, rhs)
 	case "":
-		return g.block.NewCall(bopApp.Op.Overload.LLValue, lhs, rhs)
+		return g.block.NewCall(overload.LLValue, lhs, rhs)
 	default:
-		report.ReportICE("binary intrinsic codegen not implemented")
+		report.ReportICE("binary non-SS intrinsic codegen for `%s` not implemented", overload.IntrinsicName)
 		return nil
 	}
 }
+
+/* -------------------------------------------------------------------------- */
 
 // generateUnaryOpApp generates a unary operator application.
 func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {

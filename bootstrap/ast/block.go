@@ -69,3 +69,17 @@ type CForLoop struct {
 	// The (optional) else block of the for loop.
 	ElseBlock *Block
 }
+
+// DoWhileLoop represents a do-while loop.
+type DoWhileLoop struct {
+	ASTBase
+
+	// The body of the loop.
+	Body *Block
+
+	// The loop condition.
+	Condition ASTExpr
+
+	// The (optiona) else block of the do-while loop.
+	ElseBlock *Block
+}

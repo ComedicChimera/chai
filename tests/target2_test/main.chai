@@ -1,0 +1,83 @@
+package target2_test;
+
+func factorial(x: i64) i64 {
+    if x > 1: 
+        return x * factorial(x - 1);
+    
+    return 1;
+}
+
+func fibonacci(n: i64) i64 {
+    let a = 0, b = 1;
+
+    while b < n:
+        a, b = b, a + b;
+
+    return a;
+}
+
+func print_fizz(h: *u8) {
+    putc(h, 'F');
+    putc(h, 'i');
+    putc(h, 'z');
+    putc(h, 'z');
+}
+
+func print_buzz(h: *u8) {
+    putc(h, 'B');
+    putc(h, 'u');
+    putc(h, 'z');
+    putc(h, 'z');
+}
+
+func fizz_buzz(h: *u8, n: i64) {
+    for let i = 0; i < n; i++ {
+        if i % 5 == 0 && i % 3 == 0 {
+            print_fizz(h);
+            print_buzz(h);
+            putc(h, '\n');
+        } elif i % 3 == 0 {
+            print_fizz(h);
+            putc(h, '\n');
+        } elif i % 5 == 0 {
+            print_buzz(h);
+            putc(h, '\n');
+        } else:
+            putd(h, i);
+    }
+}
+
+func ack(m, n: i64) i64 {
+    if m == 0:
+        return n + 1;
+    elif n == 0:
+        return ack(m - 1, 1);
+    else:
+        return ack(m - 1, ack(m, n - 1));
+}
+
+func n_times_with_break(h: *u8, n: i64) {
+    for let a = 0; true; a++ {
+        if a == n:
+            break;
+
+        putd(h, a);
+    }
+}
+
+func main() {
+    let h = get_stdout();
+
+    let fac5 = factorial(5);
+    putd(h, fac5);
+
+    let fib10 = fibonacci(10);
+    putd(h, fib10);
+
+    fizz_buzz(h, 20);
+
+    let ack22 = ack(2, 2);
+    putd(h, ack22);
+
+    n_times_with_break(h, 10);
+}

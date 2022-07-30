@@ -160,3 +160,30 @@ func (p *Parser) parseCForLoop(startSpan *report.TextSpan, iterVarDecl *ast.VarD
 		ElseBlock:   elseBlock,
 	}
 }
+
+// do_while_loop := 'do' block 'while' expr (';' | loop_else) ;
+func (p *Parser) parseDoWhileLoop() *ast.DoWhileLoop {
+	startSpan := p.want(TOK_DO).Span
+
+	body := p.parseBlock()
+
+	p.want(TOK_WHILE)
+
+	condition := p.parseExpr()
+
+	var elseBlock *ast.Block
+	if p.has(TOK_ELSE) {
+		p.next()
+
+		elseBlock = p.parseBlock()
+	} else {
+		p.want(TOK_SEMI)
+	}
+
+	return &ast.DoWhileLoop{
+		ASTBase:   ast.NewASTBaseOver(startSpan, p.lookbehind.Span),
+		Body:      body,
+		Condition: condition,
+		ElseBlock: elseBlock,
+	}
+}

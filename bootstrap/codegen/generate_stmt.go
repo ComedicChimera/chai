@@ -3,7 +3,10 @@ package codegen
 import (
 	"chaic/ast"
 	"chaic/report"
+	"chaic/types"
 
+	"github.com/llir/llvm/ir/constant"
+	lltypes "github.com/llir/llvm/ir/types"
 	llvalue "github.com/llir/llvm/ir/value"
 )
 
@@ -31,6 +34,69 @@ func (g *Generator) generateVarDecl(vd *ast.VarDecl) {
 		}
 	}
 }
+
+// generateAssignment generates an assignment statement.
+func (g *Generator) generateAssignment(assign *ast.Assignment) {
+	if len(assign.LHSVars) == len(assign.RHSExprs) {
+		// Generate the LHS variables.
+		llLhsVars := make([]llvalue.Value, len(assign.LHSVars))
+		for i, lhsVar := range assign.LHSVars {
+			llLhsVars[i] = g.generateLHSExpr(lhsVar)
+		}
+
+		// Generate the RHS values.
+		llRhsValues := make([]llvalue.Value, len(assign.RHSExprs))
+		for i, rhsExpr := range assign.RHSExprs {
+			llRhsValues[i] = g.generateExpr(rhsExpr)
+		}
+
+		// Apply compound operators if necessary.
+		if assign.CompoundOp != nil {
+			// TODO: handle short-circuiting binary operators?
+			for i, llRhsValue := range llRhsValues {
+				llLhsValue := g.block.NewLoad(g.convType(assign.LHSVars[i].Type()), llLhsVars[i])
+
+				llRhsValues[i] = g.applyNonSSBinaryOp(assign.CompoundOp.Overload, llLhsValue, llRhsValue)
+			}
+		}
+
+		// Store the RHS values into the LHS values.
+		for i, llLhsVar := range llLhsVars {
+			g.block.NewStore(llRhsValues[i], llLhsVar)
+		}
+	} else {
+		report.ReportICE("codegen for pattern matching assignment not implemented")
+	}
+}
+
+// generateIncDec generates an increment/decrement statement.
+func (g *Generator) generateIncDec(incdec *ast.IncDecStmt) {
+	// Generate the LHS operand.
+	llLHSOperand := g.generateLHSExpr(incdec.LHSOperand)
+
+	// Generate the one-value to use the increment/decrement the operand.
+	var oneValue llvalue.Value
+	if pt, ok := types.InnerType(incdec.LHSOperand.Type()).(types.PrimitiveType); ok {
+		if pt.IsFloating() {
+			oneValue = constant.NewFloat(g.convPrimType(pt, false).(*lltypes.FloatType), 1)
+		} else {
+			oneValue = constant.NewInt(g.convPrimType(pt, false).(*lltypes.IntType), 1)
+		}
+	} else {
+		report.ReportICE("codegen for non-primitive increment not implemented")
+	}
+
+	// Extract the value of the LHS operand.
+	llLHSValue := g.block.NewLoad(g.convType(incdec.LHSOperand.Type()), llLHSOperand)
+
+	// Apply the operator.
+	llResult := g.applyNonSSBinaryOp(incdec.Op.Overload, llLHSValue, oneValue)
+
+	// Store the result into the LHS operand.
+	g.block.NewStore(llResult, llLHSOperand)
+}
+
+/* -------------------------------------------------------------------------- */
 
 // generateReturnStmt generates a return statement,
 func (g *Generator) generateReturnStmt(ret *ast.ReturnStmt) {
