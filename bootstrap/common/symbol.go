@@ -13,7 +13,7 @@ type Symbol struct {
 	Name string
 
 	// The ID of the parent package to this symbol.
-	ParentID int
+	ParentID uint64
 
 	// The numbering identifying the file which defines this symbol.
 	FileNumber int

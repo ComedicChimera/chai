@@ -188,7 +188,7 @@ func useArg(c *Compiler, name, value string) {
 func NewCompilerFromArgs() *Compiler {
 	c := &Compiler{
 		outputMode: OutModeExecutable,
-		depGraph:   make(map[int]*depm.ChaiPackage),
+		depGraph:   make(map[uint64]*depm.ChaiPackage),
 	}
 
 	ap := argParser{args: os.Args[1:], ndx: 0}

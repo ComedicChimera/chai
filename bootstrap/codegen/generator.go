@@ -57,7 +57,7 @@ type bodyPredicate struct {
 // Generate generates a Chai package into an LLVM module.
 func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
 	// The LLVM name of the package.
-	llPkgName := fmt.Sprintf("pkg%d", uint(pkg.ID))
+	llPkgName := fmt.Sprintf("pkg%d", pkg.ID)
 
 	// Create the LLVM module for the package.
 	mod := ir.NewModule()
@@ -87,13 +87,7 @@ func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
 	// Convert the LLIR module into an LLVM module.
 	llMod, err := ctx.NewModuleFromIR(g.mod.String())
 	if err != nil {
-		report.ReportICE("failed to convert LLIR module to LLVM module:\n%s", err.Error())
-		return nil
-	}
-
-	// Verify the LLVM module.
-	if err = llMod.Verify(); err != nil {
-		report.ReportICE("failed to verify LLVM module:\n%s\n\n%s", err.Error(), g.mod.String())
+		report.ReportICE("failed to convert LLIR module to LLVM module:\n%s\n%s", err.Error(), g.mod.String())
 		return nil
 	}
 

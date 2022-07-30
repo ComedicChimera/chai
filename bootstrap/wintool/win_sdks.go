@@ -23,7 +23,7 @@ func addSDKs(toolBuilder *ToolCmdBuilder, targetArch string) error {
 	targetDir := llvmArchToVS15PlusSubDir[targetArch]
 
 	toolBuilder.BinPaths = append(toolBuilder.BinPaths, filepath.Join(ucrtDir, "bin", ucrtVersion, hostDir))
-	toolBuilder.IncludePaths = append(toolBuilder.IncludePaths, filepath.Join(ucrtDir, "include", "ucrt"))
+	toolBuilder.IncludePaths = append(toolBuilder.IncludePaths, filepath.Join(ucrtDir, "include", ucrtVersion, "ucrt"))
 	toolBuilder.LibPaths = append(toolBuilder.LibPaths, filepath.Join(ucrtDir, "lib", ucrtVersion, "ucrt", targetDir))
 
 	// Add the Windows 10 SDK installation to the tool builder.
@@ -33,7 +33,7 @@ func addSDKs(toolBuilder *ToolCmdBuilder, targetArch string) error {
 		return errors.New("unable to find any Windows 10 SDK installation")
 	}
 
-	toolBuilder.BinPaths = append(toolBuilder.BinPaths, filepath.Join(sdkDir, "lib", hostDir))
+	toolBuilder.BinPaths = append(toolBuilder.BinPaths, filepath.Join(sdkDir, "bin", sdkVersion, hostDir))
 	toolBuilder.LibPaths = append(toolBuilder.LibPaths, filepath.Join(sdkDir, "lib", sdkVersion, "um", targetDir))
 
 	sdkInclude := filepath.Join(sdkDir, "include", sdkVersion)
@@ -95,7 +95,7 @@ func getUCRTDir() (string, string, bool) {
 // getSDK10Dir finds the installed Windows 10 SDK if it exists.
 func getSDK10Dir() (string, string, bool) {
 	// Find the root directory for the Windows SDK using the registry.
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Microsoft SDKs\Windows\v10.0`, registry.QUERY_VALUE)
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs\Windows\v10.0`, registry.QUERY_VALUE)
 	if err != nil {
 		return "", "", false
 	}
@@ -124,7 +124,7 @@ func getSDK10Dir() (string, string, bool) {
 			// Since x64 and x86 libraries are always installed together, and we
 			// only actually need the libraries, we can just check for
 			// `um/x64/kernel32.lib` to validate an installation directory.
-			if finfo, err := os.Stat(filepath.Join(libDir, finfo.Name(), `um\x64\kernel32.lib`)); err == nil && !finfo.IsDir() {
+			if kinfo, err := os.Stat(filepath.Join(libDir, finfo.Name(), `um\x64\kernel32.lib`)); err == nil && !kinfo.IsDir() {
 				if maxVersion == "" || finfo.Name() > maxVersion {
 					maxVersion = finfo.Name()
 				}

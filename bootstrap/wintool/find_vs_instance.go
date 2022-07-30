@@ -71,19 +71,27 @@ func findVS15PlusInstancesUsingVSWhere(targetArch string) ([]VSInstance, bool) {
 	var instance VSInstance
 	for _, line := range lines {
 		content := strings.Split(strings.TrimSpace(line), ": ")
+		if len(content) != 2 {
+			continue
+		}
+
 		key, value := content[0], content[1]
 
 		switch key {
 		case "installationPath":
 			instance.InstallPath = value
+
+			if len(instance.Version) > 0 {
+				return []VSInstance{instance}, true
+			}
 		case "installationVersion":
 			instance.Version = value
+
+			if len(instance.InstallPath) > 0 {
+				return []VSInstance{instance}, true
+			}
 		}
 	}
 
-	if len(instance.Version) == 0 || len(instance.InstallPath) == 0 {
-		return nil, false
-	}
-
-	return []VSInstance{instance}, true
+	return nil, false
 }

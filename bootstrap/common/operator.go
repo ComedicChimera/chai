@@ -32,7 +32,7 @@ type OperatorOverload struct {
 	ID int
 
 	// The ID of the parent package to this overload.
-	ParentID int
+	ParentID uint64
 
 	// The number identifying the file this overload is defined in.
 	FileNumber int

@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"chaic/llc"
 	"chaic/report"
 	"chaic/wintool"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 // linkExecutable creates a Chai executable from `objFilePaths` and an
@@ -17,8 +19,7 @@ func (c *Compiler) linkExecutable(objFilePaths []string) {
 	var linkCommand *exec.Cmd
 	if runtime.GOOS == "windows" {
 		// Get the target architecture.
-		// targetArch := strings.Split(llvm.HostTriple(), "-")[0]
-		targetArch := ""
+		targetArch := strings.Split(llc.HostTriple(), "-")[0]
 
 		// Find the Windows linker if possible.
 		lc, err := wintool.FindLink(targetArch)

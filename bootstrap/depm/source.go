@@ -33,7 +33,7 @@ type ChaiFile struct {
 // standalone translation unit.
 type ChaiPackage struct {
 	// The unique ID of the package.
-	ID int
+	ID uint64
 
 	// The name of the package.
 	Name string
@@ -58,8 +58,8 @@ type ChaiPackage struct {
 }
 
 // GetPackageIDFromAbsPath returns a package ID based on an absolute path.
-func GetPackageIDFromAbsPath(absPath string) int {
+func GetPackageIDFromAbsPath(absPath string) uint64 {
 	a := fnv.New64a()
 	a.Write([]byte(absPath))
-	return int(a.Sum64())
+	return a.Sum64()
 }

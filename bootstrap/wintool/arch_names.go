@@ -20,7 +20,7 @@ var hostArchToVCHostSuffix = map[string]string{
 // The table mapping LLVM architecture names to their VC 15+ subdirectory.
 var llvmArchToVS15PlusSubDir = map[string]string{
 	"i386":    "x86",
-	"x86_64":  "x86.x64",
+	"x86_64":  "x64",
 	"arm":     "arm",
 	"aarch64": "arm64",
 }

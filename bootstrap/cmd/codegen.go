@@ -43,6 +43,7 @@ func (c *Compiler) generateLLVMIRModules() {
 
 		go func(ctx *llc.Context, pkg *depm.ChaiPackage) {
 			defer wg.Done()
+			defer ctx.Dispose()
 
 			// Generate the LLVM module.
 			mod := codegen.Generate(ctx, pkg)
@@ -105,6 +106,8 @@ func (c *Compiler) generateASMOrObjectFiles() []string {
 
 		// Create the object file.
 		go func(ctx *llc.Context, pkg *depm.ChaiPackage) {
+			defer ctx.Dispose()
+
 			// Generate the module.
 			mod := codegen.Generate(ctx, pkg)
 
@@ -115,6 +118,9 @@ func (c *Compiler) generateASMOrObjectFiles() []string {
 			if err := tm.CompileModule(mod, outputPath, codegenFileType); err != nil {
 				report.ReportFatal("failed to compile module: %s", err)
 			}
+
+			// Write the path of the object file to the channel.
+			objFileChan <- outputPath
 		}(ctx, pkg)
 	}
 

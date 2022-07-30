@@ -52,7 +52,7 @@ func (g *Generator) generateExpr(expr ast.ASTExpr) llvalue.Value {
 		if v.Sym.DefKind == common.DefKindFunc {
 			return v.Sym.LLValue
 		} else {
-			return g.block.NewLoad(v.Sym.LLValue.Type(), v.Sym.LLValue)
+			return g.block.NewLoad(v.Sym.LLValue.Type().(*lltypes.PointerType).ElemType, v.Sym.LLValue)
 		}
 	default:
 		report.ReportICE("codegen for expr not implemented")

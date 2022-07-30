@@ -27,7 +27,7 @@ type Compiler struct {
 	debug bool
 
 	// depGraph is the compiler's package dependency graph.
-	depGraph map[int]*depm.ChaiPackage
+	depGraph map[uint64]*depm.ChaiPackage
 }
 
 // Enumeration of compilation output modes.

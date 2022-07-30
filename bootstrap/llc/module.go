@@ -32,7 +32,6 @@ func (ctx *Context) NewModuleFromIR(irString string) (*Module, error) {
 		nil,
 		0,
 	)
-	defer C.LLVMDisposeMemoryBuffer(memBuff)
 
 	// Try to parse the LLVM IR if possible.
 	var modPtr C.LLVMModuleRef

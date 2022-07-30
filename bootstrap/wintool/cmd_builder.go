@@ -1,6 +1,7 @@
 package wintool
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -29,5 +30,27 @@ func (tc *ToolCmdBuilder) ToCommand() *exec.Cmd {
 	cmd.Env = append(cmd.Env, "PATH="+strings.Join(tc.BinPaths, ";"))
 	cmd.Env = append(cmd.Env, "LIB="+strings.Join(tc.LibPaths, ";"))
 	cmd.Env = append(cmd.Env, "INCLUDE="+strings.Join(tc.IncludePaths, ";"))
+	addDefaultEnv(cmd)
 	return cmd
+}
+
+// addDefaultEnv adds the parent processes environment variables to the command.
+func addDefaultEnv(cmd *exec.Cmd) {
+envloop:
+	for _, envv := range os.Environ() {
+		envvContent := strings.Split(envv, "=")
+		k := envvContent[0]
+
+		for i, cenvv := range cmd.Env {
+			cenvvContent := strings.Split(cenvv, "=")
+			ck, cv := cenvvContent[0], cenvvContent[1]
+
+			if strings.EqualFold(k, ck) {
+				cmd.Env[i] += ";" + cv
+				continue envloop
+			}
+		}
+
+		cmd.Env = append(cmd.Env, envv)
+	}
 }
