@@ -12,9 +12,7 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 	case *ast.TypeCast:
 		w.walkExpr(v.SrcExpr)
 
-		if !types.Cast(v.SrcExpr.Type(), v.Type()) {
-			w.error(v.Span(), "cannot cast %s to %s", v.SrcExpr.Type().Repr(), v.Type().Repr())
-		}
+		w.solver.MustCast(v.SrcExpr.Type(), v.Type(), v.Span())
 	case *ast.BinaryOpApp:
 		w.walkExpr(v.LHS)
 		w.walkExpr(v.RHS)
@@ -42,7 +40,7 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 			Const:    v.Const || v.Elem.Constant(),
 		}
 	case *ast.Null:
-		v.NodeType = &types.UntypedNull{Span: v.Span()}
+		v.NodeType = w.solver.NewTypeVar("untyped null", v.Span())
 	case *ast.Literal:
 		w.walkLiteral(v)
 	case *ast.Identifier:
@@ -79,7 +77,7 @@ func (w *Walker) walkFuncCall(call *ast.FuncCall) {
 	for i, arg := range call.Args {
 		w.walkExpr(arg)
 
-		w.mustUnify(ft.ParamTypes[i], arg.Type(), arg.Span())
+		w.solver.MustEqual(ft.ParamTypes[i], arg.Type(), arg.Span())
 	}
 
 	// Set the resultant type of the function call.

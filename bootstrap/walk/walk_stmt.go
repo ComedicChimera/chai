@@ -22,7 +22,7 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) {
 				if ident.Sym.Type == nil { // Identifier type is to be inferred.
 					ident.Sym.Type = varList.Initializer.Type()
 				} else { // Specified type => unify.
-					w.mustUnify(ident.Sym.Type, varList.Initializer.Type(), varList.Initializer.Span())
+					w.solver.MustEqual(ident.Sym.Type, varList.Initializer.Type(), varList.Initializer.Span())
 				}
 			} else {
 				// TODO: pattern matching
@@ -51,7 +51,7 @@ func (w *Walker) walkAssign(as *ast.Assignment) {
 	if len(as.LHSVars) == len(as.RHSExprs) { // No pattern matching
 		if as.CompoundOp == nil { // No compound operator.
 			for i, lhsVar := range as.LHSVars {
-				w.mustUnify(lhsVar.Type(), as.RHSExprs[i].Type(), as.RHSExprs[i].Span())
+				w.solver.MustEqual(lhsVar.Type(), as.RHSExprs[i].Type(), as.RHSExprs[i].Span())
 			}
 		} else {
 			for i, lhsVar := range as.LHSVars {
@@ -64,7 +64,7 @@ func (w *Walker) walkAssign(as *ast.Assignment) {
 					as.RHSExprs[i],
 				)
 
-				w.mustUnify(lhsVar.Type(), rhsTyp, operSpan)
+				w.solver.MustEqual(lhsVar.Type(), rhsTyp, operSpan)
 			}
 		}
 	} else { // Pattern matching
@@ -84,7 +84,7 @@ func (w *Walker) walkIncDec(incdec *ast.IncDecStmt) {
 		&ast.Literal{ExprBase: ast.NewTypedExprBase(incdec.Span(), incdec.LHSOperand.Type())},
 	)
 
-	w.mustUnify(incdec.LHSOperand.Type(), rhsType, incdec.Span())
+	w.solver.MustEqual(incdec.LHSOperand.Type(), rhsType, incdec.Span())
 }
 
 // walkLHSExpr walks an LHS expression and marks it as mutable.
@@ -155,7 +155,7 @@ func (w *Walker) walkReturnStmt(rs *ast.ReturnStmt) {
 			w.error(rs.Span(), "must return a value")
 		}
 	case 1:
-		w.mustUnify(w.enclosingReturnType, rs.Exprs[0].Type(), rs.Exprs[0].Span())
+		w.solver.MustEqual(w.enclosingReturnType, rs.Exprs[0].Type(), rs.Exprs[0].Span())
 	default:
 		report.ReportFatal("multiple return values not implemented yet")
 	}

@@ -1,18 +1,24 @@
 package types
 
-// Cast returns whether it is possible to cast src to dest.  `dest` should not
+import "chaic/report"
+
+// castAssert represents an assertion that a cast is possible.
+type castAssert struct {
+	// The source and destination types
+	Src, Dest Type
+
+	// The span over which the cast occurs.
+	Span *report.TextSpan
+}
+
+// unifyCast returns whether it is possible to unifyCast src to dest.  `dest` should not
 // be untyped (but may be a type variable).  It will also use casting to make
 // type deductions: eg. `0 as i32` infers 0 as an i32.
-func Cast(src, dest Type) bool {
-	src = InnerType(src)
-	dest = InnerType(dest)
+func (s *Solver) unifyCast(ca *castAssert) bool {
+	src := InnerType(ca.Src)
+	dest := InnerType(ca.Dest)
 
-	// If src is still an untyped null, then it has no inferred type and so its
-	// type can freely become that of `dest`.
-	if un, ok := src.(*UntypedNull); ok {
-		un.InferredType = dest
-		return true
-	}
+	// TODO: type inference if either of the types is a type variable.
 
 	switch v := dest.(type) {
 	case PrimitiveType:
@@ -31,19 +37,6 @@ func Cast(src, dest Type) bool {
 
 // castPrimitiveType performs a type cast involving a primitive type.
 func castPrimitiveType(src Type, dpt PrimitiveType) bool {
-	// If the source type is still an untyped number, then it has no inferred
-	// type, and we can check cast validity by just searching the valid types.
-	if un, ok := src.(*UntypedNumber); ok {
-		for _, vtype := range un.ValidTypes {
-			if Equals(vtype, dpt) {
-				un.InferredType = dpt
-				return true
-			}
-		}
-
-		return false
-	}
-
 	// All other casts can only occur between primitive types.
 	spt, ok := src.(PrimitiveType)
 	if !ok {

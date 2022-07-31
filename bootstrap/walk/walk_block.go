@@ -114,7 +114,7 @@ func (w *Walker) walkIfTree(ifTree *ast.IfTree) int {
 
 		// Walk the condition and make sure it is a boolean.
 		w.walkExpr(condBranch.Condition)
-		w.mustUnify(types.PrimTypeBool, condBranch.Condition.Type(), condBranch.Condition.Span())
+		w.solver.MustEqual(types.PrimTypeBool, condBranch.Condition.Type(), condBranch.Condition.Span())
 
 		// Walk the block and update the overall control mode.
 		newMode := w.walkBlock(condBranch.Body)
@@ -155,7 +155,7 @@ func (w *Walker) walkWhileLoop(loop *ast.WhileLoop) int {
 
 	// Walk the condition and make sure it is a boolean.
 	w.walkExpr(loop.Condition)
-	w.mustUnify(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
+	w.solver.MustEqual(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
 
 	// Walk the loop body.
 	w.loopDepth++
@@ -189,7 +189,7 @@ func (w *Walker) walkCForLoop(loop *ast.CForLoop) int {
 
 	// Walk the condition and make sure it is a boolean.
 	w.walkExpr(loop.Condition)
-	w.mustUnify(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
+	w.solver.MustEqual(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
 
 	// Walk the iterator update statement if it exists.
 	if loop.UpdateStmt != nil {
@@ -237,7 +237,7 @@ func (w *Walker) walkDoWhileLoop(loop *ast.DoWhileLoop) int {
 
 	// Walk the condition and make sure it is a boolean.
 	w.walkExpr(loop.Condition)
-	w.mustUnify(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
+	w.solver.MustEqual(types.PrimTypeBool, loop.Condition.Type(), loop.Condition.Span())
 
 	// Walk the else block if it exists.
 	if loop.ElseBlock != nil {

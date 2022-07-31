@@ -24,12 +24,12 @@ type Operator struct {
 }
 
 // A counter used to generate new overload IDs.
-var overloadIDCounter = 0
+var overloadIDCounter uint64 = 0
 
 // OperatorOverload represents a single overload of a particular operator.
 type OperatorOverload struct {
 	// The unique ID of the overload.
-	ID int
+	ID uint64
 
 	// The ID of the parent package to this overload.
 	ParentID uint64
@@ -51,7 +51,7 @@ type OperatorOverload struct {
 }
 
 // GetNewOverloadID gets a new unique ID for an operator overload.
-func GetNewOverloadID() int {
+func GetNewOverloadID() uint64 {
 	overloadIDCounter++
 	return overloadIDCounter
 }

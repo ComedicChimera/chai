@@ -14,6 +14,9 @@ type Walker struct {
 	// The Chai source file being walked.
 	chFile *depm.ChaiFile
 
+	// The current solver associated with the walker.
+	solver *types.Solver
+
 	// The stack of local scopes used to lookup symbols.
 	localScopes []map[string]*common.Symbol
 
@@ -21,26 +24,16 @@ type Walker struct {
 	// is no enclosing function: ie. return statements are not valid.
 	enclosingReturnType types.Type
 
-	// The list of untyped nulls that occur in the definition being walked.
-	nullValues []*types.UntypedNull
-
-	// The list of untyped numeric constants that occur in the definition being
-	// walked.
-	numericConstants []*types.UntypedNumber
-
 	// The number loops until the outermost function block.
 	loopDepth int
 }
 
 // WalkFile semantically analyzes the given source file.
 func WalkFile(chFile *depm.ChaiFile) {
-	w := &Walker{chFile: chFile}
+	w := &Walker{chFile: chFile, solver: types.NewSolver()}
 
 	for _, def := range chFile.Definitions {
 		w.walkDef(def)
-
-		// Clear the list of nulls between walks.
-		w.nullValues = nil
 	}
 }
 
@@ -51,19 +44,8 @@ func (w *Walker) walkDef(def ast.ASTNode) {
 
 	w.doWalkDef(def)
 
-	// Ensure that all null values are inferred.
-	for _, nullValue := range w.nullValues {
-		if nullValue.InferredType == nil {
-			w.recError(nullValue.Span, "cannot infer type of null")
-		}
-	}
-
-	// Deduce default types for any uninferred numeric constants.
-	for _, numConst := range w.numericConstants {
-		if numConst.InferredType == nil {
-			numConst.InferredType = numConst.ValidTypes[0]
-		}
-	}
+	// Finalize type inference.
+	w.solver.Solve()
 }
 
 // -----------------------------------------------------------------------------

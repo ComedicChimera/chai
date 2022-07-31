@@ -79,7 +79,7 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 	lit.Value = int64(x)
 
 	// Determine the type or set of types that can represent the integer.
-	var validTypes []types.PrimitiveType
+	var validTypes []types.Type
 	var constKindName string
 	if long && unsigned {
 		lit.NodeType = types.PrimTypeU64
@@ -95,19 +95,16 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 		constKindName = "int"
 	}
 
-	numType := &types.UntypedNumber{
-		DisplayName: fmt.Sprintf("untyped %s literal", constKindName),
-		ValidTypes:  validTypes,
-	}
+	numType := w.solver.NewTypeVar(fmt.Sprintf("untyped %s literal", constKindName), lit.Span())
+	w.solver.AddLiteralOverloads(numType, validTypes)
 	lit.NodeType = numType
-	w.numericConstants = append(w.numericConstants, numType)
 }
 
 // validIntTypes returns the valid integer types of those passed in that can
 // represent the given value.  The integer types must be in ascending order by
 // size.
-func validIntTypes(x uint64, intTypes ...types.PrimitiveType) []types.PrimitiveType {
-	newIntTypes := make([]types.PrimitiveType, len(intTypes))
+func validIntTypes(x uint64, intTypes ...types.PrimitiveType) []types.Type {
+	newIntTypes := make([]types.Type, len(intTypes))
 
 	n := 0
 	for _, typ := range intTypes {
@@ -117,7 +114,7 @@ func validIntTypes(x uint64, intTypes ...types.PrimitiveType) []types.PrimitiveT
 		}
 	}
 
-	return intTypes
+	return newIntTypes
 }
 
 // walkFloatLit walks a floating literal.
@@ -144,12 +141,9 @@ func (w *Walker) walkFloatLit(lit *ast.Literal) {
 	if x < math.SmallestNonzeroFloat32 || x > math.MaxFloat32 { // Too large/small.
 		lit.NodeType = types.PrimTypeF64
 	} else { // Can be f32.
-		numType := &types.UntypedNumber{
-			DisplayName: "untyped float literal",
-			ValidTypes:  []types.PrimitiveType{types.PrimTypeF64, types.PrimTypeF32},
-		}
+		numType := w.solver.NewTypeVar("untyped float literal", lit.Span())
+		w.solver.AddLiteralOverloads(numType, []types.Type{types.PrimTypeF64, types.PrimTypeF32})
 		lit.NodeType = numType
-		w.numericConstants = append(w.numericConstants, numType)
 	}
 
 }
@@ -180,12 +174,9 @@ func (w *Walker) walkNumLit(lit *ast.Literal) {
 	validTypes = append(validTypes, types.PrimTypeF64, types.PrimTypeF32)
 
 	// Set the untyped number for the number literal.
-	numType := &types.UntypedNumber{
-		DisplayName: "untyped number literal",
-		ValidTypes:  validTypes,
-	}
+	numType := w.solver.NewTypeVar("untyped number literal", lit.Span())
+	w.solver.AddLiteralOverloads(numType, validTypes)
 	lit.NodeType = numType
-	w.numericConstants = append(w.numericConstants, numType)
 }
 
 // walkRuneLit walks a rune literal.

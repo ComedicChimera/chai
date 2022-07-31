@@ -2,15 +2,7 @@ package types
 
 // Equals returns whether two types are equal.
 func Equals(a, b Type) bool {
-	bInner := InnerType(b)
-
-	// Handle any special types that override normal equality logic.
-	switch bInner.(type) {
-	case *UntypedNull, *UntypedNumber:
-		return bInner.equals(InnerType(a))
-	}
-
-	return InnerType(a).equals(bInner)
+	return InnerType(a).equals(InnerType(b))
 }
 
 // InnerType returns the "inner" type of typ.  For most types, this is just an
@@ -18,14 +10,12 @@ func Equals(a, b Type) bool {
 // essentially just wrap other types, this method is useful.
 func InnerType(typ Type) Type {
 	switch v := typ.(type) {
-	case *UntypedNumber:
-		if v.InferredType != nil {
-			return InnerType(v.InferredType)
+	case *TypeVariable:
+		if v.Value == nil {
+			return v
 		}
-	case *UntypedNull:
-		if v.InferredType != nil {
-			return InnerType(v.InferredType)
-		}
+
+		return v.Value
 	}
 
 	return typ

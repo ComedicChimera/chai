@@ -158,7 +158,7 @@ func (w *Walker) walkFuncBody(params []*common.Symbol, rtType types.Type, body a
 		w.walkExpr(bodyExpr)
 
 		// Check the type of the expression matches the type of the function.
-		w.mustUnify(rtType, bodyExpr.Type(), body.Span())
+		w.solver.MustEqual(rtType, bodyExpr.Type(), body.Span())
 	}
 
 	// Clear the function return type.
