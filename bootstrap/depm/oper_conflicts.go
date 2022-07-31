@@ -47,7 +47,7 @@ func searchForConflicts(pkg *ChaiPackage, opRepr string, overloads []*common.Ope
 // have the same arity.
 func conflictsWith(a, b types.Type) bool {
 	if aft, ok := a.(*types.FuncType); ok {
-		if bft, ok := a.(*types.FuncType); ok {
+		if bft, ok := b.(*types.FuncType); ok {
 			for i, aparam := range aft.ParamTypes {
 				if !types.Equals(aparam, bft.ParamTypes[i]) {
 					return false

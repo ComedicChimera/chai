@@ -37,6 +37,9 @@ type Generator struct {
 
 	// The table of declared LLVM intrinsics.
 	llvmIntrinsics map[string]llvalue.Value
+
+	// The loop context stack.
+	loopContextStack []loopContext
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -52,6 +55,12 @@ type bodyPredicate struct {
 
 	// The AST body.
 	Body ast.ASTNode
+}
+
+// loopContext stores the contextual block destinations for the break and
+// continue statements.
+type loopContext struct {
+	breakDest, continueDest *ir.Block
 }
 
 // Generate generates a Chai package into an LLVM module.
@@ -249,4 +258,21 @@ func (g *Generator) convPrimType(pt types.PrimitiveType, isReturnType bool) llty
 		// unreachable
 		return nil
 	}
+}
+
+/* -------------------------------------------------------------------------- */
+
+// currLoopContext returns the current loop context.
+func (g *Generator) currLoopContext() loopContext {
+	return g.loopContextStack[len(g.loopContextStack)-1]
+}
+
+// pushLoopContext pushes a new loop context onto the loop context stack.
+func (g *Generator) pushLoopContext(breakDest, continueDest *ir.Block) {
+	g.loopContextStack = append(g.loopContextStack, loopContext{breakDest: breakDest, continueDest: continueDest})
+}
+
+// popLoopContext pops a loop context off of the loop context stack.
+func (g *Generator) popLoopContext() {
+	g.loopContextStack = g.loopContextStack[:len(g.loopContextStack)-1]
 }

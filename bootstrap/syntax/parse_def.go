@@ -127,6 +127,8 @@ var overloadableOperators = map[int]int{
 	TOK_POW:    0b10,
 	TOK_EQ:     0b10,
 	TOK_NEQ:    0b10,
+	TOK_LT:     0b10,
+	TOK_GT:     0b10,
 	TOK_LTEQ:   0b10,
 	TOK_GTEQ:   0b10,
 	TOK_BWAND:  0b10,
@@ -164,7 +166,7 @@ func (p *Parser) parseOperDef(annots map[string]ast.AnnotValue) *ast.OperDef {
 	funcParams, funcType, funcBody := p.parseFuncSignature(true)
 
 	// Check the operator arity.
-	if arityPattern>>len(funcParams)&0b1 == 0 {
+	if arityPattern>>(len(funcParams)-1)&1 == 0 {
 		p.recError(
 			report.NewSpanOver(funcParams[0].DefSpan, funcParams[len(funcParams)-1].DefSpan),
 			"%s operator does not have a form with arity %d",

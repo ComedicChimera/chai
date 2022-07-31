@@ -1,17 +1,17 @@
 package target2_test;
 
 func putd(h: *u8, n: i64) {
-    if a == 0 {
+    if n == 0 {
         putc(h, '0');
         putc(h, '\n');
         return;
-    } elif a < 0 {
+    } elif n < 0 {
         putc(h, '-');
-        a = -a;
+        n = -n;
     }
 
     for let pow = 1_000_000_000_000_000_000; pow > 0; pow /= 10 {
-        if a >= pow:
-            putc(h, (a / pow % 10 as i32) + '0');
+        if n >= pow:
+            putc(h, (n / pow % 10 as i32) + '0');
     }
 }

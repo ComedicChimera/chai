@@ -77,21 +77,11 @@ func (w *Walker) walkAssign(as *ast.Assignment) {
 func (w *Walker) walkIncDec(incdec *ast.IncDecStmt) {
 	w.walkLHSExpr(incdec.LHSOperand)
 
-	validTypes := make([]types.PrimitiveType, len(intTypes)+2)
-	copy(validTypes, intTypes)
-	validTypes[len(validTypes)+1] = types.PrimTypeF64
-	validTypes[len(validTypes)] = types.PrimTypeF32
-
-	oneType := &types.UntypedNumber{
-		DisplayName: "untyped number",
-		ValidTypes:  validTypes,
-	}
-
 	rhsType := w.checkOperApp(
 		incdec.Op,
 		incdec.Span(),
 		incdec.LHSOperand,
-		&ast.Literal{ExprBase: ast.NewTypedExprBase(incdec.Span(), oneType)},
+		&ast.Literal{ExprBase: ast.NewTypedExprBase(incdec.Span(), incdec.LHSOperand.Type())},
 	)
 
 	w.mustUnify(incdec.LHSOperand.Type(), rhsType, incdec.Span())
@@ -140,13 +130,13 @@ func (w *Walker) walkKeywordStmt(ks *ast.KeywordStmt) int {
 			w.error(ks.Span(), "cannot use break outside a loop")
 		}
 
-		return ControlBreak
+		return ControlLoop
 	case syntax.TOK_CONTINUE:
 		if w.loopDepth == 0 {
 			w.error(ks.Span(), "cannot use continue outside a loop")
 		}
 
-		return ControlReturn
+		return ControlLoop
 	}
 
 	// unreachable

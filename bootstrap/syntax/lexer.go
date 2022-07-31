@@ -194,6 +194,9 @@ var keywordPatterns = map[string]int{
 	"f32":  TOK_F32,
 	"f64":  TOK_F64,
 	"bool": TOK_BOOL,
+
+	"true":  TOK_BOOLLIT,
+	"false": TOK_BOOLLIT,
 }
 
 // lexIdentOrKeyword lexes an identifier or a keyword.

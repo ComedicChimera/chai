@@ -144,7 +144,9 @@ func CatchErrors(absPath, reprPath string) {
 				cerr.Message,
 			)
 		} else if serr, ok := x.(error); ok {
-			ReportStdError(reprPath, serr)
+			panic(serr)
+
+			// ReportStdError(reprPath, serr)
 		} else {
 			ReportFatal("%s", x)
 		}

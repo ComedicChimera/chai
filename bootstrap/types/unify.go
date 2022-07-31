@@ -9,6 +9,11 @@ import (
 // However, if the type is untyped or a type variable, then more than one
 // substitution may be possible.
 func Unify(lhs, rhs Type) bool {
+	// Check if the types point to the same type.
+	if lhs == rhs {
+		return true
+	}
+
 	// Check for any special types in the RHS (since we type switch primarily
 	// over the LHS).
 	switch v := rhs.(type) {

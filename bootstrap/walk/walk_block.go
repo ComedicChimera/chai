@@ -9,12 +9,33 @@ import (
 // Enumeration of different control flow modes.  Control modes indicate how a
 // block or statement affects the flow of the program.
 const (
-	ControlNone     = iota // No control flow change.
-	ControlBreak           // Loop break
-	ControlContinue        // Loop continue
-	ControlReturn          // Loop return
-	ControlNoExit          // Control never exits the block (eg. infinite loop)
+	ControlNone   = iota // No control flow change.
+	ControlLoop          // Jump within a loop.
+	ControlReturn        // Function return
+	ControlNoExit        // Control never exits the block (eg. infinite loop)
 )
+
+// updateBranchControl produces a new control mode from the combination of a
+// preexisting control mode with a new control mode assuming the control modes
+// occur on different branches of execution.
+func updateBranchControl(initial, next int) int {
+	if initial < next {
+		return initial
+	}
+
+	return next
+}
+
+// catchControl blocks to propagation of a specific control mode.
+func catchControl(initial, block int) int {
+	if initial == block {
+		return ControlNone
+	}
+
+	return initial
+}
+
+/* -------------------------------------------------------------------------- */
 
 // walkBlock walks an AST block and returns the control mode of the block.
 func (w *Walker) walkBlock(block *ast.Block) int {
@@ -31,6 +52,9 @@ func (w *Walker) walkBlock(block *ast.Block) int {
 			deadcodeStart = stmt
 		}
 
+		// The new control mode produced by the statement.
+		newMode := ControlNone
+
 		switch v := stmt.(type) {
 		case *ast.VarDecl:
 			w.walkVarDecl(v)
@@ -39,27 +63,25 @@ func (w *Walker) walkBlock(block *ast.Block) int {
 		case *ast.IncDecStmt:
 			w.walkIncDec(v)
 		case *ast.KeywordStmt:
-			newMode := w.walkKeywordStmt(v)
-
-			if mode == ControlNone {
-				mode = newMode
-			}
+			newMode = w.walkKeywordStmt(v)
 		case *ast.ReturnStmt:
 			w.walkReturnStmt(v)
-
-			if mode == ControlNone {
-				mode = ControlReturn
-			}
+			newMode = ControlReturn
 		case *ast.IfTree:
-			w.walkIfTree(v)
+			newMode = w.walkIfTree(v)
 		case *ast.WhileLoop:
-			w.walkWhileLoop(v)
+			newMode = w.walkWhileLoop(v)
 		case *ast.CForLoop:
-			w.walkCForLoop(v)
+			newMode = w.walkCForLoop(v)
 		case *ast.DoWhileLoop:
-			w.walkDoWhileLoop(v)
+			newMode = w.walkDoWhileLoop(v)
 		default: // Must be an expression.
 			w.walkExpr(stmt.(ast.ASTExpr))
+		}
+
+		// Update the block control mode.
+		if mode == ControlNone {
+			mode = newMode
 		}
 	}
 
@@ -77,9 +99,12 @@ func (w *Walker) walkBlock(block *ast.Block) int {
 // -----------------------------------------------------------------------------
 
 // walkIfTree walks an if tree statement.
-func (w *Walker) walkIfTree(ifTree *ast.IfTree) {
+func (w *Walker) walkIfTree(ifTree *ast.IfTree) int {
+	// The overall control mode of the if tree.
+	mode := ControlNone
+
 	// Walk all the conditional branches.
-	for _, condBranch := range ifTree.CondBranches {
+	for i, condBranch := range ifTree.CondBranches {
 		w.pushScope()
 
 		// Walk the header variable declaration.
@@ -91,7 +116,13 @@ func (w *Walker) walkIfTree(ifTree *ast.IfTree) {
 		w.walkExpr(condBranch.Condition)
 		w.mustUnify(types.PrimTypeBool, condBranch.Condition.Type(), condBranch.Condition.Span())
 
-		w.walkBlock(condBranch.Body)
+		// Walk the block and update the overall control mode.
+		newMode := w.walkBlock(condBranch.Body)
+		if i == 0 {
+			mode = newMode
+		} else {
+			mode = updateBranchControl(mode, newMode)
+		}
 
 		w.popScope()
 	}
@@ -100,14 +131,21 @@ func (w *Walker) walkIfTree(ifTree *ast.IfTree) {
 	if ifTree.ElseBranch != nil {
 		w.pushScope()
 
-		w.walkBlock(ifTree.ElseBranch)
+		// Update the overall control mode based on the else block.
+		mode = updateBranchControl(mode, w.walkBlock(ifTree.ElseBranch))
 
 		w.popScope()
+	} else {
+		// If there is no else block, then there is no guarantee that any
+		// control flow code will run and so the resulting mode is always none.
+		return ControlNone
 	}
+
+	return mode
 }
 
 // walkWhileLoop walks a while loop.
-func (w *Walker) walkWhileLoop(loop *ast.WhileLoop) {
+func (w *Walker) walkWhileLoop(loop *ast.WhileLoop) int {
 	w.pushScope()
 
 	// Walk the header variable declaration if it exists.
@@ -121,7 +159,7 @@ func (w *Walker) walkWhileLoop(loop *ast.WhileLoop) {
 
 	// Walk the loop body.
 	w.loopDepth++
-	w.walkBlock(loop.Body)
+	mode := catchControl(w.walkBlock(loop.Body), ControlLoop)
 	w.loopDepth--
 
 	w.popScope()
@@ -129,13 +167,19 @@ func (w *Walker) walkWhileLoop(loop *ast.WhileLoop) {
 	// Walk the else block if it exists.
 	if loop.ElseBlock != nil {
 		w.pushScope()
-		w.walkBlock(loop.ElseBlock)
+		mode = updateBranchControl(mode, w.walkBlock(loop.ElseBlock))
 		w.popScope()
+	} else {
+		// If there is no else block, then there is no guarantee that any
+		// control flow code will run and so the resulting mode is always none.
+		return ControlNone
 	}
+
+	return mode
 }
 
 // walkCForLoop walks a C-style for loop.
-func (w *Walker) walkCForLoop(loop *ast.CForLoop) {
+func (w *Walker) walkCForLoop(loop *ast.CForLoop) int {
 	w.pushScope()
 
 	// Walk the iterator variable declaration if it exists.
@@ -161,7 +205,7 @@ func (w *Walker) walkCForLoop(loop *ast.CForLoop) {
 
 	// Walk the loop body.
 	w.loopDepth++
-	w.walkBlock(loop.Body)
+	mode := catchControl(w.walkBlock(loop.Body), ControlLoop)
 	w.loopDepth--
 
 	w.popScope()
@@ -169,18 +213,24 @@ func (w *Walker) walkCForLoop(loop *ast.CForLoop) {
 	// Walk the else block if it exists.
 	if loop.ElseBlock != nil {
 		w.pushScope()
-		w.walkBlock(loop.ElseBlock)
+		mode = updateBranchControl(mode, w.walkBlock(loop.ElseBlock))
 		w.popScope()
+	} else {
+		// If there is no else block, then there is no guarantee that any
+		// control flow code will run and so the resulting mode is always none.
+		return ControlNone
 	}
+
+	return mode
 }
 
 // walkDoWhileLoop walks a do-while loop.
-func (w *Walker) walkDoWhileLoop(loop *ast.DoWhileLoop) {
+func (w *Walker) walkDoWhileLoop(loop *ast.DoWhileLoop) int {
 	// Walk the body of the while loop.
 	w.pushScope()
 	w.loopDepth++
 
-	w.walkBlock(loop.Body)
+	mode := catchControl(w.walkBlock(loop.Body), ControlLoop)
 
 	w.loopDepth--
 	w.popScope()
@@ -192,7 +242,11 @@ func (w *Walker) walkDoWhileLoop(loop *ast.DoWhileLoop) {
 	// Walk the else block if it exists.
 	if loop.ElseBlock != nil {
 		w.pushScope()
-		w.walkBlock(loop.ElseBlock)
+		mode = updateBranchControl(mode, w.walkBlock(loop.ElseBlock))
 		w.popScope()
 	}
+
+	// The code of the body is always guaranteed to run so we cannot accumulate
+	// the overall control mode to `None` in the absense of an else block.
+	return mode
 }

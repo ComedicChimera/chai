@@ -12,12 +12,12 @@ import (
 // displayICE displays an internal compiler error message.
 func displayICE(message string) {
 	fmt.Printf("internal compiler error: %s\n", message)
-	fmt.Println("This error was not supposed to happen: please open an issue on GitHub at [insert link]")
+	fmt.Print("This error was not supposed to happen: please open an issue on GitHub at [insert link]\n\n")
 }
 
 // displayFatal displays a fatal error message.
 func displayFatal(message string) {
-	fmt.Printf("fatal error: %s\n", message)
+	fmt.Printf("fatal error: %s\n\n", message)
 }
 
 // displayCompileMessage displays a compilation error or warning.  The label is
@@ -34,7 +34,7 @@ func displayCompileMessage(label, absPath, reprPath string, span *TextSpan, mess
 
 // displayStdError displays a standard Go error.
 func displayStdError(reprPath string, err error) {
-	fmt.Printf("%s: error: %s\n", reprPath, err)
+	fmt.Printf("%s: error: %s\n\n", reprPath, err)
 }
 
 // -----------------------------------------------------------------------------
@@ -130,9 +130,9 @@ func displaySourceText(absPath string, span *TextSpan) {
 		// the fact that that part of the line is neglected by the prefix count
 		// (ie. to cancel the - minimum indent inside the calculate for carret
 		// prefix count).
-		fmt.Print(strings.Repeat("^", len(line)-carretSuffixCount-carretPrefixCount-minIndent))
+		fmt.Println(strings.Repeat("^", len(line)-carretSuffixCount-carretPrefixCount-minIndent))
 	}
 
 	// Print newlines after the error message.
-	fmt.Print("\n\n")
+	fmt.Println()
 }

@@ -3,6 +3,7 @@ package codegen
 import (
 	"chaic/ast"
 	"chaic/report"
+	"chaic/syntax"
 	"chaic/types"
 
 	"github.com/llir/llvm/ir/constant"
@@ -109,5 +110,15 @@ func (g *Generator) generateReturnStmt(ret *ast.ReturnStmt) {
 		return
 	default:
 		report.ReportICE("codegen for multi-return not implemented")
+	}
+}
+
+// generateKeywordStmt generates a keyword control statement.
+func (g *Generator) generateKeywordStmt(keyStmt *ast.KeywordStmt) {
+	switch keyStmt.Kind {
+	case syntax.TOK_BREAK:
+		g.block.NewBr(g.currLoopContext().breakDest)
+	case syntax.TOK_CONTINUE:
+		g.block.NewBr(g.currLoopContext().continueDest)
 	}
 }
