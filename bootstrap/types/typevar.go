@@ -15,9 +15,6 @@ type TypeVariable struct {
 
 	// The deduced concrete type for the type variable.
 	Value Type
-
-	// The parent solver to the type variable.
-	parent *Solver
 }
 
 func (tv *TypeVariable) equals(other Type) bool {
@@ -44,7 +41,7 @@ func (tv *TypeVariable) Align() int {
 
 func (tv *TypeVariable) Repr() string {
 	if tv.Value == nil {
-		// TODO
+		return tv.Name
 	}
 
 	return tv.Value.Repr()

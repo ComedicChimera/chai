@@ -38,10 +38,9 @@ func NewSolver() *Solver {
 // NewTypeVar creates a new type variable in the solution context.
 func (s *Solver) NewTypeVar(name string, span *report.TextSpan) *TypeVariable {
 	tv := &TypeVariable{
-		ID:     uint64(len(s.typeVarNodes)),
-		Name:   name,
-		Span:   span,
-		parent: s,
+		ID:   uint64(len(s.typeVarNodes)),
+		Name: fmt.Sprintf("{%s}", name),
+		Span: span,
 	}
 
 	s.typeVarNodes = append(s.typeVarNodes, &typeVarNode{Var: tv})
@@ -84,7 +83,22 @@ func (s *Solver) AddOperatorOverloads(tv *TypeVariable, overloads []Type, setOve
 
 // MustEqual asserts that two types are equivalent.
 func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
-	// TODO
+	// Attempt to unify the two types.
+	result := s.unify(nil, lhs, rhs)
+
+	// Raise an error if unification fails.
+	if !result.Unified {
+		// TODO
+	}
+
+	// Prune all nodes which the unification algorithm marked for pruning.
+	for id, prune := range result.Visited {
+		// Note that we need to make sure the `id` has not already been pruned
+		// through its connection to another pruned node.
+		if _, ok := s.subNodes[id]; ok && prune {
+			// TODO: make the prune call
+		}
+	}
 }
 
 // MustCast asserts that src must be castable to dest.

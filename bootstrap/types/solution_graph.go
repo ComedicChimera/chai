@@ -10,7 +10,7 @@ type typeVarNode struct {
 
 	// Whether or not the default to the first substitution in the list of
 	// substitution nodes if there is more than one possible substitution when
-	// finalizing type deduction for this type variable.
+	// finalizing type deduction for the type variable.
 	Default bool
 }
 
@@ -36,22 +36,28 @@ func (s *Solver) addSubstitution(parent *typeVarNode, sub substitution) *subNode
 
 // subNode represents a substitution node within the solution graph.
 type subNode struct {
-	// The unique ID of this substitution node.
+	// The unique ID of the substitution node.
 	ID uint64
 
-	// The substitution represented by this substitution node.
+	// The substitution represented by the substitution node.
 	Sub substitution
 
-	// The type variable node of the type variable for which this node
+	// The type variable node of the type variable for which the node
 	// represents a possible substitution.
 	Parent *typeVarNode
 
-	// The list of substitution nodes this node shares an edge with.
+	// The list of substitution nodes the node shares an edge with.
 	Edges []*subNode
 }
 
-// IsOverload returns whether this node is an overload: whether its parent has
+// IsOverload returns whether the node is an overload: whether its parent has
 // more than one possible substitution.
 func (snode *subNode) IsOverload() bool {
 	return len(snode.Parent.Nodes) > 1
+}
+
+// AddEdge adds an edge between the node and another substitution node.
+func (snode *subNode) AddEdge(osnode *subNode) {
+	snode.Edges = append(snode.Edges, osnode)
+	osnode.Edges = append(osnode.Edges, snode)
 }
