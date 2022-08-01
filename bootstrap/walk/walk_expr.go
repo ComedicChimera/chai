@@ -62,24 +62,40 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 func (w *Walker) walkFuncCall(call *ast.FuncCall) {
 	w.walkExpr(call.Func)
 
-	// Assert that the value being called is a function.
-	ft, ok := types.InnerType(call.Func.Type()).(*types.FuncType)
-	if !ok {
-		w.error(call.Span(), "%s cannot be called because it is not a function", call.Func.Type().Repr())
+	// Check if we know the value being called is a function.
+	if ft, ok := types.InnerType(call.Func.Type()).(*types.FuncType); ok {
+		// Check the number of arguments.
+		if len(ft.ParamTypes) != len(call.Args) {
+			w.error(call.Span(), "expected %d parameters but received %d arguments", len(ft.ParamTypes), len(call.Args))
+		}
+
+		// Walk the arguments and check the argument types.
+		for i, arg := range call.Args {
+			w.walkExpr(arg)
+
+			w.solver.MustEqual(ft.ParamTypes[i], arg.Type(), arg.Span())
+		}
+
+		// Set the resultant type of the function call.
+		call.NodeType = ft.ReturnType
+	} else {
+		// Otherwise, we are likely either dealing with a non-callable type or a
+		// type variable.  In either case, we have to use the type solver.
+
+		// Wrap the arguments into a function type.
+		returnType := w.solver.NewTypeVar("unknown return type", call.Span())
+
+		argTypes := make([]types.Type, len(call.Args))
+		for i, arg := range call.Args {
+			argTypes[i] = arg.Type()
+		}
+
+		funcType := &types.FuncType{ParamTypes: argTypes, ReturnType: returnType}
+
+		// Assert it to be equal to the function value's type.
+		w.solver.MustEqual(call.Func.Type(), funcType, call.Span())
+
+		// Set the resultant type of the function call.
+		call.NodeType = returnType
 	}
-
-	// Check the number of arguments.
-	if len(ft.ParamTypes) != len(call.Args) {
-		w.error(call.Span(), "expected %d parameters but received %d arguments", len(ft.ParamTypes), len(call.Args))
-	}
-
-	// Walk the arguments and check the argument types.
-	for i, arg := range call.Args {
-		w.walkExpr(arg)
-
-		w.solver.MustEqual(ft.ParamTypes[i], arg.Type(), arg.Span())
-	}
-
-	// Set the resultant type of the function call.
-	call.NodeType = ft.ReturnType
 }

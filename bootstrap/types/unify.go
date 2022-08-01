@@ -46,11 +46,11 @@ func (ur *unifyResult) Both(other *unifyResult) {
 func (ur *unifyResult) Either(other *unifyResult) {
 	ur.Unified = ur.Unified || other.Unified
 
-	for k, v := range ur.Visited {
-		if ov, ok := other.Visited[k]; ok {
+	for k, ov := range other.Visited {
+		if v, ok := ur.Visited[k]; ok {
 			ur.Visited[k] = v && ov
 		} else {
-			delete(ur.Visited, k)
+			ur.Visited[k] = ov
 		}
 	}
 

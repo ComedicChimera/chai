@@ -6,12 +6,25 @@ import (
 	"chaic/report"
 	"chaic/types"
 	"chaic/util"
+	"fmt"
 )
 
 // checkOperApp walks an operator application.  The operands should already be walked.
 func (w *Walker) checkOperApp(op *common.AppliedOperator, span *report.TextSpan, operands ...ast.ASTExpr) types.Type {
 	// Find the matching overloads.
 	overloads := w.getOverloads(op, span, len(operands))
+
+	// Type checking for operator applications appears as follows:
+	//
+	//   (+) := {overloads}
+	//   r := {return type}
+	//   for each operand:
+	//      a_i := {any}
+	//   assert (+) == (a...) -> r
+	//   for each operand:
+	//      assert operand == a_i
+	//
+	// This method gives better error messages for the argument types.
 
 	// Create a new type variable for the operator overloads.
 	opVar := w.solver.NewTypeVar(op.OpRepr, op.Span)
@@ -26,14 +39,27 @@ func (w *Walker) checkOperApp(op *common.AppliedOperator, span *report.TextSpan,
 	// Create a new type variable for the return type.
 	returnType := w.solver.NewTypeVar("return type", span)
 
-	// Create a new type to represent the operands.
+	// Create type variables corresponding to each of the operands.
+	operandTypeVars := make([]types.Type, len(operands))
+	for i, operand := range operands {
+		operandTypeVars[i] = w.solver.NewTypeVar(fmt.Sprintf("operand%d", i), operand.Span())
+	}
+
+	// Create a new type to extract the operand types.
 	operandFuncType := &types.FuncType{
-		ParamTypes: util.Map(operands, func(expr ast.ASTExpr) types.Type { return expr.Type() }),
+		ParamTypes: operandTypeVars,
 		ReturnType: returnType,
 	}
 
-	// Unify it with the operands.
+	// Unify it with the operator overloads.
 	w.solver.MustEqual(opVar, operandFuncType, span)
+
+	// TODO: simplify the traceback in this case
+
+	// Match the operand types to the extracted operand types of the overloads.
+	for i, operand := range operands {
+		w.solver.MustEqual(operand.Type(), operandTypeVars[i], operand.Span())
+	}
 
 	// Return the resultant type of the operator application.
 	return returnType
