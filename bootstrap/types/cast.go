@@ -11,14 +11,12 @@ type castAssert struct {
 	Span *report.TextSpan
 }
 
-// unifyCast returns whether it is possible to unifyCast src to dest.  `dest` should not
-// be untyped (but may be a type variable).  It will also use casting to make
-// type deductions: eg. `0 as i32` infers 0 as an i32.
-func (s *Solver) unifyCast(ca *castAssert) bool {
+// tryCast returns whether it is possible to tryCast src to dest.  `dest` should
+// not be untyped (but may be a type variable).  The cast assumes all types are
+// now concrete.
+func (ca *castAssert) tryCast() bool {
 	src := InnerType(ca.Src)
 	dest := InnerType(ca.Dest)
-
-	// TODO: type inference if either of the types is a type variable.
 
 	switch v := dest.(type) {
 	case PrimitiveType:

@@ -42,6 +42,9 @@ func (w *Walker) walkDef(def ast.ASTNode) {
 	// Catch any errors that occur while walking the definition.
 	defer report.CatchErrors(w.chFile.AbsPath, w.chFile.ReprPath)
 
+	// Ensure that the solver is reset.
+	defer w.solver.Reset()
+
 	w.doWalkDef(def)
 
 	// Finalize type inference.

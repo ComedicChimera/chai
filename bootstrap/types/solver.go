@@ -3,6 +3,7 @@ package types
 import (
 	"chaic/report"
 	"fmt"
+	"strings"
 )
 
 // NB: See `docs/type_solver.md` for a reasonably complete explanation of the
@@ -25,6 +26,9 @@ type Solver struct {
 
 	// The list of applied cast assertions.
 	castAsserts []*castAssert
+
+	// The span of the current unification.
+	currSpan *report.TextSpan
 }
 
 // NewSolver creates a new type solver.
@@ -43,7 +47,7 @@ func (s *Solver) NewTypeVar(name string, span *report.TextSpan) *TypeVariable {
 		Span: span,
 	}
 
-	s.typeVarNodes = append(s.typeVarNodes, &typeVarNode{Var: tv})
+	s.typeVarNodes = append(s.typeVarNodes, &typeVarNode{Var: tv, Nodes: make(map[uint64]*subNode)})
 
 	return tv
 }
@@ -54,12 +58,16 @@ func (s *Solver) AddLiteralOverloads(tv *TypeVariable, overloads []Type) {
 	// Get the type variable node associated with tv.
 	tnode := s.typeVarNodes[tv.ID]
 
-	// Set it to default (since literal overloads always default).
-	tnode.Default = true
+	// Indicate the type variable is known.
+	tnode.Known = true
 
 	// Add all the substitutions to the type variable node.
 	for _, overload := range overloads {
-		s.addSubstitution(tnode, basicSubstitution{typ: overload})
+		// Add the substitution node's ID to the default order.
+		tnode.DefaultOrder = append(
+			tnode.DefaultOrder,
+			s.addSubstitution(tnode, basicSubstitution{typ: overload}).ID,
+		)
 	}
 
 	// Mark the type variable node as complete.
@@ -72,6 +80,9 @@ func (s *Solver) AddOperatorOverloads(tv *TypeVariable, overloads []Type, setOve
 	// Get the type variable node associated with tv.
 	tnode := s.typeVarNodes[tv.ID]
 
+	// Indicate the type variable is known.
+	tnode.Known = true
+
 	// Add all the substitutions to the type variable node.
 	for i, overload := range overloads {
 		s.addSubstitution(tnode, &operatorSubstitution{ndx: i, signature: overload, setOverload: setOverload})
@@ -83,12 +94,25 @@ func (s *Solver) AddOperatorOverloads(tv *TypeVariable, overloads []Type, setOve
 
 // MustEqual asserts that two types are equivalent.
 func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
+	// Set the solver's current span.
+	s.currSpan = span
+
 	// Attempt to unify the two types.
 	result := s.unify(nil, lhs, rhs)
 
 	// Raise an error if unification fails.
 	if !result.Unified {
-		// TODO
+		sb := strings.Builder{}
+		sb.WriteString("type mismatch: ")
+
+		s.buildTraceback(&sb, result.Visited)
+
+		sb.WriteString("type ")
+		sb.WriteString(lhs.Repr())
+		sb.WriteString(" does not match type ")
+		sb.WriteString(rhs.Repr())
+
+		s.error(span, sb.String())
 	}
 
 	// Prune all nodes which the unification algorithm marked for pruning.
@@ -96,7 +120,7 @@ func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
 		// Note that we need to make sure the `id` has not already been pruned
 		// through its connection to another pruned node.
 		if _, ok := s.subNodes[id]; ok && prune {
-			// TODO: make the prune call
+			s.pruneSubstitution(s.subNodes[id], make(map[uint64]struct{}))
 		}
 	}
 }
@@ -112,24 +136,17 @@ func (s *Solver) MustCast(src, dest Type, span *report.TextSpan) {
 
 // Solve prompts the solver to make its finali type deductions based on all the
 // constraints it has been given -- this assumes no more constraints will be
-// provided.  This resets the solver when done.
+// provided.  This does NOT reset the solver when done.
 func (s *Solver) Solve() {
 	// Unify the first type substitution for any type variable nodes which should
 	// default and have more than one remaining possible substitution.
 	for _, tnode := range s.typeVarNodes {
-		if tnode.Default && len(tnode.Nodes) > 1 {
+		if len(tnode.DefaultOrder) > 0 && len(tnode.Nodes) > 1 {
 			// We use `MustEqual` to perform the unification so we can avoid
 			// rewriting all the boilerplate code inside `MustEqual` for top
 			// level unification, but we pass in a `nil` position since
 			// operation *should* never fail.
-			s.MustEqual(tnode.Var, tnode.Nodes[0].Sub.Type(), nil)
-		}
-	}
-
-	// As a final step of type deduction, apply all cast assertions.
-	for _, ca := range s.castAsserts {
-		if !s.unifyCast(ca) {
-			s.error(ca.Span, "cannot cast %s to %s", ca.Src, ca.Dest)
+			s.MustEqual(tnode.Var, tnode.Default().Sub.Type(), nil)
 		}
 	}
 
@@ -139,15 +156,24 @@ func (s *Solver) Solve() {
 		// Any remaining type variable which has exactly one substitution
 		// associated with it is considered solved.
 		if len(tnode.Nodes) == 1 {
-			tnode.Var.Value = tnode.Nodes[0].Sub.Type()
-			tnode.Nodes[0].Sub.Finalize()
+			tnode.Var.Value = tnode.First().Sub.Type()
+			tnode.First().Sub.Finalize()
 		} else {
 			// Otherwise, report an appropriate error.
 			s.error(tnode.Var.Span, "unable to infer type for %s", tnode.Var.Name)
 		}
 	}
 
-	// Reset the solver to its default state.
+	// Apply all cast assertions once deductions are made.
+	for _, ca := range s.castAsserts {
+		if !ca.tryCast() {
+			s.error(ca.Span, "cannot cast %s to %s", ca.Src, ca.Dest)
+		}
+	}
+}
+
+// Reset resets the solver to its default state.
+func (s *Solver) Reset() {
 	s.typeVarNodes = nil
 	s.subNodes = make(map[uint64]*subNode)
 	s.subIDCounter = 0

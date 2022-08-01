@@ -25,9 +25,9 @@ func displayFatal(message string) {
 // the label is "error".
 func displayCompileMessage(label, absPath, reprPath string, span *TextSpan, message string) {
 	if span == nil {
-		fmt.Printf("%s: %s: %s\n", reprPath, label, message)
+		fmt.Printf("%s: %s: %s\n\n", reprPath, label, message)
 	} else {
-		fmt.Printf("%s:%d:%d: %s: %s\n", reprPath, span.StartLine+1, span.StartCol+1, label, message)
+		fmt.Printf("%s:%d:%d: %s: %s\n\n", reprPath, span.StartLine+1, span.StartCol+1, label, message)
 		displaySourceText(absPath, span)
 	}
 }

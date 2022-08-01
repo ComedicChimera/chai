@@ -14,6 +14,15 @@ type unifyResult struct {
 	Completes map[uint64]struct{}
 }
 
+// newUnifyResult creates a new unify result with the given unified status.
+func newUnifyResult(unified bool) *unifyResult {
+	return &unifyResult{
+		Unified:   unified,
+		Visited:   make(map[uint64]bool),
+		Completes: make(map[uint64]struct{}),
+	}
+}
+
 // Both combines two unification results in such a way that both must hold
 // true in order for the yielded unification to hold true.
 func (ur *unifyResult) Both(other *unifyResult) {
@@ -63,7 +72,7 @@ func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
 		// Make sure we don't unify a type variable with itself.
 		if ltv, ok := lhs.(*TypeVariable); ok {
 			if ltv.ID == rtv.ID {
-				return &unifyResult{Unified: true}
+				return newUnifyResult(true)
 			}
 		}
 
@@ -106,12 +115,12 @@ func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
 		}
 	case PrimitiveType:
 		if rpt, ok := rhs.(PrimitiveType); ok {
-			return &unifyResult{Unified: v == rpt}
+			return newUnifyResult(v == rpt)
 		}
 	}
 
 	// Default to false if the shapes don't match.
-	return &unifyResult{Unified: false}
+	return newUnifyResult(false)
 }
 
 // unifyTypeVar attempts to make a type variable equal to the given type by
@@ -125,14 +134,14 @@ func (s *Solver) unifyTypeVar(root *subNode, tvar *TypeVariable, typ Type) *unif
 	// Handle complete type variables.
 	if _, ok := s.completes[tvar.ID]; ok {
 		// Go through each substitution of the given type variable.
-		for i, subNode := range tnode.Nodes {
+		for _, subNode := range tnode.Nodes {
 			// Unify the substitution with the inputted type making the
 			// substitution the root of unification.
 			subResult := s.unify(subNode, subNode.Sub.Type(), typ)
 
 			// Merge the substitution unification result with the overall
 			// unification result.
-			if i == 0 {
+			if result == nil {
 				result = subResult
 			} else {
 				result.Either(subResult)
@@ -154,7 +163,8 @@ func (s *Solver) unifyTypeVar(root *subNode, tvar *TypeVariable, typ Type) *unif
 		}
 	} else { // Handle incomplete type variables.
 		// Mark the type variable as completed by this unification.
-		result = &unifyResult{Unified: true, Completes: map[uint64]struct{}{tvar.ID: {}}}
+		result = newUnifyResult(true)
+		result.Completes[tvar.ID] = struct{}{}
 
 		// Add a substitution of the given type to the type variable if it does not
 		// already have a substitution which is equal to the given type.

@@ -11,7 +11,7 @@ import (
 // checkOperApp walks an operator application.  The operands should already be walked.
 func (w *Walker) checkOperApp(op *common.AppliedOperator, span *report.TextSpan, operands ...ast.ASTExpr) types.Type {
 	// Find the matching overloads.
-	overloads := w.getOverloads(op, span, 2)
+	overloads := w.getOverloads(op, span, len(operands))
 
 	// Create a new type variable for the operator overloads.
 	opVar := w.solver.NewTypeVar(op.OpRepr, op.Span)
