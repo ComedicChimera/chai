@@ -46,7 +46,7 @@ func (p *Parser) parseTypeExt() types.Type {
 
 // type_label := prim_type | pointer_type ;
 // prim_type := 'i8' | 'u8' | 'i16' | 'u16' | 'i32' | 'u32'
-//           | 'i64' | 'u64' | 'f32' | 'f64' | 'bool' | '(' ')' ;
+//           | 'i64' | 'u64' | 'f32' | 'f64' | 'bool' | `unit` ;
 // pointer_type := '*' ['const'] type_label ;
 func (p *Parser) parseTypeLabel() types.Type {
 	switch p.tok.Kind {

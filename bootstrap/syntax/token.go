@@ -38,7 +38,6 @@ const (
 
 	TOK_AS
 	TOK_NULL
-	TOK_UNIT
 
 	TOK_I8
 	TOK_I16
@@ -51,6 +50,7 @@ const (
 	TOK_F32
 	TOK_F64
 	TOK_BOOL
+	TOK_UNIT
 
 	TOK_PLUS
 	TOK_MINUS
