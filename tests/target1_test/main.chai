@@ -1,11 +1,5 @@
 package target1_test;
 
-@abientry
-func _start() {
-    main();
-    exit(0);
-}
-
 func main() {
     let stdout = get_stdout();
 

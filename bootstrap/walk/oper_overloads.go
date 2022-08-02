@@ -54,8 +54,6 @@ func (w *Walker) checkOperApp(op *common.AppliedOperator, span *report.TextSpan,
 	// Unify it with the operator overloads.
 	w.solver.MustEqual(opVar, operandFuncType, span)
 
-	// TODO: simplify the traceback in this case
-
 	// Match the operand types to the extracted operand types of the overloads.
 	for i, operand := range operands {
 		w.solver.MustEqual(operand.Type(), operandTypeVars[i], operand.Span())

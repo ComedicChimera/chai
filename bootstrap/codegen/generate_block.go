@@ -15,7 +15,9 @@ func (g *Generator) generateBlock(block *ast.Block) {
 			// If the block we are positioned over after generated the if tree
 			// has a terminator, then the if tree never reaches its exit block
 			// and so we can just return here: all code after this is deadcode.
-			return
+			if g.block.Term != nil {
+				return
+			}
 		case *ast.WhileLoop:
 			g.generateWhileLoop(v)
 		case *ast.CForLoop:
@@ -47,8 +49,8 @@ func (g *Generator) generateBlock(block *ast.Block) {
 // generateIfTree generates an if statement tree.
 func (g *Generator) generateIfTree(ifTree *ast.IfTree) {
 	// Generate the exit block of the if statement.
-	exitBlock := g.appendBlock()
 	exitNdx := len(g.block.Parent.Blocks)
+	exitBlock := g.appendBlock()
 
 	// Whether the if statement ever reaches the exit block.
 	neverExit := true
@@ -146,6 +148,7 @@ func (g *Generator) generateWhileLoop(loop *ast.WhileLoop) {
 	}
 
 	// Generate the main loop conditional branch.
+	g.block = loopHeader
 	llCond := g.generateExpr(loop.Condition)
 	g.block.NewCondBr(llCond, loopBody, loopElse)
 
@@ -206,6 +209,7 @@ func (g *Generator) generateCForLoop(loop *ast.CForLoop) {
 	}
 
 	// Generate the main loop conditional branch.
+	g.block = loopHeader
 	llCond := g.generateExpr(loop.Condition)
 	g.block.NewCondBr(llCond, loopBody, loopElse)
 

@@ -31,19 +31,18 @@ func print_buzz(h: *u8) {
 }
 
 func fizz_buzz(h: *u8, n: i64) {
-    for let i = 0; i < n; i++ {
+    for let i = 1; i < n; i++ {
         if i % 5 == 0 && i % 3 == 0 {
             print_fizz(h);
-            print_buzz(h);
-            putc(h, '\n');
-        } elif i % 3 == 0 {
+            print_buzz(h);          
+        } elif i % 3 == 0:
             print_fizz(h);
-            putc(h, '\n');
-        } elif i % 5 == 0 {
+        elif i % 5 == 0:
             print_buzz(h);
-            putc(h, '\n');
-        } else:
+        else:
             putd(h, i);
+
+        putc(h, '\n');
     }
 }
 
@@ -62,6 +61,7 @@ func n_times_with_break(h: *u8, n: i64) {
             break;
 
         putd(h, a);
+        putc(h, '\n');
     }
 }
 
@@ -70,14 +70,17 @@ func main() {
 
     let fac5 = factorial(5);
     putd(h, fac5);
+    putc(h, '\n');
 
     let fib10 = fibonacci(10);
     putd(h, fib10);
+    putc(h, '\n');
 
     fizz_buzz(h, 20);
 
     let ack22 = ack(2, 2);
     putd(h, ack22);
+    putc(h, '\n');
 
     n_times_with_break(h, 10);
 }

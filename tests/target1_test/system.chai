@@ -28,3 +28,10 @@ func putc(h: *u8, c: i32) {
     WriteConsoleA(h, &b, 1, null, null);
 }
 
+// Program Entry Point
+
+@abientry
+func _start() {
+    main();
+    exit(0);
+}
