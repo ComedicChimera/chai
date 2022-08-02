@@ -22,6 +22,8 @@ func (p *Parser) parseDefinition() {
 		def = p.parseFuncDef(annots)
 	case TOK_OPER:
 		def = p.parseOperDef(annots)
+	case TOK_STRUCT:
+		def = p.parseStructDef(annots)
 	default:
 		p.reject()
 	}
@@ -287,4 +289,43 @@ func (p *Parser) parseFuncBody() ast.ASTNode {
 		p.reject()
 		return nil
 	}
+}
+
+/* -------------------------------------------------------------------------- */
+
+// struct_def := 'struct' 'IDENTIFIER' '{' struct_field {struct_field} '}' ;
+// struct_field := ident_list type_ext [initializer] ';'
+func (p *Parser) parseStructDef(annots map[string]ast.AnnotValue) *ast.StructDef {
+	startSpan := p.want(TOK_STRUCT).Span
+
+	nameIdent := p.want(TOK_IDENT)
+
+	p.want(TOK_LBRACE)
+
+	for {
+		fieldIdents := p.parseIdentList()
+		fieldType := p.parseTypeExt()
+
+		var fieldInit ast.ASTExpr
+		if p.has(TOK_ASSIGN) {
+			fieldInit = p.parseInitializer()
+		}
+
+		p.want(TOK_SEMI)
+
+		if p.has(TOK_RBRACE) {
+			break
+		}
+
+		_ = fieldIdents
+		_ = fieldType
+		_ = fieldInit
+	}
+
+	_ = startSpan
+	_ = nameIdent
+
+	p.want(TOK_RBRACE)
+
+	return nil
 }

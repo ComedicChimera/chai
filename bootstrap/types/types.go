@@ -1,6 +1,7 @@
 package types
 
 import (
+	"chaic/report"
 	"chaic/util"
 	"strings"
 )
@@ -205,4 +206,46 @@ func (ft *FuncType) Repr() string {
 	sb.WriteString(ft.ReturnType.Repr())
 
 	return sb.String()
+}
+
+/* -------------------------------------------------------------------------- */
+
+// NamedType is the base type for all named types: structs, enums, etc.
+type NamedType struct {
+	// The named type's full name: parent package path + type name.
+	Name string
+
+	// The package ID that the named type is defined in.
+	ParentID uint64
+}
+
+func (nt *NamedType) equals(other Type) bool {
+	if ont, ok := other.(*NamedType); ok {
+		return nt.Name == ont.Name && nt.ParentID == ont.ParentID
+	}
+
+	return false
+}
+
+func (nt *NamedType) Repr() string {
+	return nt.Name
+}
+
+func (nt *NamedType) Size() int {
+	report.ReportICE("Size() not overridden on NamedType")
+	return 0
+}
+
+func (nt *NamedType) Align() int {
+	report.ReportICE("Align() not overridden on NamedType")
+	return 0
+}
+
+/* -------------------------------------------------------------------------- */
+
+// StructType represents a structure type.
+type StructType struct {
+	NamedType
+
+	// TODO
 }

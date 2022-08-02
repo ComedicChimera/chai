@@ -53,3 +53,22 @@ type OperDef struct {
 	// The operator function's annotations.
 	Annotations map[string]AnnotValue
 }
+
+/* -------------------------------------------------------------------------- */
+
+// StructDef represents a structure definition.
+type StructDef struct {
+	ASTBase
+
+	// The symbol containing the structure.
+	Symbol *common.Symbol
+
+	// The map of field initializers.
+	FieldInits map[string]ASTExpr
+
+	// The structure's field annotations.
+	Annotations map[string]AnnotValue
+
+	// The map of field annotations.
+	FieldAnnots map[string]map[string]AnnotValue
+}

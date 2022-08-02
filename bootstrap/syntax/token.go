@@ -22,6 +22,7 @@ const (
 
 	TOK_FUNC
 	TOK_OPER
+	TOK_STRUCT
 
 	TOK_LET
 	TOK_CONST

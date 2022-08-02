@@ -163,8 +163,9 @@ func (l *Lexer) lexPunctOrOper() (*Token, error) {
 var keywordPatterns = map[string]int{
 	"package": TOK_PACKAGE,
 
-	"func": TOK_FUNC,
-	"oper": TOK_OPER,
+	"func":   TOK_FUNC,
+	"oper":   TOK_OPER,
+	"struct": TOK_STRUCT,
 
 	"let":   TOK_LET,
 	"const": TOK_CONST,
