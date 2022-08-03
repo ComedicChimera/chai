@@ -359,6 +359,8 @@ func (g *Generator) generateNullValue(typ types.Type) llvalue.Value {
 	case types.PrimitiveType:
 		if v.IsFloating() {
 			return constant.NewFloat(g.convPrimType(v, false).(*lltypes.FloatType), 0)
+		} else if v == types.PrimTypeUnit {
+			return constant.NewStruct(lltypes.NewStruct())
 		} else {
 			// All other primitives compile as int constants.
 			return constant.NewInt(g.convPrimType(v, false).(*lltypes.IntType), 0)

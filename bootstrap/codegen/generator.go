@@ -252,7 +252,7 @@ func (g *Generator) convPrimType(pt types.PrimitiveType, isReturnType bool) llty
 		if isReturnType {
 			return lltypes.Void
 		} else {
-			return lltypes.I1
+			return lltypes.NewStruct()
 		}
 	default:
 		// unreachable
