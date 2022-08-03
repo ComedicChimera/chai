@@ -34,11 +34,11 @@ This can only be used inside of generic definitions.
 - Allows for iteration over tuple and struct fields
 	- Eg. for the `println` function:
 ```
-def println<...T: Show>(...args: T)
-	for<T> arg from args
+func println<...T: Show>(...args: T) {
+	for<T> arg from args {
 		...
-	end
-end
+	}
+}
 ```
 - These *can* be used outside of a generic context.
 - They can produce sequences or tuples :)

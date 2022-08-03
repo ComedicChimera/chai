@@ -1,12 +1,12 @@
 # Pragmas
-Pragmas provide a way to control the compiler more precisely.  They are sort of like preprocessor directives in C (except Chai doesn't actually use a preprocessor).
+**Pragmas** also called **meta directives** provide a way to control the compiler more precisely.  They are sort of like preprocessor directives in C (except Chai doesn't actually use a preprocessor).
 
 A general rule for all pragmas is that they will only execute once per compilation, and they are always executed before any code is generated.
 
 ## Syntax
-All pragmas begin with a `$` followed by the directive name (which is a normal) identifier.  Eg.
+All pragmas begin with a `#` followed by the directive name (which is a normal) identifier.  Eg.
 
-`$ warn "deprecated"`
+`#warn "deprecated"`
 
 From there, pragmas deviate quite a bit in what syntax they use for their arguments.
 
@@ -38,21 +38,21 @@ A pragam placed inside a type definition will only execute if that type is used 
 
 ## Builtin Pragmas
 ### Require
-The require directive specifies a condition of compilation.  The directive identifier is `require`.  It accepts a condition that if false will prevent compilation.
+The require directive specifies a condition of compilation.  The directive identifier is `require`.  It accepts a condition that if false will prevent compilation of all code which occurs after the require.
 
 **Examples:**
 ```
-$ require false  # file will never compile
+#require false  # file will never compile
 
-$ require os == "windows"  # conditional compilation based on OS
+#require OS == "windows"  # conditional compilation based on OS
 
-$ require arch == "amd64"  # conditional compilation based on architecture
+#require ARCH == "amd64"  # conditional compilation based on architecture
 ```
 
 *Note*: More advanced conditions may be supported in the future
 
-### C Source
-The C source directive will allow for the direct inclusion of C source code in Chai files.  The directive identifier is `csrc`.  It accepts a string (can be multi-line) of C code to include.  
+### C Import
+The C source directive will allow for the direct inclusion of C source code in Chai files.  The directive identifier is `cimport`.  It accepts a string (can be multi-line) of C code to include. 
 
 For more information and examples of this directive, see [[C Bindings]].
 
@@ -61,11 +61,11 @@ The warn directive produces an arbitrary warning message.  The directive identif
 
 **Examples:**
 ```
-$ warn "This package is deprecated."
+#warn "This package is deprecated."
 
-def some_func()
-	$ warn "This function is unsafe."
-end
+func some_func() {
+	#warn "This function is unsafe."
+}
 ```
 
 ### Error
@@ -73,15 +73,33 @@ The error directive produces an arbitrary compilation error.  The directive iden
 
 **Examples:**
 ```
-$ error "Unsupported platform."
+#error "Unsupported platform."
 
-def todo()
-	$ error "Unimplemented function"
-end
+func todo() {
+	#error "Unimplemented function"
+}
+```
+
+### Static Assert
+The static assert directive runs a static assertion at compile-time.  The directive identifier is `static_assert`.  It accepts a condition and an optional error message.
+
+**Examples:**
+```
+#static_assert ARCH != "arm"
+```
+### If/Elif/Else
+The if/elif/else directive allows more precise conditional compilation than require.  The directive identifier is `if` and it accepts a condition followed by a code-block.  It can also have `elif` and `else` clauses.  Note that as with all other directives, the conditions must be compile-time constant.
+
+```
+#if OS == "windows" {
+	// Handle Windows
+} else {
+	// Handle other OSs
+}
 ```
 
 ### Inline Assembly.
-The inline assembly directive will allow users to write assembly code inside their functions.  The directive name is asm.  It accepts an assembly string (can be muli-line) to run.  This directive can NOT be used at the file level.
+The inline assembly directive will allow users to write assembly code inside their functions.  The directive identifier is `asm`.  It accepts an assembly string (can be muli-line) to run.  This directive can NOT be used at the file level.
 
 ## Future Pragma Ideas
 These directives may be implemented at some point in Chai's future.

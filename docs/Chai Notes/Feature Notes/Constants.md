@@ -1,5 +1,5 @@
 # Constants
-Constants provide a convenient way to define compile-time constant values.
+Constants provide a convenient way to define  constant values.
 
 ## Syntax
 ```
@@ -14,10 +14,15 @@ Constants are considered values and handled similarly to variables.
 
 They may never be mutated.
 
-Their values must be compile-time constants (evaluable at compile-time: *more rigorous definition of what this means is required*).
-
 They may be defined locally or globally.
 
 They must always have a type extension and an initializer.
 
-When referenced, they act like literal constants (eg. `&1`)
+When reference, they always take the form of `const` pointers.
+
+## Compile-Time Constants
+**Compile-Time constants** are declared like normal constants except they use the keyword `comptime`.  Compile-time constants must have compile-time constant values and are treated as r-values wherever they are encountered.  
+
+```
+comptime PI = 3.14159265 
+```

@@ -1,5 +1,5 @@
 # Monads
-Monads are principle feature of Chai although they are implemented somewhat unconventionally.  They act as the primary method of error handling and resource handling.
+Monads are principle feature of Chai although they are implemented somewhat unconventionally.  They act as the primary method of error handling.
 
 In essence, a **monad** is a construct that "redefines" sequential execution for a given type.  For example, the `Option` monad is defined such that code progresses if there is a value and exits or accumulates if their is not.  
 
@@ -11,15 +11,13 @@ In general, monad semantics are invoked through the use of monadic operators.
 Most formally, in Chai, a type is a **monad** (or is **monadic**) if it implements the `Monad` type class.  This type class is defines as follows:
 
 ```
-class Monad<T> M
-	pub def unit(u: T) M<T> end
+class Monad<T> M {
+	pub func unit(u: T) M<T>;
 
-	pub method eval() (T, bool) end
+	pub method eval() Option<T>;
 	
-	pub method fail<R>() M<R> end
-
-	pub method exit() = ()
-end
+	pub method fail<R>() M<R>;
+}
 ```
 
 Each method serves a unique purpose within Chai's monadic system.  
@@ -44,31 +42,9 @@ A **context block** defines a new monadic sub context.  These are useful when yo
 Context blocks begin with the `with` keyword followed by an initial monad binding.
 
 ```
-with v <- m
+with v <- m {
 	...
-end
+}
 ```
 
 Inside the context block, the monad which is the type of `m` is the dominant monad.  
-
-### Context Block Example: Reading a File
-
-```
-import println, scanln from io.std
-import File, FileMode from io.fs
-
-def main() # Dominant: Result
-	# Scan the file name.
-	let file_name <- scanln()
-	
-	# Open the file handle.
-	let fh <- File.open(file_name, FileMode.Read)
-	
-	# Create a new monadic sub-context to manage the file handle.
-	with file <- fh # Dominant: FileHandle
-		for line in file.lines()
-			println(line)
-		end
-	end
-end
-```

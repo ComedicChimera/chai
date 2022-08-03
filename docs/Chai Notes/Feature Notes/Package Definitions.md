@@ -18,17 +18,17 @@ So, how do we fix this?  The solution I have come up with is to introduce a **pa
 The syntax for a package definition is very simple:
 
 ```
-pkg_def := 'package' pkg_path
+pkg_def := 'package' pkg_path ';'
 ```
 
 Here are some examples of that syntax:
 
 ```
-package hello
+package hello;
 
-package io.std
+package io.std;
 
-package core.types
+package core.types;
 ```
 
 Although this does require a little bit of code to be inserted at the top of the file, this small sacrifice is acceptable because:
@@ -42,7 +42,7 @@ The idea of these definitions is that the package path defined by the definition
 For example, in the package definition,
 
 ```
-package io.std
+package io.std;
 ```
 
 This defines the "root" for the given package as the `io` package which is up a directory from the current package `std`.  So, when Chai is resolve import statements within the `std` package it resolves relative to (and with the *exposes* of) the `io` package.
@@ -50,7 +50,7 @@ This defines the "root" for the given package as the `io` package which is up a 
 For example, to import the `fs` package from inside `std`, you would use:
 
 ```
-import io.fs
+import io.fs;
 ```
 
 This system is fairly straight-forward and easy to understand.  But, it does come with some restrictions:
@@ -67,11 +67,11 @@ a/
 The package definitions for `d` could only be:
 
 ```
-package d
+package d;
 
-package c.d
+package c.d;
 
-package a.c.d
+package a.c.d;
 ```
 
 This restriction is inline with how imports are actually resolved: the name of the package is always considered to be the name of the directory.
@@ -79,6 +79,8 @@ This restriction is inline with how imports are actually resolved: the name of t
 The second restriction is that all the files within the same package must have the same package definition.  The implications and logic behind this restriction should be obvious.
 
 ## Exposing Foreign Packages
+**NOTE:** This approach is outdated.  We are going to **package maps** to solve this more elegantly.
+
 One caveat of this package system is that you can't import from outside of your root package.  For example, if the package `d` had the package definition: `c.d` then it couldn't import `b`.  
 
 This problem is also more general: how do you import shared packages or even standard library packages?
