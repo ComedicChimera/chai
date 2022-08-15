@@ -302,7 +302,16 @@ func (p *Parser) parseStructDef(annots map[string]ast.AnnotValue) *ast.StructDef
 
 	p.want(TOK_LBRACE)
 
+	var fields []types.StructField
+	fieldIndices := make(map[string]int)
+	fieldInits := make(map[string]ast.ASTExpr)
+	fieldAnnots := make(map[string]map[string]ast.AnnotValue)
 	for {
+		var thisFieldAnnots map[string]ast.AnnotValue
+		if p.has(TOK_ATSIGN) {
+			thisFieldAnnots = p.parseAnnotDecl()
+		}
+
 		fieldIdents := p.parseIdentList()
 		fieldType := p.parseTypeExt()
 
@@ -313,19 +322,62 @@ func (p *Parser) parseStructDef(annots map[string]ast.AnnotValue) *ast.StructDef
 
 		p.want(TOK_SEMI)
 
+		for _, fieldIdent := range fieldIdents {
+			fieldName := fieldIdent.Value
+
+			if _, ok := fieldIndices[fieldName]; ok {
+				p.recError(fieldIdent.Span, "multiple fields named %s", fieldName)
+			}
+
+			fieldIndices[fieldName] = len(fields)
+
+			fields = append(fields, types.StructField{
+				Name: fieldName,
+				Type: fieldType,
+			})
+
+			if fieldInit != nil {
+				fieldInits[fieldName] = fieldInit
+			}
+
+			if thisFieldAnnots != nil {
+				fieldAnnots[fieldName] = thisFieldAnnots
+			}
+		}
+
 		if p.has(TOK_RBRACE) {
 			break
 		}
-
-		_ = fieldIdents
-		_ = fieldType
-		_ = fieldInit
 	}
 
-	_ = startSpan
-	_ = nameIdent
+	structType := &types.StructType{
+		NamedType: types.NamedType{
+			Name:     p.chFile.Parent.Name + "." + nameIdent.Value,
+			ParentID: p.chFile.Parent.ID,
+		},
+		Fields:  fields,
+		Indices: fieldIndices,
+	}
 
-	p.want(TOK_RBRACE)
+	structSym := &common.Symbol{
+		Name:       nameIdent.Value,
+		ParentID:   p.chFile.Parent.ID,
+		FileNumber: p.chFile.FileNumber,
+		DefSpan:    nameIdent.Span,
+		Type:       structType,
+		DefKind:    common.DefKindType,
+		Constant:   true,
+	}
 
-	return nil
+	p.defineGlobalSymbol(structSym)
+
+	endSpan := p.want(TOK_RBRACE).Span
+
+	return &ast.StructDef{
+		ASTBase:     ast.NewASTBaseOver(startSpan, endSpan),
+		Symbol:      structSym,
+		FieldInits:  fieldInits,
+		Annotations: annots,
+		FieldAnnots: fieldAnnots,
+	}
 }

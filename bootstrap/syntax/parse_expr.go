@@ -197,35 +197,115 @@ func (p *Parser) parseUnaryExpr() ast.ASTExpr {
 // -----------------------------------------------------------------------------
 
 // atom_expr := atom {trailer} ;
-// trailer := '(' expr_list ')' ;
+// trailer := '(' expr_list ')' | '.' 'IDENT' | struct_lit_suffix ;
 func (p *Parser) parseAtomExpr() ast.ASTExpr {
 	atomExpr := p.parseAtom()
 
 	for {
 		switch p.tok.Kind {
 		case TOK_LPAREN:
-			p.next()
-
-			var args []ast.ASTExpr
-			var endSpan *report.TextSpan
-			if p.has(TOK_RPAREN) {
-				endSpan = p.tok.Span
+			{
 				p.next()
-			} else {
-				args = p.parseExprList()
-				endSpan = p.want(TOK_RPAREN).Span
-			}
 
-			atomExpr = &ast.FuncCall{
-				ExprBase: ast.NewExprBase(report.NewSpanOver(atomExpr.Span(), endSpan)),
-				Func:     atomExpr,
-				Args:     args,
+				var args []ast.ASTExpr
+				var endSpan *report.TextSpan
+				if p.has(TOK_RPAREN) {
+					endSpan = p.tok.Span
+					p.next()
+				} else {
+					args = p.parseExprList()
+					endSpan = p.want(TOK_RPAREN).Span
+				}
+
+				atomExpr = &ast.FuncCall{
+					ExprBase: ast.NewExprBase(report.NewSpanOver(atomExpr.Span(), endSpan)),
+					Func:     atomExpr,
+					Args:     args,
+				}
 			}
+		case TOK_DOT:
+			{
+				p.next()
+
+				nameIdent := p.want(TOK_IDENT)
+
+				atomExpr = &ast.PropertyAccess{
+					ExprBase: ast.NewExprBase(report.NewSpanOver(atomExpr.Span(), nameIdent.Span)),
+					Root:     atomExpr,
+					PropName: nameIdent.Value,
+					PropSpan: nameIdent.Span,
+				}
+			}
+		case TOK_LBRACE:
+			atomExpr = p.parseStructLitSuffix(atomExpr)
 		default:
 			return atomExpr
 		}
 	}
 }
+
+// struct_lit_suffix := '{' ('...' expr ',' init_list | init_list '}' ;
+// init_list := 'IDENT' initializer {',' 'IDENT' initializer} ;
+func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
+	// TODO: handle `.` package accesses
+	var rootIdent *ast.Identifier
+	if ri, ok := root.(*ast.Identifier); ok {
+		rootIdent = ri
+	} else {
+		p.reject()
+	}
+
+	p.want(TOK_LBRACE)
+
+	var fieldInits []ast.StructLiteralFieldInit
+	var spreadInit ast.ASTExpr
+
+	if p.has(TOK_ELLIPSIS) {
+		p.next()
+
+		spreadInit = p.parseExpr()
+
+		p.want(TOK_COMMA)
+	}
+
+	if spreadInit != nil || p.has(TOK_IDENT) {
+		for {
+			fieldIdent := p.want(TOK_IDENT)
+			fieldInitExpr := p.parseInitializer()
+
+			fieldInits = append(fieldInits, ast.StructLiteralFieldInit{
+				Name:     fieldIdent.Value,
+				NameSpan: fieldIdent.Span,
+				Init:     fieldInitExpr,
+			})
+
+			if p.has(TOK_COMMA) {
+				p.next()
+			} else {
+				break
+			}
+		}
+	}
+
+	endSpan := p.want(TOK_RBRACE).Span
+
+	return &ast.StructLiteral{
+		ExprBase: ast.NewTypedExprBase(
+			report.NewSpanOver(root.Span(), endSpan),
+			&types.OpaqueType{
+				NamedType: types.NamedType{
+					Name:     rootIdent.Name,
+					ParentID: p.chFile.Parent.ID,
+				},
+				Span: root.Span(),
+			},
+		),
+		FieldInits: fieldInits,
+		SpreadInit: spreadInit,
+	}
+}
+
+// -----------------------------------------------------------------------------
 
 // atom := 'IDENT' | 'NUMLIT' | 'INTLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT'
 // 		| 'null' | '(' expr ')' ;

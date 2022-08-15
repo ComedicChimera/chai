@@ -241,11 +241,97 @@ func (nt *NamedType) Align() int {
 	return 0
 }
 
+// OpaqueType represents a named type whose value has not yet been inferred.
+type OpaqueType struct {
+	NamedType
+
+	// The span over which the named type reference occurs.
+	Span *report.TextSpan
+
+	// The resolved type of this opaque type.
+	Value Type
+}
+
+func (ot *OpaqueType) Size() int {
+	if ot.Value != nil {
+		return ot.Value.Size()
+	}
+
+	report.ReportICE("called Size() on an unresolved opaque type")
+	return 0
+}
+
+func (ot *OpaqueType) Align() int {
+	if ot.Value != nil {
+		return ot.Value.Align()
+	}
+
+	report.ReportICE("called Align() on an unresolved opaque type")
+	return 0
+}
+
 /* -------------------------------------------------------------------------- */
 
 // StructType represents a structure type.
 type StructType struct {
 	NamedType
 
-	// TODO
+	// The list of fields of the struct in order.
+	Fields []StructField
+
+	// A mapping between field names and their index within the struct.
+	Indices map[string]int
+}
+
+// StructField represents a field of a structure type.
+type StructField struct {
+	// The field's name.
+	Name string
+
+	// The field's type.
+	Type Type
+}
+
+func (st *StructType) Size() int {
+	size := 0
+
+	// Calculate the size of struct such that all the fields are aligned.
+	for _, field := range st.Fields {
+		fieldAlign := field.Type.Align()
+
+		if size%fieldAlign != 0 {
+			size += fieldAlign - size%fieldAlign
+		}
+
+		size += field.Type.Size()
+	}
+
+	// TODO: do we need to pad the end of the struct for alignment?
+
+	return size
+}
+
+func (st *StructType) Align() int {
+	// The alignment of the struct is simply its maximum field alignment.
+	maxAlign := 0
+
+	for _, field := range st.Fields {
+		fieldAlign := field.Type.Align()
+
+		if fieldAlign > maxAlign {
+			maxAlign = fieldAlign
+		}
+	}
+
+	return maxAlign
+}
+
+// GetFieldByName returns the struct field corresponding to the given name if it
+// exists in the struct.
+func (st *StructType) GetFieldByName(name string) (StructField, bool) {
+	if index, ok := st.Indices[name]; ok {
+		return st.Fields[index], true
+	}
+
+	return StructField{}, false
 }

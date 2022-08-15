@@ -44,10 +44,11 @@ func (p *Parser) parseTypeExt() types.Type {
 	return p.parseTypeLabel()
 }
 
-// type_label := prim_type | pointer_type ;
+// type_label := prim_type | pointer_type | named_type ;
 // prim_type := 'i8' | 'u8' | 'i16' | 'u16' | 'i32' | 'u32'
 //           | 'i64' | 'u64' | 'f32' | 'f64' | 'bool' | `unit` ;
 // pointer_type := '*' ['const'] type_label ;
+// named_type := 'IDENT' ['.' 'IDENT'] ;
 func (p *Parser) parseTypeLabel() types.Type {
 	switch p.tok.Kind {
 	case TOK_I8:
@@ -100,6 +101,23 @@ func (p *Parser) parseTypeLabel() types.Type {
 			return &types.PointerType{
 				ElemType: p.parseTypeLabel(),
 				Const:    false,
+			}
+		}
+	case TOK_IDENT:
+		{
+			typeIdent := p.tok
+			p.next()
+
+			// TODO: handle `.` package accesses
+			parentPkg := p.chFile.Parent
+
+			// TODO: add the opaque type to the resolver
+			return &types.OpaqueType{
+				NamedType: types.NamedType{
+					Name:     typeIdent.Value,
+					ParentID: parentPkg.ID,
+				},
+				Span: typeIdent.Span,
 			}
 		}
 	default:

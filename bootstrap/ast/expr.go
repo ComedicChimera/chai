@@ -132,6 +132,8 @@ func (d *Deref) Constant() bool {
 	return types.InnerType(d.Ptr.Type()).(*types.PointerType).Const
 }
 
+// -----------------------------------------------------------------------------
+
 // FuncCall represents an AST function call.
 type FuncCall struct {
 	ExprBase
@@ -141,6 +143,45 @@ type FuncCall struct {
 
 	// The arguments to the function.
 	Args []ASTExpr
+}
+
+// PropertyAccess represents a property access (ie. a `.` expr).
+type PropertyAccess struct {
+	ExprBase
+
+	// The value whose property is being accessed.
+	Root ASTExpr
+
+	// The name of the property being accessed.
+	PropName string
+
+	// The span over which the property name occurs.
+	PropSpan *report.TextSpan
+}
+
+// -----------------------------------------------------------------------------
+
+// StructLiteral represents a structure literal (initializer).
+type StructLiteral struct {
+	ExprBase
+
+	// The field initializers.
+	FieldInits []StructLiteralFieldInit
+
+	// The spread initializer if it exists.
+	SpreadInit ASTExpr
+}
+
+// StructLiteralFieldInit represents a field initializer in a struct literal.
+type StructLiteralFieldInit struct {
+	// The name of the field being initialized.
+	Name string
+
+	// The span over which the name of the field being initialized occurs.
+	NameSpan *report.TextSpan
+
+	// The initializer expression.
+	Init ASTExpr
 }
 
 // -----------------------------------------------------------------------------
