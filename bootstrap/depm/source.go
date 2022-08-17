@@ -3,6 +3,7 @@ package depm
 import (
 	"chaic/ast"
 	"chaic/common"
+	"chaic/types"
 	"hash/fnv"
 	"sync"
 )
@@ -24,6 +25,9 @@ type ChaiFile struct {
 
 	// The list of definitions contained in this Chai file.
 	Definitions []ast.ASTNode
+
+	// The table of opaque symbol references that occur in this file.
+	OpaqueRefs map[string][]*types.OpaqueType
 }
 
 // -----------------------------------------------------------------------------

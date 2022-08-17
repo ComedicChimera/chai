@@ -111,14 +111,17 @@ func (p *Parser) parseTypeLabel() types.Type {
 			// TODO: handle `.` package accesses
 			parentPkg := p.chFile.Parent
 
-			// TODO: add the opaque type to the resolver
-			return &types.OpaqueType{
+			otype := &types.OpaqueType{
 				NamedType: types.NamedType{
 					Name:     typeIdent.Value,
 					ParentID: parentPkg.ID,
 				},
 				Span: typeIdent.Span,
 			}
+
+			p.chFile.OpaqueRefs[typeIdent.Value] = append(p.chFile.OpaqueRefs[typeIdent.Value], otype)
+
+			return otype
 		}
 	default:
 		p.reject()

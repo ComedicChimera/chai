@@ -133,23 +133,14 @@ func (p *Parser) defineOperatorOverload(opKind int, opRepr string, arity int, ov
 				return
 			}
 		}
-
-		p.chFile.Parent.OperatorTable[opKind] = append(operators, &common.Operator{
-			Kind:      opKind,
-			OpRepr:    opRepr,
-			Arity:     arity,
-			Overloads: []*common.OperatorOverload{overload},
-		})
-	} else {
-		p.chFile.Parent.OperatorTable[opKind] = []*common.Operator{
-			{
-				Kind:      opKind,
-				OpRepr:    opRepr,
-				Arity:     arity,
-				Overloads: []*common.OperatorOverload{overload},
-			},
-		}
 	}
+
+	p.chFile.Parent.OperatorTable[opKind] = append(p.chFile.Parent.OperatorTable[opKind], &common.Operator{
+		Kind:      opKind,
+		OpRepr:    opRepr,
+		Arity:     arity,
+		Overloads: []*common.OperatorOverload{overload},
+	})
 }
 
 // -----------------------------------------------------------------------------

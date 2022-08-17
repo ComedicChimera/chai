@@ -5,6 +5,7 @@ import (
 	"chaic/depm"
 	"chaic/report"
 	"chaic/syntax"
+	"chaic/types"
 	"chaic/walk"
 	"fmt"
 	"io/ioutil"
@@ -54,6 +55,7 @@ func (c *Compiler) InitPackage(pkgAbsPath string) (*depm.ChaiPackage, bool) {
 			FileNumber: len(pkg.Files),
 			AbsPath:    filepath.Join(pkg.AbsPath, finfo.Name()),
 			ReprPath:   fmt.Sprintf("[%s] %s", pkg.Name, finfo.Name()),
+			OpaqueRefs: make(map[string][]*types.OpaqueType),
 		}
 
 		// Add it to its parent package.
@@ -108,7 +110,10 @@ func (c *Compiler) WalkPackages() bool {
 
 		go func(pkg *depm.ChaiPackage) {
 			for _, file := range pkg.Files {
-				walk.WalkFile(file)
+				// We can only walk the file if all its opaque symbols resolve.
+				if depm.ResolveOpaques(file) {
+					walk.WalkFile(file)
+				}
 			}
 
 			wg.Done()
