@@ -16,6 +16,12 @@ func InnerType(typ Type) Type {
 		}
 
 		return v.Value
+	case *OpaqueType:
+		if v.Value == nil {
+			return v
+		}
+
+		return v.Value
 	}
 
 	return typ

@@ -16,6 +16,8 @@ func (w *Walker) doWalkDef(def ast.ASTNode) {
 	case *ast.OperDef:
 		w.validateOperAnnots(v)
 		w.walkFuncBody(v.Params, v.Overload.Signature.(*types.FuncType).ReturnType, v.Body)
+	case *ast.StructDef:
+		w.walkStructDef(v)
 	}
 }
 
@@ -163,4 +165,16 @@ func (w *Walker) walkFuncBody(params []*common.Symbol, rtType types.Type, body a
 
 	// Clear the function return type.
 	w.enclosingReturnType = nil
+}
+
+// -----------------------------------------------------------------------------
+
+// walkStructDef walks a structure definition.
+func (w *Walker) walkStructDef(sd *ast.StructDef) {
+	st := sd.Symbol.Type.(*types.StructType)
+
+	for name, init := range sd.FieldInits {
+		field, _ := st.GetFieldByName(name)
+		w.solver.MustEqual(field.Type, init.Type(), init.Span())
+	}
 }

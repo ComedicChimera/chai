@@ -25,12 +25,10 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 	case *ast.FuncCall:
 		w.walkFuncCall(v)
 	case *ast.Deref:
-		w.walkExpr(v.Ptr)
+		{
+			w.walkExpr(v.Ptr)
 
-		if pt, ok := types.InnerType(v.Ptr.Type()).(*types.PointerType); ok {
-			v.NodeType = pt.ElemType
-		} else {
-			w.error(v.Span(), "%s cannot be dereferenced because it is not a pointer", v.Ptr.Type().Repr())
+			// TODO: handle non-const/const pointers.
 		}
 	case *ast.Indirect:
 		w.walkExpr(v.Elem)
@@ -38,6 +36,12 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 		v.NodeType = &types.PointerType{
 			ElemType: v.Elem.Type(),
 			Const:    v.Const || v.Elem.Constant(),
+		}
+	case *ast.StructLiteral:
+		if st, ok := types.InnerType(v.Type()).(*types.StructType); ok {
+			_ = st
+		} else {
+			w.error(v.Span(), "%s is not a struct type", v.Type().Repr())
 		}
 	case *ast.Null:
 		v.NodeType = w.solver.NewTypeVar("untyped null", v.Span())
