@@ -276,7 +276,7 @@ func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
 			fieldInits = append(fieldInits, ast.StructLiteralFieldInit{
 				Name:     fieldIdent.Value,
 				NameSpan: fieldIdent.Span,
-				Init:     fieldInitExpr,
+				InitExpr: fieldInitExpr,
 			})
 
 			if p.has(TOK_COMMA) {

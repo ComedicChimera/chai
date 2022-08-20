@@ -181,7 +181,7 @@ type StructLiteralFieldInit struct {
 	NameSpan *report.TextSpan
 
 	// The initializer expression.
-	Init ASTExpr
+	InitExpr ASTExpr
 }
 
 // -----------------------------------------------------------------------------

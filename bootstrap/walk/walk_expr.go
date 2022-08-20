@@ -22,13 +22,20 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 		w.walkExpr(v.Operand)
 
 		v.NodeType = w.checkOperApp(v.Op, v.Span(), v.Operand)
-	case *ast.FuncCall:
-		w.walkFuncCall(v)
 	case *ast.Deref:
 		{
 			w.walkExpr(v.Ptr)
 
-			// TODO: handle non-const/const pointers.
+			elemType := w.solver.NewTypeVar("element type", v.Span())
+			ptrType := w.solver.NewTypeVar("pointer type", v.Span())
+			w.solver.AddOverloads(ptrType, []types.Type{
+				&types.PointerType{ElemType: elemType, Const: false},
+				&types.PointerType{ElemType: elemType, Const: true},
+			})
+
+			w.solver.MustEqual(ptrType, v.Ptr.Type(), v.Ptr.Span())
+
+			v.NodeType = elemType
 		}
 	case *ast.Indirect:
 		w.walkExpr(v.Elem)
@@ -38,11 +45,9 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 			Const:    v.Const || v.Elem.Constant(),
 		}
 	case *ast.StructLiteral:
-		if st, ok := types.InnerType(v.Type()).(*types.StructType); ok {
-			_ = st
-		} else {
-			w.error(v.Span(), "%s is not a struct type", v.Type().Repr())
-		}
+		w.walkStructLit(v)
+	case *ast.FuncCall:
+		w.walkFuncCall(v)
 	case *ast.Null:
 		v.NodeType = w.solver.NewTypeVar("untyped null", v.Span())
 	case *ast.Literal:
@@ -61,6 +66,34 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 }
 
 // -----------------------------------------------------------------------------
+
+// walkStructLit walks a struct literal.
+func (w *Walker) walkStructLit(lit *ast.StructLiteral) {
+	// Validate that the type name is a type.
+	if st, ok := types.InnerType(lit.Type()).(*types.StructType); ok {
+		// Validate the spread initializer if it exists.
+		if lit.SpreadInit != nil {
+			w.walkExpr(lit.SpreadInit)
+
+			w.solver.MustEqual(st, lit.SpreadInit.Type(), lit.SpreadInit.Span())
+		}
+
+		// Validate the field initializers.
+		for _, init := range lit.FieldInits {
+			w.walkExpr(init.InitExpr)
+
+			// Validate that the field exists.
+			if field, ok := st.GetFieldByName(init.Name); ok {
+				// Assert that the types match.
+				w.solver.MustEqual(field.Type, init.InitExpr.Type(), init.InitExpr.Span())
+			} else {
+				w.recError(init.NameSpan, "%s has no field named %s", st.Repr(), init.Name)
+			}
+		}
+	} else {
+		w.error(lit.Span(), "%s is not a struct type", lit.Type().Repr())
+	}
+}
 
 // walkFuncCall walks a function call.
 func (w *Walker) walkFuncCall(call *ast.FuncCall) {

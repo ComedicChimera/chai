@@ -40,8 +40,8 @@ type.
 > we will discuss in more detail later in the chapter.
 
 Of course, a function isn't all that useful without a body.  There are two
-different kinds of ways we can specify a function body in Chai.  The first is
-to use a **block body**.  A block body is simply a series of statement comprising
+different kinds of ways we can specify a function body in Chai.  The first is to
+use a **block body**.  A block body is simply a series of statement comprising
 the body of the function enclosed in braces.
 
     func my_func() {
@@ -53,8 +53,8 @@ the body of the function enclosed in braces.
 > Note that we cannot use the `:` short-hand syntax for a single statement block
 > with functions.
 
-We can return values from functions using the **return statement**.  Return statements
-begin with keyword `return` followed by whatever we want to return.
+We can return values from functions using the **return statement**.  Return
+statements begin with keyword `return` followed by whatever we want to return.
 
     func add(a, b: i64) i64 {
         return a + b;
@@ -122,7 +122,7 @@ the function and are ended with a semicolon.  For example, we can rewrite the
 Notice that expression bodies are really just a short-hand for a common kind of
 block body: `= expr;` is equivalent to `{ return expr; }`
 
-## <a name="unit"> The Unit Type
+## <a name="unit"> The Unit Value
 
 In the previous section, we distinguished between functions that return something
 and functions that don't.  However, this distinction is actually incorrect.
@@ -135,11 +135,44 @@ However, as we have already seen, there are plenty of cases where functions
 don't seem to return anything: for example, the `println` function doesn't need
 to return any value to us.
 
-TODO: rest
+This is where the **unit value** comes in.  The unit value represents a
+"useless" or "empty" value.  Functions which don't return a meaningful result,
+return the unit value by default.
 
-## <a name="consts"> Constant Parameters
+The unit value is denoted by an empty pair of parentheses: `()`.  As you might
+guess, the unit value is of the **unit type** which is denoted explicitly by the
+type label `unit`. 
 
-TODO: declaring const parameters, intro to copy elision and rvo
+    let x: unit = ();
+
+When we elide the return type of a function, Chai implicitly adds the type of
+`unit`.  Similarly, when we write an empty return statement, Chai adds in the
+missing `()`.  Finally, Chai will also add in a `return ()` at the end of any
+function which returns the unit value and doesn't otherwise return.  To
+demonstrate this, let's consider two identical definitions of the function
+`greet`:
+
+    // Short/standard form.
+    func greet() {
+        println("Hello!");
+    }
+
+    // Long/expanded form.
+    func greet() unit {
+        println("Hello!");
+        return ();
+    }
+
+Chai will always allow you to be explicitly with your usage of the unit type,
+but will almost always safely infer the "missing" values and types if you
+choose to be more concise.
+
+As a final note, you might be wondering if there is a performance cost to all
+the unit value business.  The answer is fortunately no.  The unit type and value
+exist primarily on a semantic level: it will generally have little to no
+presence in the executable produced by the Chai compiler.  In fact, in most
+cases, the unit value has a size of zero: a fact which will prove most useful
+later on.
 
 ## <a name="scoping"> Scoping
 

@@ -105,18 +105,14 @@ func (w *Walker) walkLHSExpr(expr ast.ASTExpr) {
 			v.Sym = sym
 		}
 	case *ast.Deref:
-		w.walkExpr(v.Ptr)
+		{
+			w.walkExpr(v.Ptr)
 
-		// TODO: handle non-const/const pointers and type variables
-		// if pt, ok := types.InnerType(v.Ptr.Type()).(*types.PointerType); ok {
-		// 	if pt.Const {
-		// 		w.recError(v.Span(), "cannot mutate an immutable value")
-		// 	}
+			elemType := w.solver.NewTypeVar("element type", v.Span())
+			w.solver.MustEqual(&types.PointerType{ElemType: elemType, Const: false}, v.Ptr.Type(), v.Ptr.Span())
 
-		// 	v.NodeType = pt.ElemType
-		// } else {
-		// 	w.error(v.Span(), "%s cannot be dereferenced because it is not a pointer", v.Ptr.Type().Repr())
-		// }
+			v.NodeType = elemType
+		}
 	default:
 		report.ReportICE("invalid LHS expression")
 	}

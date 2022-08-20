@@ -52,8 +52,26 @@ func (s *Solver) NewTypeVar(name string, span *report.TextSpan) *TypeVariable {
 	return tv
 }
 
+// AddOverloads binds an overload set comprised of overalods to the type
+// variable tv.
+func (s *Solver) AddOverloads(tv *TypeVariable, overloads []Type) {
+	// Get the type variable node associated with tv.
+	tnode := s.typeVarNodes[tv.ID]
+
+	// Indicate the type variable is known.
+	tnode.Known = true
+
+	// Add substitution nodes corresponding to the overloads.
+	for _, overload := range overloads {
+		s.addSubstitution(tnode, basicSubstitution{typ: overload})
+	}
+
+	// Mark the type variable node as complete.
+	s.completes[tv.ID] = struct{}{}
+}
+
 // AddLiteralOverloads binds an overload set for a literal (ie. a defaulting
-// overload set) comprised of the overloads to the type variable tv.
+// overload set) comprised of overloads to the type variable tv.
 func (s *Solver) AddLiteralOverloads(tv *TypeVariable, overloads []Type) {
 	// Get the type variable node associated with tv.
 	tnode := s.typeVarNodes[tv.ID]
