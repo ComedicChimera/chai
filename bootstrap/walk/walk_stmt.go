@@ -113,6 +113,10 @@ func (w *Walker) walkLHSExpr(expr ast.ASTExpr) {
 
 			v.NodeType = elemType
 		}
+	case *ast.PropertyAccess:
+		w.walkExpr(v.Root)
+
+		v.NodeType = w.solver.MustHaveProperty(v.Root.Type(), v.PropName, true, v.PropSpan)
 	default:
 		report.ReportICE("invalid LHS expression")
 	}

@@ -129,6 +129,9 @@ func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
 func (s *Solver) unifyTypeVar(root *subNode, tvar *TypeVariable, typ Type) *unifyResult {
 	tnode := s.typeVarNodes[tvar.ID]
 
+	// Mark the type variable node as used.
+	s.usedTypeVars[tnode.Var.ID] = tnode
+
 	var result *unifyResult
 
 	// Handle complete type variables.

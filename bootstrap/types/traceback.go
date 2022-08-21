@@ -6,25 +6,15 @@ import (
 )
 
 // buildTraceback builds the type traceback used in a type error message.
-func (s *Solver) buildTraceback(sb *strings.Builder, visited map[uint64]bool) {
+func (s *Solver) buildTraceback(sb *strings.Builder, tnodes map[uint64]*typeVarNode) {
 	// If there are no type variables involved in the type comparison, then
 	// there is no need to print any traceback.
-	if len(visited) == 0 {
+	if len(tnodes) == 0 {
 		return
 	}
 
 	// Print the traceback header.
 	sb.WriteString("\ninvolving the following undetermined type variables:\n\n")
-
-	// Calculate the list of all the used type variables.
-	tnodes := make(map[uint64]*typeVarNode)
-	for id := range visited {
-		tnode := s.subNodes[id].Parent
-
-		if _, ok := tnodes[tnode.Var.ID]; !ok {
-			tnodes[tnode.Var.ID] = tnode
-		}
-	}
 
 	// For each variable, ...
 	for _, tnode := range tnodes {

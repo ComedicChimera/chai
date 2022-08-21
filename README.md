@@ -83,8 +83,60 @@ perfectly up to date but should help to give some idea of where we are.
 
 *NOTE: This section refers to progress on the bootstrap compiler.*
 
-TODO
+- [x] Target 1: Basic Compilation
+    - Functions (void return)
+    - Variables (no assignment)
+    - Function Calling
+    - Numeric and Character Literals
+    - Type Casting
+    - Graceful Shutdown
+- [x] Target 2: Expressions and Control Flow
+    - Return Statements
+    - Assignment
+    - Arithmetic Operators
+    - Bitwise Operators
+    - Comparison Operators
+    - Boolean Literals
+    - Logical Operators
+    - Increment and Decrement
+    - If/Elif/Else
+    - While Loops
+    - C-Style For Loops
+    - Break and Continue
+- [ ] Target 3: Structs
+    - Struct Types
+    - Struct Declarations
+    - Struct Literals
+    - Property Accessing
+    - Property Mutating
+    - Copy Elision
+    - RVO
+- [ ] Target 4: Arrays and Strings
+    - Array Types
+    - Array Literals
+    - Array Indexing
+    - Fast For Each Loops for Arrays
+    - String Literals
+    - String Indexing
+- [ ] Target 5: Packages and Imports
+    - Import Statements
+    - Package Declarations
+    - Import Resolution
+    - Visibility/The Public Modifier
+    - Global Variables
+    - The Prelude (the `core` package)
+    - Runtime Separation (the `runtime` package, `__chai_main` and `__chai_init`)
+- [ ] Target 6: Runtime and Dynamic Memory
+    - Proper Signal Handling
+    - The Allocator
+    - The Garbage Collector
+    - Allocation with the `&` Operator
+    - Escape Analysis
+    - Nullability Semantics
+    - Dynamic Array Allocation (`make` expressions)
 
+*NOTE: Other targets TBD*
+ 
 ## <a name="building"> Building the Compiler
 
 TODO

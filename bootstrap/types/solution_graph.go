@@ -30,6 +30,9 @@ type typeVarNode struct {
 	// The list of substitution nodes pruned from this type variable.  These are
 	// grouped in order of the unification the pruned them.
 	PruneSets []pruneSet
+
+	// The list of property constraints applied to the type variable node.
+	Properties []propertyConstraint
 }
 
 // First returns the first remaining substitution node (if any) of a type variable.

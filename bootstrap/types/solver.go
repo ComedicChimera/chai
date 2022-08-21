@@ -29,13 +29,17 @@ type Solver struct {
 
 	// The span of the current unification.
 	currSpan *report.TextSpan
+
+	// The set of type variable referenced during the current unification.
+	usedTypeVars map[uint64]*typeVarNode
 }
 
 // NewSolver creates a new type solver.
 func NewSolver() *Solver {
 	return &Solver{
-		subNodes:  make(map[uint64]*subNode),
-		completes: make(map[uint64]struct{}),
+		subNodes:     make(map[uint64]*subNode),
+		completes:    make(map[uint64]struct{}),
+		usedTypeVars: make(map[uint64]*typeVarNode),
 	}
 }
 
@@ -112,6 +116,13 @@ func (s *Solver) AddOperatorOverloads(tv *TypeVariable, overloads []Type, setOve
 
 // MustEqual asserts that two types are equivalent.
 func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
+	defer func() {
+		// Clear the set of used type variables.
+		for id := range s.usedTypeVars {
+			delete(s.usedTypeVars, id)
+		}
+	}()
+
 	// Set the solver's current span.
 	s.currSpan = span
 
@@ -123,7 +134,7 @@ func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
 		sb := strings.Builder{}
 		sb.WriteString("type mismatch: ")
 
-		s.buildTraceback(&sb, result.Visited)
+		s.buildTraceback(&sb, s.usedTypeVars)
 
 		sb.WriteString("type ")
 		sb.WriteString(lhs.Repr())
@@ -141,6 +152,24 @@ func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
 			s.pruneSubstitution(s.subNodes[id], make(map[uint64]struct{}))
 		}
 	}
+
+	// For any type variable nodes which now have a definite substitution,
+	// resolve all all property constraints on that variable which has not been
+	// resolved.
+	for _, tnode := range s.usedTypeVars {
+		if len(tnode.Nodes) == 1 && len(tnode.Properties) > 0 {
+			// Clear the property constraints of the type variable node: we
+			// don't want to apply them multiple times.
+			props := tnode.Properties
+			tnode.Properties = nil
+
+			// Apply each of the property constraints.
+			for _, prop := range props {
+				propType := s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), prop.Name, prop.Mutable, prop.Span)
+				s.MustEqual(prop.PropTypeVar, propType, prop.Span)
+			}
+		}
+	}
 }
 
 // MustCast asserts that src must be castable to dest.
@@ -150,6 +179,33 @@ func (s *Solver) MustCast(src, dest Type, span *report.TextSpan) {
 		Dest: dest,
 		Span: span,
 	})
+}
+
+// MustHaveProperty asserts that typ has a property named name which occurs over
+// span. If mutable is true, then the property must be mutable.  It returns the
+// type of the accessed property.
+func (s *Solver) MustHaveProperty(typ Type, name string, mutable bool, span *report.TextSpan) Type {
+	innerTyp := InnerType(typ)
+
+	if tv, ok := innerTyp.(*TypeVariable); ok {
+		tnode := s.typeVarNodes[tv.ID]
+
+		if len(tnode.Nodes) == 1 {
+			return s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), name, mutable, span)
+		}
+
+		propTypeVar := s.NewTypeVar("", span)
+		tnode.Properties = append(tnode.Properties, propertyConstraint{
+			Name:        name,
+			Mutable:     mutable,
+			Span:        span,
+			PropTypeVar: propTypeVar,
+		})
+
+		return propTypeVar
+	} else {
+		return s.getProperty(innerTyp, name, mutable, span)
+	}
 }
 
 // Solve prompts the solver to make its finali type deductions based on all the
