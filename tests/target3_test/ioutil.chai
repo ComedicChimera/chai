@@ -1,0 +1,16 @@
+package target2_test;
+
+func putd(h: *u8, n: i64) {
+    if n == 0 {
+        putc(h, '0');
+        return;
+    } elif n < 0 {
+        putc(h, '-');
+        n = -n;
+    }
+
+    for let pow = 1_000_000_000_000_000_000; pow > 0; pow /= 10 {
+        if n >= pow:
+            putc(h, (n / pow % 10 as i32) + '0');
+    }
+}

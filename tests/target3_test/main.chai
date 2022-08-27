@@ -1,0 +1,76 @@
+package target3_test;
+
+struct Vec2 {
+    x, y: i64;
+}
+
+struct Vec3 {
+    x, y, z: i64;
+}
+
+func print_vec2(h: *u8, v2: Vec2) {
+    putc(h, '(');
+    putd(h, v2.x);
+    putc(h, ',');
+    putc(h, ' ');
+    putd(h, v2.y);
+    putc(h, ')');
+}
+
+func print_vec3(h: *u8, v3: Vec3) {
+    putc(h, '(');
+    putd(h, v3.x);
+    putc(h, ',');
+    putc(h, ' ');
+    putd(h, v3.y);
+    putc(h, ',');
+    putc(h, ' ');
+    putd(h, v3.z);
+    putc(h, ')');
+}
+
+func one_vec2() Vec2 {
+    return Vec2{x=1, y=1};
+}
+
+func one_vec3() Vec3 {
+    return Vec3{x=1, y=1, z=1};
+}
+
+func add_vec2(a, b: Vec2) Vec2 {
+    return Vec2{
+        x=a.x + b.x,
+        y=a.y + b.y
+    };
+}
+
+func add_vec3(a, b: Vec3) Vec3 {
+    return Vec3{
+        x=a.x + b.x,
+        y=a.y + b.y,
+        z=a.z + b.z
+    };
+}
+
+func main() {
+    let h = get_stdout();
+
+    let a2 = one_vec2();
+    let a3 = one_vec3();
+
+    print_vec2(h, a2);
+    print_vec3(h, a3);
+
+    let b2 = Vec2{x=2, y=-5};
+    let b3 = Vec3{...a3, z=-2};
+
+    print_vec2(h, b2);
+    print_vec3(h, b3);
+
+    let c2 = add_vec2(a2, b2);
+    let c3 = add_vec3(a3, b3);
+
+    print_vec2(h, c2);
+    print_vec3(h, c3);
+}
+

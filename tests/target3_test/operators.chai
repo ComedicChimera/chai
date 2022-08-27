@@ -1,0 +1,60 @@
+package target2_test;
+
+// Builtin Operators
+
+@intrinsic("ineg")
+oper (-) (a: i32) i32;
+
+@intrinsic("ineg")
+oper (-) (a: i64) i64;
+
+/* -------------------------------------------------------------------------- */
+
+@intrinsic("iadd")
+oper (+) (a, b: i32) i32;
+
+@intrinsic("iadd")
+oper (+) (a, b: i64) i64;
+
+@intrinsic("isub")
+oper (-) (a, b: i64) i64;
+
+@intrinsic("imul")
+oper (*) (a, b: i64) i64;
+
+@intrinsic("sdiv")
+oper (/) (a, b: i64) i64;
+
+@intrinsic("smod")
+oper (%) (a, b: i64) i64;
+
+/* -------------------------------------------------------------------------- */
+
+@intrinsic("ieq")
+oper (==) (a, b: i64) bool;
+
+@intrinsic("ineq")
+oper (!=) (a, b: i64) bool;
+
+@intrinsic("slt")
+oper (<) (a, b: i64) bool;
+
+@intrinsic("sgt")
+oper (>) (a, b: i64) bool;
+
+@intrinsic("slteq")
+oper (<=) (a, b: i64) bool;
+
+@intrinsic("sgteq")
+oper (>=) (a, b: i64) bool;
+
+/* -------------------------------------------------------------------------- */
+
+@intrinsic("land")
+oper (&&) (a, b: bool) bool;
+
+@intrinsic("lor")
+oper (||) (a, b: bool) bool;
+
+@intrinsic("lnot")
+oper (!) (a: bool) bool;
