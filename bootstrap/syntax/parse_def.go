@@ -352,8 +352,9 @@ func (p *Parser) parseStructDef(annots map[string]ast.AnnotValue) *ast.StructDef
 
 	structType := &types.StructType{
 		NamedType: types.NamedType{
-			Name:     p.chFile.Parent.Name + "." + nameIdent.Value,
-			ParentID: p.chFile.Parent.ID,
+			Name:      p.chFile.Parent.Name + "." + nameIdent.Value,
+			ParentID:  p.chFile.Parent.ID,
+			DeclIndex: len(p.chFile.Definitions),
 		},
 		Fields:  fields,
 		Indices: fieldIndices,

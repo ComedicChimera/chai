@@ -292,13 +292,7 @@ func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
 	return &ast.StructLiteral{
 		ExprBase: ast.NewTypedExprBase(
 			report.NewSpanOver(root.Span(), endSpan),
-			&types.OpaqueType{
-				NamedType: types.NamedType{
-					Name:     rootIdent.Name,
-					ParentID: p.chFile.Parent.ID,
-				},
-				Span: root.Span(),
-			},
+			p.newOpaqueType(rootIdent.Name, root.Span()),
 		),
 		FieldInits: fieldInits,
 		SpreadInit: spreadInit,

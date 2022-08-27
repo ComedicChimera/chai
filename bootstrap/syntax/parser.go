@@ -5,6 +5,7 @@ import (
 	"chaic/common"
 	"chaic/depm"
 	"chaic/report"
+	"chaic/types"
 	"os"
 )
 
@@ -141,6 +142,21 @@ func (p *Parser) defineOperatorOverload(opKind int, opRepr string, arity int, ov
 		Arity:     arity,
 		Overloads: []*common.OperatorOverload{overload},
 	})
+}
+
+// newOpaqueType creates a new opaque type reference.
+func (p *Parser) newOpaqueType(name string, span *report.TextSpan) *types.OpaqueType {
+	otype := &types.OpaqueType{
+		NamedType: types.NamedType{
+			Name:     name,
+			ParentID: p.chFile.Parent.ID,
+		},
+		Span: span,
+	}
+
+	p.chFile.OpaqueRefs[name] = append(p.chFile.OpaqueRefs[name], otype)
+
+	return otype
 }
 
 // -----------------------------------------------------------------------------

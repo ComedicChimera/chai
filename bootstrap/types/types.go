@@ -4,6 +4,8 @@ import (
 	"chaic/report"
 	"chaic/util"
 	"strings"
+
+	lltypes "github.com/llir/llvm/ir/types"
 )
 
 // Type represents a Chai data type.
@@ -57,7 +59,9 @@ func (pt PrimitiveType) equals(other Type) bool {
 
 func (pt PrimitiveType) Size() int {
 	switch pt {
-	case PrimTypeUnit, PrimTypeBool, PrimTypeI8, PrimTypeU8:
+	case PrimTypeUnit:
+		return 0
+	case PrimTypeBool, PrimTypeI8, PrimTypeU8:
 		return 1
 	case PrimTypeI16, PrimTypeU16:
 		return 2
@@ -217,6 +221,16 @@ type NamedType struct {
 
 	// The package ID that the named type is defined in.
 	ParentID uint64
+
+	// The index of the declaration which creates this named type within its
+	// parent file's list of definitions.  This effectively functions as a back
+	// reference to the declaring AST without actually referencing the AST to
+	// get around Go's import rules.
+	DeclIndex int
+
+	// The LLVM type reference associated with this named type.
+	// TODO: figure out how to handle this across multiple packages...
+	LLType lltypes.Type
 }
 
 func (nt *NamedType) equals(other Type) bool {
@@ -281,6 +295,12 @@ type StructType struct {
 
 	// A mapping between field names and their index within the struct.
 	Indices map[string]int
+
+	// The memoized struct size.
+	size int
+
+	// The memoized struct align.
+	align int
 }
 
 // StructField represents a field of a structure type.
@@ -293,6 +313,13 @@ type StructField struct {
 }
 
 func (st *StructType) Size() int {
+	// Use the memoized size if possible.
+	// Note: size could technically be zero if the struct is empty, but in that
+	// case running this function again is trivial.
+	if st.size != 0 {
+		return st.size
+	}
+
 	size := 0
 
 	// Calculate the size of struct such that all the fields are aligned.
@@ -308,10 +335,18 @@ func (st *StructType) Size() int {
 
 	// TODO: do we need to pad the end of the struct for alignment?
 
+	// Memoize the calculated size.
+	st.size = size
+
 	return size
 }
 
 func (st *StructType) Align() int {
+	// Use the memoized alignment if possible.
+	if st.align != 0 {
+		return st.align
+	}
+
 	// The alignment of the struct is simply its maximum field alignment.
 	maxAlign := 0
 
@@ -322,6 +357,14 @@ func (st *StructType) Align() int {
 			maxAlign = fieldAlign
 		}
 	}
+
+	// Make sure we don't give it zero alignment.
+	if maxAlign == 0 {
+		maxAlign = 1
+	}
+
+	// Memoize the alignment.
+	st.align = maxAlign
 
 	return maxAlign
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/enum"
+	lltypes "github.com/llir/llvm/ir/types"
 )
 
 // generateDef generates an LLVM IR definition.
@@ -18,6 +19,8 @@ func (g *Generator) generateDef(def ast.ASTNode) {
 		g.generateFuncDef(v)
 	case *ast.OperDef:
 		g.generateOperDef(v)
+	case *ast.StructDef:
+		g.generateStructDef(v)
 	default:
 		report.ReportICE("definition codegen not implemented")
 	}
@@ -85,6 +88,32 @@ func (g *Generator) generateOperDef(od *ast.OperDef) {
 		returnType,
 		od.Body,
 	)
+}
+
+// generateStructDef generates a struct definition.
+func (g *Generator) generateStructDef(sd *ast.StructDef) {
+	// Get the struct type from the struct definition.
+	st := sd.Symbol.Type.(*types.StructType)
+
+	// Convert the field types skipping any unit types.
+	fieldTypes := make([]lltypes.Type, len(st.Fields))
+	n := 0
+	for _, field := range st.Fields {
+		if !types.IsUnit(field.Type) {
+			fieldTypes[n] = g.convType(field.Type)
+			n++
+		}
+	}
+	fieldTypes = fieldTypes[:n]
+
+	// Create the LLVM struct type.
+	llvmStruct := lltypes.NewStruct(fieldTypes...)
+
+	// Add the appropriate type definition.
+	g.mod.NewTypeDef(g.pkgPrefix+sd.Symbol.Name, llvmStruct)
+
+	// Set the LLVM type of the struct type.
+	st.LLType = llvmStruct
 }
 
 /* -------------------------------------------------------------------------- */

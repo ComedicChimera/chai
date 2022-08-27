@@ -225,10 +225,26 @@ func (g *Generator) convInnerType(typ types.Type, isReturnType, isAllocType bool
 		return g.convPrimType(v, isReturnType)
 	case *types.PointerType:
 		return lltypes.NewPointer(g.convType(v.ElemType))
+	case *types.StructType:
+		if typ.Size() <= 2*util.PointerSize || isAllocType {
+			return v.LLType
+		} else {
+			return lltypes.NewPointer(v.LLType)
+		}
 	default:
 		report.ReportICE("type codegen not implemented")
 		return nil
 	}
+}
+
+// isPtrType returns whether or not the given type should be wrapped in a pointer.
+func isPtrType(typ types.Type) bool {
+	switch types.InnerType(typ).(type) {
+	case *types.StructType:
+		return typ.Size() <= 2*util.PointerSize
+	}
+
+	return false
 }
 
 // convPrimType converts a Chai primitive type to its LLVM type.
