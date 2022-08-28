@@ -9,7 +9,6 @@ import (
 	"chaic/types"
 	"chaic/util"
 	"fmt"
-	"strings"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -152,17 +151,12 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 
 /* -------------------------------------------------------------------------- */
 
-// getOverloadedIntrinsic gets an overloaded LLVM intrinsic function.  This
-// function assumes that the intrinsic is overloaded by `returntype.paramtypes`.
-func (g *Generator) getOverloadedIntrinsic(name string, returnType lltypes.Type, paramTypes ...lltypes.Type) llvalue.Value {
-	// Built the full name of intrinsic function.
-	intrinsicName := fmt.Sprintf("llvm.%s.%s.%s", name, returnType.LLString(), strings.Join(
-		util.Map(paramTypes, func(pt lltypes.Type) string { return pt.LLString() }),
-		".",
-	))
+// getIntrinsic gets an LLVM intrinsic function.  The given name is the the full
+// name of the intrinsic included any overload types.
+func (g *Generator) getIntrinsic(name string, returnType lltypes.Type, paramTypes ...lltypes.Type) llvalue.Value {
 
 	// Check if such a name already exists.
-	if llvmIntrinsic, ok := g.llvmIntrinsics[intrinsicName]; ok {
+	if llvmIntrinsic, ok := g.llvmIntrinsics[name]; ok {
 		// Return the declared value if it already exists.
 		return llvmIntrinsic
 	} else {
@@ -171,10 +165,10 @@ func (g *Generator) getOverloadedIntrinsic(name string, returnType lltypes.Type,
 		for i, paramType := range paramTypes {
 			params[i] = ir.NewParam(fmt.Sprintf("p%d", i), paramType)
 		}
-		llvmIntrinsic := g.mod.NewFunc(intrinsicName, returnType, params...)
+		llvmIntrinsic := g.mod.NewFunc(name, returnType, params...)
 
 		// Add the intrinsic to the intrinsics table
-		g.llvmIntrinsics[intrinsicName] = llvmIntrinsic
+		g.llvmIntrinsics[name] = llvmIntrinsic
 
 		// Return the created intrinsic
 		return llvmIntrinsic
@@ -196,6 +190,28 @@ func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...ll
 func (g *Generator) appendBlock() *ir.Block {
 	return g.block.Parent.NewBlock("")
 }
+
+// copyInto copies one value into another based on its type.
+func (g *Generator) copyInto(typ types.Type, src, dest llvalue.Value) {
+	if types.IsPtrWrappedType(typ) {
+		memcpy := g.getIntrinsic(
+			fmt.Sprintf(
+				"llvm.memcpy.p0%s.p0%s.i64",
+				dest.Type().(*lltypes.PointerType).ElemType.LLString(),
+				src.Type().(*lltypes.PointerType).ElemType.LLString(),
+			),
+			lltypes.Void,
+			dest.Type(),
+			src.Type(),
+		)
+
+		g.block.NewCall(memcpy, dest, src, constant.NewInt(lltypes.I64, int64(typ.Size())), constant.False)
+	} else {
+		g.block.NewStore(src, dest)
+	}
+}
+
+// TODO: storeInto, amend callFunc
 
 /* -------------------------------------------------------------------------- */
 
@@ -226,7 +242,9 @@ func (g *Generator) convInnerType(typ types.Type, isReturnType, isAllocType bool
 	case *types.PointerType:
 		return lltypes.NewPointer(g.convType(v.ElemType))
 	case *types.StructType:
-		if typ.Size() <= 2*util.PointerSize || isAllocType {
+		if isReturnType {
+			return lltypes.Void
+		} else if typ.Size() <= 2*util.PointerSize || isAllocType {
 			return v.LLType
 		} else {
 			return lltypes.NewPointer(v.LLType)
@@ -235,16 +253,6 @@ func (g *Generator) convInnerType(typ types.Type, isReturnType, isAllocType bool
 		report.ReportICE("type codegen not implemented")
 		return nil
 	}
-}
-
-// isPtrType returns whether or not the given type should be wrapped in a pointer.
-func isPtrType(typ types.Type) bool {
-	switch types.InnerType(typ).(type) {
-	case *types.StructType:
-		return typ.Size() <= 2*util.PointerSize
-	}
-
-	return false
 }
 
 // convPrimType converts a Chai primitive type to its LLVM type.

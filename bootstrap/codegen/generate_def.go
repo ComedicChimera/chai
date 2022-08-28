@@ -134,6 +134,11 @@ func (g *Generator) generateLLFunction(
 		param.LLValue = llParams[i]
 	}
 
+	// Add the pointer return parameter as necessary.
+	if types.IsPtrWrappedType(returnType) {
+		llParams = append([]*ir.Param{ir.NewParam("return", g.convType(returnType))}, llParams...)
+	}
+
 	llFunc := g.mod.NewFunc(name, g.convReturnType(returnType), llParams...)
 
 	// Set the function's linkage based on its visibility.

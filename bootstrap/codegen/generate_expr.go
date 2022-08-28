@@ -6,6 +6,7 @@ import (
 	"chaic/report"
 	"chaic/syntax"
 	"chaic/types"
+	"fmt"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -157,11 +158,21 @@ func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType ty
 		} else {
 			if destType%2 == 0 {
 				// float to unsigned int
-				intrinsic := g.getOverloadedIntrinsic("fptoui.sat", destLLType, src.Type())
+				intrinsic := g.getIntrinsic(
+					fmt.Sprintf(
+						"llvm.fptoui.sat.%s.%s",
+						destLLType.LLString(),
+						src.Type().LLString(),
+					), destLLType, src.Type())
 				return g.callFunc(destType, intrinsic, src)
 			} else {
 				// float to signed int
-				intrinsic := g.getOverloadedIntrinsic("fptosi.sat", destLLType, src.Type())
+				intrinsic := g.getIntrinsic(
+					fmt.Sprintf(
+						"llvm.fptosi.sat.%s.%s",
+						destLLType.LLString(),
+						src.Type().LLString(),
+					), destLLType, src.Type())
 				return g.callFunc(destType, intrinsic, src)
 			}
 		}

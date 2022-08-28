@@ -1,5 +1,7 @@
 package types
 
+import "chaic/util"
+
 // Equals returns whether two types are equal.
 func Equals(a, b Type) bool {
 	return InnerType(a).equals(InnerType(b))
@@ -41,4 +43,15 @@ func Nullable(typ Type) bool {
 // IsUnit returns whether the given type is a unit type.
 func IsUnit(typ Type) bool {
 	return Equals(typ, PrimTypeUnit)
+}
+
+// IsPtrWrappedType returns whether or not the given type should be wrapped in a
+// pointer when used as a value in the backend.
+func IsPtrWrappedType(typ Type) bool {
+	switch InnerType(typ).(type) {
+	case *StructType:
+		return typ.Size() <= 2*util.PointerSize
+	}
+
+	return false
 }
