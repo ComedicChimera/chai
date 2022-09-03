@@ -176,11 +176,134 @@ later on.
 
 ## <a name="scoping"> Scoping
 
-TODO: sub-scopes, shadowing, parameters v local variables
+A **scope** is a region of visibility: it defines an area in which one or more
+symbols, such as variables, is accessible.  For example, the body of a function
+defines a scope in which the parameters and local variables of that function are
+visible.  
+
+There are generally two kinds of scopes in Chai: **local scopes** and 
+**global scopes**.  Symbols defined in local scopes only exist for part of the
+lifetime of the program.  For example, after a function returns, all the local
+symbols of that function "cease to exist": they are no longer accessible.  By
+contrast, symbols defined global scopes are visible for the lifetime of the
+program: they always exist although some can change.  For example, all functions
+are defined in the global scope of the current package.
+
+### Subscopes
+
+Scopes can be nested within each other.  For example, the local scopes of
+functions are nested within the global scope.  Scopes nested within other scopes
+are called **subscopes** of that scope.
+
+Furthermore, we have already on several occasions created nested local scopes
+within the local scopes of functions.  As an example, whenever you create a
+block such as the body of an if statement, a new scope is created:
+
+    func fn() {
+        let x = 5;  // Variable `x` in local scope of `fn`.
+    
+        if x < 10 {
+            let y = "test";  // Variable `y` in local scope of if statement.
+
+            // -- SNIP --
+        } // Variable `y` goes out of scope.
+    } // Variable `x` goes out of scope.
+
+We can also create subscopes arbitrary using a **basic block** (also simply
+called a *subscope*).  Basic blocks are contained in curly braces and do nothing
+other than create a new scope.
+    
+    let x = 5;
+
+    // Begin a new subscope.
+    {
+        let y = 10;
+    } // Variable `y` goes out of scope here.
+
+### Shadowing
+
+Variables can also **shadow** each other.  This happens when two variables are
+declared with the same name in two different scopes.  For example:
+
+    let x = 10;
+
+    {
+        let x = 3.14;
+
+        println(x);  // What happens here?
+    }
+
+When this happens, Chai will always used the value in the most immediate
+enclosing scope.  So, in the example above, `3.14` will be printed since the
+variable storing `3.14` is defined in the most immediate scope.  
+
+This rule applies even if the shadowing variable is defined one or more scopes
+above its usage.
+
+    let x = 10;
+
+    {
+        let x = 3.14;
+
+        {
+            println(x);  // Prints `3.14`.
+        }
+    }
+
+However, shadowing will not cause variables to outlive their scope.  This is because
+in order for one variable to shadow another, we have to be in or below the scope
+the shadowing variable is defined in:
+
+    let x = 10;
+
+    {
+        let x = 3.14;
+
+        println(x);  // Prints `3.14`.
+    } // Shadowing variable `x` goes out of scope here.
+
+    // Previously shadowed variable `x` is now visible again.
+
+    println(x);  // Prints `10`.
+
+Shadowing can be a bit quirky at times so we generally recommend you don't use
+it unless you have a good reason: it can often be difficult to keep track of
+what variable is being used especially if scopes are nested quite deeply.
 
 ## <a name="recursion"> Recursion
 
-TODO: introduction to recursion, discussions of tail recursion?
+Chai, like most modern programming languages, supports 
+[recursion](https://en.wikipedia.org/wiki/Recursion_(computer_science)) out of
+the box: Chai functions can call themselves with little difficulty.
+
+A common recursive algorithm is the 
+[factorial function](https://en.wikipedia.org/wiki/Factorial).  We can implement
+it in Chai quite easily.
+
+First, let's start with the function signature:
+
+    func factorial(n: i64) i64
+
+The `factorial` function takes an integer as input and returns an integer as
+output.
+
+> We won't concern ourselves with non-natural numbers in this exercise.
+
+There are two cases to the factorial function: $n < 2$ and $n \ge 2$.  In the
+first case, $1$ is always returns since $0! = 1! = 1$.  
+
+    func factorial(n: i64) i64 =
+        if n < 2 => 1 else => ...;
+
+Then, we will consider the recursive case.  We know that $n! = n \cdot (n - 1)!$.
+This can be easily expressed in Chai like so:
+
+    func factorial(n: i64) i64 =
+        if n < 2 => 1 else => n * factorial(n - 1);
+
+Just like that, we have implemented a recursive factorial function.
+
+You can test on it on some sample inputs to make sure it works.
 
 ## <a name="exercises"> Exercises
 

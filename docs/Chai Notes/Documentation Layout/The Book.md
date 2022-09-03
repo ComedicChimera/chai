@@ -1,113 +1,139 @@
 # The Book
-The book acts as the primary learning material for the Chai programming language.  It is designed to be comprehensive.
+This document outlines the planned chapter progression for the Chai book.  This will act as the primary tutorial and reference for the Chai programming language. 
 
-The book would likely be considerable longer than the Guide by default and so should be structured in such a way that users don't have to read the whole thing to be effective and can skip around as relevant to them.
+This tutorial will be hosted online for free.
 
-The book will have exercises; hopefully, with solutions included.
-
-## Table of Contents
 ```
-Introduction
-1. Getting Started
-	1.1 Hello World
-	1.2 Numbers and Types
-	1.3 Variables and Input
-	1.4 Conditional Logic
-	1.5 Loops
-	1.6 Lists and Maps
-	1.7 Strings
-	1.8 Functions
-	1.9 Error Handling
-2. Pattern Matching
-    2.1 Tuples
-	2.2 Pattern Assignment
-	2.3 The Match Expression
-	2.4 Sequence Patterns
-	2.5 Pattern Testing
-3. Defined Types
-	3.1 Structures
-	3.2 Algebraics
-	3.3 Hybrid Types
-	3.4 Type Aliases
-4. Memory Management
-	4.1 Heap Memory
-	4.2 References
-	4.3 Buffers
-5. Sequences
-	5.1 Lambdas and Closures
-	5.2 Sequence Functions
-	5.3 Generators
-	5.4 Custom Sequences
-6. Generics 
-	6.1 Generic Functions
-	6.2 Generic Types
-	6.3 Unions and Constraints
-	6.4 Generic Control Flow
-	6.5 Variadic Generics
-7. Function Spaces
-	7.1 Subspaces
-	7.2 Generic Bindings
-	7.3 Implementing Type Classes
-	7.4 Defining Type Classes
-	7.5 Named Function Spaces
-8. Monads
-	8.1 Option and Result
-	8.2 Monadic Operators
-	8.3 Dominance and Virality
-	8.4 Context Blocks
-	8.5 Custom Monads
-9. Packages and Modules
-	9.1 Package Structure
-	9.2 Import Statements
-	9.3 Visibility
-	9.4 Constants
-	9.5 Modular Dependencies
-	9.6 Initialization
-	9.7 Build Configuration
-	9.8 Installing Modules
-10. Operators
-	10.1 Operator Definitions
-	10.2 Operator Imports
-	10.3 Partial Application
-11. File IO
-	11.1 Handles
-	11.2 Reading and Writing
-	11.3 Directory Traversal
-	11.4 Formatted IO
-	11.5 File System Operations
-	11.6 Readers, Writers, and Streams
-12. Concurrency
-	12.1 Strands
-	12.2 Async and Await
-	12.3 Locks and Queues
-	12.4 Execution Pools
-	12.5 Async Iteration
-	12.6 Events
-13. Networking
-	13.1 Sockets
-	13.2 HTTP Clients and Servers
-	13.3 JSON Serialization
-	13.4 Security and Authentication
-	13.5 HTML Processing
-14. System Interfacing
-	14.1 Linking
-	14.2 Annotations
-	14.3 Pragmas
-	14.4 C Bindings
-	14.5 Dynamic Libraries
-	14.6 The Unsafe Package
-	14.7 Inline Assembly
-	14.8 Runtime Interfaces
-15. Reflection
-	15.1 The Reflect Module
-	15.2 Working with Structures
-	15.3 Closure Data Accessing
-	15.4 The Chai Compiler Module
-	15.5 Intrinsics
-Appendices
-	A.1 Table of Operators
-	A.2 Table of Annotations
-	A.3 Table of Intrinsics
-	A.4 Table of Pragmas
-	A.5 Formal Language Grammar
+1. The Basics
+	1.1. Hello World
+	1.2. Numbers, Types, and Arithmetic
+	1.3. Variables and Constants
+	1.4. Control Flow
+	1.5. Functions
+	1.6. Strings
+	1.7. Struct Types
+	1.8. Operator Definitions
+	1.9. Global Variables
+2. Pointers and Arrays 
+	2.1. What is a Pointer?
+	2.2. Dynamic Allocation
+	2.3. Constant Pointers
+	2.4. Arrays and For Loops
+	2.5. Views and Slicing
+3. Pattern Matching
+	3.1. Tuples
+	3.2. The Match Statement
+	3.3. Assignment Unpacking
+	3.4. Match Expressions
+	3.5. Struct Patterns
+	3.6. Enum Types
+4. Generics
+	4.1. Function Generics
+	4.2. Type Generics
+	4.3. Constraints
+	4.4. Variadic Generics
+	4.5. Generic Control Flow
+5. Spaces and Classes
+	5.1. Function Spaces
+	5.2. Associated Functions
+	5.3. Generic Subspaces
+	5.4. Type Classes
+	5.5. Inheritance
+	5.6. Virtual Functions
+	5.7. Class Objects
+6. First Class Functions
+	6.1. Functions as Values
+	6.2. Lambdas
+	6.3. Closures
+	6.4. Partial Application
+	6.5. Operator Functions 
+7. Monads and Contexts
+	7.1. Option and Result
+	7.2. Concise Error Handling
+	7.3. Generalizing to Monads
+	7.4. Dominance and Virality
+	7.5. The Monad Type Class
+	7.6. Monadic Contexts
+8. Sequences and Collections
+	8.1. Lists
+	8.2. Maps
+	8.3. Iterators and Sequences
+	8.4. Loop Pattern Matching
+	8.5. Sequence Methods
+	8.6. Strings as Sequences
+	8.7. Custom Sequences
+	8.8. Custom Collections
+	8.9. Monadic Transforms
+9. Packages and Imports
+	9.1. Import Statements
+	9.2. Package Path Resolution
+	9.3. Importing Operators
+	9.4. Importing Function Spaces
+	9.5. Building with Kettle
+	9.6. Using Community Packages
+10. The IO Model
+	10.1. Introduction to Files
+	10.2. Readers, Writers, and Streams
+	10.3. Formatted I/O
+	10.4. Working with the File System
+11. Concurrency
+12. Processes
+13. Network Programming
+14. System Binding
+15. Reflection and Metaprogramming
+16. Testing and Benchmarking
+
 ```
+
+*Note: The plan is the reorganize the content below into the chapter structure defined above*.
+
+1. Introduction
+2. The Basics
+3. Control Flow
+4. Functions
+5. Arrays
+6. Strings
+7. Lists and Maps
+8. Comprehensions
+9. Structures
+10. Pointers
+11. Pattern Matching
+12. Enums
+13. Error Handling
+14. Function Spaces
+15. Generics
+16. Variadics
+17. Type Classes
+18. Virtual Functions
+19. Dynamic Dispatch
+20. Generic Control Flow
+21. Lambdas and Closures
+22. Monads and Contexts
+23. Sequence Operations
+24. Collections
+25. Operator Overloading
+26. Partial Application
+27. Compile-Time Evaluation
+28. Packages and Imports
+29. Building with Kettle
+30. File I/O
+31. Serialization
+32. JSON Parsing
+33. Concurrency I: Strands
+34. Concurrency II: Synchonization
+35. Concurrency III: Communication
+36. Concurrency IV: Coordination
+37. Concurrency V: Events
+38. Networking I: Sockets
+39. Networking II: HTTP Clients
+40. Networking III: HTTP Servers
+41. Networking IV: Basic Security
+42. Networking V: Working with HTML
+43. Testing and Logging
+44. Working with Processes
+45. System Interfacing I: Static Linking
+46. System Interfacing II: Dynamic Linking
+47. System Interfacing III: Conditional Compilation
+48. System Interfacing IV: C Binding
+49. System Interfacing V: Unsafe Operations
+50. Reflection
