@@ -113,6 +113,25 @@ func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
 				return result
 			}
 		}
+	case *TupleType:
+		if rtt, ok := rhs.(*TupleType); ok && len(v.ElementTypes) == len(rtt.ElementTypes) {
+			var result *unifyResult
+			for i, elemType := range v.ElementTypes {
+				eresult := s.unify(root, elemType, rtt.ElementTypes[i])
+
+				if i == 0 {
+					result = eresult
+				} else {
+					result.Both(eresult)
+				}
+			}
+
+			return result
+		}
+	case *StructType:
+		if rst, ok := rhs.(*StructType); ok {
+			return newUnifyResult(v.Name == rst.Name && v.ParentID == rst.ParentID)
+		}
 	case PrimitiveType:
 		if rpt, ok := rhs.(PrimitiveType); ok {
 			return newUnifyResult(v == rpt)

@@ -14,6 +14,9 @@ type Function struct {
 	// The type signature of the function.
 	Signature *types.FuncType
 
+	// The parameter variables of the function.
+	ParamVars []*Identifier
+
 	// Whether the function should be visible outside the bundle.
 	Public bool
 
@@ -28,6 +31,9 @@ type Function struct {
 
 	// The body of the function.
 	Body []Statement
+
+	// The definitive identifier of the function.
+	Ident *Identifier
 }
 
 // FuncAttribute represents a special attribute applied to the function.  These

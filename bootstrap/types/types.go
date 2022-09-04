@@ -214,6 +214,107 @@ func (ft *FuncType) Repr() string {
 
 /* -------------------------------------------------------------------------- */
 
+// TupleType represents a tuple type.
+type TupleType struct {
+	// The element types of the tuple.
+	ElementTypes []Type
+
+	// The memoized size and alignment.
+	size  int
+	align int
+}
+
+func (tt *TupleType) equals(other Type) bool {
+	if ott, ok := other.(*TupleType); ok {
+		if len(tt.ElementTypes) == len(ott.ElementTypes) {
+			for i, elemType := range tt.ElementTypes {
+				if !Equals(elemType, ott.ElementTypes[i]) {
+					return false
+				}
+			}
+
+			return true
+		}
+	}
+
+	return false
+}
+
+func (tt *TupleType) Size() int {
+	// Use the memoized size if possible.  Tuples can never be empty.
+	if tt.size != 0 {
+		return tt.size
+	}
+
+	size := 0
+
+	// Calculate the size of struct such that all the fields are aligned.
+	for _, elemType := range tt.ElementTypes {
+		elemAlign := elemType.Align()
+
+		if size%elemAlign != 0 {
+			size += elemAlign - size%elemAlign
+		}
+
+		size += elemType.Size()
+	}
+
+	// TODO: do we need to pad the end of the struct for alignment?
+
+	// Memoize the calculated size.
+	tt.size = size
+
+	return size
+}
+
+func (tt *TupleType) Align() int {
+	// Use the memoized alignment if possible.
+	if tt.align != 0 {
+		return tt.align
+	}
+
+	// The alignment of the tuple is simply its maximum element alignment.
+	maxAlign := 0
+
+	for _, elemType := range tt.ElementTypes {
+		elemAlign := elemType.Align()
+
+		if elemAlign > maxAlign {
+			maxAlign = elemAlign
+		}
+	}
+
+	// Make sure we don't give it zero alignment.
+	if maxAlign == 0 {
+		maxAlign = 1
+	}
+
+	// Memoize the alignment.
+	tt.align = maxAlign
+
+	return maxAlign
+}
+
+func (tt *TupleType) Repr() string {
+	sb := strings.Builder{}
+
+	sb.WriteRune('(')
+
+	for i, elemType := range tt.ElementTypes {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+
+		sb.WriteString(elemType.Repr())
+	}
+
+	sb.WriteRune(')')
+
+	return sb.String()
+}
+
+/* -------------------------------------------------------------------------- */
+
 // NamedType is the base type for all named types: structs, enums, etc.
 type NamedType struct {
 	// The named type's full name: parent package path + type name.
