@@ -1,7 +1,5 @@
 package mir
 
-import "chaic/types"
-
 // Bundle is the MIR representation of a package.
 type Bundle struct {
 	// The unique ID of the MIR bundle (same as its source package ID).
@@ -14,5 +12,5 @@ type Bundle struct {
 	Functions []*Function
 
 	// The list of all the structs in the bundle.
-	Structs []*types.StructType
+	Structs []*Struct
 }

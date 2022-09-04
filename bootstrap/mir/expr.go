@@ -18,20 +18,20 @@ type Expr interface {
 }
 
 // The base type for all expressions.
-type exprBase struct {
+type ExprBase struct {
 	span *report.TextSpan
 }
 
 // NewExprBase returns a new expr base with span span.
-func NewExprBase(span *report.TextSpan) exprBase {
-	return exprBase{span: span}
+func NewExprBase(span *report.TextSpan) ExprBase {
+	return ExprBase{span: span}
 }
 
-func (eb exprBase) LValue() bool {
+func (eb ExprBase) LValue() bool {
 	return false
 }
 
-func (eb exprBase) Span() *report.TextSpan {
+func (eb ExprBase) Span() *report.TextSpan {
 	return eb.span
 }
 
@@ -39,7 +39,7 @@ func (eb exprBase) Span() *report.TextSpan {
 
 // Cast represents a type cast.
 type Cast struct {
-	exprBase
+	ExprBase
 
 	// The source expression being cast.
 	Src Expr
@@ -54,7 +54,7 @@ func (ca *Cast) Type() types.Type {
 
 // FuncCall represents a function call.
 type FuncCall struct {
-	exprBase
+	ExprBase
 
 	// The function being called.
 	Func Expr
@@ -69,7 +69,7 @@ func (call *FuncCall) Type() types.Type {
 
 // FieldAccess represents a struct or tuple field access.
 type FieldAccess struct {
-	exprBase
+	ExprBase
 
 	// The struct or tuple whose field is being accessed.
 	Struct Expr
@@ -92,7 +92,7 @@ func (fa *FieldAccess) Type() types.Type {
 // BinaryOperApp is an intrinsic binary operator application: all non-intrinsic
 // binary operator applications are converted into function calls.
 type BinaryOperApp struct {
-	exprBase
+	ExprBase
 
 	// The name of the binary operator instruction generator.
 	OpName string
@@ -111,7 +111,7 @@ func (boa *BinaryOperApp) Type() types.Type {
 // UnaryOperApp is an intrinsic unary operator application: all non-intrinsic
 // unary operator applications are converted into function calls.
 type UnaryOperApp struct {
-	exprBase
+	ExprBase
 
 	// The name of the unary operator instruction generator.
 	OpName string
@@ -129,7 +129,7 @@ func (uoa *UnaryOperApp) Type() types.Type {
 
 // AddressOf represents an L-value indirection.
 type AddressOf struct {
-	exprBase
+	ExprBase
 
 	// The L-value whose address is being taken.
 	Element Expr
@@ -141,7 +141,7 @@ func (ao *AddressOf) Type() types.Type {
 
 // Deref represents a dereference.
 type Deref struct {
-	exprBase
+	ExprBase
 
 	// The pointer being dereferenced.
 	Ptr Expr

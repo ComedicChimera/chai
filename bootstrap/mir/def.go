@@ -20,14 +20,14 @@ type Function struct {
 	// Whether the function should be visible outside the bundle.
 	Public bool
 
-	// The bundle-relative path to the source file defining the function.
-	SrcFilePath string
+	// The absolute path to the source file defining the function.
+	SrcFileAbsPath string
 
 	// The text span of the function definition.
 	Span *report.TextSpan
 
-	// The list of attributes applied to the function (if any).
-	Attrs []FuncAttribute
+	// The set of attributes applied to the function (if any).
+	Attrs map[FuncAttrKind]string
 
 	// The body of the function.
 	Body []Statement
@@ -36,20 +36,26 @@ type Function struct {
 	Ident *Identifier
 }
 
-// FuncAttribute represents a special attribute applied to the function.  These
-// attributes are typically extracted from annotations.
-type FuncAttribute struct {
-	// Indicates the kind of attribute applied.  This must be one of the
-	// enumerated attribute kinds.
-	Kind int
-
-	// The (optional) value of the attribute.
-	Value string
-}
+// FuncAttrKind is a kind of a function attribute.
+type FuncAttrKind int
 
 // Enumeration of attribute kinds.
 const (
-	AttrKindPrototype = iota // Function has no body.
-	AttrKindCallConv         // Function has a special calling convention.
+	AttrKindPrototype FuncAttrKind = iota // Function has no body.
+	AttrKindCallConv                      // Function has a special calling convention.
 	// TODO: add more as needed
 )
+
+/* -------------------------------------------------------------------------- */
+
+// Struct represents a MIR struct definition.
+type Struct struct {
+	// The type of the struct.
+	Type *types.StructType
+
+	// The absolute path to the source file defining the struct.
+	SrcFileAbsPath string
+
+	// The span the struct is defined over.
+	Span *report.TextSpan
+}

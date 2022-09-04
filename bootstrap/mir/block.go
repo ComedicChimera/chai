@@ -2,7 +2,7 @@ package mir
 
 // IfTree represents an if statement tree.
 type IfTree struct {
-	stmtBase
+	StmtBase
 
 	// The conditional branches of the if tree (if/elif).
 	CondBranches []CondBranch
@@ -22,7 +22,7 @@ type CondBranch struct {
 
 // WhileLoop represents a while loop.
 type WhileLoop struct {
-	stmtBase
+	StmtBase
 	CondBranch
 
 	// The else branch of the while loop.
@@ -34,7 +34,7 @@ type WhileLoop struct {
 
 // DoWhileLoop represents a do-while loop.
 type DoWhileLoop struct {
-	stmtBase
+	StmtBase
 	CondBranch
 
 	// The else branch of the do-while loop.

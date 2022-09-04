@@ -8,17 +8,17 @@ import (
 )
 
 // The base struct for all values.
-type valueBase struct {
-	exprBase
+type ValueBase struct {
+	ExprBase
 
 	// The type of the value.
 	typ types.Type
 }
 
 // NewValueBase creates a new value base with the span span and type typ.
-func NewValueBase(span *report.TextSpan, typ types.Type) valueBase {
-	return valueBase{
-		exprBase: exprBase{span: span},
+func NewValueBase(span *report.TextSpan, typ types.Type) ValueBase {
+	return ValueBase{
+		ExprBase: ExprBase{span: span},
 		typ:      typ,
 	}
 }
@@ -27,7 +27,7 @@ func NewValueBase(span *report.TextSpan, typ types.Type) valueBase {
 
 // Identifier represents an reference to a symbol.
 type Identifier struct {
-	valueBase
+	ValueBase
 
 	// The name of the identifier.
 	Name string
@@ -47,7 +47,7 @@ func (ident *Identifier) LValue() bool {
 
 // ConstInt represents an integer constant.
 type ConstInt struct {
-	valueBase
+	ValueBase
 
 	// The integer value of the integer constant.
 	IntValue int64
@@ -55,7 +55,7 @@ type ConstInt struct {
 
 // ConstReal represents a real (floating-point) constant.
 type ConstReal struct {
-	valueBase
+	ValueBase
 
 	// The floating-point value of the integer constant.
 	FloatValue float64
@@ -63,10 +63,10 @@ type ConstReal struct {
 
 // ConstUnit represents the unit value.
 type ConstUnit struct {
-	valueBase
+	ValueBase
 }
 
 // ConstNullPtr represents the null pointer.
 type ConstNullPtr struct {
-	valueBase
+	ValueBase
 }

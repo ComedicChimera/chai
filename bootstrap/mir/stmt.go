@@ -9,17 +9,17 @@ type Statement interface {
 }
 
 // The base type for all statements.
-type stmtBase struct {
+type StmtBase struct {
 	// The span of the statement.
 	span *report.TextSpan
 }
 
 // NewStmtBase creates a new statement base with span span.
-func NewStmtBase(span *report.TextSpan) stmtBase {
-	return stmtBase{span: span}
+func NewStmtBase(span *report.TextSpan) StmtBase {
+	return StmtBase{span: span}
 }
 
-func (sb stmtBase) Span() *report.TextSpan {
+func (sb StmtBase) Span() *report.TextSpan {
 	return sb.span
 }
 
@@ -27,7 +27,7 @@ func (sb stmtBase) Span() *report.TextSpan {
 
 // VarDecl represents a variable or temporary declaration.
 type VarDecl struct {
-	stmtBase
+	StmtBase
 
 	// The identifier of the variable.
 	Ident *Identifier
@@ -44,7 +44,7 @@ type VarDecl struct {
 
 // StructDecl represents a struct declaration.
 type StructDecl struct {
-	stmtBase
+	StmtBase
 
 	// The identifier of the struct.
 	Ident *Identifier
@@ -58,7 +58,7 @@ type StructDecl struct {
 
 // Assignment represents an L-value assignment.
 type Assignment struct {
-	stmtBase
+	StmtBase
 
 	// The LHS expression.
 	LHS Expr
@@ -69,7 +69,7 @@ type Assignment struct {
 
 // Return represents a return statement.
 type Return struct {
-	stmtBase
+	StmtBase
 
 	// The value being returned (if any).
 	Value Expr
@@ -77,10 +77,10 @@ type Return struct {
 
 // Break represents a break statement.
 type Break struct {
-	stmtBase
+	StmtBase
 }
 
 // Continue represents a continue statement.
 type Continue struct {
-	stmtBase
+	StmtBase
 }
