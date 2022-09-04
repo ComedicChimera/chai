@@ -10,16 +10,17 @@ This tutorial will be hosted online for free.
 	1.3. Variables and Constants
 	1.4. Control Flow
 	1.5. Functions
-	1.6. Strings
+	1.6. String Essentials
 	1.7. Struct Types
 	1.8. Operator Definitions
-	1.9. Global Variables
+	1.9. Package Structure
 2. Pointers and Arrays 
 	2.1. What is a Pointer?
 	2.2. Dynamic Allocation
 	2.3. Constant Pointers
 	2.4. Arrays and For Loops
 	2.5. Views and Slicing
+	2.6. Array Operations on Strings
 3. Pattern Matching
 	3.1. Tuples
 	3.2. The Match Statement
@@ -31,16 +32,19 @@ This tutorial will be hosted online for free.
 	4.1. Function Generics
 	4.2. Type Generics
 	4.3. Constraints
-	4.4. Variadic Generics
-	4.5. Generic Control Flow
+	4.4. Operator Classes
+	4.5. Variadic Generics
+	4.6. Generic Control Flow
 5. Spaces and Classes
 	5.1. Function Spaces
 	5.2. Associated Functions
-	5.3. Generic Subspaces
-	5.4. Type Classes
-	5.5. Inheritance
-	5.6. Virtual Functions
-	5.7. Class Objects
+	5.3. Property Methods
+	5.4. Generic Subspaces
+	5.5. Synthetic Types
+	5.6. Type Classes
+	5.7. Inheritance
+	5.8. Virtual Functions
+	5.9. Class Objects
 6. First Class Functions
 	6.1. Functions as Values
 	6.2. Lambdas
@@ -60,7 +64,7 @@ This tutorial will be hosted online for free.
 	8.3. Iterators and Sequences
 	8.4. Loop Pattern Matching
 	8.5. Sequence Methods
-	8.6. Strings as Sequences
+	8.6. String Utilities
 	8.7. Custom Sequences
 	8.8. Custom Collections
 	8.9. Monadic Transforms
@@ -73,9 +77,10 @@ This tutorial will be hosted online for free.
 	9.6. Using Community Packages
 10. The IO Model
 	10.1. Introduction to Files
-	10.2. Readers, Writers, and Streams
-	10.3. Formatted I/O
-	10.4. Working with the File System
+	10.2. The Defer Statement
+	10.3. Readers, Writers, and Streams
+	10.4. Formatted I/O
+	10.5. Working with the File System
 11. Concurrency
 12. Processes
 13. Network Programming

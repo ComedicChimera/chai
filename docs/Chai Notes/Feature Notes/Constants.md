@@ -1,5 +1,5 @@
 # Constants
-Constants provide a convenient way to define  constant values.
+Constants provide a convenient way to define constant values.
 
 ## Syntax
 ```

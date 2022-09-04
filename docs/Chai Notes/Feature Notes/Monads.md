@@ -1,4 +1,6 @@
 # Monads
+**NOTE: This documentation is no longer remotely accurate to how Monads are currently being envisioned.  I will redocument this when I have time.**
+
 Monads are principle feature of Chai although they are implemented somewhat unconventionally.  They act as the primary method of error handling.
 
 In essence, a **monad** is a construct that "redefines" sequential execution for a given type.  For example, the `Option` monad is defined such that code progresses if there is a value and exits or accumulates if their is not.  

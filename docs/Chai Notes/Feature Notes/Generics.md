@@ -1,5 +1,5 @@
 # Generics
-*Note*: right now this is just unorganized garbage I ported over from Evernote -- it will be cleaned up in the future.
+**Note: right now this is just unorganized garbage I ported over from Evernote -- it will be cleaned up in the future.**
 
 ## Variadic Generics
 - Place a `...` before the type name (can still have contraints)

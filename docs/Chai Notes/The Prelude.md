@@ -50,7 +50,7 @@ Hash
 Eq
 Compare
 ```
-## Unions
+## Constraints
 ```
 Text = rune | string
 SInt = i8 | i16 | i32 | i64

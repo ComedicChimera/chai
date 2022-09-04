@@ -46,7 +46,7 @@ They are unordered, but there is no deliberate randomization of their order.
 ## Tuple
 Tuples are fixed-size, fixed-location, heterogenous "collections" of elements.  They use a type label of `(T1, T2, ...)` where `Ti` denotes the type of a specific element.  As mentioned above, elements have a specific position within the tuple.  
 
-Their literals are written as: `(a, b, ...)`.  Note that tuples must contain at least two elements.  A literal written as `()` corresponds to the `nothing` type, the `(a)` syntax is simply a sub-expression.
+Their literals are written as: `(a, b, ...)`.  Note that tuples must contain at least two elements.  A literal written as `()` corresponds to the `unit` type, the `(a)` syntax is simply a sub-expression.
 
 They are not sequences and are not indexable by numbers.  Instead they use a special `.` syntax to access their elements (eg. `tuple.0` corresponds to the first element).  Tuples are more like structs then collections.
 

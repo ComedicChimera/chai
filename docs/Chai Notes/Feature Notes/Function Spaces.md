@@ -1,17 +1,17 @@
 # Function Spaces
 In Chai, a **function space** (or simply a **space**) is a specialized namespace bound to a specific type containing functions that are related to that type known as **bound functions** (often just referred to as the *functions* of a given space).  All types have a function space in which functions can be defined.  
 
-You can access the space of a type using the `space` keyword followed by the `for` keyword and the type label for the parent type of the space.  This creates a block which is concluded by `end`.  Inside this block, you can define methods.
+You can access the space of a type using the `space` keyword followed by the type label for the parent type of the space.  This creates a block which is concluded by `end`.  Inside this block, you can define methods.
 
 ```
-space for List<string> {
+space List<string> {
 	# functions go here
 }
 ```
 
 The function definitions are placed inside the space block.  There are two kinds of functions that can be defined inside a space:
-- **Instance Functions**, more commonly called **Methods**
-- **Static Functions**
+- **Instance Functions**, more commonly called **Methods**.
+- **Static Functions**, also called **Associated Functions**.
 
 It should be noted that each individual "space block" is called a **(function) subspace** of the type.
 
@@ -21,7 +21,7 @@ Functions are uniquely defined within their respective spaces: two functions can
 The first kind of bound function is defined simply as a normal function inside the subspace.
 
 ```
-space for List<string> {
+space List<string> {
 	func new() List<string> = ...
 }
 ```
@@ -38,7 +38,7 @@ The idea is that these functions are confined within their namespaces of their r
 Methods are specialized functions which operate on a specific instance of a given type.  Methods use a special syntax (with the `method` keyword):
 
 ```
-space for List<string> {
+space List<string> {
 	method push(elem: string) = ...
 }
 ```
@@ -55,7 +55,7 @@ list.push("ghi");
 Methods can access the instance they are being called on using the the `self` keyword.
 
 ```
-space for List<string> {
+space List<string> {
 	method push(elem: string) {
 		self.grow(self.length + 1)
 		self.buff[self.length] = elem
@@ -70,7 +70,7 @@ Notice that in addition to manipulating values of the type, methods can also cal
 By default, all the bound functions of a subspace are private to the package they are defined in.  However, a bound function can be made public by prefixing it with the `pub` keyword.
 
 ```
-space for List<string> {
+space List<string> {
 	pub func new() List<string> = ...
 	
 	pub method push(elem: string) {
@@ -82,7 +82,7 @@ space for List<string> {
 You can also prefix a space block with the `pub` keyword which makes all functions defined in it public.
 
 ```
-pub space for List<string> {
+pub space List<string> {
 	func new() List<string> = ...
 	
 	method push(elem: string) {
@@ -97,7 +97,7 @@ Notably, bound functions still must be unique within their global spaces even if
 Subspaces can also be defined generically using a generic space block.  This is done like so:
 
 ```
-space<T> for List<T> {
+space<T> List<T> {
 	...
 }
 ```
@@ -109,7 +109,7 @@ In fact, bound functions are associated with a given type via type pattern match
 For example, the following would bind functions onto all numeric types.
 
 ```
-space<T: Num> for T {
+space<T: Num> T {
 	...
 }
 ```
@@ -119,11 +119,11 @@ Of course, the type parameter(s) are accessible as types within generic subspace
 It should be mentioned that generic subspaces can make maintaining uniqueness more challenging.  For example,
 
 ```
-space for List<string> {
+space List<string> {
 	func new() List<string>
 }
 
-space<T> for List<T> {
+space<T> List<T> {
 	func new() List<T>
 }
 ```

@@ -33,7 +33,7 @@ A pragma placed inside a function will execute under the following conditions:
 1. The function is called within user code.
 2. If the pragma is placed within generic control flow, the control flow branch containing the pragma is evaluated at compile-time.
 
-##### Inside Types (Class, Union, or Space) Definitions
+##### Inside Types (Class, Constraint, or Space) Definitions
 A pragam placed inside a type definition will only execute if that type is used within user source code.
 
 ## Builtin Pragmas
