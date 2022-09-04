@@ -46,7 +46,7 @@ We access the fields of small structs using `extractvalue` like so:
 
 This ends up being the same as just using GEP in all the experimenting that I did.  Since GEP is more difficult in this case, we just use `extractvalue`.  
 
-### Function Calling
+### Use in Functions
 We can pass small structs just as values to functions like so:
 
 ```llvm
@@ -67,6 +67,7 @@ And received as parameters like normal values:
 ```llvm
 ; func f(v: Vec2)
 define void @f(%Vec2 %v) {
+entry:
 	%param_v = alloca %Vec2
 	store %Vec2 %v, %Vec2* %param_v
 
@@ -125,19 +126,85 @@ v3 = other_v3;
 
 compiles as:
 
-**TODO:** Is this `memcpy` code sufficient?
-
 ```llvm
 %v3_i8ptr = bitcast %Vec3* %v3 to i8*
 %other_v3_i8ptr = bitcast %Vec3* %other_v3 to i8*
 
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* %v3_i8ptr, i8* %other_v3_i8ptr, i64 24, i1 0)
+call void @llvm.memcpy.p0i8.p0i8.i64(i8* %v3_i8ptr, i8* %other_v3_i8ptr, i64 24, i1 false)
 ```
 
 ### Field Access
-TODO
+For large structs, field accessing always compiles a GEP operation unless we are accessing the first field in which case we use a bitcast.
 
-### Function Calling
-TODO
+The code demonstrating creating a `Vec3` struct literal adequately demonstrates this.
 
-**Note:** Place `memcpy` outside of function for r-value function call optimization
+### Use in Functions
+Large structs are always passed as pointer values so when they are passed to functions, they must be copied.
+
+```llvm
+; f(v3)
+%v3_copy = alloca %Vec3
+%0 = bitcast %Vec3* %v3 to i8*
+%1 = bitcast %Vec3* %v3_copy to i8*
+call void @llvm.memcpy.p0i8.p0i8.i64(i8* %1, i8* %0, i64 24, i1 false)
+
+call void @f(%Vec3* %v3_copy)
+```
+
+They are not copied; however, when received in as parameters: no stack allocation is needed.
+
+Returning large structs is done by an "return pointer".  The caller allocates space for the returned struct on the stack and passes the pointer to it to the callee.  The callee then stores the returned struct into the passed in pointer.  The callee itself simply returns void.  
+
+For example, the code below
+
+```
+func one() Vec3 {
+	return Vec3{x=1, y=1, z=1};
+}
+
+func main() {
+	let v3 = one();
+
+	// -- snip --
+}
+```
+
+compiles to:
+
+```llvm
+define void @one(%Vec3* sret(%Vec3) %return) {
+entry:
+	%return.x = bitcast Vec3* %return to i64*
+	store i64 1, i64* %return.x
+
+	%return.y = getelementptr inbounds %Vec3, %Vec3* %return, i64 0, i32 1
+	store i64 1, i64* %return.y
+
+	%return.z = getelementptr inbounds %Vec3, %Vec3* %return, i64 0, i32 2
+	store i64 1, i64* %return.z
+
+	ret void
+}
+
+define external void @main() {
+entry:
+	%v3 = alloca Vec3
+	call void @one(%Vec3* %v3)
+
+	; ...
+
+	ret void
+}
+```
+
+### Copy Elision
+For large structs, a new mechanism comes into play to generate more efficient code: copy elision.  We have already seen it a few times.  In essence, it revolves around removing calls to `memcpy` where they aren't really needed.
+
+Here are the rules:
+1. When a large R-value struct is passed to a function as an argument, the copy is elided.
+2. When a large R-value struct is stored into an L-value, the copy is elided.
+3. If a large struct that is returned from a called function is stored directly into an L-value, then the destination pointer is used as its output pointer (no allocation and later copying needed).
+4. When a large struct is returned from by the current function, the holder of the struct value returned is always replaced with the output variable (no copying into the output variable).
+
+
+

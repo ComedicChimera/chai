@@ -39,6 +39,9 @@ type Generator struct {
 
 	// The loop context stack.
 	loopContextStack []loopContext
+
+	// A global reference to the frequently used `memcpy` intrinsic.
+	memcpy llvalue.Value
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -78,6 +81,16 @@ func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
 		llvmIntrinsics: make(map[string]llvalue.Value),
 	}
 
+	// Generate the `memcpy` intrinsic.
+	g.memcpy = g.getIntrinsic(
+		"llvm.memcpy.p0i8.p0i8.i64",
+		lltypes.Void,
+		lltypes.I8Ptr,
+		lltypes.I8Ptr,
+		lltypes.I64,
+		lltypes.I1,
+	)
+
 	// TODO: generate imports.
 
 	// Generate all the definitions.
@@ -111,9 +124,11 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 
 	// Generate all the function parameters.
 	for _, param := range pred.Params {
-		paramVar := g.varBlock.NewAlloca(g.convAllocType(param.Type))
-		g.varBlock.NewStore(param.LLValue, paramVar)
-		param.LLValue = paramVar
+		if !types.IsPtrWrappedType(param.Type) {
+			paramVar := g.varBlock.NewAlloca(g.convAllocType(param.Type))
+			g.varBlock.NewStore(param.LLValue, paramVar)
+			param.LLValue = paramVar
+		}
 	}
 
 	// Generate the function body itself.
@@ -177,7 +192,23 @@ func (g *Generator) getIntrinsic(name string, returnType lltypes.Type, paramType
 
 // callFunc calls an LLVM function with args.
 func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...llvalue.Value) llvalue.Value {
-	result := g.block.NewCall(fn, args...)
+	// TODO: handle copying arguments: I need to get the type and category some
+	// how
+
+	// copiedArgs := make([]llvalue.Value, len(args))
+	// for i, arg := range args {
+
+	// 	copiedArgs[i] = arg
+	// }
+
+	var result llvalue.Value
+	if types.IsPtrWrappedType(returnType) {
+		// TODO: return argument allocation elision
+		result = g.varBlock.NewAlloca(g.convAllocType(returnType))
+		g.block.NewCall(fn, append([]llvalue.Value{result}, args...)...)
+	} else {
+		result = g.block.NewCall(fn, args...)
+	}
 
 	if types.IsUnit(returnType) {
 		return constant.NewInt(lltypes.I1, 0)
@@ -194,24 +225,14 @@ func (g *Generator) appendBlock() *ir.Block {
 // copyInto copies one value into another based on its type.
 func (g *Generator) copyInto(typ types.Type, src, dest llvalue.Value) {
 	if types.IsPtrWrappedType(typ) {
-		memcpy := g.getIntrinsic(
-			fmt.Sprintf(
-				"llvm.memcpy.p0%s.p0%s.i64",
-				dest.Type().(*lltypes.PointerType).ElemType.LLString(),
-				src.Type().(*lltypes.PointerType).ElemType.LLString(),
-			),
-			lltypes.Void,
-			dest.Type(),
-			src.Type(),
-		)
+		destI8Ptr := g.block.NewBitCast(dest, lltypes.I8Ptr)
+		srcI8Ptr := g.block.NewBitCast(src, lltypes.I8Ptr)
 
-		g.block.NewCall(memcpy, dest, src, constant.NewInt(lltypes.I64, int64(typ.Size())), constant.False)
+		g.block.NewCall(g.memcpy, destI8Ptr, srcI8Ptr, constant.NewInt(lltypes.I64, int64(typ.Size())), constant.False)
 	} else {
 		g.block.NewStore(src, dest)
 	}
 }
-
-// TODO: storeInto, amend callFunc
 
 /* -------------------------------------------------------------------------- */
 
