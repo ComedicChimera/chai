@@ -1,6 +1,7 @@
 package common
 
 import (
+	"chaic/mir"
 	"chaic/report"
 	"chaic/types"
 
@@ -34,7 +35,11 @@ type Symbol struct {
 	// Whether or not the symbol was actually used.
 	Used bool
 
+	// The MIR symbol associated with this symbol.
+	MIRSymbol *mir.MSymbol
+
 	// The LLVM value of the symbol.
+	// TODO: remove
 	LLValue llvalue.Value
 }
 

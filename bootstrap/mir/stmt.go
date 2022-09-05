@@ -42,8 +42,8 @@ type VarDecl struct {
 	Returned bool
 }
 
-// StructDecl represents a struct declaration.
-type StructDecl struct {
+// StructInstanceDecl represents a struct instance declaration.
+type StructInstanceDecl struct {
 	StmtBase
 
 	// The identifier of the struct.

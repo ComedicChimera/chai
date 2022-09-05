@@ -165,7 +165,7 @@ func (s *Solver) MustEqual(lhs, rhs Type, span *report.TextSpan) {
 
 			// Apply each of the property constraints.
 			for _, prop := range props {
-				propType := s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), prop.Name, prop.Mutable, prop.Span)
+				propType := s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), prop.Name, prop.Mutable, prop.Span, prop.AccessKind)
 				s.MustEqual(prop.PropTypeVar, propType, prop.Span)
 			}
 		}
@@ -184,14 +184,14 @@ func (s *Solver) MustCast(src, dest Type, span *report.TextSpan) {
 // MustHaveProperty asserts that typ has a property named name which occurs over
 // span. If mutable is true, then the property must be mutable.  It returns the
 // type of the accessed property.
-func (s *Solver) MustHaveProperty(typ Type, name string, mutable bool, span *report.TextSpan) Type {
+func (s *Solver) MustHaveProperty(typ Type, name string, mutable bool, span *report.TextSpan, akind *PropertyAccessKind) Type {
 	innerTyp := InnerType(typ)
 
 	if tv, ok := innerTyp.(*TypeVariable); ok {
 		tnode := s.typeVarNodes[tv.ID]
 
 		if len(tnode.Nodes) == 1 {
-			return s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), name, mutable, span)
+			return s.MustHaveProperty(tnode.Nodes[0].Sub.Type(), name, mutable, span, akind)
 		}
 
 		propTypeVar := s.NewTypeVar("", span)
@@ -204,7 +204,7 @@ func (s *Solver) MustHaveProperty(typ Type, name string, mutable bool, span *rep
 
 		return propTypeVar
 	} else {
-		return s.getProperty(innerTyp, name, mutable, span)
+		return s.getProperty(innerTyp, name, mutable, span, akind)
 	}
 }
 

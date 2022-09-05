@@ -3,7 +3,6 @@ package lower
 import (
 	"chaic/ast"
 	"chaic/common"
-	"chaic/depm"
 	"chaic/mir"
 	"chaic/report"
 	"chaic/types"
@@ -11,10 +10,10 @@ import (
 )
 
 // lowerDef lowers an AST definition.
-func (l *Lowerer) lowerDef(chfile *depm.ChaiFile, def ast.ASTNode) {
+func (l *Lowerer) lowerDef(def ast.ASTNode) {
 	switch v := def.(type) {
 	case *ast.FuncDef:
-		l.lowerFuncDef(chfile, v)
+		l.lowerFuncDef(v)
 	case *ast.OperDef:
 	case *ast.StructDef:
 	default:
@@ -23,7 +22,7 @@ func (l *Lowerer) lowerDef(chfile *depm.ChaiFile, def ast.ASTNode) {
 }
 
 // lowerFuncDef lowers an AST function definition.
-func (l *Lowerer) lowerFuncDef(chfile *depm.ChaiFile, fd *ast.FuncDef) {
+func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 	// Skip compilation for intrinsic functions.
 	if hasAnnot(fd.Annotations, "intrinsic") {
 		return
@@ -36,15 +35,27 @@ func (l *Lowerer) lowerFuncDef(chfile *depm.ChaiFile, fd *ast.FuncDef) {
 		ParamVars: util.Map(fd.Params, func(param *common.Symbol) *mir.Identifier {
 			return &mir.Identifier{
 				// No type simplification needed here.
-				ValueBase:         mir.NewValueBase(param.DefSpan, param.Type),
-				Name:              param.Name,
-				IsImplicitPointer: !types.IsPtrWrappedType(param.Type),
+				ExprBase: mir.NewExprBase(param.DefSpan),
+				Symbol: &mir.MSymbol{
+					Name:              param.Name,
+					Type:              param.Type,
+					IsImplicitPointer: !types.IsPtrWrappedType(param.Type),
+				},
 			}
 		}),
-		SrcFileAbsPath: chfile.AbsPath,
+		SrcFileAbsPath: l.chfile.AbsPath,
 		Span:           fd.Span(),
 		// TODO: public
 	}
+
+	// Create and bind the MIR symbol.
+	msym := &mir.MSymbol{
+		Name:              fn.Name,
+		Type:              fn.Signature,
+		IsImplicitPointer: false,
+	}
+	fn.Symbol = msym
+	fd.Symbol.MIRSymbol = msym
 
 	// Handle annotations.
 	for annotName, annotValue := range fd.Annotations {

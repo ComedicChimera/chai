@@ -1,6 +1,7 @@
 package common
 
 import (
+	"chaic/mir"
 	"chaic/report"
 	"chaic/types"
 
@@ -45,6 +46,9 @@ type OperatorOverload struct {
 
 	// The instrinsic generator associated with this overload if any.
 	IntrinsicName string
+
+	// The MIR symbol assocated with the operator if any.
+	MIRSymbol *mir.MSymbol
 
 	// The LLVM value of the operator.
 	LLValue llvalue.Value

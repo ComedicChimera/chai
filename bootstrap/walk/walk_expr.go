@@ -47,7 +47,7 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 	case *ast.PropertyAccess:
 		w.walkExpr(v.Root)
 
-		v.NodeType = w.solver.MustHaveProperty(v.Root.Type(), v.PropName, false, v.PropSpan)
+		v.NodeType = w.solver.MustHaveProperty(v.Root.Type(), v.PropName, false, v.PropSpan, &v.AccessKind)
 	case *ast.StructLiteral:
 		w.walkStructLit(v)
 	case *ast.FuncCall:

@@ -3,7 +3,28 @@ package mir
 import (
 	"chaic/report"
 	"chaic/types"
+
+	llvalue "github.com/llir/llvm/ir/value"
 )
+
+// MSymbol represents a MIR symbol.
+type MSymbol struct {
+	// The name of the symbol.
+	Name string
+
+	// The type of the symbol.
+	Type types.Type
+
+	// Whether or not the identifier represents an implicit pointer to a value:
+	// eg. if the identifier refers to a mutable variable, then it is actually a
+	// pointer to the value and will need to be loaded.
+	IsImplicitPointer bool
+
+	// The LLVM value of the symbol.
+	LLValue llvalue.Value
+}
+
+/* -------------------------------------------------------------------------- */
 
 // Function represents a MIR function which can correspond to a function, a
 // method, a property, or a operator definition.
@@ -32,8 +53,8 @@ type Function struct {
 	// The body of the function.
 	Body []Statement
 
-	// The definitive identifier of the function.
-	Ident *Identifier
+	// The symbol associated with the function.
+	Symbol *MSymbol
 }
 
 // FuncAttrKind is a kind of a function attribute.

@@ -13,9 +13,6 @@ type ASTExpr interface {
 	// Type returns the yielded type of the AST expression.
 	Type() types.Type
 
-	// SetType sets the yielded type of the AST expression.
-	SetType(typ types.Type)
-
 	// Category() returns the value category of the yielded value of the AST
 	// expression. This must be one of the enumerated value categories.
 	Category() int
@@ -50,10 +47,6 @@ func NewTypedExprBase(span *report.TextSpan, typ types.Type) ExprBase {
 
 func (eb *ExprBase) Type() types.Type {
 	return eb.NodeType
-}
-
-func (eb *ExprBase) SetType(typ types.Type) {
-	eb.NodeType = typ
 }
 
 func (eb *ExprBase) Category() int {
@@ -157,6 +150,9 @@ type PropertyAccess struct {
 
 	// The span over which the property name occurs.
 	PropSpan *report.TextSpan
+
+	// The kind of property access that was performed.
+	AccessKind types.PropertyAccessKind
 }
 
 // -----------------------------------------------------------------------------

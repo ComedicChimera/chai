@@ -37,18 +37,18 @@ func (eb ExprBase) Span() *report.TextSpan {
 
 /* -------------------------------------------------------------------------- */
 
-// Cast represents a type cast.
-type Cast struct {
+// TypeCast represents a type cast.
+type TypeCast struct {
 	ExprBase
 
 	// The source expression being cast.
-	Src Expr
+	SrcExpr Expr
 
 	// The destination type of the cast.
 	DestType types.Type
 }
 
-func (ca *Cast) Type() types.Type {
+func (ca *TypeCast) Type() types.Type {
 	return ca.DestType
 }
 
@@ -89,9 +89,9 @@ func (fa *FieldAccess) Type() types.Type {
 	return fa.FieldType
 }
 
-// BinaryOperApp is an intrinsic binary operator application: all non-intrinsic
+// BinaryOpApp is an intrinsic binary operator application: all non-intrinsic
 // binary operator applications are converted into function calls.
-type BinaryOperApp struct {
+type BinaryOpApp struct {
 	ExprBase
 
 	// The name of the binary operator instruction generator.
@@ -104,26 +104,26 @@ type BinaryOperApp struct {
 	ResultType types.Type
 }
 
-func (boa *BinaryOperApp) Type() types.Type {
+func (boa *BinaryOpApp) Type() types.Type {
 	return boa.ResultType
 }
 
-// UnaryOperApp is an intrinsic unary operator application: all non-intrinsic
+// UnaryOpApp is an intrinsic unary operator application: all non-intrinsic
 // unary operator applications are converted into function calls.
-type UnaryOperApp struct {
+type UnaryOpApp struct {
 	ExprBase
 
 	// The name of the unary operator instruction generator.
 	OpName string
 
-	// The LHS and RHS expressions.
-	LHS, RHS Expr
+	// The operand expression.
+	Operand Expr
 
 	// The result type of the operator application.
 	ResultType types.Type
 }
 
-func (uoa *UnaryOperApp) Type() types.Type {
+func (uoa *UnaryOpApp) Type() types.Type {
 	return uoa.ResultType
 }
 

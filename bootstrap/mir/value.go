@@ -3,8 +3,6 @@ package mir
 import (
 	"chaic/report"
 	"chaic/types"
-
-	llvalue "github.com/llir/llvm/ir/value"
 )
 
 // The base struct for all values.
@@ -23,22 +21,22 @@ func NewValueBase(span *report.TextSpan, typ types.Type) ValueBase {
 	}
 }
 
+func (vb ValueBase) Type() types.Type {
+	return vb.typ
+}
+
 /* -------------------------------------------------------------------------- */
 
 // Identifier represents an reference to a symbol.
 type Identifier struct {
-	ValueBase
+	ExprBase
 
-	// The name of the identifier.
-	Name string
+	// The MIR symbol associated with the identifier.
+	Symbol *MSymbol
+}
 
-	// Whether or not the identifier represents an implicit pointer to a value:
-	// eg. if the identifier refers to a mutable variable, then it is actually a
-	// pointer to the value and will need to be loaded.
-	IsImplicitPointer bool
-
-	// The LLVM value of the identifier.
-	LLValue llvalue.Value
+func (ident *Identifier) Type() types.Type {
+	return ident.Symbol.Type
 }
 
 func (ident *Identifier) LValue() bool {
