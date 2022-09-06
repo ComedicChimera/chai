@@ -62,8 +62,8 @@ type FuncAttrKind int
 
 // Enumeration of attribute kinds.
 const (
-	AttrKindPrototype FuncAttrKind = iota // Function has no body.
-	AttrKindCallConv                      // Function has a special calling convention.
+	AttrKindExternal FuncAttrKind = iota // Function has no body.
+	AttrKindCallConv                     // Function has a special calling convention.
 	// TODO: add more as needed
 )
 

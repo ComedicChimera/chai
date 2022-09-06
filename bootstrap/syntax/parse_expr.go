@@ -257,7 +257,7 @@ func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
 
 	p.want(TOK_LBRACE)
 
-	var fieldInits []ast.StructLiteralFieldInit
+	fieldInits := make(map[string]ast.StructLiteralFieldInit)
 	var spreadInit ast.ASTExpr
 
 	if p.has(TOK_ELLIPSIS) {
@@ -273,11 +273,11 @@ func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
 			fieldIdent := p.want(TOK_IDENT)
 			fieldInitExpr := p.parseInitializer()
 
-			fieldInits = append(fieldInits, ast.StructLiteralFieldInit{
+			fieldInits[fieldIdent.Value] = ast.StructLiteralFieldInit{
 				Name:     fieldIdent.Value,
 				NameSpan: fieldIdent.Span,
 				InitExpr: fieldInitExpr,
-			})
+			}
 
 			if p.has(TOK_COMMA) {
 				p.next()

@@ -129,22 +129,70 @@ func (l *Lowerer) lowerStructLiteral(slit *ast.StructLiteral) mir.Expr {
 	st := types.Simplify(slit.Type()).(*types.StructType)
 
 	if slit.SpreadInit == nil {
+		// TODO: handle imported structs
+		sym := l.pkg.SymbolTable[st.Name]
+		sdef := l.pkg.Files[sym.FileNumber].Definitions[st.DeclIndex].(*ast.StructDef)
+
+		fieldInits := make([]mir.Expr, len(st.Fields))
+		for i, field := range st.Fields {
+			if astFieldInit, ok := slit.FieldInits[field.Name]; ok {
+				fieldInits[i] = l.lowerExpr(astFieldInit.InitExpr)
+			} else if astDefaultInit, ok := sdef.FieldInits[field.Name]; ok {
+				fieldInits[i] = l.lowerExpr(astDefaultInit)
+			} else {
+				fieldInits[i] = l.lowerNull(&ast.Null{
+					ExprBase: ast.NewTypedExprBase(slit.Span(), field.Type),
+				})
+			}
+		}
+
 		// TODO: figure out how to get the Msymbol and struct def
 		sid := &mir.StructInstanceDecl{
 			StmtBase: mir.NewStmtBase(slit.Span()),
 			Ident: &mir.Identifier{
 				ExprBase: mir.NewExprBase(slit.Span()),
-				// Symbol: l.chfile.Definitions[st],
+				Symbol:   sym.MIRSymbol,
+			},
+			FieldInits: fieldInits,
+		}
+
+		l.appendStmt(sid)
+
+		return sid.Ident
+	} else {
+		vdecl := &mir.VarDecl{
+			StmtBase: mir.NewStmtBase(slit.Span()),
+			Ident: &mir.Identifier{
+				ExprBase: mir.NewExprBase(slit.Span()),
+				Symbol: &mir.MSymbol{
+					Name:              "",
+					Type:              slit.Type(),
+					IsImplicitPointer: types.IsPtrWrappedType(slit.Type()),
+				},
 			},
 		}
 
-		_ = sid
-		_ = st
-	} else {
+		l.appendStmt(vdecl)
 
+		for _, fieldInit := range slit.FieldInits {
+			fieldAccess := &mir.FieldAccess{
+				ExprBase:    mir.NewExprBase(fieldInit.NameSpan),
+				Struct:      vdecl.Ident,
+				FieldNumber: st.Indices[fieldInit.Name],
+				FieldType:   st.Fields[st.Indices[fieldInit.Name]].Type,
+			}
+
+			assign := &mir.Assignment{
+				StmtBase: mir.NewStmtBase(fieldInit.NameSpan),
+				LHS:      fieldAccess,
+				RHS:      l.lowerExpr(fieldInit.InitExpr),
+			}
+
+			l.appendStmt(assign)
+		}
+
+		return vdecl.Ident
 	}
-
-	return nil
 }
 
 // lowerLiteral lowers an AST literal to a constant.

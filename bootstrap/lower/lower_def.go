@@ -61,14 +61,19 @@ func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 	for annotName, annotValue := range fd.Annotations {
 		switch annotName {
 		case "abientry", "extern":
-			fn.Attrs[mir.AttrKindPrototype] = ""
+			fn.Attrs[mir.AttrKindExternal] = ""
 			fn.Public = true
 		case "callconv":
 			fn.Attrs[mir.AttrKindCallConv] = annotValue.Value
 		}
 	}
 
-	// TODO: handle the body.
+	l.block = &fn.Body
+	if bodyExpr, ok := fd.Body.(ast.ASTExpr); ok {
+		l.appendStmt(l.lowerExpr(bodyExpr))
+	} else {
+		l.lowerBlock(fd.Body.(*ast.Block))
+	}
 
 	l.bundle.Functions = append(l.bundle.Functions, fn)
 }

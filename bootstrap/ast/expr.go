@@ -162,7 +162,7 @@ type StructLiteral struct {
 	ExprBase
 
 	// The field initializers.
-	FieldInits []StructLiteralFieldInit
+	FieldInits map[string]StructLiteralFieldInit
 
 	// The spread initializer if it exists.
 	SpreadInit ASTExpr
