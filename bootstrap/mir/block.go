@@ -8,11 +8,15 @@ type IfTree struct {
 	CondBranches []CondBranch
 
 	// The else branch of the if tree.
-	ElseBranch []Statement
+	ElseBlock []Statement
 }
 
 // CondBranch represents a conditional branch.
 type CondBranch struct {
+	// The header block of the conditional branch: contains all the prelude
+	// content to the conditional branch.
+	HeaderBlock []Statement
+
 	// The condition of the branch.
 	Condition Expr
 
@@ -26,10 +30,10 @@ type WhileLoop struct {
 	CondBranch
 
 	// The else branch of the while loop.
-	ElseBranch []Statement
+	ElseBlock []Statement
 
-	// The unconditional update statement of the loop.
-	UpdateStmt Statement
+	// The unconditional update block of the loop.
+	UpdateBlock []Statement
 }
 
 // DoWhileLoop represents a do-while loop.
@@ -38,5 +42,5 @@ type DoWhileLoop struct {
 	CondBranch
 
 	// The else branch of the do-while loop.
-	ElseBranch []Statement
+	ElseBlock []Statement
 }
