@@ -104,10 +104,10 @@ As an example of an if statement in action, here is a simple snippet of code
 that prints if a user-inputted number is even.
 
     let n: i64;
-    scanf("%d", &n);
+    Scanf("%d", &n);
 
     if n % 2 == 0:
-        println(n, "is even");
+        Println(n, "is even");
     
 Of course, this program would be much more useful if we could also indicate
 whether the user's value is odd instead of just not doing anything.  Luckily,
@@ -121,12 +121,12 @@ statement's body.
 Here is our "even" tester modified to make use of an else clause.
 
     let n: i64;
-    scanf("%d", &n);
+    Scanf("%d", &n);
 
     if n % 2 == 0:
-        println(n, "is even");
+        Println(n, "is even");
     else:
-        println(n, "is odd");
+        Println(n, "is odd");
 
 In addition to just an `else`, if statements can also make use of one or more
 **elif clauses** which execute if their own condition is true *and* if the
@@ -146,22 +146,22 @@ of some common colors.
     // `string` is the type label for strings.
     let color: string;
 
-    // Using `scanf` to read in a string instead of an integer:
+    // Using `Scanf` to read in a string instead of an integer:
     // we use the format specifier `%s` instead of `%d`.
-    scanf("%s", &color);  
+    Scanf("%s", &color);  
 
     if color == "red":
-        println("ff0000")
+        Println("ff0000")
     elif color == "green":
-        println("00ff00");
+        Println("00ff00");
     elif color == "red":
-        println("0000ff");
+        Println("0000ff");
     elif color == "white":
-        println("ffffff");
+        Println("ffffff");
     elif color == "black":
-        println("000000");
+        Println("000000");
     else:
-        println("unknown color");
+        Println("unknown color");
 
 ## <a name="ifexprs"> If Expressions
 
@@ -191,9 +191,9 @@ code won't run at all.
 
 If expressions can also have `elif` clauses.  For example:
 
-    print(n);  // `print` works like `println` but doesn't add a newline.
+    print(n);  // `print` works like `Println` but doesn't add a newline.
 
-    println(
+    Println(
         if n % 10 == 1 && n % 100 != 11 => "st"
         elif n % 10 == 2 && n % 100 != 12 => "nd"
         elif n % 10 == 3 && n % 100 != 13 => "rd"
@@ -216,7 +216,7 @@ which prints out the numbers from 1 to 10 using a while loop:
 
     let n = 1;
     while n <= 10 {
-        println(n);
+        Println(n);
 
         n++;
     }
@@ -232,7 +232,7 @@ in order separated by semicolons: declare, check, and update.  Here is the above
 while loop rewritten as a tripartite for loop:
 
     for let n = 1; n <= 10; n++ {
-        println(n);
+        Println(n);
     }
 
 The code does the exact same thing, but using a much more concise syntax.
@@ -246,7 +246,7 @@ you wanted to be able to access the variable `n` after the loop ended:
 
     let n = 1;
     for ; n <= 10; n++ {
-        println(n);
+        Println(n);
     }
 
 Now, `n` is not constrained to the scope of the loop.
@@ -257,13 +257,13 @@ they always execute their bodies at least once.
 
 Do-while loops use the keyword `do` followed by a block which is their body
 followed by the keyword `while` and the condition of the loop.  For example,
-here is some code which uses the fictious function `get_char` to read the next
+here is some code which uses the fictious function `getChar` to read the next
 character from some stream until no more characters can be returned.
 
     let c: rune;  // `rune` is the type used for characters in Chai.
     do {
-        c = get_char();
-        println(c);
+        c = getChar();
+        Println(c);
     } while c != -1;
 
 Notice that unlike with the other block statements, a semicolon is required
@@ -277,13 +277,13 @@ Break statements are denoted with the keyword `break`.
 
     while true {
         let input: i64;
-        scanf("%d", &input);
+        Scanf("%d", &input);
 
         if input == 0:
             // Exit the loop when input = 0.
             break;
 
-        println("n ** 2 =", n ** 2);
+        Println("n ** 2 =", n ** 2);
     }
 
 A **continue statement** is used to continue to the next iteration of a loop
@@ -295,13 +295,13 @@ Continue statements are denoted with the keyword `continue`.
 
     while true {
         let input: i64;
-        scanf("%d", &input);
+        Scanf("%d", &input);
 
         if input == 0:
-            // Skip the `println` when the input = 0.
+            // Skip the `Println` when the input = 0.
             continue;
 
-        println("n ** 2 =", n ** 2);
+        Println("n ** 2 =", n ** 2);
     }
 
 > A continue statement can often be interchanged for an else clause, but there
@@ -319,7 +319,7 @@ while loop.  For example:
         if i % 3 == 0:
             continue;
 
-        println("i =", i);
+        Println("i =", i);
     }
 
 The code above will behave as intended: skipping iterations where `i` is
@@ -331,16 +331,16 @@ All loops in Chai can have an *else clause* which will run only if the loop exit
 normally (ie. via its condition).  If the loop is broken out of using a break statement,
 then the else clause will not run.  
 
-As an example, if we use the fictious function, `get_element`, we can see where
+As an example, if we use the fictious function, `getElement`, we can see where
 the behavior of an else clause would be useful:
 
     for let i = 0; i < 10; i++ {
-        if get_element(i) == 0 {
-            println("Found a zero!");
+        if getElement(i) == 0 {
+            Println("Found a zero!");
             break;
         }
     } else:
-        println("Did not find a zero.");
+        Println("Did not find a zero.");
 
 > In later chapters, the else clause will become very useful for searching and
 > validating collections of data.
@@ -364,7 +364,7 @@ Let's start by adding in the boilerplate code that we covered in Chapters 1 and
     package guesser;
 
     // Import our standard I/O utilities.
-    import println, scanf from io.std;
+    import Println, Scanf from io.std;
 
     // Our main function.
     func main() {
@@ -373,31 +373,31 @@ Let's start by adding in the boilerplate code that we covered in Chapters 1 and
 
 Now, the first challenge of is to actually generate a random number.  Luckily,
 Chai's standard library provides us a package called `random` which contains a
-function called `intn` that does exactly what we want.  First, let's import that
+function called `RandInt` that does exactly what we want.  First, let's import that
 function.
 
     package guesser;
 
     import printlin, scan from io.std;
 
-    // Import the `intn` function.
-    import intn from random;
+    // Import the `RandInt` function.
+    import RandInt from random;
 
     func main() {
         // TODO
     }
 
-Then, we can call `intn` with the the arguments `1` denoting our lower bound and
+Then, we can call `RandInt` with the the arguments `1` denoting our lower bound and
 `101` denoting our exclusive upper bound to get our random number.
 
     package guesser;
 
     import printlin, scan from io.std;
-    import intn from random;
+    import RandInt from random;
 
     func main() {
         // Generate a random number between 1 and 100.
-        let n = intn(1, 101);
+        let n = RandInt(1, 101);
 
         // TODO
     }
@@ -408,21 +408,21 @@ correctly.  We will also add the code to get the user's guess.
 
     package guesser;
 
-    import printlin, scan from io.std;
-    import intn from random;
+    import Println, scan from io.std;
+    import RandInt from random;
 
     func main() {
         // Generate a random number between 1 and 100.
-        let n = intn(1, 101);
+        let n = RandInt(1, 101);
 
         // The main guessing loop.
         while true {
             // Prompt our user to enter the number.
-            println("Enter your guess (1 <= n <= 100):")
+            Println("Enter your guess (1 <= n <= 100):")
 
             // Read in user input.
             let input: i64;
-            scanf("%d", &input);
+            Scanf("%d", &input);
 
             // TODO
         }
@@ -434,32 +434,32 @@ out of the loop when the user guesses correctly.
     package guesser;
 
     import printlin, scan from io.std;
-    import intn from random;
+    import RandInt from random;
 
     func main() {
         // Generate a random number between 1 and 100.
-        let n = intn(1, 101);
+        let n = RandInt(1, 101);
 
         // The main guessing loop.
         while true {
             // Prompt our user to enter the number.
-            println("Enter your guess (1 <= n <= 100):")
+            Println("Enter your guess (1 <= n <= 100):")
 
             // Read in user input.
             let input: i64;
-            scanf("%d", &input);
+            Scanf("%d", &input);
 
             // Check the user's guess.
             if input == n {
                 // Correct answer => exit the loop.
-                println("Correct!");
+                Println("Correct!");
                 break;
             } elif input < n:
                 // Answer is too low.
-                println("Too low!");
+                Println("Too low!");
             else:
                 // Answer is too high.
-                println("Too high!");
+                Println("Too high!");
         }
     }
 

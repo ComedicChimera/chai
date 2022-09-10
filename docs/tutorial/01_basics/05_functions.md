@@ -17,14 +17,14 @@ the function.  After the name comes a pair of closing parentheses.  Any paramete
 the function takes are defined inside these parentheses.  Finally, the end of
 the function definition is its return type.
 
-    func name(parameters) return_type
+    func name(parameters) returnType
 
 The parameters are defined like variables.  Each of the parameters are separated
 by commas and begins with the name of the parameter variable followed by a colon
 and a type label.  For example, here is a function to accepts an `i64` called `a`
 and an `f64` called `b` and returns an `i64`.
 
-    func my_func(a: i64, b: f64) i64
+    func myFunc(a: i64, b: f64) i64
 
 If we have multiple parameters of the same type, we can group them together
 under one type label like we do with variables:
@@ -34,7 +34,7 @@ under one type label like we do with variables:
 If the function doesn't return anything, then we can simply elide the return
 type.
 
-    func my_print(s: string)
+    func myPrint(s: string)
 
 > Eliding the return type is equivalent to specifying the type of `unit` which
 > we will discuss in more detail later in the chapter.
@@ -44,7 +44,7 @@ different kinds of ways we can specify a function body in Chai.  The first is to
 use a **block body**.  A block body is simply a series of statement comprising
 the body of the function enclosed in braces.
 
-    func my_func() {
+    func myFunc() {
         statement1
         statement2
         ...
@@ -97,14 +97,14 @@ In functions that don't return anything, we simply elide the value in the return
 statement: this allows us to still exit early if the function either doesn't
 need to or cannot continue.
 
-    func print_sqrt(n: f64) {
+    func printSqrt(n: f64) {
         if n < 0 {
-            println("error: negative number");
+            Println("error: negative number");
             return
         }
 
         // `sqrt` is defined elsewhere in the program
-        println(sqrt(n));
+        Println(sqrt(n));
     }
 
 Notice that functions which don't return anything don't need to have a return
@@ -132,7 +132,7 @@ expression, all function calls must yield value which in turns means that all
 functions must return some value.
 
 However, as we have already seen, there are plenty of cases where functions
-don't seem to return anything: for example, the `println` function doesn't need
+don't seem to return anything: for example, the `Println` function doesn't need
 to return any value to us.
 
 This is where the **unit value** comes in.  The unit value represents a
@@ -154,12 +154,12 @@ demonstrate this, let's consider two identical definitions of the function
 
     // Short/standard form.
     func greet() {
-        println("Hello!");
+        Println("Hello!");
     }
 
     // Long/expanded form.
     func greet() unit {
-        println("Hello!");
+        Println("Hello!");
         return ();
     }
 
@@ -230,7 +230,7 @@ declared with the same name in two different scopes.  For example:
     {
         let x = 3.14;
 
-        println(x);  // What happens here?
+        Println(x);  // What happens here?
     }
 
 When this happens, Chai will always used the value in the most immediate
@@ -246,7 +246,7 @@ above its usage.
         let x = 3.14;
 
         {
-            println(x);  // Prints `3.14`.
+            Println(x);  // Prints `3.14`.
         }
     }
 
@@ -259,12 +259,12 @@ the shadowing variable is defined in:
     {
         let x = 3.14;
 
-        println(x);  // Prints `3.14`.
+        Println(x);  // Prints `3.14`.
     } // Shadowing variable `x` goes out of scope here.
 
     // Previously shadowed variable `x` is now visible again.
 
-    println(x);  // Prints `10`.
+    Println(x);  // Prints `10`.
 
 Shadowing can be a bit quirky at times so we generally recommend you don't use
 it unless you have a good reason: it can often be difficult to keep track of

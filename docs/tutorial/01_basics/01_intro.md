@@ -31,10 +31,10 @@ The *Hello World* program in Chai appears as follows:
 
     package hello;
 
-    import println from io.std;
+    import Println from io.std;
 
     func main() {
-        println("Hello, world!");
+        Println("Hello, world!");
     }
 
 Let's break this program down piece by piece.  Starting with the first line:
@@ -52,10 +52,10 @@ will talk more about package declarations later.
 
 The next line of the program,
 
-    import println from io.std;
+    import Println from io.std;
 
 is called an **import statement**.  It is used to import symbols from other
-packages.  In this case, we are importing the function `println` from the
+packages.  In this case, we are importing the function `Println` from the
 package `io.std` which is part of the **standard library**: a set of packages
 that ship with every Chai installation and provide basic functionality needed to
 write useful programs.  The `io.std` package contains all the tools used to
@@ -64,7 +64,7 @@ perform standard I/O: ie. reading and writing to the console.
 Finally, we get to the meat of the program:
 
     func main() {
-        println("Hello, world!");
+        Println("Hello, world!");
     }
 
 The code above defines a function called `main` which accepts no argument and
@@ -75,9 +75,9 @@ the same form as above.
 
 The body of main is contained in curly braces and contains a single statement:
 
-    println("Hello, world!");
+    Println("Hello, world!");
 
-This statement calls the `println` function we imported earlier with a single
+This statement calls the `Println` function we imported earlier with a single
 argument: `"Hello, world!"`.  The value `"Hello, world!"` is called a 
 **string literal**: it is used to represent literal text in user source code.
 In Chai, all string literals begin and end with double quotes and are UTF-8

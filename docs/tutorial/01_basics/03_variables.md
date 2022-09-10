@@ -14,7 +14,7 @@ A **variable** named location in memory used to store values.
 In Chai, you can declare variables using the `let` keyword like so:
 
     let x = 10;
-    println(x);  // Prints 10.
+    Println(x);  // Prints 10.
 
 The type of `x` is inferred based on the value it is initialized with.
 
@@ -126,16 +126,16 @@ Let's take a look at the whole program and then we will break down how it works.
 
     package adder;
 
-    import println, scanf from io.std;
+    import Println, Scanf from io.std;
 
     func main() {
         let a, b: i64;  
 
-        println("Enter the two numbers:");
+        Println("Enter the two numbers:");
 
-        scanf("%d %d", &a, &b);
+        Scanf("%d %d", &a, &b);
 
-        println(a, "+", b, "=", a + b);
+        Println(a, "+", b, "=", a + b);
     }
 
 A simple run of the program might appear as follows:
@@ -147,7 +147,7 @@ A simple run of the program might appear as follows:
 
 The first two lines of the program should already be familiar to you.  The
 primary wrinkle is that we are importing a second function from `io.std` called
-`scanf` which we will later use to allow the user to input numbers.
+`Scanf` which we will later use to allow the user to input numbers.
 
 Then, we have a fairly standard main function which contains the actual
 machinery of our program.
@@ -166,22 +166,22 @@ familiar. However, it does demonstrate a little bit a syntax that I didn't
 explicitly show off earlier: we can declare multiple variables of the same type
 using one type extension.  In this case, `a` and `b` are both of type `i64`.
 
-The second line is just a call to `println` which we already studied in the
+The second line is just a call to `Println` which we already studied in the
 first chapter.
 
 The third line is probably the most "enigmatic" line of the bunch:
 
-    scanf("%s %s", &a, &b);
+    Scanf("%s %s", &a, &b);
 
-`scanf` is a special function which is part of Chai's *formatted I/O* library.
+`Scanf` is a special function which is part of Chai's *formatted I/O* library.
 In essence, it allows us to read input from a stream, like standard in, in
 accordance with something called **format string** which describes what that
 input should look like.
 
-The format string in this case is the passed as the first argument to `scanf`.
+The format string in this case is the passed as the first argument to `Scanf`.
 The `%d` denote places where user input is expected: ie. where the we expect the
 user to input the numbers: the `d` means we expect an integer to be entered.
-Everything outside that is not the `%d` is the text that `scanf` expects the
+Everything outside that is not the `%d` is the text that `Scanf` expects the
 user to enter around their input: the "punctuation" if you will.  In this case,
 we have a single space which means that we expect the user to enter a space
 between their inputted values. Putting this all together, we can say that the
@@ -189,9 +189,9 @@ format string `"%d %d"` states that we expect the user to input two integers
 with a space between them.  
 
 The next two arguments indicate the locations where we want it to store the
-values it reads in.  In this case, we want `scanf` to store its results inside
+values it reads in.  In this case, we want `Scanf` to store its results inside
 the variables `a` and `b`.  The `&` in front of `a` and `b` denotes that we
-are giving `scanf` the locations of `a` and `b` rather than their values.
+are giving `Scanf` the locations of `a` and `b` rather than their values.
 
 More precisely, `&` is called the *indirection operator* it is used to create a
 *pointer* to a value.  Pointers are a very important topic in Chai that we will
@@ -200,17 +200,17 @@ representing the "locations" of values rather than the values themselves.
 
 Putting all these pieces together, we can then say that the line:
 
-    scanf("%d %d", &a, &b);
+    Scanf("%d %d", &a, &b);
 
 reads two integers from standard in (ie. the command-line) separated by a space
 into the variables `a` and `b`.
 
 The final line of our main function:
 
-    println(a, "+", b, "=", a + b);
+    Println(a, "+", b, "=", a + b);
 
-is just another call to `println` with the wrinkle that we are giving it more
-than one argument.  When `println` is given multiple arguments, it simply
+is just another call to `Println` with the wrinkle that we are giving it more
+than one argument.  When `Println` is given multiple arguments, it simply
 prints out each of its arguments in order separated by spaces.  
 
 That's it: the full *adder* program broken down line by line.  In the next
