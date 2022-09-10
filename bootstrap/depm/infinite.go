@@ -3,6 +3,7 @@ package depm
 import (
 	"chaic/ast"
 	"chaic/common"
+	"chaic/report"
 	"chaic/types"
 )
 
@@ -56,13 +57,13 @@ func CheckForInfiniteTypes(depGraph map[uint64]*ChaiPackage) bool {
 					declSym = v.Symbol
 				}
 
-				if !searchFrom(declSym.Type.(types.NamedType)) {
-					// TODO: figure out how to get the position out
-					// report.ReportCompileError(
-					// 	file.AbsPath,
-					// 	file.ReprPath,
-					// 	declSym.DefSpan,
-					// )
+				if span, ok := findInfinites(declSym.Type.(types.NamedType)); !ok {
+					report.ReportCompileError(
+						file.AbsPath,
+						file.ReprPath,
+						span,
+						"infinite type detected",
+					)
 					noInfTypes = false
 				}
 			}
@@ -72,42 +73,52 @@ func CheckForInfiniteTypes(depGraph map[uint64]*ChaiPackage) bool {
 	return noInfTypes
 }
 
-// searchFrom performs the main infinite type detection algorithm as described
-// above starting from the node start.  This function does NOT assume that the
-// node is white or grey.
-func searchFrom(nt types.NamedType) bool {
+// findInfinites performs the main infinite type detection algorithm as
+// described above starting from the node start.  It returns the text span of
+// the root opaque type if an infinite type cycle is detected.
+func findInfinites(nt types.NamedType) (*report.TextSpan, bool) {
 	switch nt.Color() {
 	case types.ColorBlack:
-		return true
+		return nil, true
 	case types.ColorGrey:
 		nt.SetColor(types.ColorBlack)
-		return false
+		return nil, false
 	default: // White
 		nt.SetColor(types.ColorGrey)
-		result := searchChildren(nt)
+		span, ok := searchChildren(nt)
 		nt.SetColor(types.ColorBlack)
-		return result
+		return span, ok
 	}
 }
 
-// searchChildren searches all the child named types of a type.
-func searchChildren(typ types.Type) bool {
-	// Pointers and primitives aren't searched because they can't count as
-	// direct references.
-	switch v := typ.(type) {
+// searchChildren searches the child types of a named type for infinite types.
+func searchChildren(nt types.NamedType) (*report.TextSpan, bool) {
+	switch v := nt.(type) {
 	case *types.StructType:
 		for _, field := range v.Fields {
-			if !searchChildren(types.InnerType(field.Type)) {
-				return false
-			}
-		}
-	case *types.TupleType:
-		for _, elemType := range v.ElementTypes {
-			if !searchChildren(types.InnerType(elemType)) {
-				return false
+			if span, ok := searchChild(field.Type); !ok {
+				return span, false
 			}
 		}
 	}
 
-	return true
+	return nil, true
+}
+
+// searchChild searches a child type of a named type for infinite types.
+func searchChild(typ types.Type) (*report.TextSpan, bool) {
+	switch v := typ.(type) {
+	case *types.OpaqueType:
+		if _, ok := findInfinites(v.Value); !ok {
+			return v.Span, false
+		}
+	case *types.TupleType:
+		for _, elemType := range v.ElementTypes {
+			if span, ok := searchChild(elemType); !ok {
+				return span, false
+			}
+		}
+	}
+
+	return nil, true
 }
