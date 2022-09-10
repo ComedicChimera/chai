@@ -1,0 +1,13 @@
+package e07_structs;
+
+struct Vec3 {
+    x, y, z: i64;
+}
+
+func cross(u, v: Vec3) Vec3 =
+    Vec3{
+        x = u.y * v.z - u.z * v.y,
+        y = u.z * v.x - u.x * v.z,
+        z = u.x * v.y - u.y * v.x
+    };
+

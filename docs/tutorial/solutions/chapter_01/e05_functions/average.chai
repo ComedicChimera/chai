@@ -1,0 +1,3 @@
+package e05_functions;
+
+func average(a, b: f64) f64 = (a + b) / 2;

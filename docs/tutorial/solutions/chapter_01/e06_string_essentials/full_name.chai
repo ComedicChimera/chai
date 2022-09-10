@@ -1,0 +1,13 @@
+package e06_string_essentials;
+
+import Println, Scanln from io.std;
+
+func main() {
+    Println("Enter your first name:");
+    let firstName = Scanln();
+
+    Println("Enter your last name:");
+    let lastName = Scanln();
+
+    Println("Your full name is:", firstName + " " + lastName);
+}

@@ -1,0 +1,6 @@
+package e05_functions;
+
+func ackermann(m, n: i64) i64 =
+    if m = 0 => n + 1
+    elif n = 0 => ackermann(m-1, 1)
+    else => ackermann(m-1, ackermann(m, n-1));

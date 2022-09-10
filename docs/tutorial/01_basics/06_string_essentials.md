@@ -9,8 +9,8 @@ times in later chapters.
 
 - [Runes and Rune Literals](#runes)
 - [String Literals](#string-lits)
-- [Operating on Strings](#string-ops)
 - [Raw Strings](#raw-strings)
+- [Exercises](#exercises)
 
 ## <a name="runes"/> Runes and Rune Literals
 
@@ -76,8 +76,119 @@ There are many escape sequences that we haven't covered here, but these should
 be sufficient for this tutorial.  A complete account of all possible escape
 sequences can be found at *insert link*.
 
-## <a name="string-lits"/> String Literals
+The type label used for runes is `rune`.
 
-## <a name="string-ops"/> Operating on Strings
+    let r: rune = 'a';
 
-## <a name="raw-strings"/> Raw Strings
+Runes can be added and compared just like numbers and can be used in arithmetic
+expressions with numbers:
+
+    'a' < 'z'  // => true
+    2 + '0'    // => '2'
+
+> This is possible because rune literals are actually just integers.
+
+## <a name="string-lits"/> Strings and String Literals
+
+A **string** is a sequence of Unicode characters representing text.  In Chai,
+strings are represented as a sequence of UTF-8 encoded bytes.
+
+A **string literal** is used to represent a constant string value.
+Semantically, string literals can be thought of as composed as a series of rune
+literals denoting each of the characters that make up the string.
+
+String literals are written as a simple text sequence enclosed in double quotes:
+
+    "Hello, world!"
+
+String literals cannot contain newlines.  If you want to write a string literal
+to denote text the contains a newline, you need to use the newline escape code:
+
+    "Line 1\nLine2"
+
+Notice that strings can contain escape codes just like rune literals.  
+
+Strings also cannot contain unescaped double quotes, but can contain single
+quotes:
+
+    "\"What's up?\", said Bob."
+
+The type label used for strings is `string`.
+
+    let name: string = "Joe";
+
+Strings can be **concatenated** using the `+` operator.  Concatenation creates
+a new string by placing two strings one after the other:
+
+    let firstName = "Bob";
+    let lastName = "Jones";
+
+    let fullName = first_name + " " + last_name;  // fullName = "Bob Jones"
+
+No other arithmetic operations are implemented for strings by default.
+
+However, strings can be compared using all the native comparison operators.
+`==` and `!=` return whether two strings are equal.  `<`, `>`, `<=, and `>=` all
+compare strings lexicographically.
+
+    "abc" == "ABC"    // => false
+    "test" != "tset"  // => true
+    "ab" < "bc"       // => true
+    "123" >= "one"    // => false 
+
+One final thing worth mentioning that we know a little bit more about strings is
+another standard IO function: `Scanln`.  `Scanln` allows us to read a string in
+from the user.
+
+We can use `Scanln` to write a simple `echo` program.
+
+    package echo;
+
+    import Println, Scanln from io.std;
+
+    func main() {
+        let input = Scanln();
+        Println("You said", input);
+    }
+
+## <a name="raw-strings"/> Raw String Literals
+
+Chai actually supports two kinds of string literals.  The first kind are called
+**standard string literals** are the string literals we have considered so far.
+
+The second kind of string literal is called a **raw string literal**.  Raw string
+literals are denoted as text enclosed inside backticks:
+
+    `Hello, there!`
+
+Unlike standard string literals, raw string literals can contain newlines:
+
+    `Line 1
+    Line 2`
+
+This makes them convenient for denoting long multi-line strings such as
+paragraphs or source code.
+
+In addition, raw string literals also don't support regular escape codes.  This
+means you can backslashes without any escaping in raw string literals which them
+convenient for denoting regular expressions:
+
+    `[a-zA-Z_]\w+`
+
+These is one exception to this: a backslash is used to escape backticks inside
+raw string literals.
+
+    `undefined symbol: \`name\``
+
+This also means that backslashes can escape other backslashes.  This means that
+if you want to denote a double backslash in a raw string, you need to write:
+
+    `\\\\`
+
+Outside of these two special cases, any text or escape sequence can be used
+inside a raw string literal.
+
+## <a name="exercises"/> Exercises
+
+1. Write a program that prompts the user to their first and last name and then
+   prints out their full name.

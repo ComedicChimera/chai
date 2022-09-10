@@ -1,16 +1,16 @@
 package e03_control_flow;
 
-import println, scanf from io.std;
+import Println, Scanf from io.std;
 
 // my_sqrt uses Newton's method to calculate square root of a user inputted number.
 func my_sqrt() {
     let n: f64;
-    scanf("%d", &n);
+    Scanf("%d", &n);
 
     let x = n;
     for let i = 0; i < 10; i++ {
         x = x - (x * x - n) / (2 * x);
     }
 
-    println(x);
+    Println(x);
 }
