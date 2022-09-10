@@ -130,7 +130,7 @@ func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
 		}
 	case *StructType:
 		if rst, ok := rhs.(*StructType); ok {
-			return newUnifyResult(v.Name == rst.Name && v.ParentID == rst.ParentID)
+			return newUnifyResult(v.name == rst.name && v.parentID == rst.parentID)
 		}
 	case PrimitiveType:
 		if rpt, ok := rhs.(PrimitiveType); ok {

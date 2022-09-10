@@ -315,56 +315,159 @@ func (tt *TupleType) Repr() string {
 
 /* -------------------------------------------------------------------------- */
 
-// NamedType is the base type for all named types: structs, enums, etc.
-type NamedType struct {
+// NamedType represents a user-defined type associated with a symbol.
+type NamedType interface {
+	Type
+
 	// The named type's full name: parent package path + type name.
-	Name string
+	Name() string
 
 	// The package ID that the named type is defined in.
-	ParentID uint64
+	ParentID() uint64
 
 	// The index of the declaration which creates this named type within its
 	// parent file's list of definitions.  This effectively functions as a back
 	// reference to the declaring AST without actually referencing the AST to
 	// get around Go's import rules.
-	DeclIndex int
+	DeclIndex() int
+
+	// Color returns the color associated with this named type.  See the
+	// infinite type checker for more information.
+	Color() Color
+
+	// SetColor sets the color of the named type.
+	SetColor(color Color)
+
+	// LLType returns the LLVM type currently associated with this named type.
+	LLType() lltypes.Type
+
+	// SetLLType sets the LLVM type of the named type.
+	SetLLType(llType lltypes.Type)
+}
+
+// Color is a special value associated with every named type.  Must be one of
+// the enumerated color values.  See the infinite type checker for more
+// information.
+type Color byte
+
+// Enumeration of possible named type colors.
+const (
+	ColorWhite Color = iota
+	ColorGrey
+	ColorBlack
+)
+
+/* -------------------------------------------------------------------------- */
+
+// NamedTypeBase is the base type for all named types: structs, enums, etc.
+type NamedTypeBase struct {
+	// The named type's full name: parent package path + type name.
+	name string
+
+	// The package ID that the named type is defined in.
+	parentID uint64
+
+	// The index of the declaration which creates this named type within its
+	// parent file's list of definitions.  This effectively functions as a back
+	// reference to the declaring AST without actually referencing the AST to
+	// get around Go's import rules.
+	declIndex int
+
+	// The color associated with the named type.
+	color Color
 
 	// The LLVM type reference associated with this named type.
 	// TODO: figure out how to handle this across multiple packages...
-	LLType lltypes.Type
+	llType lltypes.Type
 }
 
-func (nt *NamedType) equals(other Type) bool {
-	if ont, ok := other.(*NamedType); ok {
-		return nt.Name == ont.Name && nt.ParentID == ont.ParentID
+// NewNamedTypeBase creates a new named type base.
+func NewNamedTypeBase(name string, parentID uint64, declIndex int) NamedTypeBase {
+	return NamedTypeBase{
+		name:      name,
+		parentID:  parentID,
+		declIndex: declIndex,
+		color:     ColorWhite,
+		llType:    nil,
+	}
+}
+
+func (nt *NamedTypeBase) equals(other Type) bool {
+	if ont, ok := other.(NamedType); ok {
+		return nt.name == ont.Name() && nt.parentID == ont.ParentID()
 	}
 
 	return false
 }
 
-func (nt *NamedType) Repr() string {
-	return nt.Name
+func (nt *NamedTypeBase) Repr() string {
+	return nt.name
 }
 
-func (nt *NamedType) Size() int {
+func (nt *NamedTypeBase) Size() int {
 	report.ReportICE("Size() not overridden on NamedType")
 	return 0
 }
 
-func (nt *NamedType) Align() int {
+func (nt *NamedTypeBase) Align() int {
 	report.ReportICE("Align() not overridden on NamedType")
 	return 0
 }
 
-// OpaqueType represents a named type whose value has not yet been inferred.
+func (nt *NamedTypeBase) Name() string {
+	return nt.name
+}
+
+func (nt *NamedTypeBase) ParentID() uint64 {
+	return nt.parentID
+}
+
+func (nt *NamedTypeBase) DeclIndex() int {
+	return nt.declIndex
+}
+
+func (nt *NamedTypeBase) Color() Color {
+	return nt.color
+}
+
+func (nt *NamedTypeBase) SetColor(color Color) {
+	nt.color = color
+}
+
+func (nt *NamedTypeBase) LLType() lltypes.Type {
+	return nt.llType
+}
+
+func (nt *NamedTypeBase) SetLLType(lltype lltypes.Type) {
+	nt.llType = lltype
+}
+
+/* -------------------------------------------------------------------------- */
+
+// OpaqueType represents a (possibly unresolved) reference to a named type.
 type OpaqueType struct {
-	NamedType
+	// The name of the type referenced by the opaque type.
+	Name string
+
+	// The ID of the package containing the visible definition of the opaque
+	// type. Note that this may not be the same as the type of the underlying
+	// named type.
+	ContainingID uint64
 
 	// The span over which the named type reference occurs.
 	Span *report.TextSpan
 
 	// The resolved type of this opaque type.
-	Value Type
+	Value NamedType
+}
+
+func (ot *OpaqueType) equals(other Type) bool {
+	report.ReportICE("called equals() on an unresolved opaque type")
+	return false
+}
+
+func (ot *OpaqueType) Repr() string {
+	return ot.Name
 }
 
 func (ot *OpaqueType) Size() int {
@@ -389,7 +492,7 @@ func (ot *OpaqueType) Align() int {
 
 // StructType represents a structure type.
 type StructType struct {
-	NamedType
+	NamedTypeBase
 
 	// The list of fields of the struct in order.
 	Fields []StructField

@@ -7,7 +7,6 @@ import (
 	"chaic/llc"
 	"chaic/report"
 	"chaic/types"
-	"chaic/util"
 	"fmt"
 
 	"github.com/llir/llvm/ir"
@@ -262,13 +261,13 @@ func (g *Generator) convInnerType(typ types.Type, isReturnType, isAllocType bool
 		return g.convPrimType(v, isReturnType)
 	case *types.PointerType:
 		return lltypes.NewPointer(g.convType(v.ElemType))
-	case *types.StructType:
+	case types.NamedType:
 		if isReturnType {
 			return lltypes.Void
-		} else if typ.Size() <= 2*util.PointerSize || isAllocType {
-			return v.LLType
+		} else if isAllocType || types.IsPtrWrappedType(typ) {
+			return v.LLType()
 		} else {
-			return lltypes.NewPointer(v.LLType)
+			return lltypes.NewPointer(v.LLType())
 		}
 	default:
 		report.ReportICE("type codegen not implemented")

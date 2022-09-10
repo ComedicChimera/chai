@@ -147,11 +147,9 @@ func (p *Parser) defineOperatorOverload(opKind int, opRepr string, arity int, ov
 // newOpaqueType creates a new opaque type reference.
 func (p *Parser) newOpaqueType(name string, span *report.TextSpan) *types.OpaqueType {
 	otype := &types.OpaqueType{
-		NamedType: types.NamedType{
-			Name:     name,
-			ParentID: p.chFile.Parent.ID,
-		},
-		Span: span,
+		Name:         name,
+		ContainingID: p.chFile.Parent.ID,
+		Span:         span,
 	}
 
 	p.chFile.OpaqueRefs[name] = append(p.chFile.OpaqueRefs[name], otype)

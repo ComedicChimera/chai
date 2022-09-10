@@ -113,7 +113,7 @@ func (g *Generator) generateStructDef(sd *ast.StructDef) {
 	g.mod.NewTypeDef(g.pkgPrefix+sd.Symbol.Name, llvmStruct)
 
 	// Set the LLVM type of the struct type.
-	st.LLType = llvmStruct
+	st.SetLLType(llvmStruct)
 }
 
 /* -------------------------------------------------------------------------- */

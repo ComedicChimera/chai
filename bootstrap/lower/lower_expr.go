@@ -142,8 +142,8 @@ func (l *Lowerer) lowerStructLiteral(slit *ast.StructLiteral) mir.Expr {
 
 	if slit.SpreadInit == nil {
 		// TODO: handle imported structs
-		sym := l.pkg.SymbolTable[st.Name]
-		sdef := l.pkg.Files[sym.FileNumber].Definitions[st.DeclIndex].(*ast.StructDef)
+		sym := l.pkg.SymbolTable[st.Name()]
+		sdef := l.pkg.Files[sym.FileNumber].Definitions[st.DeclIndex()].(*ast.StructDef)
 
 		fieldInits := make([]mir.Expr, len(st.Fields))
 		for i, field := range st.Fields {
