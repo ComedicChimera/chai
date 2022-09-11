@@ -24,6 +24,18 @@ func (g *Generator) generateExpr(expr mir.Expr) llvalue.Value {
 		return g.generateUnaryOpApp(v)
 	case *mir.FuncCall:
 		return g.generateFuncCall(v)
+	case *mir.FieldAccess:
+		return g.generateFieldAccess(v)
+	case *mir.Deref:
+		return g.block.NewLoad(g.convType(v.Type()), g.generateExpr(v.Ptr))
+	case *mir.AddressOf:
+		return g.generateLHSExpr(v.Element)
+	case *mir.Identifier:
+		if v.Symbol.IsImplicitPointer {
+			return g.block.NewLoad(g.convType(v.Type()), v.Symbol.LLValue)
+		} else {
+			return v.Symbol.LLValue
+		}
 	case *mir.ConstInt:
 		return constant.NewInt(
 			g.convType(expr.Type()).(*lltypes.IntType),
@@ -53,6 +65,14 @@ func (g *Generator) generateLHSExpr(expr mir.Expr) llvalue.Value {
 	case *mir.Deref:
 		// Already a pointer: no need to dereference
 		return g.generateExpr(v.Ptr)
+	case *mir.FieldAccess:
+		// Just use a raw GEP: always works :)
+		return g.block.NewGetElementPtr(
+			g.convAllocType(v.Struct.Type()),
+			g.generateExpr(v.Struct),
+			constant.NewInt(lltypes.I64, 0),
+			constant.NewInt(lltypes.I32, int64(v.FieldNumber)),
+		)
 	default:
 		report.ReportICE("LHS expression codegen not implemented")
 		return nil
@@ -323,5 +343,50 @@ func (g *Generator) generateUnaryOpApp(uopApp *mir.UnaryOpApp) llvalue.Value {
 
 // generateFuncCall generates a function call.
 func (g *Generator) generateFuncCall(call *mir.FuncCall) llvalue.Value {
-	return nil
+	llFunc := g.generateExpr(call.Func)
+
+	// Copy all the arguments as necessary.
+	copiedArgs := make([]llvalue.Value, len(call.Args))
+	for i, arg := range call.Args {
+		llArg := g.generateExpr(arg)
+
+		if arg.LValue() {
+			copiedArg := g.block.NewAlloca(g.convAllocType(arg.Type()))
+			g.copyInto(arg.Type(), llArg, copiedArg)
+		} else {
+			copiedArgs[i] = llArg
+		}
+	}
+
+	var result llvalue.Value
+	if types.IsPtrWrappedType(call.Type()) {
+		// TODO: return argument allocation elision
+		result = g.varBlock.NewAlloca(g.convAllocType(call.Type()))
+		g.block.NewCall(llFunc, append([]llvalue.Value{result}, copiedArgs...)...)
+	} else {
+		result = g.block.NewCall(llFunc, copiedArgs...)
+	}
+
+	if types.IsUnit(call.Type()) {
+		return constant.NewStruct(lltypes.NewStruct())
+	}
+
+	return result
+}
+
+func (g *Generator) generateFieldAccess(fieldAccess *mir.FieldAccess) llvalue.Value {
+	llStruct := g.generateExpr(fieldAccess.Struct)
+
+	if types.IsPtrWrappedType(fieldAccess.Struct.Type()) {
+		fieldPtr := g.block.NewGetElementPtr(
+			llStruct.Type().(*lltypes.PointerType).ElemType,
+			llStruct,
+			constant.NewInt(lltypes.I64, 0),
+			constant.NewInt(lltypes.I32, int64(fieldAccess.FieldNumber)),
+		)
+
+		return g.block.NewLoad(g.convType(fieldAccess.Type()), fieldPtr)
+	} else {
+		return g.block.NewExtractValue(llStruct, uint64(fieldAccess.FieldNumber))
+	}
 }

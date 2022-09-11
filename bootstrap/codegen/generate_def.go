@@ -42,9 +42,10 @@ func (g *Generator) generateFunction(mfunc *mir.Function) {
 	returnType := mfunc.Symbol.Type.(*types.FuncType).ReturnType
 
 	// Add the pointer return parameter as necessary.
+	var retParam *ir.Param
 	if types.IsPtrWrappedType(returnType) {
 		ptrRetType := g.convType(returnType)
-		retParam := ir.NewParam("return", ptrRetType)
+		retParam = ir.NewParam("return", ptrRetType)
 		retParam.Attrs = append(retParam.Attrs, ir.SRet{Typ: ptrRetType.(*lltypes.PointerType).ElemType})
 		llParams = append([]*ir.Param{retParam}, llParams...)
 	}
@@ -61,10 +62,10 @@ func (g *Generator) generateFunction(mfunc *mir.Function) {
 	// Add the function body as a predicate to generate if it exists.
 	if len(mfunc.Body) > 0 {
 		g.bodyPredicates = append(g.bodyPredicates, bodyPredicate{
-			LLFunc:     llFunc,
-			Params:     util.Map(mfunc.ParamVars, func(ident *mir.Identifier) *mir.MSymbol { return ident.Symbol }),
-			ReturnType: returnType,
-			Body:       mfunc.Body,
+			LLFunc:   llFunc,
+			Params:   util.Map(mfunc.ParamVars, func(ident *mir.Identifier) *mir.MSymbol { return ident.Symbol }),
+			RetParam: retParam,
+			Body:     mfunc.Body,
 		})
 	}
 

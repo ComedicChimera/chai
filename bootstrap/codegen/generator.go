@@ -39,6 +39,9 @@ type Generator struct {
 
 	// A global reference to the frequently used `memcpy` intrinsic.
 	memcpy llvalue.Value
+
+	// The pointer to the return parameter if one exists.
+	retParam llvalue.Value
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -49,8 +52,8 @@ type bodyPredicate struct {
 	// The parameter symbols.
 	Params []*mir.MSymbol
 
-	// The return type of the function.
-	ReturnType types.Type
+	// The return parameter to the function if one exists.
+	RetParam llvalue.Value
 
 	// The AST body.
 	Body []mir.Statement
@@ -132,7 +135,10 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 	firstBlock := pred.LLFunc.NewBlock("body")
 	g.block = firstBlock
 
-	// TODO: generate the block
+	// Generate the body block.
+	g.retParam = pred.RetParam
+	g.generateBlock(pred.Body)
+	g.retParam = nil
 
 	// If the block we are now positioned in (the last block of the function)
 	// is missing a terminator, then we know the function must return void
