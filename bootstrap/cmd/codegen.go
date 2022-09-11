@@ -4,6 +4,7 @@ import (
 	"chaic/codegen"
 	"chaic/depm"
 	"chaic/llc"
+	"chaic/lower"
 	"chaic/report"
 	"fmt"
 	"io/fs"
@@ -45,8 +46,11 @@ func (c *Compiler) generateLLVMIRModules() {
 			defer wg.Done()
 			defer ctx.Dispose()
 
-			// Generate the LLVM module.
-			mod := codegen.Generate(ctx, pkg)
+			// Lower the package to the MIR bundle.
+			bundle := lower.Lower(pkg)
+
+			// Generate the module.
+			mod := codegen.Generate(ctx, bundle)
 
 			// Output it to a file.
 			if err := mod.WriteToFile(filepath.Join(c.outputPath, fmt.Sprintf("%s_%d.ll", pkg.Name, pkg.ID))); err != nil {
@@ -108,8 +112,11 @@ func (c *Compiler) generateASMOrObjectFiles() []string {
 		go func(ctx *llc.Context, pkg *depm.ChaiPackage) {
 			defer ctx.Dispose()
 
+			// Lower the package to the MIR bundle.
+			bundle := lower.Lower(pkg)
+
 			// Generate the module.
-			mod := codegen.Generate(ctx, pkg)
+			mod := codegen.Generate(ctx, bundle)
 
 			// Calculate the object file output path.
 			outputPath := filepath.Join(stageOutputPath, fmt.Sprintf("%s_%d%s", pkg.Name, pkg.ID, stageOutputExt))

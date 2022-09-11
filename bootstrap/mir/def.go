@@ -67,6 +67,12 @@ const (
 	// TODO: add more as needed
 )
 
+// HasAttr returns whether or not a function has an attribute.
+func (mfunc *Function) HasAttr(attr FuncAttrKind) bool {
+	_, ok := mfunc.Attrs[attr]
+	return ok
+}
+
 /* -------------------------------------------------------------------------- */
 
 // Struct represents a MIR struct definition.

@@ -11,7 +11,7 @@ This tutorial will be hosted online for free.
 	1.4. Control Flow
 	1.5. Functions
 	1.6. String Essentials
-	1.7. Struct Types
+	1.7. Structs
 	1.8. Operator Definitions
 	1.9. Package Structure
 2. Pointers and Arrays 

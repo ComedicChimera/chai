@@ -1,10 +1,8 @@
 package codegen
 
 import (
-	"chaic/ast"
-	"chaic/common"
-	"chaic/depm"
 	"chaic/llc"
+	"chaic/mir"
 	"chaic/report"
 	"chaic/types"
 	"fmt"
@@ -15,7 +13,7 @@ import (
 	llvalue "github.com/llir/llvm/ir/value"
 )
 
-// Generator is responsible for converting Chai to LLVM IR.
+// Generator is responsible for converting Chai MIR to LLVM IR.
 type Generator struct {
 	// The LLVM module being generated.
 	mod *ir.Module
@@ -49,13 +47,13 @@ type bodyPredicate struct {
 	LLFunc *ir.Func
 
 	// The parameter symbols.
-	Params []*common.Symbol
+	Params []*mir.MSymbol
 
 	// The return type of the function.
 	ReturnType types.Type
 
 	// The AST body.
-	Body ast.ASTNode
+	Body []mir.Statement
 }
 
 // loopContext stores the contextual block destinations for the break and
@@ -64,14 +62,14 @@ type loopContext struct {
 	breakDest, continueDest *ir.Block
 }
 
-// Generate generates a Chai package into an LLVM module.
-func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
+// Generate generates a Chai MIR bundle into an LLVM module.
+func Generate(ctx *llc.Context, bundle *mir.Bundle) *llc.Module {
 	// The LLVM name of the package.
-	llPkgName := fmt.Sprintf("pkg%d", pkg.ID)
+	llPkgName := fmt.Sprintf("pkg%d", bundle.ID)
 
 	// Create the LLVM module for the package.
 	mod := ir.NewModule()
-	mod.SourceFilename = pkg.AbsPath
+	mod.SourceFilename = bundle.PkgAbsPath
 
 	// Create the code generator for the package.
 	g := Generator{
@@ -90,13 +88,13 @@ func Generate(ctx *llc.Context, pkg *depm.ChaiPackage) *llc.Module {
 		lltypes.I1,
 	)
 
-	// TODO: generate imports.
-
 	// Generate all the definitions.
-	for _, file := range pkg.Files {
-		for _, def := range file.Definitions {
-			g.generateDef(def)
-		}
+	for _, mstruct := range bundle.Structs {
+		g.generateStruct(mstruct)
+	}
+
+	for _, mfunc := range bundle.Functions {
+		g.generateFunction(mfunc)
 	}
 
 	// Generate all the body predicates.
@@ -134,18 +132,7 @@ func (g *Generator) generateBodyPredicate(pred bodyPredicate) {
 	firstBlock := pred.LLFunc.NewBlock("body")
 	g.block = firstBlock
 
-	if predExpr, ok := pred.Body.(ast.ASTExpr); ok {
-		// Body is an expression.
-		predValue := g.generateExpr(predExpr)
-
-		// If the value is non-unit, return it.
-		if !types.IsUnit(predExpr.Type()) {
-			g.block.NewRet(predValue)
-		}
-	} else {
-		// Body is a block.
-		g.generateBlock(pred.Body.(*ast.Block))
-	}
+	// TODO: generate the block
 
 	// If the block we are now positioned in (the last block of the function)
 	// is missing a terminator, then we know the function must return void
@@ -189,33 +176,6 @@ func (g *Generator) getIntrinsic(name string, returnType lltypes.Type, paramType
 	}
 }
 
-// callFunc calls an LLVM function with args.
-func (g *Generator) callFunc(returnType types.Type, fn llvalue.Value, args ...llvalue.Value) llvalue.Value {
-	// TODO: handle copying arguments: I need to get the type and category some
-	// how
-
-	// copiedArgs := make([]llvalue.Value, len(args))
-	// for i, arg := range args {
-
-	// 	copiedArgs[i] = arg
-	// }
-
-	var result llvalue.Value
-	if types.IsPtrWrappedType(returnType) {
-		// TODO: return argument allocation elision
-		result = g.varBlock.NewAlloca(g.convAllocType(returnType))
-		g.block.NewCall(fn, append([]llvalue.Value{result}, args...)...)
-	} else {
-		result = g.block.NewCall(fn, args...)
-	}
-
-	if types.IsUnit(returnType) {
-		return constant.NewInt(lltypes.I1, 0)
-	}
-
-	return result
-}
-
 // appendBlock adds a new block to the current function.
 func (g *Generator) appendBlock() *ir.Block {
 	return g.block.Parent.NewBlock("")
@@ -235,27 +195,25 @@ func (g *Generator) copyInto(typ types.Type, src, dest llvalue.Value) {
 
 /* -------------------------------------------------------------------------- */
 
-// convType converts the typ to its LLVM type.
+// convType converts the typ to its LLVM type making no assumptions.
 func (g *Generator) convType(typ types.Type) lltypes.Type {
-	return g.convInnerType(types.InnerType(typ), false, false)
+	return g.doConvType(types.InnerType(typ), false, false)
 }
 
 // convReturnType converts typ to its LLVM type assuming typ is a return type.
 func (g *Generator) convReturnType(typ types.Type) lltypes.Type {
-	return g.convInnerType(types.InnerType(typ), true, false)
+	return g.doConvType(types.InnerType(typ), true, false)
 }
 
 // convAllocType converts typ to its LLVM type assuming typ is used in an
 // `alloca` instruction: some types which are pointers normally are not passed
 // as pointers to `alloca` -- this function handles that case.
 func (g *Generator) convAllocType(typ types.Type) lltypes.Type {
-	return g.convInnerType(types.InnerType(typ), false, true)
+	return g.doConvType(types.InnerType(typ), false, true)
 }
 
-// convInnerType converts the given Chai inner type to its LLVM type.  This
-// should generally not be called except from within other type conversion
-// functions.
-func (g *Generator) convInnerType(typ types.Type, isReturnType, isAllocType bool) lltypes.Type {
+// doConvType converts the typ to its LLVM type.
+func (g *Generator) doConvType(typ types.Type, isReturnType, isAllocType bool) lltypes.Type {
 	switch v := typ.(type) {
 	case types.PrimitiveType:
 		return g.convPrimType(v, isReturnType)

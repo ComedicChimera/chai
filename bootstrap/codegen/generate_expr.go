@@ -1,10 +1,8 @@
 package codegen
 
 import (
-	"chaic/ast"
-	"chaic/common"
+	"chaic/mir"
 	"chaic/report"
-	"chaic/syntax"
 	"chaic/types"
 	"fmt"
 
@@ -16,47 +14,30 @@ import (
 )
 
 // generateExpr generates an expression.
-func (g *Generator) generateExpr(expr ast.ASTExpr) llvalue.Value {
+func (g *Generator) generateExpr(expr mir.Expr) llvalue.Value {
 	switch v := expr.(type) {
-	case *ast.TypeCast:
+	case *mir.TypeCast:
 		return g.generateTypeCast(v)
-	case *ast.BinaryOpApp:
+	case *mir.BinaryOpApp:
 		return g.generateBinaryOpApp(v)
-	case *ast.UnaryOpApp:
+	case *mir.UnaryOpApp:
 		return g.generateUnaryOpApp(v)
-	case *ast.FuncCall:
-		{
-			fn := g.generateExpr(v.Func)
-
-			args := make([]llvalue.Value, len(v.Args))
-			for i, arg := range v.Args {
-				args[i] = g.generateExpr(arg)
-			}
-
-			return g.callFunc(v.Type(), fn, args...)
-		}
-	case *ast.Indirect:
-		if v.Elem.Category() == ast.LVALUE {
-			// For l-value, indirection simply corresponds to returning an LHS
-			// expression (a pointer to the value).
-			return g.generateLHSExpr(v.Elem)
-		} else {
-			// TODO: not implemented
-			report.ReportICE("codegen for r-value indirect not implemented")
-			return nil
-		}
-	case *ast.Deref:
-		return g.block.NewLoad(g.convType(v.Ptr.Type()), g.generateExpr(v.Ptr))
-	case *ast.Literal:
-		return g.generateLiteral(v)
-	case *ast.Null:
-		return g.generateNullValue(v.NodeType)
-	case *ast.Identifier:
-		if v.Sym.DefKind == common.DefKindFunc {
-			return v.Sym.LLValue
-		} else {
-			return g.block.NewLoad(v.Sym.LLValue.Type().(*lltypes.PointerType).ElemType, v.Sym.LLValue)
-		}
+	case *mir.FuncCall:
+		return g.generateFuncCall(v)
+	case *mir.ConstInt:
+		return constant.NewInt(
+			g.convType(expr.Type()).(*lltypes.IntType),
+			v.IntValue,
+		)
+	case *mir.ConstReal:
+		return constant.NewFloat(
+			g.convType(expr.Type()).(*lltypes.FloatType),
+			v.FloatValue,
+		)
+	case *mir.ConstUnit:
+		return constant.NewStruct(lltypes.NewStruct())
+	case *mir.ConstNullPtr:
+		return constant.NewNull(g.convType(expr.Type()).(*lltypes.PointerType))
 	default:
 		report.ReportICE("codegen for expr not implemented")
 		return nil
@@ -64,12 +45,12 @@ func (g *Generator) generateExpr(expr ast.ASTExpr) llvalue.Value {
 }
 
 // generateLHSExpr generates an LHS expression (mutable expression).
-func (g *Generator) generateLHSExpr(expr ast.ASTExpr) llvalue.Value {
+func (g *Generator) generateLHSExpr(expr mir.Expr) llvalue.Value {
 	switch v := expr.(type) {
-	case *ast.Identifier:
+	case *mir.Identifier:
 		// Already a pointer: no need to dereference
-		return v.Sym.LLValue
-	case *ast.Deref:
+		return v.Symbol.LLValue
+	case *mir.Deref:
 		// Already a pointer: no need to dereference
 		return g.generateExpr(v.Ptr)
 	default:
@@ -81,26 +62,22 @@ func (g *Generator) generateLHSExpr(expr ast.ASTExpr) llvalue.Value {
 /* -------------------------------------------------------------------------- */
 
 // generateTypeCast generates a type cast.
-func (g *Generator) generateTypeCast(tc *ast.TypeCast) llvalue.Value {
+func (g *Generator) generateTypeCast(tc *mir.TypeCast) llvalue.Value {
 	// Generate the source expression.
 	src := g.generateExpr(tc.SrcExpr)
 
-	// Extract the inner types we are converting between.
-	srcType := types.InnerType(tc.SrcExpr.Type())
-	destType := types.InnerType(tc.Type())
-
 	// If the two types are already equal, then no cast is needed: we can just
 	// return the source value.
-	if types.Equals(srcType, destType) {
+	if types.Equals(tc.SrcExpr.Type(), tc.DestType) {
 		return src
 	}
 
 	// Convert the destination type to its LLVM type.
-	destLLType := g.convInnerType(destType, false, false)
+	destLLType := g.convType(tc.DestType)
 
-	switch v := srcType.(type) {
+	switch v := tc.SrcExpr.Type().(type) {
 	case types.PrimitiveType:
-		return g.generatePrimTypeCast(src, v, destType.(types.PrimitiveType), destLLType)
+		return g.generatePrimTypeCast(src, v, tc.DestType.(types.PrimitiveType), destLLType)
 	case *types.PointerType:
 		// TODO: remove once it is no longer needed.
 		return g.block.NewBitCast(src, destLLType)
@@ -163,8 +140,15 @@ func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType ty
 						"llvm.fptoui.sat.%s.%s",
 						destLLType.LLString(),
 						src.Type().LLString(),
-					), destLLType, src.Type())
-				return g.callFunc(destType, intrinsic, src)
+					),
+					destLLType,
+					src.Type(),
+				)
+
+				return g.block.NewCall(
+					intrinsic,
+					src,
+				)
 			} else {
 				// float to signed int
 				intrinsic := g.getIntrinsic(
@@ -172,8 +156,15 @@ func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType ty
 						"llvm.fptosi.sat.%s.%s",
 						destLLType.LLString(),
 						src.Type().LLString(),
-					), destLLType, src.Type())
-				return g.callFunc(destType, intrinsic, src)
+					),
+					destLLType,
+					src.Type(),
+				)
+
+				return g.block.NewCall(
+					intrinsic,
+					src,
+				)
 			}
 		}
 	} else if srcType == types.PrimTypeBool {
@@ -188,11 +179,11 @@ func (g *Generator) generatePrimTypeCast(src llvalue.Value, srcType, destType ty
 /* -------------------------------------------------------------------------- */
 
 // generateBinaryOpApp generates a binary operator application.
-func (g *Generator) generateBinaryOpApp(bopApp *ast.BinaryOpApp) llvalue.Value {
+func (g *Generator) generateBinaryOpApp(bopApp *mir.BinaryOpApp) llvalue.Value {
 	lhs := g.generateExpr(bopApp.LHS)
 
 	// Handle short-circuiting binary operators.
-	switch bopApp.Op.Overload.IntrinsicName {
+	switch bopApp.OpName {
 	case "land":
 		// The LLVM IR for logical AND is roughly:
 		//
@@ -268,13 +259,13 @@ func (g *Generator) generateBinaryOpApp(bopApp *ast.BinaryOpApp) llvalue.Value {
 		}
 	}
 
-	return g.applyNonSSBinaryOp(bopApp.Op.Overload, lhs, g.generateExpr(bopApp.RHS))
+	return g.applyNonSSBinaryOp(bopApp.OpName, lhs, g.generateExpr(bopApp.RHS))
 }
 
 // applyNonSSBinaryOp applies a non-short-circuiting binary operator repreanted
 // by overload to lhs and rhs.
-func (g *Generator) applyNonSSBinaryOp(overload *common.OperatorOverload, lhs, rhs llvalue.Value) llvalue.Value {
-	switch overload.IntrinsicName {
+func (g *Generator) applyNonSSBinaryOp(opName string, lhs, rhs llvalue.Value) llvalue.Value {
+	switch opName {
 	case "iadd":
 		return g.block.NewAdd(lhs, rhs)
 	case "isub":
@@ -297,21 +288,17 @@ func (g *Generator) applyNonSSBinaryOp(overload *common.OperatorOverload, lhs, r
 		return g.block.NewICmp(enum.IPredSLE, lhs, rhs)
 	case "sgteq":
 		return g.block.NewICmp(enum.IPredSGE, lhs, rhs)
-	case "":
-		return g.block.NewCall(overload.LLValue, lhs, rhs)
 	default:
-		report.ReportICE("binary non-SS intrinsic codegen for `%s` not implemented", overload.IntrinsicName)
+		report.ReportICE("binary non-SS codegen for `%s` not implemented", opName)
 		return nil
 	}
 }
 
-/* -------------------------------------------------------------------------- */
-
 // generateUnaryOpApp generates a unary operator application.
-func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {
+func (g *Generator) generateUnaryOpApp(uopApp *mir.UnaryOpApp) llvalue.Value {
 	operand := g.generateExpr(uopApp.Operand)
 
-	switch uopApp.Op.Overload.IntrinsicName {
+	switch uopApp.OpName {
 	case "lnot", "compl":
 		{
 			// ~op == op ^ 0b111'1111
@@ -326,60 +313,15 @@ func (g *Generator) generateUnaryOpApp(uopApp *ast.UnaryOpApp) llvalue.Value {
 		return g.block.NewSub(constant.NewInt(operand.Type().(*lltypes.IntType), 0), operand)
 	case "fneg":
 		return g.block.NewFNeg(operand)
-	case "":
-		return g.callFunc(uopApp.Type(), uopApp.Op.Overload.LLValue, operand)
 	default:
 		report.ReportICE("unary intrinsic codegen not implemented")
 		return nil
 	}
 }
 
-// generateLiteral generates an LLVM literal.
-func (g *Generator) generateLiteral(lit *ast.Literal) llvalue.Value {
-	switch lit.Kind {
-	case syntax.TOK_RUNELIT:
-		return constant.NewInt(lltypes.I32, int64(lit.Value.(int32)))
-	case syntax.TOK_INTLIT:
-		return constant.NewInt(g.convType(lit.Type()).(*lltypes.IntType), lit.Value.(int64))
-	case syntax.TOK_FLOATLIT:
-		return constant.NewFloat(g.convType(lit.Type()).(*lltypes.FloatType), lit.Value.(float64))
-	case syntax.TOK_NUMLIT:
-		if types.InnerType(lit.Type()).(types.PrimitiveType).IsFloating() {
-			var fv float64
-			if _fv, ok := lit.Value.(float64); ok {
-				fv = _fv
-			} else {
-				fv = float64(uint64(lit.Value.(int64)))
-			}
+/* -------------------------------------------------------------------------- */
 
-			return constant.NewFloat(g.convType(lit.Type()).(*lltypes.FloatType), fv)
-		} else {
-			return constant.NewInt(g.convType(lit.Type()).(*lltypes.IntType), lit.Value.(int64))
-		}
-	case syntax.TOK_BOOLLIT:
-		return constant.NewBool(lit.Value.(bool))
-	default:
-		report.ReportICE("literal codegen not implemented")
-		return nil
-	}
-}
-
-// generateNullValue generates a LLVM null value.
-func (g *Generator) generateNullValue(typ types.Type) llvalue.Value {
-	switch v := types.InnerType(typ).(type) {
-	case types.PrimitiveType:
-		if v.IsFloating() {
-			return constant.NewFloat(g.convPrimType(v, false).(*lltypes.FloatType), 0)
-		} else if v == types.PrimTypeUnit {
-			return constant.NewStruct(lltypes.NewStruct())
-		} else {
-			// All other primitives compile as int constants.
-			return constant.NewInt(g.convPrimType(v, false).(*lltypes.IntType), 0)
-		}
-	case *types.PointerType:
-		return constant.NewNull(g.convInnerType(v, false, false).(*lltypes.PointerType))
-	}
-
-	report.ReportICE("null codegen not implemented")
+// generateFuncCall generates a function call.
+func (g *Generator) generateFuncCall(call *mir.FuncCall) llvalue.Value {
 	return nil
 }
