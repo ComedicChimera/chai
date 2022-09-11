@@ -3,6 +3,7 @@
 **Table of Contents**
 
 - [What is a Struct?](#struct-intro)
+- [Value Semantics](#value-semantics)
 - [Spread Initialization](#spread-init)
 - [Default Initializer](#default-init)
 - [Composite Structs](#composite-structs)
@@ -63,6 +64,8 @@ we did with parameters).
         x, y: i64;
     }
 
+### Struct Literals
+
 So then, how do we use this new data structure we have created?  We can start by
 creating a `Vec2` using a **struct literal**:
 
@@ -75,6 +78,15 @@ fields in the struct.
 We can leave some fields empty if we want them to just assume their null values.
 
     let v = Vec2{x=6};  // y = 0
+
+You can also specify field values positionally like so:
+
+    let r = Vec2{2, 3};
+
+This is generally not recommended as it can make it difficult to determine what
+fields are being specified.
+
+### Accessing Fields with the Dot Operator
 
 We can access these fields using the `.` operator followed by the name of the
 field.
@@ -100,9 +112,78 @@ Now, we can call it just like any normal function:
 
     Println(w.x, w.y);  // Prints `8 13`.
 
+## <a name="value-semantics"/> Value Semantics
+
+Unlike some programming languages, structs in Chai obey strict
+**value semantics**.  In essence, this means that structs behave like discrete
+values rather than as references to data.  
+
+To understand what this means, let's consider a simple example
+using our `Vec2` struct from before.
+
+    let u = Vec2{x=10, y=12}
+    let v = u;
+
+    v.x++;
+
+    Println(u.x); 
+    Println(v.x);
+
+To some, the behavior here might seem obvious: the first `Println` call will
+print `10` and the second will print `11`.  If you run this program, you will
+see that this is indeed what happens.
+
+However, if you are coming from a language like Java or Python, you might expect
+both values to be `11`.  This assumption is incorrect.  The reason is value
+semantics.
+
+In this context, because structs obey value semantics, the struct `v` is explicitly
+created as a copy of `u` rather than as a reference to the same data as `u`.  
+
+This behavior is what we mean by "structs behave like values".  It is identical
+to the situation where you create an integer variable using another integer variable's
+value, you wouldn't expect changing one of the variables to affect the other's value.
+This is because you are thinking of integers as values.  
+
+Value semantics are critical but very intuitive part of Chai.  They are really
+so simple that in another world this section wouldn't be needed.  Unfortunately,
+many modern languages, especially object-oriented ones, have muddied the waters
+by conflating structs with objects and introducing unpredictable reference
+semantics.  So, this section is needed to avoid any confusion from programmers
+coming from those languages.
+
 ## <a name="spread-init"/> Spread Initialization
 
-TODO
+Often, we want to be able to create structs inline from other structs we have already
+created.  For example, consider we have the struct:
+
+    struct User {
+        id: i64;
+        name: string;
+        age: i32;
+        email: string;
+    }
+
+What if we wanted to create a copy of that user with a different `id`?  Normally,
+we would need to do something like:
+
+    let userCopy = oldUser;
+    userCopy.id = newID;
+
+This is fine for this simple example but can be really tedious when we need to
+do this with many structs at once or with many different fields.  
+
+Luckily, Chai offers a more concise solution to this problem: 
+**spread initialization**. Spread initialization allows you to create new struct
+while populating all the fields you don't specify with the values from a
+previous struct.  Using spread initialization, we can condense the previous two
+lines of code into one:
+
+    let userCopy = User{...oldUser, id=newID};
+
+As you can see, the syntax is quite easy: simply write a regular struct literal
+where the first entry is `...` followed by the struct you want to use for spread
+initialization.
 
 ## <a name="default-init"/> Default Initializers
 

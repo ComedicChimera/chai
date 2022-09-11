@@ -45,7 +45,8 @@ This tutorial will be hosted online for free.
 	5.7. Inheritance
 	5.8. Virtual Functions
 	5.9. Class Objects
-6. First Class Functions
+	5.10. Explicit Value Semantics
+1. First Class Functions
 	6.1. Functions as Values
 	6.2. Lambdas
 	6.3. Closures
