@@ -4,6 +4,8 @@ This document outlines the planned chapter progression for the Chai book.  This 
 This tutorial will be hosted online for free.
 
 ```
+Introduction
+Setting Up Chai
 1. The Basics
 	1.1. Hello World
 	1.2. Numbers, Types, and Arithmetic
@@ -12,8 +14,7 @@ This tutorial will be hosted online for free.
 	1.5. Functions
 	1.6. String Essentials
 	1.7. Structs
-	1.8. Operator Definitions
-	1.9. Package Structure
+	1.8. Package Structure
 2. Pointers and Arrays 
 	2.1. What is a Pointer?
 	2.2. Dynamic Allocation
@@ -32,114 +33,88 @@ This tutorial will be hosted online for free.
 	4.1. Function Generics
 	4.2. Type Generics
 	4.3. Constraints
-	4.4. Operator Classes
-	4.5. Variadic Generics
-	4.6. Generic Control Flow
-5. Spaces and Classes
+	4.4. Variadic Generics
+	4.5. Generic Control Flow
+5. Function Spaces
 	5.1. Function Spaces
 	5.2. Associated Functions
 	5.3. Property Methods
-	5.4. Generic Subspaces
-	5.5. Synthetic Types
-	5.6. Type Classes
-	5.7. Inheritance
-	5.8. Virtual Functions
-	5.9. Class Objects
-	5.10. Explicit Value Semantics
-1. First Class Functions
-	6.1. Functions as Values
-	6.2. Lambdas
-	6.3. Closures
-	6.4. Partial Application
-	6.5. Operator Functions 
-7. Monads and Contexts
-	7.1. Option and Result
-	7.2. Concise Error Handling
-	7.3. Generalizing to Monads
-	7.4. Dominance and Virality
-	7.5. The Monad Type Class
-	7.6. Monadic Contexts
-8. Sequences and Collections
-	8.1. Lists
-	8.2. Maps
-	8.3. Iterators and Sequences
-	8.4. Loop Pattern Matching
-	8.5. Sequence Methods
-	8.6. String Utilities
-	8.7. Custom Sequences
-	8.8. Custom Collections
-	8.9. Monadic Transforms
-9. Packages and Imports
-	9.1. Import Statements
-	9.2. Package Path Resolution
-	9.3. Importing Operators
-	9.4. Importing Function Spaces
-	9.5. Building with Kettle
-	9.6. Using Community Packages
-10. The IO Model
-	10.1. Introduction to Files
-	10.2. The Defer Statement
-	10.3. Readers, Writers, and Streams
-	10.4. Formatted I/O
-	10.5. Working with the File System
-11. Concurrency
-12. Processes
-13. Network Programming
-14. System Binding
-15. Reflection and Metaprogramming
-16. Testing and Benchmarking
-
+	5.4. Operator Methods
+	5.5. Generic Subspaces
+	5.6. Synthetic Types
+6. Type Classes
+	6.1. Type Classes
+	6.2. Inheritance
+	6.3. Virtual Functions
+	6.4. Class Objects
+	6.5. Explicit Value Semantics
+7. First Class Functions
+	7.1. Functions as Values
+	7.2. Lambdas
+	7.3. Closures
+	7.4. Partial Application
+8. Monads and Contexts
+	8.1. Option and Result
+	8.2. Concise Error Handling
+	8.3. Generalizing to Monads
+	8.4. Dominance and Virality
+	8.5. The Monad Type Class
+	8.6. Monadic Contexts
+9. Sequences and Collections
+	9.1. Lists
+	9.2. Maps
+	9.3. Iterators and Sequences
+	9.4. Loop Pattern Matching
+	9.5. Sequence Methods
+	9.6. String Utilities
+	9.7. Custom Sequences
+	9.8. Custom Collections
+	9.9. Monadic Transforms
+10. Packages and Imports
+	10.1. Import Statements
+	10.2. Package Path Resolution
+	10.3. Importing Function Spaces
+	10.4. Building with Kettle
+	10.5. Using Community Packages
+11. The IO Model
+	11.1. Introduction to Files
+	11.2. The Defer Statement
+	11.3. Readers, Writers, and Streams
+	11.4. Formatted I/O
+	11.5. Working with the File System
+12. System Interfacing
+    12.1. Static Linking
+	12.2. Dynamic Linking
+	12.3. Conditional Compilation
+	12.4. Unsafe Operations
+	12.5. C Binding
+	12.6. Flagged Environments
+13. Logging, Testing, and Benchmarking
+    13.1. Configuring a Logger
+	13.2. Automatic Logging
+	13.3. Writing Unit Tests
+	13.4. Creating a Test Suite
+	13.5. Timing Code
+	13.6. Holistic Benchmarking
+	13.7. Basic CI/CD Configuration
+14. Concurrency
+    14.1. Strands
+	14.2. Synchonization
+	14.3. Communication
+	14.4. Coordination
+	14.5. Events
+15. Network Programming
+    15.1. Sockets
+	15.2. Making HTTP Requests
+	15.3. Working with HTML
+	15.4. Setting Up an HTTP Server
+	15.5. Working with JSON
+	15.6. Basic Network Security
+16. Reflection
+	16.1. Introduction to Reflection
+	16.2. Inspecting Type Information
+	16.3. Reflective Function Invocation
+	16.4. Custom Annotations
+	16.5. Struct Field Annotations
+Where to next?
 ```
-
-*Note: The plan is the reorganize the content below into the chapter structure defined above*.
-
-1. Introduction
-2. The Basics
-3. Control Flow
-4. Functions
-5. Arrays
-6. Strings
-7. Lists and Maps
-8. Comprehensions
-9. Structures
-10. Pointers
-11. Pattern Matching
-12. Enums
-13. Error Handling
-14. Function Spaces
-15. Generics
-16. Variadics
-17. Type Classes
-18. Virtual Functions
-19. Dynamic Dispatch
-20. Generic Control Flow
-21. Lambdas and Closures
-22. Monads and Contexts
-23. Sequence Operations
-24. Collections
-25. Operator Overloading
-26. Partial Application
-27. Compile-Time Evaluation
-28. Packages and Imports
-29. Building with Kettle
-30. File I/O
-31. Serialization
-32. JSON Parsing
-33. Concurrency I: Strands
-34. Concurrency II: Synchonization
-35. Concurrency III: Communication
-36. Concurrency IV: Coordination
-37. Concurrency V: Events
-38. Networking I: Sockets
-39. Networking II: HTTP Clients
-40. Networking III: HTTP Servers
-41. Networking IV: Basic Security
-42. Networking V: Working with HTML
-43. Testing and Logging
-44. Working with Processes
-45. System Interfacing I: Static Linking
-46. System Interfacing II: Dynamic Linking
-47. System Interfacing III: Conditional Compilation
-48. System Interfacing IV: C Binding
-49. System Interfacing V: Unsafe Operations
-50. Reflection
