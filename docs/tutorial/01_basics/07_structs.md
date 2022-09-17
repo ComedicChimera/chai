@@ -5,7 +5,7 @@
 - [What is a Struct?](#struct-intro)
 - [Value Semantics](#value-semantics)
 - [Spread Initialization](#spread-init)
-- [Default Initializer](#default-init)
+- [Mull Values and Default Initializers](#default-init)
 - [Composite Structs](#composite-structs)
 - [Exercises](#exercises)
 
@@ -79,7 +79,7 @@ We can leave some fields empty if we want them to just assume their null values.
 
     let v = Vec2{x=6};  // y = 0
 
-You can also specify field values positionally like so:
+We can also specify field values positionally like so:
 
     let r = Vec2{2, 3};
 
@@ -174,24 +174,122 @@ This is fine for this simple example but can be really tedious when we need to
 do this with many structs at once or with many different fields.  
 
 Luckily, Chai offers a more concise solution to this problem: 
-**spread initialization**. Spread initialization allows you to create new struct
-while populating all the fields you don't specify with the values from a
+**spread initialization**. Spread initialization allows us to create new struct
+while populating all the fields we don't specify with the values from a
 previous struct.  Using spread initialization, we can condense the previous two
 lines of code into one:
 
     let userCopy = User{...oldUser, id=newID};
 
 As you can see, the syntax is quite easy: simply write a regular struct literal
-where the first entry is `...` followed by the struct you want to use for spread
+where the first entry is `...` followed by the struct we want to use for spread
 initialization.
 
-## <a name="default-init"/> Default Initializers
+## <a name="default-init"/> Null Values and Default Initializers
 
-TODO
+Structs, like numbers, have a null value associated with them which represents
+the default value of that struct.  For structs, the null value is always equivalent
+to a struct literal with no specified fields.  For example, the null value for our
+`Vec2` struct is always equivalent to `Vec2{}`.  
+
+We can create a "null" struct using a simple variable declaration:
+
+    let zero: Vec2;
+
+We can also access the null value explicitly using the special value `null`.
+
+    let zero: Vec2 = null;
+
+However, you must be very careful when using this syntax as if you don't make
+the type obvious to the compiler, you will get an error.
+
+By default, all fields in a struct which are not explicitly initialized will be
+given their null value.  For example, if we have a struct `v2` initialized like
+so:
+
+    let v2 = Vec2{x=2};
+
+The `y` field of `v2` will default to the value zero.  
+
+We can change the value a field defaults to using a **default initializer**.
+Default initializers are specified in the struct definition as initializers on
+the fields that we want to set a specific default value for. 
+
+    struct User {
+        // Default initializer for `id`.
+        id: i64 = getNewUserID();
+        
+        name, email: string;
+        age: i32;
+    }
+
+Notice that these initializers look just like variable initializers, but, in
+constrast to variables, you must *always* specify the type of a struct field
+even if you provide an initializer.
+
+Now, when we create a new `User` struct, the `id` field will default to whatever
+value is returned by `getNewUserID`.  
+
+One very important thing to mention is that the initializers are run each time
+the struct is initialized *NOT* once at the beginning of the program.  This
+means that the `getNewUserID` function will be called *every time* the struct is
+initialized without a specified value for `id`.
 
 ## <a name="composite-structs"/> Composite Structs
 
-TODO
+Structs can be created from other structs via mechanism known as
+**struct composition**.  Such structs are called **composite structs**.
+
+To create a composite struct, we first need "base" struct to build our
+composite struct from:
+
+    struct Entity {
+        position: Vec2;
+        dimensions: Vec2;
+        health: i64 = 10;
+    }
+
+`Entity` will be our base struct.  We can then use our `Entity` struct to
+create other more specific kinds of Entity using struct composition.
+
+We can denote a composite struct by first placing a colon after its name
+followed by the struct we want to act as its base.
+
+    struct MovingEntity : Entity {
+        velocity: Vec2;
+    }
+
+The struct `MovingEntity` is now a composite struct deriving from `Entity`. This
+means that `MovingEntity` has *all* of the fields of `Entity` in addition to the
+fields it explicitly declares.
+
+    let me = MovingEntity{position=Vec2{2, 3}, velocity=Vec2{5, 0}};
+
+    Println(me.position.x, me.velocity.x);
+
+It is also possible to have multiple base structs by listing multiple bases after
+the colon separated by commas:
+
+    struct A {
+        a: string;
+    }
+
+    struct B {
+        b: i64;
+    }
+
+    // AB also has fields `a` and `b` from its parent structs.
+    struct AB : A, B {
+        c: f64;
+        d: string;
+    }
+
+Composite structs are *not* interchangable for their parent structs: you can't use
+a `MovingEntity` in place of an `Entity` or vice versa.  
+
+> Much later on, we will look ways you can achieve traditional OOP-style
+> "inheritance", where the child can be passed as an instance of the parent,
+> using something called a class object.
 
 ## <a name="exercises"> Exercises
 

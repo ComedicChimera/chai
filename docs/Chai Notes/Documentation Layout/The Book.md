@@ -5,7 +5,6 @@ This tutorial will be hosted online for free.
 
 ```
 Introduction
-Setting Up Chai
 1. The Basics
 	1.1. Hello World
 	1.2. Numbers, Types, and Arithmetic
