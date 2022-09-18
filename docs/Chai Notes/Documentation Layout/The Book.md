@@ -14,13 +14,11 @@ Introduction
 	1.6. String Essentials
 	1.7. Structs
 	1.8. Package Structure
-2. Pointers and Arrays 
-	2.1. What is a Pointer?
-	2.2. Dynamic Allocation
-	2.3. Constant Pointers
-	2.4. Arrays and For Loops
-	2.5. Views and Slicing
-	2.6. Array Operations on Strings
+2. Dynamic Memory 
+	2.1. Pointers
+	2.2. Arrays and For Loops
+	2.3. Slicing
+	2.4. Array Operations on Strings
 3. Pattern Matching
 	3.1. Tuples
 	3.2. The Match Statement
