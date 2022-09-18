@@ -119,31 +119,6 @@ func (p *Parser) defineGlobalSymbol(sym *common.Symbol) {
 	}
 }
 
-// defineOperatorOverload defines a new global operator overload.  This does not
-// check for collisions.
-func (p *Parser) defineOperatorOverload(opKind int, opRepr string, arity int, overload *common.OperatorOverload) {
-	// Acquire and release the table lock.
-	p.chFile.Parent.TableMutex.Lock()
-	defer p.chFile.Parent.TableMutex.Unlock()
-
-	// Define the global operator creating new entries as necessary.
-	if operators, ok := p.chFile.Parent.OperatorTable[opKind]; ok {
-		for _, operator := range operators {
-			if operator.Arity == arity {
-				operator.Overloads = append(operator.Overloads, overload)
-				return
-			}
-		}
-	}
-
-	p.chFile.Parent.OperatorTable[opKind] = append(p.chFile.Parent.OperatorTable[opKind], &common.Operator{
-		Kind:      opKind,
-		OpRepr:    opRepr,
-		Arity:     arity,
-		Overloads: []*common.OperatorOverload{overload},
-	})
-}
-
 // newOpaqueType creates a new opaque type reference.
 func (p *Parser) newOpaqueType(name string, span *report.TextSpan) *types.OpaqueType {
 	otype := &types.OpaqueType{

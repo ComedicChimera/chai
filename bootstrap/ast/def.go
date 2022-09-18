@@ -31,29 +31,6 @@ type FuncDef struct {
 	Annotations map[string]AnnotValue
 }
 
-// -----------------------------------------------------------------------------
-
-// The AST node representing an operator definition.
-type OperDef struct {
-	ASTBase
-
-	// The representative string for the operator being overloaded.
-	OpRepr string
-
-	// The operator overload defined by this definition.
-	Overload *common.OperatorOverload
-
-	// The parameters to the operator overload function.
-	Params []*common.Symbol
-
-	// The body of the operator overload function.  This may be nil if the
-	// function has no body.
-	Body ASTNode
-
-	// The operator function's annotations.
-	Annotations map[string]AnnotValue
-}
-
 /* -------------------------------------------------------------------------- */
 
 // StructDef represents a structure definition.

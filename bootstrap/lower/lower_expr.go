@@ -2,7 +2,6 @@ package lower
 
 import (
 	"chaic/ast"
-	"chaic/common"
 	"chaic/mir"
 	"chaic/report"
 	"chaic/syntax"
@@ -19,31 +18,31 @@ func (l *Lowerer) lowerExpr(expr ast.ASTExpr) mir.Expr {
 			DestType: types.Simplify(v.Type()),
 		}
 	case *ast.BinaryOpApp:
-		return l.buildBinaryOpApp(
-			v.Span(),
-			v.Op,
-			l.lowerExpr(v.LHS),
-			l.lowerExpr(v.RHS),
-			types.Simplify(v.Type()),
-		)
+		// return l.buildBinaryOpApp(
+		// 	v.Span(),
+		// 	v.Op,
+		// 	l.lowerExpr(v.LHS),
+		// 	l.lowerExpr(v.RHS),
+		// 	types.Simplify(v.Type()),
+		// )
 	case *ast.UnaryOpApp:
-		if v.Op.Overload.IntrinsicName == "" {
-			return &mir.FuncCall{
-				ExprBase: mir.NewExprBase(v.Span()),
-				Func: &mir.Identifier{
-					ExprBase: mir.NewExprBase(v.Op.Span),
-					Symbol:   v.Op.Overload.MIRSymbol,
-				},
-				Args: []mir.Expr{l.lowerExpr(v.Operand)},
-			}
-		} else {
-			return &mir.UnaryOpApp{
-				ExprBase:   mir.NewExprBase(v.Span()),
-				OpName:     v.Op.Overload.IntrinsicName,
-				Operand:    l.lowerExpr(v.Operand),
-				ResultType: types.Simplify(v.Type()),
-			}
-		}
+		// if v.Op.Overload.IntrinsicName == "" {
+		// 	return &mir.FuncCall{
+		// 		ExprBase: mir.NewExprBase(v.Span()),
+		// 		Func: &mir.Identifier{
+		// 			ExprBase: mir.NewExprBase(v.Op.Span),
+		// 			Symbol:   v.Op.Overload.MIRSymbol,
+		// 		},
+		// 		Args: []mir.Expr{l.lowerExpr(v.Operand)},
+		// 	}
+		// } else {
+		// 	return &mir.UnaryOpApp{
+		// 		ExprBase:   mir.NewExprBase(v.Span()),
+		// 		OpName:     v.Op.Overload.IntrinsicName,
+		// 		Operand:    l.lowerExpr(v.Operand),
+		// 		ResultType: types.Simplify(v.Type()),
+		// 	}
+		// }
 	case *ast.PropertyAccess:
 		return l.lowerPropAccess(v)
 	case *ast.FuncCall:
@@ -84,26 +83,26 @@ func (l *Lowerer) lowerExpr(expr ast.ASTExpr) mir.Expr {
 /* -------------------------------------------------------------------------- */
 
 // buildBinaryOpApp lowers a binary operator application.
-func (l *Lowerer) buildBinaryOpApp(span *report.TextSpan, op *common.AppliedOperator, lhs, rhs mir.Expr, resultType types.Type) mir.Expr {
-	if op.Overload.IntrinsicName == "" {
-		return &mir.FuncCall{
-			ExprBase: mir.NewExprBase(span),
-			Func: &mir.Identifier{
-				ExprBase: mir.NewExprBase(op.Span),
-				Symbol:   op.Overload.MIRSymbol,
-			},
-			Args: []mir.Expr{lhs, rhs},
-		}
-	} else {
-		return &mir.BinaryOpApp{
-			ExprBase:   mir.NewExprBase(span),
-			OpName:     op.Overload.IntrinsicName,
-			LHS:        lhs,
-			RHS:        rhs,
-			ResultType: resultType,
-		}
-	}
-}
+// func (l *Lowerer) buildBinaryOpApp(span *report.TextSpan, op *common.AppliedOperator, lhs, rhs mir.Expr, resultType types.Type) mir.Expr {
+// 	if op.Overload.IntrinsicName == "" {
+// 		return &mir.FuncCall{
+// 			ExprBase: mir.NewExprBase(span),
+// 			Func: &mir.Identifier{
+// 				ExprBase: mir.NewExprBase(op.Span),
+// 				Symbol:   op.Overload.MIRSymbol,
+// 			},
+// 			Args: []mir.Expr{lhs, rhs},
+// 		}
+// 	} else {
+// 		return &mir.BinaryOpApp{
+// 			ExprBase:   mir.NewExprBase(span),
+// 			OpName:     op.Overload.IntrinsicName,
+// 			LHS:        lhs,
+// 			RHS:        rhs,
+// 			ResultType: resultType,
+// 		}
+// 	}
+// }
 
 // lowerPropAccess lowers an AST property access.
 func (l *Lowerer) lowerPropAccess(prop *ast.PropertyAccess) mir.Expr {

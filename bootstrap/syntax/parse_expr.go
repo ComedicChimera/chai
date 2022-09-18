@@ -2,7 +2,6 @@ package syntax
 
 import (
 	"chaic/ast"
-	"chaic/common"
 	"chaic/report"
 	"chaic/types"
 	"chaic/util"
@@ -58,15 +57,16 @@ func (p *Parser) parseLeftAssocBinOpExpr(predLevel int) ast.ASTExpr {
 
 		for util.Contains(predTable[predLevel], p.tok.Kind) {
 			opTok := p.tok
+			_ = opTok
 			p.next()
 
 			rhs := p.parseLeftAssocBinOpExpr(predLevel + 1)
 
 			lhs = &ast.BinaryOpApp{
 				ExprBase: ast.NewExprBase(report.NewSpanOver(lhs.Span(), rhs.Span())),
-				Op:       newAppliedOper(opTok),
-				LHS:      lhs,
-				RHS:      rhs,
+				// Op:       newAppliedOper(opTok),
+				LHS: lhs,
+				RHS: rhs,
 			}
 		}
 
@@ -81,6 +81,7 @@ func (p *Parser) parseCompOpExpr() ast.ASTExpr {
 
 	for util.Contains(predTable[compOpPredLevel], p.tok.Kind) {
 		opTok := p.tok
+		_ = opTok
 		p.next()
 
 		rhs := p.parseLeftAssocBinOpExpr(compOpPredLevel + 1)
@@ -88,25 +89,25 @@ func (p *Parser) parseCompOpExpr() ast.ASTExpr {
 		if prevOperand == nil {
 			lhs = &ast.BinaryOpApp{
 				ExprBase: ast.NewExprBase(report.NewSpanOver(lhs.Span(), rhs.Span())),
-				Op:       newAppliedOper(opTok),
-				LHS:      lhs,
-				RHS:      rhs,
+				// Op:       newAppliedOper(opTok),
+				LHS: lhs,
+				RHS: rhs,
 			}
 		} else {
 			rhs = &ast.BinaryOpApp{
 				ExprBase: ast.NewExprBase(report.NewSpanOver(prevOperand.Span(), rhs.Span())),
-				Op:       newAppliedOper(opTok),
-				LHS:      prevOperand,
-				RHS:      rhs,
+				// Op:       newAppliedOper(opTok),
+				LHS: prevOperand,
+				RHS: rhs,
 			}
 
 			lhs = &ast.BinaryOpApp{
 				ExprBase: ast.NewExprBase(report.NewSpanOver(lhs.Span(), rhs.Span())),
-				Op: &common.AppliedOperator{
-					Kind:   TOK_LAND,
-					OpRepr: "&&",
-					Span:   report.NewSpanOver(lhs.Span(), rhs.Span()),
-				},
+				// Op: &common.AppliedOperator{
+				// 	Kind:   TOK_LAND,
+				// 	OpRepr: "&&",
+				// 	Span:   report.NewSpanOver(lhs.Span(), rhs.Span()),
+				// },
 				LHS: lhs,
 				RHS: rhs,
 			}
@@ -140,9 +141,9 @@ func (p *Parser) parsePowerOpExpr() ast.ASTExpr {
 
 		rhs = &ast.BinaryOpApp{
 			ExprBase: ast.NewExprBase(report.NewSpanOver(lhs.Span(), rhs.Span())),
-			Op:       newAppliedOper(opTokens[i]),
-			LHS:      lhs,
-			RHS:      rhs,
+			// Op:       newAppliedOper(opTokens[i]),
+			LHS: lhs,
+			RHS: rhs,
 		}
 	}
 
@@ -161,8 +162,8 @@ func (p *Parser) parseUnaryExpr() ast.ASTExpr {
 
 		return &ast.UnaryOpApp{
 			ExprBase: ast.NewExprBase(report.NewSpanOver(opTok.Span, operand.Span())),
-			Op:       newAppliedOper(opTok),
-			Operand:  operand,
+			// Op:       newAppliedOper(opTok),
+			Operand: operand,
 		}
 	case TOK_STAR:
 		p.next()
@@ -365,10 +366,10 @@ func (p *Parser) parseAtom() ast.ASTExpr {
 // -----------------------------------------------------------------------------
 
 // newAppliedOper creates a new applied operator from the given token.
-func newAppliedOper(tok *Token) *common.AppliedOperator {
-	return &common.AppliedOperator{
-		Kind:   tok.Kind,
-		OpRepr: tok.Value,
-		Span:   tok.Span,
-	}
-}
+// func newAppliedOper(tok *Token) *common.AppliedOperator {
+// 	return &common.AppliedOperator{
+// 		Kind:   tok.Kind,
+// 		OpRepr: tok.Value,
+// 		Span:   tok.Span,
+// 	}
+// }

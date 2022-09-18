@@ -12,12 +12,18 @@ func Equals(a, b Type) bool {
 // essentially just wrap other types, this method is useful.
 func InnerType(typ Type) Type {
 	switch v := typ.(type) {
-	case *TypeVariable:
+	case *UntypedNull:
 		if v.Value == nil {
 			return v
 		}
 
 		return InnerType(v.Value)
+	case *UntypedNumber:
+		if v.Value == nil {
+			return v
+		}
+
+		return v.Value
 	case *OpaqueType:
 		if v.Value == nil {
 			return v

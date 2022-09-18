@@ -14,7 +14,6 @@ func (l *Lowerer) lowerDef(def ast.ASTNode) {
 	switch v := def.(type) {
 	case *ast.FuncDef:
 		l.lowerFuncDef(v)
-	case *ast.OperDef:
 	case *ast.StructDef:
 	default:
 		report.ReportICE("lowering not implemented for definition")

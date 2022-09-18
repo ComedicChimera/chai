@@ -74,7 +74,7 @@ type BinaryOpApp struct {
 	ExprBase
 
 	// The operator application.
-	Op *common.AppliedOperator
+	// Op *common.AppliedOperator
 
 	// The LHS operand.
 	LHS ASTExpr
@@ -88,7 +88,7 @@ type UnaryOpApp struct {
 	ExprBase
 
 	// The operator application.
-	Op *common.AppliedOperator
+	// Op *common.AppliedOperator
 
 	// The operand.
 	Operand ASTExpr

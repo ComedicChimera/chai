@@ -1,223 +1,139 @@
 package types
 
-// unifyResult represents the complex result of a unification.
-type unifyResult struct {
-	// Whether or not the unification was successful.
-	Unified bool
+import (
+	"chaic/util"
+	"fmt"
+	"strings"
+)
 
-	// The map of the IDS of substitution nodes visited during unification
-	// associated with whether they should be pruned once the equivalency
-	// assertion which causes unification completes (true => prune).
-	Visited map[uint64]bool
+// Unify attempts to make two types equal.  It returns whether or not it was
+// successful. This function may make any untyped that are passed into it
+// concrete!
+func Unify(lhs, rhs Type) bool {
+	lhs = InnerType(lhs)
+	rhs = InnerType(rhs)
 
-	// The set of IDs of nodes that we given substitutions by this unification.
-	Completes map[uint64]struct{}
-}
-
-// newUnifyResult creates a new unify result with the given unified status.
-func newUnifyResult(unified bool) *unifyResult {
-	return &unifyResult{
-		Unified:   unified,
-		Visited:   make(map[uint64]bool),
-		Completes: make(map[uint64]struct{}),
-	}
-}
-
-// Both combines two unification results in such a way that both must hold
-// true in order for the yielded unification to hold true.
-func (ur *unifyResult) Both(other *unifyResult) {
-	ur.Unified = ur.Unified && other.Unified
-
-	for k, ov := range other.Visited {
-		if v, ok := ur.Visited[k]; ok {
-			ur.Visited[k] = v || ov
-		} else {
-			ur.Visited[k] = ov
+	if run, ok := rhs.(*UntypedNull); ok {
+		// Null is still not concrete so it just assumes the value of the LHS.
+		// This always works because even if the LHS is not concrete the two
+		// types are equivalent so `InnerType` handles nulls recursively.
+		run.Value = lhs
+		return true
+	} else if run, ok := rhs.(*UntypedNumber); ok {
+		// Check for two untyped numbers unified against each other.
+		if lun, ok := lhs.(*UntypedNumber); ok {
+			return unifyUntypedNumbers(lun, run)
+		} else if _, ok := lhs.(*UntypedNull); !ok {
+			// Handle a concrete LHS.
+			return unifyUntypedNumberWithConcrete(run, lhs)
 		}
 	}
 
-	for k := range other.Completes {
-		ur.Completes[k] = struct{}{}
-	}
-}
-
-// Either combines two unification results in such a way that either unification
-// can hold true for the yielded unification result to hold true.
-func (ur *unifyResult) Either(other *unifyResult) {
-	ur.Unified = ur.Unified || other.Unified
-
-	for k, ov := range other.Visited {
-		if v, ok := ur.Visited[k]; ok {
-			ur.Visited[k] = v && ov
-		} else {
-			ur.Visited[k] = ov
-		}
-	}
-
-	for k := range ur.Completes {
-		if _, ok := other.Completes[k]; !ok {
-			delete(ur.Completes, k)
-		}
-	}
-}
-
-/* -------------------------------------------------------------------------- */
-
-// unify attempts two make two types equal by substitution.  If a root node is
-// given, (ie. is not nil), then this equality must be contingent upon the given
-// root substitution node holding.
-func (s *Solver) unify(root *subNode, lhs, rhs Type) *unifyResult {
-	// Check for right-hand type variables since we type switch down the left.
-	if rtv, ok := rhs.(*TypeVariable); ok {
-		// Make sure we don't unify a type variable with itself.
-		if ltv, ok := lhs.(*TypeVariable); ok {
-			if ltv.ID == rtv.ID {
-				return newUnifyResult(true)
-			}
-		}
-
-		return s.unifyTypeVar(root, rtv, lhs)
-	}
-
-	// From here on, RHS can never be a type variable.
-
-	// Match the shape of the types first.
 	switch v := lhs.(type) {
-	case *TypeVariable:
-		return s.unifyTypeVar(root, v, rhs)
+	case *UntypedNumber:
+		// We know the RHS is concrete so we can just do concrete unification.
+		return unifyUntypedNumberWithConcrete(v, rhs)
+	case *UntypedNull:
+		// Null is still not concrete so it just assumes the value of the RHS.
+		v.Value = rhs
+		return true
 	case *PointerType:
-		if rpt, ok := rhs.(*PointerType); ok && v.Const == rpt.Const {
-			return s.unify(root, v.ElemType, rpt.ElemType)
-		}
-	case *FuncType:
-		if rft, ok := rhs.(*FuncType); ok && len(v.ParamTypes) == len(rft.ParamTypes) {
-			var result *unifyResult
-			for i, paramType := range v.ParamTypes {
-				presult := s.unify(root, paramType, rft.ParamTypes[i])
-
-				if i == 0 {
-					result = presult
-				} else {
-					result.Both(presult)
-				}
-
-				if !result.Unified {
-					return result
-				}
-			}
-
-			if result == nil {
-				return s.unify(root, v.ReturnType, rft.ReturnType)
-			} else {
-				result.Both(s.unify(root, v.ReturnType, rft.ReturnType))
-				return result
-			}
+		if rpt, ok := rhs.(*PointerType); ok {
+			return v.Const == rpt.Const && Unify(v.ElemType, rpt.ElemType)
 		}
 	case *TupleType:
-		if rtt, ok := rhs.(*TupleType); ok && len(v.ElementTypes) == len(rtt.ElementTypes) {
-			var result *unifyResult
-			for i, elemType := range v.ElementTypes {
-				eresult := s.unify(root, elemType, rtt.ElementTypes[i])
+		if rtt, ok := rhs.(*TupleType); ok {
+			if len(v.ElementTypes) != len(rtt.ElementTypes) {
+				return false
+			}
 
-				if i == 0 {
-					result = eresult
-				} else {
-					result.Both(eresult)
+			for i, elemType := range v.ElementTypes {
+				if !Unify(elemType, rtt.ElementTypes[i]) {
+					return false
 				}
 			}
 
-			return result
+			return true
 		}
-	case *StructType:
-		if rst, ok := rhs.(*StructType); ok {
-			return newUnifyResult(v.name == rst.name && v.parentID == rst.parentID)
+	case *FuncType:
+		if rft, ok := rhs.(*FuncType); ok {
+			if len(v.ParamTypes) != len(rft.ParamTypes) {
+				return false
+			}
+
+			for i, paramType := range v.ParamTypes {
+				if !Unify(paramType, rft.ParamTypes[i]) {
+					return false
+				}
+			}
+
+			return Unify(v.ReturnType, rft.ReturnType)
 		}
-	case PrimitiveType:
-		if rpt, ok := rhs.(PrimitiveType); ok {
-			return newUnifyResult(v == rpt)
-		}
+	default:
+		return lhs.equals(rhs)
 	}
 
-	// Default to false if the shapes don't match.
-	return newUnifyResult(false)
+	return false
 }
 
-// unifyTypeVar attempts to make a type variable equal to the given type by
-// substitution.  If a root node is given (ie. is not nil), then this equality
-// must be contingent upon the given root substitution node holding.
-func (s *Solver) unifyTypeVar(root *subNode, tvar *TypeVariable, typ Type) *unifyResult {
-	tnode := s.typeVarNodes[tvar.ID]
+// unifyUntypedNumbers tries unify two undetermined untyped numbers.
+func unifyUntypedNumbers(a, b *UntypedNumber) bool {
+	// If the two types have same display name, then we can skip combining
+	// their possible types since they must be the same type.
+	if a.DisplayName == b.DisplayName {
+		a.Value = b
+		return true
+	} else {
+		// Find all the possible types the two untyped numbers have in common.
+		var commonTypes []PrimitiveType
 
-	// Mark the type variable node as used.
-	s.usedTypeVars[tnode.Var.ID] = tnode
-
-	var result *unifyResult
-
-	// Handle complete type variables.
-	if _, ok := s.completes[tvar.ID]; ok {
-		// Go through each substitution of the given type variable.
-		for _, subNode := range tnode.Nodes {
-			// Unify the substitution with the inputted type making the
-			// substitution the root of unification.
-			subResult := s.unify(subNode, subNode.Sub.Type(), typ)
-
-			// Merge the substitution unification result with the overall
-			// unification result.
-			if result == nil {
-				result = subResult
-			} else {
-				result.Either(subResult)
-			}
-
-			if subResult.Unified { // Substitution unification succeeded.
-				// Indicate that this substitution node should not be pruned.
-				result.Visited[subNode.ID] = false
-
-				// If there is a root, add an edge between this substitution and
-				// that unification root.
-				if root != nil {
-					root.AddEdge(subNode)
+		for _, apt := range a.PossibleTypes {
+			for _, bpt := range b.PossibleTypes {
+				if apt.equals(bpt) {
+					commonTypes = append(commonTypes, apt)
+					break
 				}
-			} else { // Substitution unification failed.
-				// Indicate that this substitution should be pruned.
-				result.Visited[subNode.ID] = true
-			}
-		}
-	} else { // Handle incomplete type variables.
-		// Mark the type variable as completed by this unification.
-		result = newUnifyResult(true)
-		result.Completes[tvar.ID] = struct{}{}
-
-		// Add a substitution of the given type to the type variable if it does not
-		// already have a substitution which is equal to the given type.
-		var matchingSubNode *subNode
-		for _, subNode := range tnode.Nodes {
-			if sresult := s.unify(subNode, subNode.Sub.Type(), typ); sresult.Unified {
-				result.Both(sresult)
-				matchingSubNode = subNode
-				break
 			}
 		}
 
-		if matchingSubNode == nil {
-			matchingSubNode = s.addSubstitution(tnode, basicSubstitution{typ: typ})
+		// If there are no common types, then unification fails.
+		if len(commonTypes) == 0 {
+			return false
 		}
 
-		// Add an edge between the root and the matching substitution.
-		if root != nil {
-			root.AddEdge(matchingSubNode)
+		// Otherwise, we make b the value a and update b's possible types to be
+		// the common types of the two untyped numbers.  This ensures that the
+		// two untypeds are held equivalent and that only the types that suit
+		// both are possible.
+		a.Value = b
+		b.PossibleTypes = commonTypes
+
+		// Update the display name of `b`.
+
+		b.DisplayName = fmt.Sprintf(
+			"untyped {%s}",
+			strings.Join(
+				util.Map(commonTypes, func(pt PrimitiveType) string {
+					return pt.Repr()
+				}),
+				" | ",
+			),
+		)
+
+		// Mixing succeeds!
+		return true
+	}
+}
+
+// unifyUntypedNumberWithConcrete attempts to make an untyped number into a
+// concrete type by unifying it with aconcrete type.
+func unifyUntypedNumberWithConcrete(un *UntypedNumber, concrete Type) bool {
+	for _, pt := range un.PossibleTypes {
+		if Equals(pt, concrete) {
+			un.Value = pt
+			return Unify(pt, concrete)
 		}
 	}
 
-	// If we are not dealing with an overload substitution, update the global
-	// list of completed type variable with the completed type variable of the
-	// overall result.
-	if root == nil || !root.IsOverload() {
-		for k := range result.Completes {
-			s.completes[k] = struct{}{}
-		}
-	}
-
-	// Return the generated unification result.
-	return result
+	return false
 }

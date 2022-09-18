@@ -54,9 +54,6 @@ type ChaiPackage struct {
 	// The global symbol table shared between the package's source files.
 	SymbolTable map[string]*common.Symbol
 
-	// The global operator table shared between the package's source files.
-	OperatorTable map[int][]*common.Operator
-
 	// The global mutex used to synchronize access to the package's tables.
 	TableMutex *sync.Mutex
 }

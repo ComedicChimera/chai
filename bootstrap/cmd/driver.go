@@ -54,10 +54,8 @@ func RunCompiler() int {
 		return 1
 	}
 
-	// TODO: symbol resolution
-
-	// Check operator conflicts.
-	if !c.CheckOperatorConflicts() {
+	// Perform symbol resolution, import resolution, and infinite type checking.
+	if !c.ResolveSymbols() {
 		return 1
 	}
 

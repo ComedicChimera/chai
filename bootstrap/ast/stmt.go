@@ -1,7 +1,5 @@
 package ast
 
-import "chaic/common"
-
 // VarDecl represents a variable declaration.
 type VarDecl struct {
 	ASTBase
@@ -28,7 +26,7 @@ type Assignment struct {
 	RHSExprs []ASTExpr
 
 	// The optional compound binary operator application.
-	CompoundOp *common.AppliedOperator
+	// CompoundOp *common.AppliedOperator
 }
 
 // IncDecStmt represents an increment/decrement statement.
@@ -39,7 +37,7 @@ type IncDecStmt struct {
 	LHSOperand ASTExpr
 
 	// The binary operator being applied.
-	Op *common.AppliedOperator
+	// Op *common.AppliedOperator
 }
 
 // -----------------------------------------------------------------------------

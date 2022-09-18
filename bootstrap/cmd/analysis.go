@@ -21,12 +21,11 @@ import (
 func (c *Compiler) InitPackage(pkgAbsPath string) (*depm.ChaiPackage, bool) {
 	// Create the package and add it to the dependency graph.
 	pkg := &depm.ChaiPackage{
-		ID:            depm.GetPackageIDFromAbsPath(pkgAbsPath),
-		Name:          filepath.Base(pkgAbsPath),
-		AbsPath:       pkgAbsPath,
-		SymbolTable:   make(map[string]*common.Symbol),
-		OperatorTable: make(map[int][]*common.Operator),
-		TableMutex:    &sync.Mutex{},
+		ID:          depm.GetPackageIDFromAbsPath(pkgAbsPath),
+		Name:        filepath.Base(pkgAbsPath),
+		AbsPath:     pkgAbsPath,
+		SymbolTable: make(map[string]*common.Symbol),
+		TableMutex:  &sync.Mutex{},
 	}
 	c.depGraph[pkg.ID] = pkg
 
@@ -80,24 +79,30 @@ func (c *Compiler) InitPackage(pkgAbsPath string) (*depm.ChaiPackage, bool) {
 	return pkg, !report.AnyErrors()
 }
 
-// CheckOperatorConflicts checks all initialized packages for operator conflicts.
-func (c *Compiler) CheckOperatorConflicts() bool {
-	// Check operator conflicts for each package in the dependency graph
-	// concurrently.
+// ResolveSymbols performs symbol resolution, import resolution, and infinite
+// type checking.
+func (c *Compiler) ResolveSymbols() bool {
+	// Concurrently resolve all opaque types.
 	wg := &sync.WaitGroup{}
 
+	allResolved := true
 	for _, pkg := range c.depGraph {
 		wg.Add(1)
 
 		go func(pkg *depm.ChaiPackage) {
-			depm.CheckOperatorConflicts(pkg)
-			wg.Done()
+			for _, file := range pkg.Files {
+				allResolved = depm.ResolveOpaques(file) && allResolved
+			}
 		}(pkg)
 	}
 
-	wg.Wait()
+	// We can't check for infinite types if symbols haven't resolved.
+	if !allResolved {
+		return false
+	}
 
-	return !report.AnyErrors()
+	// Check for infinite types.
+	return depm.CheckForInfiniteTypes(c.depGraph)
 }
 
 // WalkPackages performs semantic analysis on packages in the dependency graph.
@@ -110,10 +115,7 @@ func (c *Compiler) WalkPackages() bool {
 
 		go func(pkg *depm.ChaiPackage) {
 			for _, file := range pkg.Files {
-				// We can only walk the file if all its opaque symbols resolve.
-				if depm.ResolveOpaques(file) {
-					walk.WalkFile(file)
-				}
+				walk.WalkFile(file)
 			}
 
 			wg.Done()

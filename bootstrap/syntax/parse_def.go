@@ -3,7 +3,6 @@ package syntax
 import (
 	"chaic/ast"
 	"chaic/common"
-	"chaic/report"
 	"chaic/types"
 )
 
@@ -20,8 +19,6 @@ func (p *Parser) parseDefinition() {
 	switch p.tok.Kind {
 	case TOK_FUNC:
 		def = p.parseFuncDef(annots)
-	case TOK_OPER:
-		def = p.parseOperDef(annots)
 	case TOK_STRUCT:
 		def = p.parseStructDef(annots)
 	default:
@@ -116,6 +113,8 @@ func (p *Parser) parseFuncDef(annots map[string]ast.AnnotValue) *ast.FuncDef {
 	}
 }
 
+// NOTE: This table is currently unused but does have future use planned.
+// ----------------------------------------------------------------------------
 // The table of overloadable operators.  The key is the operator kind and the
 // value is a bit pattern indicating the possible arities of the overloaded
 // operator.  The bit pattern works as follows: if the value of nth bit from the
@@ -142,59 +141,6 @@ var overloadableOperators = map[int]int{
 	TOK_LOR:    0b10,
 	TOK_NOT:    0b01,
 	TOK_COMPL:  0b01,
-}
-
-// oper_def := 'oper' '(' operator ')' func_signature ;
-// operator := '+' | '-' | '*' | '/' | '%' | '**' | '<' | '>'
-//          | '<=' | '>=' | '==' | '!=' | '&' | '|' | '^' |
-//          | '>>' | '<<' | '~' | '&&' | '||' | '!' ;
-func (p *Parser) parseOperDef(annots map[string]ast.AnnotValue) *ast.OperDef {
-	startSpan := p.want(TOK_OPER).Span
-
-	p.want(TOK_LPAREN)
-
-	var operTok *Token
-	var arityPattern int
-	if _arityPattern, ok := overloadableOperators[p.tok.Kind]; ok {
-		operTok = p.tok
-		arityPattern = _arityPattern
-		p.next()
-	} else {
-		p.reject()
-	}
-
-	p.want(TOK_RPAREN)
-
-	funcParams, funcType, funcBody := p.parseFuncSignature(true)
-
-	// Check the operator arity.
-	if arityPattern>>(len(funcParams)-1)&1 == 0 {
-		p.recError(
-			report.NewSpanOver(funcParams[0].DefSpan, funcParams[len(funcParams)-1].DefSpan),
-			"%s operator does not have a form with arity %d",
-			operTok.Value,
-			len(funcParams),
-		)
-	}
-
-	overload := &common.OperatorOverload{
-		ID:         common.GetNewOverloadID(),
-		ParentID:   p.chFile.Parent.ID,
-		FileNumber: p.chFile.FileNumber,
-		Signature:  funcType,
-		DefSpan:    operTok.Span,
-	}
-
-	p.defineOperatorOverload(operTok.Kind, operTok.Value, len(funcParams), overload)
-
-	return &ast.OperDef{
-		ASTBase:     ast.NewASTBaseOver(startSpan, p.lookbehind.Span),
-		OpRepr:      operTok.Value,
-		Overload:    overload,
-		Params:      funcParams,
-		Body:        funcBody,
-		Annotations: annots,
-	}
 }
 
 // func_signature := '(' [func_params] ')' [type_label] (func_body | ';') ;

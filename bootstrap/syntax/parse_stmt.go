@@ -171,7 +171,7 @@ func (p *Parser) parseExprAssignStmt() ast.ASTNode {
 			return &ast.IncDecStmt{
 				ASTBase:    ast.NewASTBaseOver(lhsExpr.Span(), p.lookbehind.Span),
 				LHSOperand: lhsExpr,
-				Op:         newAppliedOper(p.lookbehind),
+				// Op:         newAppliedOper(p.lookbehind),
 			}
 		case TOK_ASSIGN:
 			p.next()
@@ -186,6 +186,7 @@ func (p *Parser) parseExprAssignStmt() ast.ASTNode {
 		default:
 			if util.Contains(compoundAssignOps, p.tok.Kind) {
 				compoundAssignOp := p.tok
+				_ = compoundAssignOp
 				p.next()
 
 				p.want(TOK_ASSIGN)
@@ -193,34 +194,35 @@ func (p *Parser) parseExprAssignStmt() ast.ASTNode {
 				rhsExpr := p.parseExpr()
 
 				return &ast.Assignment{
-					ASTBase:    ast.NewASTBaseOver(lhsExpr.Span(), rhsExpr.Span()),
-					LHSVars:    lhsExprs,
-					RHSExprs:   []ast.ASTExpr{rhsExpr},
-					CompoundOp: newAppliedOper(compoundAssignOp),
+					ASTBase:  ast.NewASTBaseOver(lhsExpr.Span(), rhsExpr.Span()),
+					LHSVars:  lhsExprs,
+					RHSExprs: []ast.ASTExpr{rhsExpr},
+					// CompoundOp: newAppliedOper(compoundAssignOp),
 				}
 			} else {
 				return lhsExpr
 			}
 		}
 	} else {
-		var compoundOp *common.AppliedOperator
-		if p.has(TOK_ASSIGN) {
-			p.next()
-		} else if util.Contains(compoundAssignOps, p.tok.Kind) {
-			compoundOp = newAppliedOper(p.tok)
-			p.next()
-			p.want(TOK_ASSIGN)
-		} else {
-			p.reject()
-		}
+		// var compoundOp *common.AppliedOperator
+		// if p.has(TOK_ASSIGN) {
+		// 	p.next()
+		// } else if util.Contains(compoundAssignOps, p.tok.Kind) {
+		// 	compoundOp = newAppliedOper(p.tok)
+		// 	p.next()
+		// 	p.want(TOK_ASSIGN)
+		// } else {
+		// 	p.reject()
+		// }
 
-		rhsExprs := p.parseExprList()
+		// rhsExprs := p.parseExprList()
 
-		return &ast.Assignment{
-			ASTBase:    ast.NewASTBaseOver(lhsExprs[0].Span(), rhsExprs[len(rhsExprs)-1].Span()),
-			LHSVars:    lhsExprs,
-			RHSExprs:   rhsExprs,
-			CompoundOp: compoundOp,
-		}
+		// return &ast.Assignment{
+		// 	ASTBase:    ast.NewASTBaseOver(lhsExprs[0].Span(), rhsExprs[len(rhsExprs)-1].Span()),
+		// 	LHSVars:    lhsExprs,
+		// 	RHSExprs:   rhsExprs,
+		// 	CompoundOp: compoundOp,
+		// }
+		return nil
 	}
 }
