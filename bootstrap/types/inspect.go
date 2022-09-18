@@ -23,7 +23,7 @@ func InnerType(typ Type) Type {
 			return v
 		}
 
-		return v.Value
+		return InnerType(v.Value)
 	case *OpaqueType:
 		if v.Value == nil {
 			return v
