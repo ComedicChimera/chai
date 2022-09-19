@@ -116,7 +116,7 @@ func (l *Lowerer) lowerPropAccess(prop *ast.PropertyAccess) mir.Expr {
 		}
 	}
 
-	switch prop.AccessKind {
+	switch prop.PropKind {
 	case types.PropStructField:
 		{
 			st := mroot.Type().(*types.StructType)

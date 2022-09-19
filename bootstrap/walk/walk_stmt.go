@@ -22,7 +22,7 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) {
 				if ident.Sym.Type == nil { // Identifier type is to be inferred.
 					ident.Sym.Type = varList.Initializer.Type()
 				} else { // Specified type => unify.
-					w.solver.MustEqual(ident.Sym.Type, varList.Initializer.Type(), varList.Initializer.Span())
+					w.mustUnify(ident.Sym.Type, varList.Initializer.Type(), varList.Initializer.Span())
 				}
 			} else {
 				// TODO: pattern matching
@@ -51,7 +51,7 @@ func (w *Walker) walkAssign(as *ast.Assignment) {
 	if len(as.LHSVars) == len(as.RHSExprs) { // No pattern matching
 		if as.CompoundOp == nil { // No compound operator.
 			for i, lhsVar := range as.LHSVars {
-				w.solver.MustEqual(lhsVar.Type(), as.RHSExprs[i].Type(), as.RHSExprs[i].Span())
+				w.mustUnify(lhsVar.Type(), as.RHSExprs[i].Type(), as.RHSExprs[i].Span())
 			}
 		} else {
 			for i, lhsVar := range as.LHSVars {
@@ -64,7 +64,7 @@ func (w *Walker) walkAssign(as *ast.Assignment) {
 					as.RHSExprs[i],
 				)
 
-				w.solver.MustEqual(lhsVar.Type(), rhsTyp, operSpan)
+				w.mustUnify(lhsVar.Type(), rhsTyp, operSpan)
 			}
 		}
 	} else { // Pattern matching
@@ -84,7 +84,7 @@ func (w *Walker) walkIncDec(incdec *ast.IncDecStmt) {
 		&ast.Literal{ExprBase: ast.NewTypedExprBase(incdec.Span(), incdec.LHSOperand.Type())},
 	)
 
-	w.solver.MustEqual(incdec.LHSOperand.Type(), rhsType, incdec.Span())
+	w.mustUnify(incdec.LHSOperand.Type(), rhsType, incdec.Span())
 }
 
 // walkLHSExpr walks an LHS expression and marks it as mutable.
@@ -108,15 +108,29 @@ func (w *Walker) walkLHSExpr(expr ast.ASTExpr) {
 		{
 			w.walkExpr(v.Ptr)
 
-			elemType := w.solver.NewTypeVar("element type", v.Span())
-			w.solver.MustEqual(&types.PointerType{ElemType: elemType, Const: false}, v.Ptr.Type(), v.Ptr.Span())
+			if pt, ok := types.InnerType(v.Ptr.Type()).(*types.PointerType); ok {
+				if pt.Const {
+					w.error(v.Ptr.Span(), "cannot mutate the contents of a pointer to a constant value")
+				}
 
-			v.NodeType = elemType
+				v.NodeType = pt.ElemType
+			} else {
+				w.error(v.Ptr.Span(), "%s is not a pointer", v.Ptr.Type().Repr())
+			}
 		}
 	case *ast.PropertyAccess:
 		w.walkExpr(v.Root)
 
-		v.NodeType = w.solver.MustHaveProperty(v.Root.Type(), v.PropName, true, v.PropSpan, &v.AccessKind)
+		if prop := types.GetProperty(v.Root.Type(), v.PropName); prop != nil {
+			if prop.Mutable {
+				v.NodeType = prop.Type
+				v.PropKind = prop.Kind
+			} else {
+				w.error(v.PropSpan, "%s is not a mutable property", v.PropName)
+			}
+		} else {
+			w.error(v.PropSpan, "%s is not a property of %s", v.PropName, v.Root.Type().Repr())
+		}
 	default:
 		report.ReportICE("invalid LHS expression")
 	}
@@ -156,7 +170,7 @@ func (w *Walker) walkReturnStmt(rs *ast.ReturnStmt) {
 			w.error(rs.Span(), "must return a value")
 		}
 	case 1:
-		w.solver.MustEqual(w.enclosingReturnType, rs.Exprs[0].Type(), rs.Exprs[0].Span())
+		w.mustUnify(w.enclosingReturnType, rs.Exprs[0].Type(), rs.Exprs[0].Span())
 	default:
 		report.ReportFatal("multiple return values not implemented yet")
 	}

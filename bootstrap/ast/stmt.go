@@ -26,7 +26,7 @@ type Assignment struct {
 	RHSExprs []ASTExpr
 
 	// The optional compound binary operator application.
-	// CompoundOp *common.AppliedOperator
+	CompoundOp *AppliedOperator
 }
 
 // IncDecStmt represents an increment/decrement statement.
@@ -37,7 +37,7 @@ type IncDecStmt struct {
 	LHSOperand ASTExpr
 
 	// The binary operator being applied.
-	// Op *common.AppliedOperator
+	Op *AppliedOperator
 }
 
 // -----------------------------------------------------------------------------

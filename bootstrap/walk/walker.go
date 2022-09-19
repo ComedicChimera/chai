@@ -14,8 +14,11 @@ type Walker struct {
 	// The Chai source file being walked.
 	chFile *depm.ChaiFile
 
-	// The current solver associated with the walker.
-	solver *types.Solver
+	// The list of created untyped nulls.
+	untypedNulls []*types.UntypedNull
+
+	// The list of created untypes numbers.
+	untypedNumbers []*types.UntypedNumber
 
 	// The stack of local scopes used to lookup symbols.
 	localScopes []map[string]*common.Symbol
@@ -30,7 +33,7 @@ type Walker struct {
 
 // WalkFile semantically analyzes the given source file.
 func WalkFile(chFile *depm.ChaiFile) {
-	w := &Walker{chFile: chFile, solver: types.NewSolver()}
+	w := &Walker{chFile: chFile}
 
 	for _, def := range chFile.Definitions {
 		w.walkDef(def)
@@ -42,13 +45,29 @@ func (w *Walker) walkDef(def ast.ASTNode) {
 	// Catch any errors that occur while walking the definition.
 	defer report.CatchErrors(w.chFile.AbsPath, w.chFile.ReprPath)
 
-	// Ensure that the solver is reset.
-	defer w.solver.Reset()
+	// Ensure that the walker is reset.
+	defer func() {
+		w.untypedNulls = nil
+		w.untypedNumbers = nil
+		w.localScopes = nil
+		w.enclosingReturnType = nil
+		w.loopDepth = 0
+	}()
 
 	w.doWalkDef(def)
 
 	// Finalize type inference.
-	w.solver.Solve()
+	for _, null := range w.untypedNulls {
+		if null.Value == nil {
+			w.recError(null.Span, "unable to infer type for null")
+		}
+	}
+
+	for _, num := range w.untypedNumbers {
+		if num.Value == nil {
+			num.Value = num.PossibleTypes[0]
+		}
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -63,7 +82,7 @@ func (w *Walker) lookup(name string, span *report.TextSpan) *common.Symbol {
 		}
 	}
 
-	// TODO: imports/scripts?
+	// TODO: imports
 
 	// Lookup in the global table.
 	if sym, ok := w.chFile.Parent.SymbolTable[name]; ok {

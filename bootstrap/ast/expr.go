@@ -57,6 +57,23 @@ func (eb *ExprBase) Constant() bool {
 	return false
 }
 
+/* -------------------------------------------------------------------------- */
+
+// AppliedOperator represents a particular application of an operator.
+type AppliedOperator struct {
+	// The token kind of the operator.
+	OpKind int
+
+	// The string name of the operator.
+	OpName string
+
+	// The span over which the operator occurs in source text.
+	Span *report.TextSpan
+
+	// The operator method used in this application.
+	OpMethod *common.OperatorMethod
+}
+
 // -----------------------------------------------------------------------------
 
 // TypeCast represents an AST type cast.
@@ -74,7 +91,7 @@ type BinaryOpApp struct {
 	ExprBase
 
 	// The operator application.
-	// Op *common.AppliedOperator
+	Op *AppliedOperator
 
 	// The LHS operand.
 	LHS ASTExpr
@@ -88,7 +105,7 @@ type UnaryOpApp struct {
 	ExprBase
 
 	// The operator application.
-	// Op *common.AppliedOperator
+	Op *AppliedOperator
 
 	// The operand.
 	Operand ASTExpr
@@ -151,8 +168,8 @@ type PropertyAccess struct {
 	// The span over which the property name occurs.
 	PropSpan *report.TextSpan
 
-	// The kind of property access that was performed.
-	AccessKind types.PropertyAccessKind
+	// The kind of property that was accessed.
+	PropKind types.PropertyKind
 }
 
 // -----------------------------------------------------------------------------

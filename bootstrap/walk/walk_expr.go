@@ -12,7 +12,7 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 	case *ast.TypeCast:
 		w.walkExpr(v.SrcExpr)
 
-		w.solver.MustCast(v.SrcExpr.Type(), v.Type(), v.Span())
+		w.mustCast(v.SrcExpr.Type(), v.Type(), v.Span())
 	case *ast.BinaryOpApp:
 		w.walkExpr(v.LHS)
 		w.walkExpr(v.RHS)
@@ -26,16 +26,11 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 		{
 			w.walkExpr(v.Ptr)
 
-			elemType := w.solver.NewTypeVar("element type", v.Span())
-			ptrType := w.solver.NewTypeVar("pointer type", v.Span())
-			w.solver.AddOverloads(ptrType, []types.Type{
-				&types.PointerType{ElemType: elemType, Const: false},
-				&types.PointerType{ElemType: elemType, Const: true},
-			})
-
-			w.solver.MustEqual(ptrType, v.Ptr.Type(), v.Ptr.Span())
-
-			v.NodeType = elemType
+			if ptr, ok := types.InnerType(v.Ptr.Type()).(*types.PointerType); ok {
+				v.NodeType = ptr.ElemType
+			} else {
+				w.error(v.Ptr.Span(), "%s is not a pointer", v.Ptr.Type().Repr())
+			}
 		}
 	case *ast.Indirect:
 		w.walkExpr(v.Elem)
@@ -47,13 +42,18 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 	case *ast.PropertyAccess:
 		w.walkExpr(v.Root)
 
-		v.NodeType = w.solver.MustHaveProperty(v.Root.Type(), v.PropName, false, v.PropSpan, &v.AccessKind)
+		if prop := types.GetProperty(v.Root.Type(), v.PropName); prop != nil {
+			v.NodeType = prop.Type
+			v.PropKind = prop.Kind
+		} else {
+			w.error(v.PropSpan, "%s has no property named %s", v.Root.Type().Repr(), v.PropName)
+		}
 	case *ast.StructLiteral:
 		w.walkStructLit(v)
 	case *ast.FuncCall:
 		w.walkFuncCall(v)
 	case *ast.Null:
-		v.NodeType = w.solver.NewTypeVar("untyped null", v.Span())
+		v.NodeType = w.newUntypedNull(v.Span())
 	case *ast.Literal:
 		w.walkLiteral(v)
 	case *ast.Identifier:
@@ -79,7 +79,7 @@ func (w *Walker) walkStructLit(lit *ast.StructLiteral) {
 		if lit.SpreadInit != nil {
 			w.walkExpr(lit.SpreadInit)
 
-			w.solver.MustEqual(st, lit.SpreadInit.Type(), lit.SpreadInit.Span())
+			w.mustUnify(st, lit.SpreadInit.Type(), lit.SpreadInit.Span())
 		}
 
 		// Validate the field initializers.
@@ -89,7 +89,7 @@ func (w *Walker) walkStructLit(lit *ast.StructLiteral) {
 			// Validate that the field exists.
 			if field, ok := st.GetFieldByName(init.Name); ok {
 				// Assert that the types match.
-				w.solver.MustEqual(field.Type, init.InitExpr.Type(), init.InitExpr.Span())
+				w.mustUnify(field.Type, init.InitExpr.Type(), init.InitExpr.Span())
 			} else {
 				w.recError(init.NameSpan, "%s has no field named %s", st.Repr(), init.Name)
 			}
@@ -114,29 +114,12 @@ func (w *Walker) walkFuncCall(call *ast.FuncCall) {
 		for i, arg := range call.Args {
 			w.walkExpr(arg)
 
-			w.solver.MustEqual(ft.ParamTypes[i], arg.Type(), arg.Span())
+			w.mustUnify(ft.ParamTypes[i], arg.Type(), arg.Span())
 		}
 
 		// Set the resultant type of the function call.
 		call.NodeType = ft.ReturnType
 	} else {
-		// Otherwise, we are likely either dealing with a non-callable type or a
-		// type variable.  In either case, we have to use the type solver.
-
-		// Wrap the arguments into a function type.
-		returnType := w.solver.NewTypeVar("unknown return type", call.Span())
-
-		argTypes := make([]types.Type, len(call.Args))
-		for i, arg := range call.Args {
-			argTypes[i] = arg.Type()
-		}
-
-		funcType := &types.FuncType{ParamTypes: argTypes, ReturnType: returnType}
-
-		// Assert it to be equal to the function value's type.
-		w.solver.MustEqual(call.Func.Type(), funcType, call.Span())
-
-		// Set the resultant type of the function call.
-		call.NodeType = returnType
+		w.error(call.Func.Span(), "%s is not a function", call.Func.Type().Repr())
 	}
 }

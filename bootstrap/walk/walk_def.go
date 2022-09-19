@@ -13,9 +13,6 @@ func (w *Walker) doWalkDef(def ast.ASTNode) {
 	case *ast.FuncDef:
 		w.validateFuncAnnots(v)
 		w.walkFuncBody(v.Params, v.Symbol.Type.(*types.FuncType).ReturnType, v.Body)
-	case *ast.OperDef:
-		w.validateOperAnnots(v)
-		w.walkFuncBody(v.Params, v.Overload.Signature.(*types.FuncType).ReturnType, v.Body)
 	case *ast.StructDef:
 		w.walkStructDef(v)
 	}
@@ -50,77 +47,6 @@ func (w *Walker) validateFuncAnnots(fd *ast.FuncDef) {
 		w.recError(fd.Span(), "function must have a body")
 	} else if !expectsBody && fd.Body != nil {
 		w.recError(fd.Span(), "function must not have a body")
-	}
-}
-
-// The table of intrinsic operator names.
-var intrinsicOps = map[string]struct{}{
-	"iadd":  {},
-	"fadd":  {},
-	"isub":  {},
-	"fsub":  {},
-	"imul":  {},
-	"fmul":  {},
-	"sdiv":  {},
-	"udiv":  {},
-	"fdiv":  {},
-	"smod":  {},
-	"umod":  {},
-	"fmod":  {},
-	"slt":   {},
-	"ult":   {},
-	"flt":   {},
-	"sgt":   {},
-	"ugt":   {},
-	"fgt":   {},
-	"slteq": {},
-	"ulteq": {},
-	"flteq": {},
-	"sgteq": {},
-	"ugteq": {},
-	"fgteq": {},
-	"ieq":   {},
-	"feq":   {},
-	"ineq":  {},
-	"fneq":  {},
-	"land":  {},
-	"lor":   {},
-	"lnot":  {},
-	"ineg":  {},
-	"fneg":  {},
-	"band":  {},
-	"bor":   {},
-	"bxor":  {},
-	"shl":   {},
-	"ashr":  {},
-	"lshr":  {},
-	"compl": {},
-}
-
-// validateOperAnnots validates the annotations of an operator definition.
-func (w *Walker) validateOperAnnots(od *ast.OperDef) {
-	expectsBody := true
-
-	for aname, aval := range od.Annotations {
-		switch aname {
-		case "intrinsic":
-			if len(aval.Value) == 0 {
-				w.recError(aval.NameSpan, "@intrinsic requires an argument when applied to an operator definition")
-			}
-
-			if _, ok := intrinsicOps[aval.Value]; !ok {
-				w.recError(aval.ValSpan, "no intrinsic operator named `%s`", aval.Value)
-			}
-
-			od.Overload.IntrinsicName = aval.Value
-			expectsBody = false
-		}
-	}
-
-	if expectsBody && od.Body == nil {
-		w.recError(od.Span(), "operator must have a body")
-	} else if !expectsBody && od.Body != nil {
-		w.recError(od.Span(), "operator must not have a body")
 	}
 }
 
@@ -160,7 +86,7 @@ func (w *Walker) walkFuncBody(params []*common.Symbol, rtType types.Type, body a
 		w.walkExpr(bodyExpr)
 
 		// Check the type of the expression matches the type of the function.
-		w.solver.MustEqual(rtType, bodyExpr.Type(), body.Span())
+		w.mustUnify(rtType, bodyExpr.Type(), body.Span())
 	}
 
 	// Clear the function return type.
@@ -175,6 +101,6 @@ func (w *Walker) walkStructDef(sd *ast.StructDef) {
 
 	for name, init := range sd.FieldInits {
 		field, _ := st.GetFieldByName(name)
-		w.solver.MustEqual(field.Type, init.Type(), init.Span())
+		w.mustUnify(field.Type, init.Type(), init.Span())
 	}
 }

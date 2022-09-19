@@ -79,7 +79,7 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 	lit.Value = int64(x)
 
 	// Determine the type or set of types that can represent the integer.
-	var validTypes []types.Type
+	var validTypes []types.PrimitiveType
 	var constKindName string
 	if long && unsigned {
 		lit.NodeType = types.PrimTypeU64
@@ -95,16 +95,14 @@ func (w *Walker) walkIntLit(lit *ast.Literal) {
 		constKindName = "int"
 	}
 
-	numType := w.solver.NewTypeVar(fmt.Sprintf("untyped %s literal", constKindName), lit.Span())
-	w.solver.AddLiteralOverloads(numType, validTypes)
-	lit.NodeType = numType
+	lit.NodeType = w.newUntypedNumber(fmt.Sprintf("untyped %s literal", constKindName), validTypes)
 }
 
 // validIntTypes returns the valid integer types of those passed in that can
 // represent the given value.  The integer types must be in ascending order by
 // size.
-func validIntTypes(x uint64, intTypes ...types.PrimitiveType) []types.Type {
-	newIntTypes := make([]types.Type, len(intTypes))
+func validIntTypes(x uint64, intTypes ...types.PrimitiveType) []types.PrimitiveType {
+	newIntTypes := make([]types.PrimitiveType, len(intTypes))
 
 	n := 0
 	for _, typ := range intTypes {
@@ -141,9 +139,7 @@ func (w *Walker) walkFloatLit(lit *ast.Literal) {
 	if x < math.SmallestNonzeroFloat32 || x > math.MaxFloat32 { // Too large/small.
 		lit.NodeType = types.PrimTypeF64
 	} else { // Can be f32.
-		numType := w.solver.NewTypeVar("untyped float literal", lit.Span())
-		w.solver.AddLiteralOverloads(numType, []types.Type{types.PrimTypeF64, types.PrimTypeF32})
-		lit.NodeType = numType
+		lit.NodeType = w.newUntypedNumber("untyped float literal", []types.PrimitiveType{types.PrimTypeF64, types.PrimTypeF32})
 	}
 
 }
@@ -174,9 +170,7 @@ func (w *Walker) walkNumLit(lit *ast.Literal) {
 	validTypes = append(validTypes, types.PrimTypeF64, types.PrimTypeF32)
 
 	// Set the untyped number for the number literal.
-	numType := w.solver.NewTypeVar("untyped number literal", lit.Span())
-	w.solver.AddLiteralOverloads(numType, validTypes)
-	lit.NodeType = numType
+	lit.NodeType = w.newUntypedNumber("untyped number literal", validTypes)
 }
 
 // walkRuneLit walks a rune literal.
