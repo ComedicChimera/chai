@@ -55,5 +55,7 @@ const (
 	OP_ID_LOR
 	OP_ID_LNOT
 
+	OP_ID_UNKNOWN // Operator ID not yet determined (used untypeds).
+
 	OP_ID_END_RESERVED // End of reserved intrinsic operator IDs.
 )
