@@ -6,10 +6,11 @@ import (
 	"chaic/depm"
 	"chaic/report"
 	"chaic/types"
+	"chaic/util"
+	"strings"
 )
 
-// Walker is responsible for walking source files and performing semantic
-// analysis on their definitions.
+// Walker is responsible for walking the AST and performing semantic analysis.
 type Walker struct {
 	// The Chai source file being walked.
 	chFile *depm.ChaiFile
@@ -19,6 +20,9 @@ type Walker struct {
 
 	// The list of created untypes numbers.
 	untypedNumbers []*types.UntypedNumber
+
+	// The list of operator definitions which were left undetermined.
+	unknownOperators []*ast.AppliedOperator
 
 	// The stack of local scopes used to lookup symbols.
 	localScopes []map[string]*common.Symbol
@@ -33,9 +37,8 @@ type Walker struct {
 
 // WalkFile semantically analyzes the given source file.
 func WalkFile(chFile *depm.ChaiFile) {
-	w := &Walker{chFile: chFile}
-
 	for _, def := range chFile.Definitions {
+		w := &Walker{chFile: chFile}
 		w.walkDef(def)
 	}
 }
@@ -44,15 +47,6 @@ func WalkFile(chFile *depm.ChaiFile) {
 func (w *Walker) walkDef(def ast.ASTNode) {
 	// Catch any errors that occur while walking the definition.
 	defer report.CatchErrors(w.chFile.AbsPath, w.chFile.ReprPath)
-
-	// Ensure that the walker is reset.
-	defer func() {
-		w.untypedNulls = nil
-		w.untypedNumbers = nil
-		w.localScopes = nil
-		w.enclosingReturnType = nil
-		w.loopDepth = 0
-	}()
 
 	w.doWalkDef(def)
 
@@ -66,6 +60,19 @@ func (w *Walker) walkDef(def ast.ASTNode) {
 	for _, num := range w.untypedNumbers {
 		if num.Value == nil {
 			num.Value = num.PossibleTypes[0]
+		}
+	}
+
+	for _, op := range w.unknownOperators {
+		if opMethod := w.getOperatorMethod(op.OpKind, op.OpMethod.Signature.ParamTypes...); opMethod != nil {
+			op.OpMethod = opMethod
+		} else {
+			w.recError(
+				op.Span,
+				"no definition of %s matches argument types (%s)",
+				op.OpName,
+				strings.Join(util.Map(op.OpMethod.Signature.ParamTypes, func(typ types.Type) string { return typ.Repr() }), ","),
+			)
 		}
 	}
 }

@@ -17,6 +17,11 @@ func (w *Walker) checkOperApp(op *ast.AppliedOperator, span *report.TextSpan, ar
 
 	if opMethod := w.getOperatorMethod(op.OpKind, argTypes...); opMethod != nil {
 		op.OpMethod = opMethod
+
+		if opMethod.ID == common.OP_ID_UNKNOWN {
+			w.unknownOperators = append(w.unknownOperators, op)
+		}
+
 		return op.OpMethod.Signature.ReturnType
 	}
 

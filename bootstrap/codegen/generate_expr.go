@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"chaic/common"
 	"chaic/mir"
 	"chaic/report"
 	"chaic/types"
@@ -203,8 +204,8 @@ func (g *Generator) generateBinaryOpApp(bopApp *mir.BinaryOpApp) llvalue.Value {
 	lhs := g.generateExpr(bopApp.LHS)
 
 	// Handle short-circuiting binary operators.
-	switch bopApp.OpName {
-	case "land":
+	switch bopApp.Op {
+	case common.OP_ID_LAND:
 		// The LLVM IR for logical AND is roughly:
 		//
 		//   some_block:
@@ -241,7 +242,7 @@ func (g *Generator) generateBinaryOpApp(bopApp *mir.BinaryOpApp) llvalue.Value {
 			)
 		}
 
-	case "lor":
+	case common.OP_ID_LOR:
 		// The LLVM IR for logical OR is roughyl:
 		//
 		//   some_block:
@@ -279,37 +280,37 @@ func (g *Generator) generateBinaryOpApp(bopApp *mir.BinaryOpApp) llvalue.Value {
 		}
 	}
 
-	return g.applyNonSSBinaryOp(bopApp.OpName, lhs, g.generateExpr(bopApp.RHS))
+	return g.applyNonSSBinaryOp(bopApp.Op, lhs, g.generateExpr(bopApp.RHS))
 }
 
 // applyNonSSBinaryOp applies a non-short-circuiting binary operator repreanted
 // by overload to lhs and rhs.
-func (g *Generator) applyNonSSBinaryOp(opName string, lhs, rhs llvalue.Value) llvalue.Value {
-	switch opName {
-	case "iadd":
+func (g *Generator) applyNonSSBinaryOp(op uint64, lhs, rhs llvalue.Value) llvalue.Value {
+	switch op {
+	case common.OP_ID_IADD:
 		return g.block.NewAdd(lhs, rhs)
-	case "isub":
+	case common.OP_ID_ISUB:
 		return g.block.NewSub(lhs, rhs)
-	case "imul":
+	case common.OP_ID_IMUL:
 		return g.block.NewMul(lhs, rhs)
-	case "sdiv":
+	case common.OP_ID_SDIV:
 		return g.block.NewSDiv(lhs, rhs)
-	case "smod":
+	case common.OP_ID_SMOD:
 		return g.block.NewSRem(lhs, rhs)
-	case "ieq":
+	case common.OP_ID_IEQ:
 		return g.block.NewICmp(enum.IPredEQ, lhs, rhs)
-	case "ineq":
+	case common.OP_ID_INEQ:
 		return g.block.NewICmp(enum.IPredNE, lhs, rhs)
-	case "slt":
+	case common.OP_ID_SLT:
 		return g.block.NewICmp(enum.IPredSLT, lhs, rhs)
-	case "sgt":
+	case common.OP_ID_SGT:
 		return g.block.NewICmp(enum.IPredSGT, lhs, rhs)
-	case "slteq":
+	case common.OP_ID_SLTEQ:
 		return g.block.NewICmp(enum.IPredSLE, lhs, rhs)
-	case "sgteq":
+	case common.OP_ID_SGTEQ:
 		return g.block.NewICmp(enum.IPredSGE, lhs, rhs)
 	default:
-		report.ReportICE("binary non-SS codegen for `%s` not implemented", opName)
+		report.ReportICE("binary non-SS codegen for `%d` not implemented", op)
 		return nil
 	}
 }
@@ -318,8 +319,8 @@ func (g *Generator) applyNonSSBinaryOp(opName string, lhs, rhs llvalue.Value) ll
 func (g *Generator) generateUnaryOpApp(uopApp *mir.UnaryOpApp) llvalue.Value {
 	operand := g.generateExpr(uopApp.Operand)
 
-	switch uopApp.OpName {
-	case "lnot", "compl":
+	switch uopApp.Op {
+	case common.OP_ID_LNOT, common.OP_ID_BWCOMPL:
 		{
 			// ~op == op ^ 0b111'1111
 			operandIntType := operand.Type().(*lltypes.IntType)
@@ -328,10 +329,10 @@ func (g *Generator) generateUnaryOpApp(uopApp *mir.UnaryOpApp) llvalue.Value {
 				^(^int64(0)<<int64(operandIntType.BitSize)),
 			))
 		}
-	case "ineg":
+	case common.OP_ID_INEG:
 		// -op = 0 - op
 		return g.block.NewSub(constant.NewInt(operand.Type().(*lltypes.IntType), 0), operand)
-	case "fneg":
+	case common.OP_ID_FNEG:
 		return g.block.NewFNeg(operand)
 	default:
 		report.ReportICE("unary intrinsic codegen not implemented")

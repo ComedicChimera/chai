@@ -65,46 +65,46 @@ func (l *Lowerer) lowerAssignment(assign *ast.Assignment) {
 			mRHSVals[i] = tempVar.Ident
 		}
 
-		// if assign.CompoundOp == nil {
-		// 	for i, lhsVar := range assign.LHSVars {
-		// 		mLHSVar := l.lowerExpr(lhsVar)
+		if assign.CompoundOp == nil {
+			for i, lhsVar := range assign.LHSVars {
+				mLHSVar := l.lowerExpr(lhsVar)
 
-		// 		l.appendStmt(&mir.Assignment{
-		// 			StmtBase: mir.NewStmtBase(assign.Span()),
-		// 			LHS:      mLHSVar,
-		// 			RHS:      mRHSVals[i],
-		// 		})
-		// 	}
-		// } else {
-		// 	for i, lhsVar := range assign.LHSVars {
-		// 		mLHSVar := l.lowerExpr(lhsVar)
-		// 		lhsTempVar := &mir.VarDecl{
-		// 			StmtBase: mir.NewStmtBase(lhsVar.Span()),
-		// 			Ident: &mir.Identifier{
-		// 				ExprBase: mir.NewExprBase(lhsVar.Span()),
-		// 				Symbol: &mir.MSymbol{
-		// 					Type:              mLHSVar.Type(),
-		// 					IsImplicitPointer: false,
-		// 				},
-		// 			},
-		// 		}
-		// 		l.appendStmt(lhsTempVar)
+				l.appendStmt(&mir.Assignment{
+					StmtBase: mir.NewStmtBase(assign.Span()),
+					LHS:      mLHSVar,
+					RHS:      mRHSVals[i],
+				})
+			}
+		} else {
+			for i, lhsVar := range assign.LHSVars {
+				mLHSVar := l.lowerExpr(lhsVar)
+				lhsTempVar := &mir.VarDecl{
+					StmtBase: mir.NewStmtBase(lhsVar.Span()),
+					Ident: &mir.Identifier{
+						ExprBase: mir.NewExprBase(lhsVar.Span()),
+						Symbol: &mir.MSymbol{
+							Type:              mLHSVar.Type(),
+							IsImplicitPointer: false,
+						},
+					},
+				}
+				l.appendStmt(lhsTempVar)
 
-		// 		opResult := l.buildBinaryOpApp(
-		// 			assign.Span(),
-		// 			assign.CompoundOp,
-		// 			lhsTempVar.Ident,
-		// 			mRHSVals[i],
-		// 			mLHSVar.Type(),
-		// 		)
+				opResult := l.buildBinaryOpApp(
+					assign.Span(),
+					assign.CompoundOp,
+					lhsTempVar.Ident,
+					mRHSVals[i],
+					mLHSVar.Type(),
+				)
 
-		// 		l.appendStmt(&mir.Assignment{
-		// 			StmtBase: mir.NewStmtBase(assign.Span()),
-		// 			LHS:      mLHSVar,
-		// 			RHS:      opResult,
-		// 		})
-		// 	}
-		// }
+				l.appendStmt(&mir.Assignment{
+					StmtBase: mir.NewStmtBase(assign.Span()),
+					LHS:      mLHSVar,
+					RHS:      opResult,
+				})
+			}
+		}
 	} else {
 		// TODO: pattern matching
 		report.ReportICE("pattern matching assignment not implemented")
@@ -113,23 +113,22 @@ func (l *Lowerer) lowerAssignment(assign *ast.Assignment) {
 
 // lowerIncDecStmt lowers an increment/decrement statement.
 func (l *Lowerer) lowerIncDecStmt(incdec *ast.IncDecStmt) mir.Statement {
-	// lhsOp := l.lowerExpr(incdec.LHSOperand)
+	lhsOp := l.lowerExpr(incdec.LHSOperand)
 
-	// opResult := l.buildBinaryOpApp(
-	// 	incdec.Span(),
-	// 	incdec.Op,
-	// 	lhsOp,
-	// 	&mir.ConstInt{
-	// 		ValueBase: mir.NewValueBase(incdec.Span(), lhsOp.Type()),
-	// 		IntValue:  0,
-	// 	},
-	// 	lhsOp.Type(),
-	// )
+	opResult := l.buildBinaryOpApp(
+		incdec.Span(),
+		incdec.Op,
+		lhsOp,
+		&mir.ConstInt{
+			ValueBase: mir.NewValueBase(incdec.Span(), lhsOp.Type()),
+			IntValue:  0,
+		},
+		lhsOp.Type(),
+	)
 
-	// return &mir.Assignment{
-	// 	StmtBase: mir.NewStmtBase(incdec.Span()),
-	// 	LHS:      lhsOp,
-	// 	RHS:      opResult,
-	// }
-	return nil
+	return &mir.Assignment{
+		StmtBase: mir.NewStmtBase(incdec.Span()),
+		LHS:      lhsOp,
+		RHS:      opResult,
+	}
 }

@@ -94,8 +94,8 @@ func (fa *FieldAccess) Type() types.Type {
 type BinaryOpApp struct {
 	ExprBase
 
-	// The name of the binary operator instruction generator.
-	OpName string
+	// The ID of the binary operator instruction generator.
+	Op uint64
 
 	// The LHS and RHS expressions.
 	LHS, RHS Expr
@@ -113,8 +113,8 @@ func (boa *BinaryOpApp) Type() types.Type {
 type UnaryOpApp struct {
 	ExprBase
 
-	// The name of the unary operator instruction generator.
-	OpName string
+	// The ID of the unary operator instruction generator.
+	Op uint64
 
 	// The operand expression.
 	Operand Expr
