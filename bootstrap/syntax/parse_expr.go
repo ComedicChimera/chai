@@ -204,6 +204,8 @@ func (p *Parser) parseAtomExpr() ast.ASTExpr {
 		switch p.tok.Kind {
 		case TOK_LPAREN:
 			{
+				p.exprNestDepth++
+
 				p.next()
 
 				var args []ast.ASTExpr
@@ -221,6 +223,8 @@ func (p *Parser) parseAtomExpr() ast.ASTExpr {
 					Func:     atomExpr,
 					Args:     args,
 				}
+
+				p.exprNestDepth--
 			}
 		case TOK_DOT:
 			{
@@ -236,7 +240,19 @@ func (p *Parser) parseAtomExpr() ast.ASTExpr {
 				}
 			}
 		case TOK_LBRACE:
-			atomExpr = p.parseStructLitSuffix(atomExpr)
+			{
+				// TODO: handle `.` package accesses
+				var rootIdent *ast.Identifier
+				if ri, ok := atomExpr.(*ast.Identifier); ok && p.exprNestDepth >= 0 {
+					rootIdent = ri
+				} else {
+					// We will assume it begins a block statement.
+					return atomExpr
+				}
+
+				atomExpr = p.parseStructLitSuffix(rootIdent)
+			}
+
 		default:
 			return atomExpr
 		}
@@ -245,16 +261,10 @@ func (p *Parser) parseAtomExpr() ast.ASTExpr {
 
 // struct_lit_suffix := '{' ('...' expr ',' init_list | init_list '}' ;
 // init_list := 'IDENT' initializer {',' 'IDENT' initializer} ;
-func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
-	// TODO: handle `.` package accesses
-	var rootIdent *ast.Identifier
-	if ri, ok := root.(*ast.Identifier); ok {
-		rootIdent = ri
-	} else {
-		p.reject()
-	}
-
+func (p *Parser) parseStructLitSuffix(rootIdent *ast.Identifier) *ast.StructLiteral {
 	p.want(TOK_LBRACE)
+
+	p.exprNestDepth++
 
 	fieldInits := make(map[string]ast.StructLiteralFieldInit)
 	var spreadInit ast.ASTExpr
@@ -286,12 +296,14 @@ func (p *Parser) parseStructLitSuffix(root ast.ASTExpr) *ast.StructLiteral {
 		}
 	}
 
+	p.exprNestDepth--
+
 	endSpan := p.want(TOK_RBRACE).Span
 
 	return &ast.StructLiteral{
 		ExprBase: ast.NewTypedExprBase(
-			report.NewSpanOver(root.Span(), endSpan),
-			p.newOpaqueType(rootIdent.Name, root.Span()),
+			report.NewSpanOver(rootIdent.Span(), endSpan),
+			p.newOpaqueType(rootIdent.Name, rootIdent.Span()),
 		),
 		FieldInits: fieldInits,
 		SpreadInit: spreadInit,
@@ -350,7 +362,11 @@ func (p *Parser) parseAtom() ast.ASTExpr {
 	case TOK_LPAREN:
 		p.next()
 
+		p.exprNestDepth++
+
 		expr := p.parseExpr()
+
+		p.exprNestDepth--
 
 		p.want(TOK_RPAREN)
 

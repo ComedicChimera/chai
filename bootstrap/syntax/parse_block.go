@@ -52,7 +52,11 @@ func (p *Parser) parseIfStmt() *ast.IfTree {
 			p.want(TOK_SEMI)
 		}
 
+		outerExprNestDepth := p.exprNestDepth
+		p.exprNestDepth = -1
 		condition := p.parseExpr()
+		p.exprNestDepth = outerExprNestDepth
+
 		body := p.parseBlock()
 
 		condBranches = append(condBranches, ast.CondBranch{
@@ -94,7 +98,11 @@ func (p *Parser) parseWhileLoop() *ast.WhileLoop {
 		headerVarDecl = p.parseVarDecl()
 	}
 
+	outerExprNestDepth := p.exprNestDepth
+	p.exprNestDepth = -1
 	condition := p.parseExpr()
+	p.exprNestDepth = outerExprNestDepth
+
 	body := p.parseBlock()
 
 	var elseBlock *ast.Block
@@ -139,7 +147,10 @@ func (p *Parser) parseCForLoop(startSpan *report.TextSpan, iterVarDecl *ast.VarD
 
 	var updateStmt ast.ASTNode
 	if !p.has(TOK_COLON) && !p.has(TOK_LBRACE) {
+		outerExprNestDepth := p.exprNestDepth
+		p.exprNestDepth = -1
 		updateStmt = p.parseExprAssignStmt()
+		p.exprNestDepth = outerExprNestDepth
 	}
 
 	body := p.parseBlock()

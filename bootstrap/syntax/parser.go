@@ -26,6 +26,11 @@ type Parser struct {
 
 	// The lookbehind the token the parser was previously positioned on.
 	lookbehind *Token
+
+	// The expression nesting depth.  This is used to determine whether `{` belongs
+	// to a block or a struct literal.  This will be set to `-1` if a `{` opening
+	// a block is expected.
+	exprNestDepth int
 }
 
 // ParseFile parses a Chai file and returns whether or not parsing was
@@ -45,9 +50,10 @@ func ParseFile(chFile *depm.ChaiFile) {
 
 	// Create a new parser for the file.
 	p := Parser{
-		chFile: chFile,
-		lexer:  lexer,
-		tok:    nil,
+		chFile:        chFile,
+		lexer:         lexer,
+		tok:           nil,
+		exprNestDepth: 0,
 	}
 
 	// Catch any errors that occur while parsing the file.
