@@ -37,6 +37,8 @@ func (l *Lowerer) lowerVarDecl(vd *ast.VarDecl) {
 					Initializer: init,
 				}
 
+				ident.Sym.MIRSymbol = vd.Ident.Symbol
+
 				l.appendStmt(vd)
 			}
 		}

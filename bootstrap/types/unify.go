@@ -81,7 +81,11 @@ func unifyUntypedNumbers(a, b *UntypedNumber) bool {
 	// If the two types have same display name, then we can skip combining
 	// their possible types since they must be the same type.
 	if a.DisplayName == b.DisplayName {
-		a.Value = b
+		// Make sure they aren't the same type :)
+		if a != b {
+			a.Value = b
+		}
+
 		return true
 	} else {
 		// Find all the possible types the two untyped numbers have in common.

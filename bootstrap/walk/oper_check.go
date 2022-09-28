@@ -29,7 +29,7 @@ func (w *Walker) checkOperApp(op *ast.AppliedOperator, span *report.TextSpan, ar
 		span,
 		"no definition of %s matches argument types (%s)",
 		op.OpName,
-		strings.Join(util.Map(argTypes, func(typ types.Type) string { return typ.Repr() }), ","),
+		strings.Join(util.Map(argTypes, func(typ types.Type) string { return typ.Repr() }), ", "),
 	)
 	return nil
 }

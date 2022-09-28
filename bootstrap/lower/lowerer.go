@@ -1,6 +1,7 @@
 package lower
 
 import (
+	"chaic/ast"
 	"chaic/depm"
 	"chaic/mir"
 )
@@ -18,6 +19,18 @@ type Lowerer struct {
 
 	// The current block being generated in.
 	block *[]mir.Statement
+
+	// The list of deferred predicates to be lowered after definitions.
+	deferred []deferredPredicate
+}
+
+// deferredPredicate is a predicate waiting to be lowered.
+type deferredPredicate struct {
+	// The function containing the block.
+	fn *mir.Function
+
+	// The AST node of the predicate.
+	pred ast.ASTNode
 }
 
 // Lower converts a Chai package into a MIR bundle.
@@ -36,11 +49,22 @@ func Lower(pkg *depm.ChaiPackage) *mir.Bundle {
 
 // lower converts the Lowerer's Chai package into its MIR bundle.
 func (l *Lowerer) lower() {
+	// Lower all the definitions.
 	for _, chfile := range l.pkg.Files {
 		l.chfile = chfile
 
 		for _, def := range chfile.Definitions {
 			l.lowerDef(def)
+		}
+	}
+
+	// Lower all the deferred predicates.
+	for _, dp := range l.deferred {
+		l.block = &dp.fn.Body
+		if bodyExpr, ok := dp.pred.(ast.ASTExpr); ok {
+			l.appendStmt(l.lowerExpr(bodyExpr))
+		} else {
+			l.lowerBlock(dp.pred.(*ast.Block))
 		}
 	}
 }

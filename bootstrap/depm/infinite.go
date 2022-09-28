@@ -55,6 +55,9 @@ func CheckForInfiniteTypes(depGraph map[uint64]*ChaiPackage) bool {
 				switch v := def.(type) {
 				case *ast.StructDef:
 					declSym = v.Symbol
+				default:
+					// No other definition can be infinite.
+					continue
 				}
 
 				if span, ok := findInfinites(declSym.Type.(types.NamedType)); !ok {

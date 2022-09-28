@@ -4,7 +4,18 @@ import "chaic/util"
 
 // Equals returns whether two types are equal.
 func Equals(a, b Type) bool {
-	return InnerType(a).equals(InnerType(b))
+	aInner := InnerType(a)
+	bInner := InnerType(b)
+
+	// Check for special "non-commutative" types: we want to make the
+	// commutative since they are not by default.
+	if un, ok := bInner.(*UntypedNull); ok {
+		return un.equals(aInner)
+	} else if un, ok := bInner.(*UntypedNumber); ok {
+		return un.equals(aInner)
+	}
+
+	return aInner.equals(bInner)
 }
 
 // InnerType returns the "inner" type of typ.  For most types, this is just an

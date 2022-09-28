@@ -44,6 +44,7 @@ func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 		}),
 		SrcFileAbsPath: l.chfile.AbsPath,
 		Span:           fd.Span(),
+		Attrs:          make(map[mir.FuncAttrKind]string),
 		// TODO: public
 	}
 
@@ -67,11 +68,17 @@ func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 		}
 	}
 
-	l.block = &fn.Body
-	if bodyExpr, ok := fd.Body.(ast.ASTExpr); ok {
-		l.appendStmt(l.lowerExpr(bodyExpr))
-	} else {
-		l.lowerBlock(fd.Body.(*ast.Block))
+	// Set all the parameter MIR symbols.
+	for i, param := range fd.Params {
+		param.MIRSymbol = fn.ParamVars[i].Symbol
+	}
+
+	// Add the body to the deferred list if one exists.
+	if fd.Body != nil {
+		l.deferred = append(l.deferred, deferredPredicate{
+			fn:   fn,
+			pred: fd.Body,
+		})
 	}
 
 	l.bundle.Functions = append(l.bundle.Functions, fn)
