@@ -57,16 +57,18 @@ func (l *Lowerer) lowerAssignment(assign *ast.Assignment) {
 	if len(assign.LHSVars) == len(assign.RHSExprs) {
 		mRHSVals := make([]mir.Expr, len(assign.RHSExprs))
 		for i, rhsExpr := range assign.RHSExprs {
+			mRHSVal := l.lowerExpr(rhsExpr)
+
 			tempVar := &mir.VarDecl{
 				StmtBase: mir.NewStmtBase(rhsExpr.Span()),
 				Ident: &mir.Identifier{
 					ExprBase: mir.NewExprBase(rhsExpr.Span()),
 					Symbol: &mir.MSymbol{
-						Type:              types.Simplify(rhsExpr.Type()),
+						Type:              mRHSVal.Type(),
 						IsImplicitPointer: false,
 					},
 				},
-				Initializer: l.lowerExpr(rhsExpr),
+				Initializer: mRHSVal,
 				Temporary:   true,
 			}
 			l.appendStmt(tempVar)

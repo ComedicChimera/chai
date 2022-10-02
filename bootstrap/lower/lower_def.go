@@ -30,14 +30,13 @@ func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 	// Create the base MIR function.
 	fn := &mir.Function{
 		Name:      fd.Symbol.Name,
-		Signature: fd.Symbol.Type.(*types.FuncType),
+		Signature: types.Simplify(fd.Symbol.Type).(*types.FuncType),
 		ParamVars: util.Map(fd.Params, func(param *common.Symbol) *mir.Identifier {
 			return &mir.Identifier{
-				// No type simplification needed here.
 				ExprBase: mir.NewExprBase(param.DefSpan),
 				Symbol: &mir.MSymbol{
 					Name:              param.Name,
-					Type:              param.Type,
+					Type:              types.Simplify(param.Type),
 					IsImplicitPointer: !types.IsPtrWrappedType(param.Type),
 				},
 			}
