@@ -19,14 +19,14 @@ $ csrc `
 Then, you can use the `cmixin` module to pass data between Chai and C.  To access the definitions, add the special `import C` to your source file.
 
 ```
-import cmixin
-import C
+import cmixin;
+import C;
 
-def main()
-	C.c_print(10)
+func main() {
+	C.c_print(10);
 	
-	C.printf(cmixin.c_string("%d %c\n"), cmixin.va_args(12, 'a' as cmixin.char))
-end
+	C.printf(cmixin.CString("%d %c\n"), cmixin.VaArgs(12, 'a' as cmixin.char));
+}
 ```
 
 ## Compiler Configuration

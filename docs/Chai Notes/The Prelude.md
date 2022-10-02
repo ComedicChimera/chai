@@ -4,7 +4,7 @@ The prelude is the set of types and functions loaded into every module by defaul
 ## Functions
 ```
 assert(condition)
-assert_m(condition, message)
+assertMsg(condition, message)
 abs(n)
 divmod(n)
 compare(c1, c2)
@@ -15,11 +15,10 @@ floor(n)
 lerp(l, u, p)
 min(a, b)
 max(a, b)
-norm(n)
 panic(message)
 round(n)
-to_string(t)
-strand(fn, args...)
+toString(t)
+scale(n, sl, su, dl, du)
 sleep(ms)
 todo()
 unreachable()
@@ -39,6 +38,9 @@ Result<T, E>
 List<T>
 Map<K, V>
 Ord
+Strand
+Future<T>
+Chan<T>
 ```
 ## Classes
 ```
@@ -49,6 +51,8 @@ Show
 Hash
 Eq
 Compare
+Number
+Add
 ```
 ## Constraints
 ```
@@ -61,12 +65,16 @@ Real = Int | Float
 ```
 ## (Compile-Time) Constants
 ```
+MIN_I8
 MAX_I8
 MAX_U8
+MIN_I16
 MAX_I16
 MAX_U16
+MIN_I32
 MAX_I32
 MAX_U32
+MIN_I64
 MAX_I64
 MAX_U64
 MIN_F32
