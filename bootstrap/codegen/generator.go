@@ -41,7 +41,7 @@ type Generator struct {
 	memcpy llvalue.Value
 
 	// The pointer to the return parameter if one exists.
-	retParam llvalue.Value
+	retParam *ir.Param
 }
 
 // bodyPredicate represents the predicate of a function or operator body.
@@ -53,7 +53,7 @@ type bodyPredicate struct {
 	Params []*mir.MSymbol
 
 	// The return parameter to the function if one exists.
-	RetParam llvalue.Value
+	RetParam *ir.Param
 
 	// The AST body.
 	Body []mir.Statement

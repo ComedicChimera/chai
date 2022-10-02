@@ -4,6 +4,7 @@ import (
 	"chaic/ast"
 	"chaic/depm"
 	"chaic/mir"
+	"chaic/types"
 )
 
 // Lowerer is responsible for converting the AST to MIR.
@@ -62,7 +63,15 @@ func (l *Lowerer) lower() {
 	for _, dp := range l.deferred {
 		l.block = &dp.fn.Body
 		if bodyExpr, ok := dp.pred.(ast.ASTExpr); ok {
-			l.appendStmt(l.lowerExpr(bodyExpr))
+			expr := l.lowerExpr(bodyExpr)
+			l.appendStmt(expr)
+
+			if !types.IsUnit(dp.fn.Signature.ReturnType) {
+				l.appendStmt(&mir.Return{
+					StmtBase: mir.NewStmtBase(expr.Span()),
+					Value:    expr,
+				})
+			}
 		} else {
 			l.lowerBlock(dp.pred.(*ast.Block))
 		}

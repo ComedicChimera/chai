@@ -10,7 +10,14 @@ import (
 // lowerVarDecl lowers a variable declaration.
 func (l *Lowerer) lowerVarDecl(vd *ast.VarDecl) {
 	for _, vlist := range vd.VarLists {
-		init := l.lowerExpr(vlist.Initializer)
+		var init mir.Expr
+		if vlist.Initializer == nil {
+			init = l.lowerNull(&ast.Null{
+				ExprBase: ast.NewTypedExprBase(nil, vlist.Vars[0].Type()),
+			})
+		} else {
+			init = l.lowerExpr(vlist.Initializer)
+		}
 
 		// TODO: pattern matching
 		if len(vlist.Vars) > 1 {
@@ -89,6 +96,8 @@ func (l *Lowerer) lowerAssignment(assign *ast.Assignment) {
 							IsImplicitPointer: false,
 						},
 					},
+					Initializer: mLHSVar,
+					Temporary:   true,
 				}
 				l.appendStmt(lhsTempVar)
 
@@ -123,7 +132,7 @@ func (l *Lowerer) lowerIncDecStmt(incdec *ast.IncDecStmt) mir.Statement {
 		lhsOp,
 		&mir.ConstInt{
 			ValueBase: mir.NewValueBase(incdec.Span(), lhsOp.Type()),
-			IntValue:  0,
+			IntValue:  1,
 		},
 		lhsOp.Type(),
 	)

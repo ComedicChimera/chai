@@ -61,8 +61,8 @@ A sort of zero-to-hero guide for a new Chai developer.  We want a quick way to o
 - Readers, Writers, and Streams
 - Walking a Directory
 
-## Lesson 10: Concurrency
-- What is a Strand?
-- Futures
-- Channels
-- Strand Pools
+## Lesson 10: The Package System
+- A Formal Overview of Packages
+- Using Kettle as a Build Tool
+- Import Resolution and Visibility
+- Using Community Packages

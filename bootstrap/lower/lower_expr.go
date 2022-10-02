@@ -186,6 +186,7 @@ func (l *Lowerer) lowerStructLiteral(slit *ast.StructLiteral) mir.Expr {
 					IsImplicitPointer: types.IsPtrWrappedType(slit.Type()),
 				},
 			},
+			Initializer: l.lowerExpr(slit.SpreadInit),
 		}
 
 		l.appendStmt(vdecl)

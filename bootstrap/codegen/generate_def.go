@@ -42,7 +42,7 @@ func (g *Generator) generateFunction(mfunc *mir.Function) {
 	returnType := mfunc.Symbol.Type.(*types.FuncType).ReturnType
 
 	// Add the pointer return parameter as necessary.
-	var retParam *ir.Param
+	var retParam *ir.Param = nil
 	if types.IsPtrWrappedType(returnType) {
 		ptrRetType := g.convType(returnType)
 		retParam = ir.NewParam("return", ptrRetType)

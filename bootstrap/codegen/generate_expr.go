@@ -351,9 +351,10 @@ func (g *Generator) generateFuncCall(call *mir.FuncCall) llvalue.Value {
 	for i, arg := range call.Args {
 		llArg := g.generateExpr(arg)
 
-		if arg.LValue() {
+		if arg.LValue() && types.IsPtrWrappedType(arg.Type()) {
 			copiedArg := g.block.NewAlloca(g.convAllocType(arg.Type()))
 			g.copyInto(arg.Type(), llArg, copiedArg)
+			copiedArgs[i] = copiedArg
 		} else {
 			copiedArgs[i] = llArg
 		}

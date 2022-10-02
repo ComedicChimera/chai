@@ -44,6 +44,8 @@ func (g *Generator) generateStructInstDecl(sid *mir.StructInstanceDecl) {
 		// TODO: move semantics
 		g.copyInto(fieldInit.Type(), llFieldInit, fieldPtr)
 	}
+
+	sid.Ident.Symbol.LLValue = structAlloca
 }
 
 // generateAssignment generates an assignment.
