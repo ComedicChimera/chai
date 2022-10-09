@@ -8,3 +8,4 @@ docs/Chai Notes/.obsidian
 *.dll
 bootstrap/go.sum
 bootstrap/llc/cgo_config.go
+go.work.sum
