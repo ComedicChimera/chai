@@ -103,7 +103,7 @@ perfectly up to date but should help to give some idea of where we are.
     - While Loops
     - C-Style For Loops
     - Break and Continue
-- [ ] Target 3: Structs
+- [x] Target 3: Structs
     - Struct Types
     - Struct Declarations
     - Struct Literals
@@ -111,14 +111,22 @@ perfectly up to date but should help to give some idea of where we are.
     - Property Mutating
     - Copy Elision
     - RVO
-- [ ] Target 4: Arrays and Strings
+- [ ] Target 4: Debug Info
+    - Module-Level Metadata
+    - Function Metaata
+    - Struct Metadata
+    - Scope Metadata
+    - Positional Data
+    - Debug Declarations
+    - Debug Assignment
+- [ ] Target 5: Arrays and Strings
     - Array Types
     - Array Literals
     - Array Indexing
     - Fast For Each Loops for Arrays
     - String Literals
     - String Indexing
-- [ ] Target 5: Packages and Imports
+- [ ] Target 6: Packages and Imports
     - Import Statements
     - Package Declarations
     - Import Resolution
@@ -126,7 +134,7 @@ perfectly up to date but should help to give some idea of where we are.
     - Global Variables
     - The Prelude (the `core` package)
     - Runtime Separation (the `runtime` package, `__chai_main` and `__chai_init`)
-- [ ] Target 6: Runtime and Dynamic Memory
+- [ ] Target 7: Runtime and Dynamic Memory
     - Proper Signal Handling
     - The Allocator
     - The Garbage Collector
