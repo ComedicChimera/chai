@@ -319,7 +319,7 @@ func (tt *TupleType) Repr() string {
 type NamedType interface {
 	Type
 
-	// The named type's full name: parent package path + type name.
+	// The named type's name.
 	Name() string
 
 	// The package ID that the named type is defined in.
@@ -361,7 +361,7 @@ const (
 
 // NamedTypeBase is the base type for all named types: structs, enums, etc.
 type NamedTypeBase struct {
-	// The named type's full name: parent package path + type name.
+	// The named type's name.
 	name string
 
 	// The package ID that the named type is defined in.

@@ -15,6 +15,7 @@ func (l *Lowerer) lowerDef(def ast.ASTNode) {
 	case *ast.FuncDef:
 		l.lowerFuncDef(v)
 	case *ast.StructDef:
+		l.lowerStructDef(v)
 	default:
 		report.ReportICE("lowering not implemented for definition")
 	}
@@ -81,6 +82,25 @@ func (l *Lowerer) lowerFuncDef(fd *ast.FuncDef) {
 	}
 
 	l.bundle.Functions = append(l.bundle.Functions, fn)
+}
+
+// lowerStructDef lowers a struct definition.
+func (l *Lowerer) lowerStructDef(sd *ast.StructDef) {
+	sst := types.Simplify(sd.Symbol.Type).(*types.StructType)
+	msym := &mir.MSymbol{
+		Name:              sd.Symbol.Name,
+		Type:              sst,
+		IsImplicitPointer: !types.IsPtrWrappedType(sst),
+	}
+
+	l.bundle.Structs = append(l.bundle.Structs, &mir.Struct{
+		Type:           sst,
+		SrcFileAbsPath: l.pkg.Files[sd.Symbol.FileNumber].AbsPath,
+		Span:           sd.Span(),
+		Symbol:         msym,
+	})
+
+	sd.Symbol.MIRSymbol = msym
 }
 
 /* -------------------------------------------------------------------------- */

@@ -203,19 +203,19 @@ func (g *Generator) copyInto(typ types.Type, src, dest llvalue.Value) {
 
 // convType converts the typ to its LLVM type making no assumptions.
 func (g *Generator) convType(typ types.Type) lltypes.Type {
-	return g.doConvType(types.InnerType(typ), false, false)
+	return g.doConvType(typ, false, false)
 }
 
 // convReturnType converts typ to its LLVM type assuming typ is a return type.
 func (g *Generator) convReturnType(typ types.Type) lltypes.Type {
-	return g.doConvType(types.InnerType(typ), true, false)
+	return g.doConvType(typ, true, false)
 }
 
 // convAllocType converts typ to its LLVM type assuming typ is used in an
 // `alloca` instruction: some types which are pointers normally are not passed
 // as pointers to `alloca` -- this function handles that case.
 func (g *Generator) convAllocType(typ types.Type) lltypes.Type {
-	return g.doConvType(types.InnerType(typ), false, true)
+	return g.doConvType(typ, false, true)
 }
 
 // doConvType converts the typ to its LLVM type.
@@ -226,13 +226,15 @@ func (g *Generator) doConvType(typ types.Type, isReturnType, isAllocType bool) l
 	case *types.PointerType:
 		return lltypes.NewPointer(g.convType(v.ElemType))
 	case types.NamedType:
-		if isReturnType {
-			return lltypes.Void
-		} else if isAllocType || types.IsPtrWrappedType(typ) {
-			return v.LLType()
-		} else {
-			return lltypes.NewPointer(v.LLType())
+		if types.IsPtrWrappedType(typ) {
+			if isReturnType {
+				return lltypes.Void
+			} else if !isAllocType {
+				return lltypes.NewPointer(v.LLType())
+			}
 		}
+
+		return v.LLType()
 	default:
 		report.ReportICE("type codegen not implemented")
 		return nil

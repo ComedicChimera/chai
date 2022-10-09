@@ -38,7 +38,7 @@ func (l *Lowerer) lowerVarDecl(vd *ast.VarDecl) {
 						Symbol: &mir.MSymbol{
 							Name:              ident.Name,
 							Type:              types.Simplify(ident.Type()),
-							IsImplicitPointer: true,
+							IsImplicitPointer: !types.IsPtrWrappedType(ident.Type()),
 						},
 					},
 					Initializer: init,

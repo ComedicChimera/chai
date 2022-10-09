@@ -182,8 +182,8 @@ func (l *Lowerer) lowerStructLiteral(slit *ast.StructLiteral) mir.Expr {
 				ExprBase: mir.NewExprBase(slit.Span()),
 				Symbol: &mir.MSymbol{
 					Name:              "",
-					Type:              slit.Type(),
-					IsImplicitPointer: types.IsPtrWrappedType(slit.Type()),
+					Type:              st,
+					IsImplicitPointer: !types.IsPtrWrappedType(slit.Type()),
 				},
 			},
 			Initializer: l.lowerExpr(slit.SpreadInit),

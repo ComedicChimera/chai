@@ -15,6 +15,7 @@ func print_vec2(h: *u8, v2: Vec2) {
     putc(h, ' ');
     putd(h, v2.y);
     putc(h, ')');
+    putc(h, '\n');
 }
 
 func print_vec3(h: *u8, v3: Vec3) {
@@ -27,6 +28,7 @@ func print_vec3(h: *u8, v3: Vec3) {
     putc(h, ' ');
     putd(h, v3.z);
     putc(h, ')');
+    putc(h, '\n');
 }
 
 func one_vec2() Vec2 {

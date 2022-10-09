@@ -298,7 +298,7 @@ func (p *Parser) parseStructDef(annots map[string]ast.AnnotValue) *ast.StructDef
 
 	structType := &types.StructType{
 		NamedTypeBase: types.NewNamedTypeBase(
-			p.chFile.Parent.Name+"."+nameIdent.Value,
+			nameIdent.Value,
 			p.chFile.Parent.ID,
 			len(p.chFile.Definitions),
 		),

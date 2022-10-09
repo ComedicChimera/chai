@@ -67,7 +67,7 @@ func IsUnit(typ Type) bool {
 func IsPtrWrappedType(typ Type) bool {
 	switch InnerType(typ).(type) {
 	case *StructType:
-		return typ.Size() <= 2*util.PointerSize
+		return typ.Size() > 2*util.PointerSize
 	}
 
 	return false

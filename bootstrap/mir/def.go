@@ -85,4 +85,7 @@ type Struct struct {
 
 	// The span the struct is defined over.
 	Span *report.TextSpan
+
+	// The MIR symbol associated with the struct.
+	Symbol *MSymbol
 }
