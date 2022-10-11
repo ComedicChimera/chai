@@ -1,4 +1,4 @@
-package target3_test;
+package target4_test;
 
 func putd(h: *u8, n: i64) {
     if n == 0 {

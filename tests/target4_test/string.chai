@@ -1,0 +1,5 @@
+package target4_test;
+
+struct string {
+    bytes: []const u8;
+}

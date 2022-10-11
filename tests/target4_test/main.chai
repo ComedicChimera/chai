@@ -1,0 +1,100 @@
+package target4_test
+
+// NOTE: Len will be replaced with the Len() method later.
+
+func heapify(arr: []i64) {
+    let bottom = arr.Len / 2 - 1;
+
+    for ; bottom >= 0; bottom-- {
+        let left = 2 * bottom + 1;
+        let right = 2 * bottom + 2;
+
+        let max = bottom;
+        if arr[left] > arr[bottom]:
+            max = left;
+
+        if right < arr.Len && arr[right] > arr[max]:
+            max = right;
+
+        if bottom != max:
+            arr[bottom], arr[max] = arr[max], arr[bottom];
+    } 
+}
+
+func sinkDown(arr: []i64) {
+    let i = 0;
+    while true {
+        let left = 2 * i + 1;
+        let right = 2 * i + 2;
+
+        if left >= arr.Len:
+            break;
+
+        let min = i;
+        if arr[min] > arr[left]:
+            min = left;
+
+        if right < arr.Len && arr[min] > arr[right]:
+            min = right;
+
+        if min == i:
+            break;
+
+        arr[i], arr[min] = arr[min], arr[i];
+        i = min;
+    }
+}
+
+func heapSort(arr: []i64) {
+    heapify(arr);
+
+    for let i = 0; i < arr.Len - 1; i++ {
+        arr[arr.Len - i - 1], arr[i] = arr[i], arr[arr.Len - i - 1];
+        sinkDown(arr[:arr.Len - i]);
+    }
+}
+
+func printArray(h: *u8, arr: []i64) {
+    putc('{');
+
+    for let i = 0; i < arr.Len; i++ {
+        if i > 0 {
+            putc(h, ',');
+            putc(h, ' ');
+        }
+
+        putd(h, arr[i]);
+    }
+
+    println(h, "}\n");
+}
+
+func println(h: *u8, str: string) {
+    for c in str.data {
+        putc(h, c);
+    }
+
+    putc(h, '\n');
+}
+
+func main() {
+    let h = get_stdout();
+
+    println(h, "Hello, world!");
+
+    let arr1 = {4, 2, 5, 1, 3, 7, 6, 8};
+    let arr2 = {-0.3, 2.3, 4.5};
+
+    let sum = 0;
+    for item in arr2 {
+        sum += item;
+    }
+
+    putd(h, sum);
+    putc(h, '\n');
+
+    heapSort(arr1, 8);
+
+    printArray(h, arr1);
+    printArray(h, arr2[1:]);
+}
