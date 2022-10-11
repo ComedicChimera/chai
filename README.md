@@ -109,24 +109,14 @@ perfectly up to date but should help to give some idea of where we are.
     - Struct Literals
     - Property Accessing
     - Property Mutating
-    - Copy Elision
-    - RVO
-- [ ] Target 4: Debug Info
-    - Module-Level Metadata
-    - Function Metaata
-    - Struct Metadata
-    - Scope Metadata
-    - Positional Data
-    - Debug Declarations
-    - Debug Assignment
-- [ ] Target 5: Arrays and Strings
+- [ ] Target 4: Arrays and Strings
     - Array Types
     - Array Literals
     - Array Indexing
     - Fast For Each Loops for Arrays
     - String Literals
     - String Indexing
-- [ ] Target 6: Packages and Imports
+- [ ] Target 5: Packages and Imports
     - Import Statements
     - Package Declarations
     - Import Resolution
@@ -134,7 +124,7 @@ perfectly up to date but should help to give some idea of where we are.
     - Global Variables
     - The Prelude (the `core` package)
     - Runtime Separation (the `runtime` package, `__chai_main` and `__chai_init`)
-- [ ] Target 7: Runtime and Dynamic Memory
+- [ ] Target 6: Runtime and Dynamic Memory
     - Proper Signal Handling
     - The Allocator
     - The Garbage Collector
@@ -142,9 +132,22 @@ perfectly up to date but should help to give some idea of where we are.
     - Escape Analysis
     - Nullability Semantics
     - Dynamic Array Allocation (`make` expressions)
+- [ ] Target 7: Debug Info
+    - Module-Level Metadata
+    - Function Metaata
+    - Struct Metadata
+    - Scope Metadata
+    - Positional Data
+    - Debug Declarations
+    - Debug Assignment
 
 *NOTE: Other targets TBD*
  
+Optimizations To Implement at Some Point:
+
+- Copy Elision
+- RVO
+
 ## <a name="building"> Building the Compiler
 
 TODO
