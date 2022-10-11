@@ -6,11 +6,12 @@ This file discusses the "break-down" of standard functionality between the vario
 **unsafe**
 **sys**
 **os**
+**io**
 **io.std**
 **stringutil**
 **stringutil.conv**
-**io**
 **io.fs**
+**io.fmt**
 **sequtil**
 **collections**
 **math**
@@ -24,8 +25,7 @@ This file discusses the "break-down" of standard functionality between the vario
 **test**
 **algo**
 
-**concurrent**
-**proc.pipe**
+**strandutil**
 **net**
 **net.url**
 **net.socket**

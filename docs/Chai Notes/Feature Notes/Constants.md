@@ -3,10 +3,13 @@ Constants provide a convenient way to define constant values.
 
 ## Syntax
 ```
-const const_name: type_label = constant_value
+const_def := `const` var {',' var};
+```
 
+Here is an example of a constant definition:
 
-const const0: type0 = value0, const1: type1 = value1
+```
+const x = 10;
 ```
 
 ## Semantics
@@ -16,7 +19,7 @@ They may never be mutated.
 
 They may be defined locally or globally.
 
-They must always have a type extension and an initializer.
+They must always have an initializer.
 
 When reference, they always take the form of `const` pointers.
 

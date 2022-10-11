@@ -1,42 +1,42 @@
-# Pragmas
-**Pragmas** also called **meta directives** provide a way to control the compiler more precisely.  They are sort of like preprocessor directives in C (except Chai doesn't actually use a preprocessor).
+# Directives
+**Directives** provide a way to control the compiler more precisely.  They are sort of like preprocessor directives in C (except Chai doesn't actually use a preprocessor).
 
-A general rule for all pragmas is that they will only execute once per compilation, and they are always executed before any code is generated.
+A general rule for all directives is that they will only execute once per compilation, and they are always executed before any code is generated.
 
 ## Syntax
-All pragmas begin with a `#` followed by the directive name (which is a normal) identifier.  Eg.
+All directives begin with a `#` followed by the directive name (which is a normal) identifier.  Eg.
 
 `#warn "deprecated"`
 
-From there, pragmas deviate quite a bit in what syntax they use for their arguments.
+From there, directives deviate quite a bit in what syntax they use for their arguments.
 
 ## Locality
-Pragmas can be defined as either **global** or **local**.  **Global pragmas** affect the entire file they are defined in whereas **local pragmas** only affect the function or relevant code block they are defined in.
+Directives can be defined as either **global** or **local**.  **Global directives** affect the entire file they are defined in whereas **local directives** only affect the function or relevant code block they are defined in.
 
-The **locality** of a pragma is determined entirely based on where the pragma is placed.  Pragmas which are placed at the file level are considered global.  By contrast, pragmas which are placed inside of other definitions are considered local.
+The **locality** of a directive is determined entirely based on where the directive is placed.  Directives which are placed at the file level are considered global.  By contrast, directives which are placed inside of other definitions are considered local.
 
 ## Conditional Execution
-The compiler is not guaranteed to execute a particular pragma at compile time.  The following conditions are must be met for any pragma to be executed:
+The compiler is not guaranteed to execute a particular directive at compile time.  The following conditions are must be met for any directive to be executed:
 
-1. The pragma must be well formed.
-2. The file must be parseable up until the pragma.
-3. No pragma placed before the pragma blocks compilation.
+1. The directive must be well formed.
+2. The file must be parseable up until the directive.
+3. No directive placed before the directive blocks compilation.
 
- For example, if the pragma is placed after a `require` pragma, then it will only execute if the `require` is satisfied.
+ For example, if the directive is placed after a `require` directive, then it will only execute if the `require` is satisfied.
 
-### Local Pragma Execution
-In addition to the above conditions, local pragmas require that the file be fully compileable (ie. syntactically and semantically valid) in order to be executed.  Furthermore, they have special execution requirements depending on where they are defined.
+### Local Directive Execution
+In addition to the above conditions, local directives require that the file be fully compileable (ie. syntactically and semantically valid) in order to be executed.  Furthermore, they have special execution requirements depending on where they are defined.
 
 ##### Inside Functions (or Methods)
-A pragma placed inside a function will execute under the following conditions:
+A directive placed inside a function will execute under the following conditions:
 
 1. The function is called within user code.
-2. If the pragma is placed within generic control flow, the control flow branch containing the pragma is evaluated at compile-time.
+2. If the directive is placed within generic control flow, the control flow branch containing the directive is evaluated at compile-time.
 
 ##### Inside Types (Class, Constraint, or Space) Definitions
 A pragam placed inside a type definition will only execute if that type is used within user source code.
 
-## Builtin Pragmas
+## Builtin Directives
 ### Require
 The require directive specifies a condition of compilation.  The directive identifier is `require`.  It accepts a condition that if false will prevent compilation of all code which occurs after the require.
 
@@ -101,7 +101,7 @@ The if/elif/else directive allows more precise conditional compilation than requ
 ### Inline Assembly.
 The inline assembly directive will allow users to write assembly code inside their functions.  The directive identifier is `asm`.  It accepts an assembly string (can be muli-line) to run.  This directive can NOT be used at the file level.
 
-## Future Pragma Ideas
+## Future Directive Ideas
 These directives may be implemented at some point in Chai's future.
 
 - Floating-point environment configuration

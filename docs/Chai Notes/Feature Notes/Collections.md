@@ -2,8 +2,6 @@
 
 Chai provides 4 fundamental collections as enumerated below.
 
-**NOTE**: As of 1/30/22, vectors and matrices are no longer a part of the core language.  They may be readded with their own syntax as part of the math library at a later date.  They are not essential to the language's release and serve only to bloat and complicate the language (given the likely lack of adequate vector support upon release).  TLDR: we are not trying to compete with Matlab, and vectors and matrices have very little use to regular programmers on a day to day basis.
-
 ## Arrays
 Arrays are fixed-size, homogenous collections of elements.  They use the `[]T` type.  Their literal is written as: `{a, b, c, ...}` (using curly braces).
 
@@ -26,7 +24,7 @@ Lists have standard value semantics.
 They are sequences and indexable by numbers.
 
 ## Maps
-Maps are resizable collections of homogenous key-value pairs.  They use the `Dict<K, V>` type. 
+Maps are resizable collections of homogenous key-value pairs.  They use the `Map<K, V>` type. 
 
 Their literals are written as follows:
 ```

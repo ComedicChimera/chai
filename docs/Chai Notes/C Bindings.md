@@ -2,7 +2,7 @@
 C bindings are absolute must for any compiled language.  They allow for quick library development and automatically make Chai compatible with a bunch of old toolchains that are industry standards.
 
 ## Accessing C Functions and Types
-Use a special pragma:
+Use a special directive:
 
 ```
 $ csrc `

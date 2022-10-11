@@ -7,7 +7,7 @@
 - Variadic generics can be expanded into other types using `...`
 	- Eg. `(...T)` expands into a tuple of the n-values of `T`.
 - Variadic arguments:
-	- `println<...T: Show>(...args: T)` (automatically unpacks `T` for each argument)
+	- `Println<...T: Show>(...args: T)` (automatically unpacks `T` for each argument)
 	- Passed as a tuple (to allow a mixture of types)
 		- Use generic control flow handle them
 - Variadic generics cannot be used without being expanded.

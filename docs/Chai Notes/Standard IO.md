@@ -1,16 +1,16 @@
 # Standard IO
 
 ```
-func print<...S: Show>(...s: S)
-func println<..S: Show>(...s: S)
-func printf<...T>(fmt: string, ...args: T)
+func Print<...S: Show>(...s: S)
+func Println<..S: Show>(...s: S)
+func Printf<...T>(fmt: string, ...args: T)
 
-func error<...S: Show>(...s: S)
-func errorln<...S: Show>(...s: S)
-func errorf<...T>(fmt: string, ...args: T)
+func Error<...S: Show>(...s: S)
+func Errorln<...S: Show>(...s: S)
+func Errorf<...T>(fmt: string, ...args: T)
 
-func scan() Result[rune, Error]
-func scanln() Result[string, Error]
-func scanf<...T>(fmt: string, ...args: &T) Result[(), Error]
+func Scan() Result<rune, Error>
+func Scanln() Result<string, Error>
+func Scanf<...T>(fmt: string, ...args: &T) Result<(), Error>
 
-func flush() bool
+func Flush() bool
