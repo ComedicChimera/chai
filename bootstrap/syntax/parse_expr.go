@@ -252,7 +252,8 @@ func (p *Parser) parseAtomExpr() ast.ASTExpr {
 
 				atomExpr = p.parseStructLitSuffix(rootIdent)
 			}
-
+		case TOK_LBRACKET:
+			atomExpr = p.parseIndexOrSlice(atomExpr)
 		default:
 			return atomExpr
 		}
@@ -310,10 +311,54 @@ func (p *Parser) parseStructLitSuffix(rootIdent *ast.Identifier) *ast.StructLite
 	}
 }
 
+// index_or_slice := '[' (expr [':' [expr]] | ':' expr) ']' ;
+func (p *Parser) parseIndexOrSlice(root ast.ASTExpr) ast.ASTExpr {
+	startSpan := p.want(TOK_LBRACKET).Span
+
+	if p.has(TOK_COLON) {
+		p.next()
+
+		endExpr := p.parseExpr()
+
+		return &ast.Slice{
+			ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+			Start:    nil,
+			End:      endExpr,
+		}
+	} else {
+		firstExpr := p.parseExpr()
+
+		if p.has(TOK_COLON) {
+			p.next()
+
+			if p.has(TOK_LBRACKET) {
+				return &ast.Slice{
+					ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+					Start:    firstExpr,
+					End:      nil,
+				}
+			}
+
+			endExpr := p.parseExpr()
+
+			return &ast.Slice{
+				ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+				Start:    firstExpr,
+				End:      endExpr,
+			}
+		}
+
+		return &ast.Index{
+			ExprBase:  ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+			Subscript: firstExpr,
+		}
+	}
+}
+
 // -----------------------------------------------------------------------------
 
 // atom := 'IDENT' | 'NUMLIT' | 'INTLIT' | 'FLOATLIT' | 'BOOLLIT' | 'RUNELIT'
-// 		| 'null' | '(' expr ')' ;
+// 		| 'null' | '(' expr ')' | '{' expr_list '}' ;
 func (p *Parser) parseAtom() ast.ASTExpr {
 	switch p.tok.Kind {
 	case TOK_IDENT:
@@ -353,6 +398,15 @@ func (p *Parser) parseAtom() ast.ASTExpr {
 			Kind: TOK_RUNELIT,
 			Text: p.lookbehind.Value,
 		}
+	case TOK_STRINGLIT:
+		p.next()
+
+		return &ast.Literal{
+			ExprBase: ast.NewExprBase(p.lookbehind.Span),
+			Kind:     TOK_STRINGLIT,
+			Text:     p.lookbehind.Value,
+			Value:    p.lookbehind.Value,
+		}
 	case TOK_NULL:
 		p.next()
 
@@ -360,17 +414,37 @@ func (p *Parser) parseAtom() ast.ASTExpr {
 			ExprBase: ast.NewExprBase(p.lookbehind.Span),
 		}
 	case TOK_LPAREN:
-		p.next()
+		{
+			p.next()
 
-		p.exprNestDepth++
+			p.exprNestDepth++
 
-		expr := p.parseExpr()
+			expr := p.parseExpr()
 
-		p.exprNestDepth--
+			p.exprNestDepth--
 
-		p.want(TOK_RPAREN)
+			p.want(TOK_RPAREN)
 
-		return expr
+			return expr
+		}
+	case TOK_LBRACE:
+		{
+			startSpan := p.tok.Span
+			p.next()
+
+			p.exprNestDepth++
+
+			exprList := p.parseExprList()
+
+			p.exprNestDepth--
+
+			endSpan := p.want(TOK_RBRACE).Span
+
+			return &ast.ArrayLiteral{
+				ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, endSpan)),
+				Elements: exprList,
+			}
+		}
 	default:
 		p.reject()
 		return nil

@@ -103,6 +103,23 @@ func (p *Parser) parseTypeLabel() types.Type {
 				Const:    false,
 			}
 		}
+	case TOK_LBRACKET:
+		p.next()
+		p.want(TOK_RBRACKET)
+
+		if p.has(TOK_CONST) {
+			p.next()
+
+			return &types.ArrayType{
+				ElemType: p.parseTypeLabel(),
+				Const:    true,
+			}
+		} else {
+			return &types.ArrayType{
+				ElemType: p.parseTypeLabel(),
+				Const:    false,
+			}
+		}
 	case TOK_IDENT:
 		{
 			typeIdent := p.tok

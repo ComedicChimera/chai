@@ -113,9 +113,9 @@ perfectly up to date but should help to give some idea of where we are.
     - Array Types
     - Array Literals
     - Array Indexing
+    - Array Slicing
     - Fast For Each Loops for Arrays
     - String Literals
-    - String Indexing
 - [ ] Target 5: Packages and Imports
     - Import Statements
     - Package Declarations

@@ -176,6 +176,7 @@ var keywordPatterns = map[string]int{
 	"elif":     TOK_ELIF,
 	"else":     TOK_ELSE,
 	"for":      TOK_FOR,
+	"in":       TOK_IN,
 	"while":    TOK_WHILE,
 	"do":       TOK_DO,
 	"break":    TOK_BREAK,

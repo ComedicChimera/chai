@@ -1,5 +1,7 @@
 package ast
 
+import "chaic/common"
+
 // Block represents a list of AST statements.
 type Block struct {
 	ASTBase
@@ -80,6 +82,23 @@ type DoWhileLoop struct {
 	// The loop condition.
 	Condition ASTExpr
 
-	// The (optiona) else block of the do-while loop.
+	// The (optional) else block of the do-while loop.
+	ElseBlock *Block
+}
+
+// ForEachLoop represents for-each loop.
+type ForEachLoop struct {
+	ASTBase
+
+	// The iterator variable.
+	IterVarSym *common.Symbol
+
+	// The sequence or iterable.
+	SeqExpr ASTExpr
+
+	// The body of the loop.
+	Body *Block
+
+	// The (optional) else block of the for-each loop.
 	ElseBlock *Block
 }

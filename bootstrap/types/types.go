@@ -315,6 +315,41 @@ func (tt *TupleType) Repr() string {
 
 /* -------------------------------------------------------------------------- */
 
+// ArrayType represents an array type.
+type ArrayType struct {
+	// The element type of the array.
+	ElemType Type
+
+	// Whether the array is a view.
+	Const bool
+}
+
+func (at *ArrayType) equals(other Type) bool {
+	if oat, ok := other.(*ArrayType); ok {
+		return Equals(at.ElemType, oat.ElemType) && at.Const == oat.Const
+	}
+
+	return false
+}
+
+func (at *ArrayType) Size() int {
+	return 2 * util.PointerSize
+}
+
+func (at *ArrayType) Align() int {
+	return util.PointerSize
+}
+
+func (at *ArrayType) Repr() string {
+	if at.Const {
+		return "[]const " + at.ElemType.Repr()
+	} else {
+		return "[]" + at.ElemType.Repr()
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+
 // NamedType represents a user-defined type associated with a symbol.
 type NamedType interface {
 	Type

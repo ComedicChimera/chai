@@ -172,6 +172,34 @@ type PropertyAccess struct {
 	PropKind types.PropertyKind
 }
 
+// Index represents an index operation.
+type Index struct {
+	ExprBase
+
+	// The index operator.
+	Op *AppliedOperator
+
+	// The value which is being indexed.
+	Root ASTExpr
+
+	// The subscript: index being accessed.
+	Subscript ASTExpr
+}
+
+// Slice represents a slice operation.
+type Slice struct {
+	ExprBase
+
+	// The slice operator.
+	Op *AppliedOperator
+
+	// The start value of the slice if it exists.
+	Start ASTExpr
+
+	// The end value of the slice if it exists.
+	End ASTExpr
+}
+
 // -----------------------------------------------------------------------------
 
 // StructLiteral represents a structure literal (initializer).
@@ -195,6 +223,14 @@ type StructLiteralFieldInit struct {
 
 	// The initializer expression.
 	InitExpr ASTExpr
+}
+
+// ArrayLiteral represents an array literal.
+type ArrayLiteral struct {
+	ExprBase
+
+	// The array elements.
+	Elements []ASTExpr
 }
 
 // -----------------------------------------------------------------------------
@@ -236,7 +272,7 @@ type Literal struct {
 	// The string value of the literal.
 	Text string
 
-	// The interpreter Go value of the literal.
+	// The interpreted Go value of the literal.
 	Value interface{}
 }
 

@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"chaic/ast"
+	"chaic/common"
 	"chaic/report"
 )
 
@@ -121,7 +122,7 @@ func (p *Parser) parseWhileLoop() *ast.WhileLoop {
 	}
 }
 
-// for_loop := 'for' c_for_loop ;
+// for_loop := 'for' (c_for_loop | for_each_loop) ;
 func (p *Parser) parseForLoop() ast.ASTNode {
 	startSpan := p.want(TOK_FOR).Span
 
@@ -134,9 +135,7 @@ func (p *Parser) parseForLoop() ast.ASTNode {
 		p.want(TOK_SEMI)
 		return p.parseCForLoop(startSpan, iterVarDecl)
 	default:
-		// TODO: for iter loop
-		p.reject()
-		return nil
+		return p.parseForEachLoop(startSpan)
 	}
 }
 
@@ -195,6 +194,38 @@ func (p *Parser) parseDoWhileLoop() *ast.DoWhileLoop {
 		ASTBase:   ast.NewASTBaseOver(startSpan, p.lookbehind.Span),
 		Body:      body,
 		Condition: condition,
+		ElseBlock: elseBlock,
+	}
+}
+
+// for_each_loop := 'IDENTIFIER' 'in' expr block [loop_else] ;
+func (p *Parser) parseForEachLoop(startSpan *report.TextSpan) *ast.ForEachLoop {
+	iterVar := p.want(TOK_IDENT)
+
+	p.want(TOK_IN)
+
+	seqExpr := p.parseExpr()
+
+	body := p.parseBlock()
+
+	var elseBlock *ast.Block
+	if p.has(TOK_ELSE) {
+		p.next()
+
+		elseBlock = p.parseBlock()
+	}
+
+	return &ast.ForEachLoop{
+		ASTBase: ast.NewASTBaseOver(startSpan, p.lookbehind.Span),
+		IterVarSym: &common.Symbol{
+			Name:       iterVar.Value,
+			ParentID:   p.chFile.Parent.ID,
+			FileNumber: p.chFile.FileNumber,
+			DefSpan:    iterVar.Span,
+			DefKind:    common.DefKindValue,
+		},
+		SeqExpr:   seqExpr,
+		Body:      body,
 		ElseBlock: elseBlock,
 	}
 }
