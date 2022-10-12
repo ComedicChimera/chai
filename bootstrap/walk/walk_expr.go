@@ -3,6 +3,7 @@ package walk
 import (
 	"chaic/ast"
 	"chaic/common"
+	"chaic/syntax"
 	"chaic/types"
 )
 
@@ -52,6 +53,12 @@ func (w *Walker) walkExpr(expr ast.ASTExpr) {
 		w.walkStructLit(v)
 	case *ast.FuncCall:
 		w.walkFuncCall(v)
+	case *ast.Index:
+		w.walkIndex(v, nil)
+	case *ast.Slice:
+		w.walkSlice(v, nil)
+	case *ast.ArrayLiteral:
+		w.walkArrayLit(v)
 	case *ast.Null:
 		v.NodeType = w.newUntypedNull(v.Span())
 	case *ast.Literal:
@@ -121,5 +128,125 @@ func (w *Walker) walkFuncCall(call *ast.FuncCall) {
 		call.NodeType = ft.ReturnType
 	} else {
 		w.error(call.Func.Span(), "%s is not a function", call.Func.Type().Repr())
+	}
+}
+
+// TODO: figure out how to handle LHS index and slice expressions correctly.
+
+// walkIndex walks an LHS or RHS index expression.
+func (w *Walker) walkIndex(index *ast.Index, rhsExpr ast.ASTExpr) {
+	w.walkExpr(index.Root)
+	w.walkExpr(index.Subscript)
+
+	if arrTyp, ok := types.InnerType(index.Root.Type()).(*types.ArrayType); ok {
+		w.mustUnify(types.PrimTypeI64, index.Subscript.Type(), index.Subscript.Span())
+
+		index.NodeType = arrTyp.ElemType
+
+		var opMethod *common.OperatorMethod
+		if rhsExpr != nil {
+			if index.Root.Constant() || arrTyp.Const {
+				w.recError(index.Span(), "cannot mutate an immutable value")
+			}
+
+			opMethod = &common.OperatorMethod{
+				ID: common.OP_ID_ARRAY_SET_INDEX,
+				Signature: &types.FuncType{
+					ParamTypes: []types.Type{arrTyp, index.Subscript.Type(), rhsExpr.Type()},
+					ReturnType: arrTyp.ElemType,
+				},
+			}
+		} else {
+			opMethod = &common.OperatorMethod{
+				ID: common.OP_ID_ARRAY_GET_INDEX,
+				Signature: &types.FuncType{
+					ParamTypes: []types.Type{arrTyp, index.Subscript.Type()},
+					ReturnType: arrTyp.ElemType,
+				},
+			}
+		}
+
+		index.Op = &ast.AppliedOperator{
+			OpKind:   syntax.TOK_LBRACKET,
+			OpName:   "[]",
+			Span:     index.Span(),
+			OpMethod: opMethod,
+		}
+	} else {
+		// TODO: lookup operator overload
+		w.error(index.Root.Span(), "%s is not an array", index.Root.Type().Repr())
+	}
+}
+
+// walkSlice walks an LHS or RHS slice expression.
+func (w *Walker) walkSlice(slice *ast.Slice, rhsExpr ast.ASTExpr) {
+	w.walkExpr(slice.Root)
+
+	if slice.Start != nil {
+		w.walkExpr(slice.Start)
+	}
+
+	if slice.End != nil {
+		w.walkExpr(slice.End)
+	}
+
+	if arrTyp, ok := types.InnerType(slice.Root.Type()).(*types.ArrayType); ok {
+		if slice.Start != nil {
+			w.mustUnify(types.PrimTypeI64, slice.Start.Type(), slice.Start.Span())
+		}
+
+		if slice.End != nil {
+			w.mustUnify(types.PrimTypeI64, slice.End.Type(), slice.End.Span())
+		}
+
+		slice.NodeType = arrTyp
+
+		var opMethod *common.OperatorMethod
+		if rhsExpr != nil {
+			if slice.Root.Constant() || arrTyp.Const {
+				w.recError(slice.Span(), "cannot mutate an immutable value")
+			}
+
+			opMethod = &common.OperatorMethod{
+				ID: common.OP_ID_ARRAY_SET_SLICE,
+				Signature: &types.FuncType{
+					ParamTypes: []types.Type{arrTyp, types.PrimTypeI64, types.PrimTypeI64, rhsExpr.Type()},
+					ReturnType: arrTyp,
+				},
+			}
+		} else {
+			opMethod = &common.OperatorMethod{
+				ID: common.OP_ID_ARRAY_GET_SLICE,
+				Signature: &types.FuncType{
+					ParamTypes: []types.Type{arrTyp, types.PrimTypeI64, types.PrimTypeI64},
+					ReturnType: arrTyp,
+				},
+			}
+		}
+
+		slice.Op = &ast.AppliedOperator{
+			OpKind:   syntax.TOK_COLON,
+			OpName:   "[:]",
+			Span:     slice.Span(),
+			OpMethod: opMethod,
+		}
+	} else {
+		// TODO: lookup operator overload
+		w.error(slice.Root.Span(), "%s is not an array", slice.Root.Type().Repr())
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+
+// walkArrayLit walks an array literal.
+func (w *Walker) walkArrayLit(arrLit *ast.ArrayLiteral) {
+	for i, elem := range arrLit.Elements {
+		w.walkExpr(elem)
+
+		if i == 0 {
+			arrLit.NodeType = elem.Type()
+		} else {
+			w.mustUnify(arrLit.NodeType, elem.Type(), elem.Span())
+		}
 	}
 }

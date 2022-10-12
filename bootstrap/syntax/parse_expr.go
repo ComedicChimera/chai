@@ -322,6 +322,7 @@ func (p *Parser) parseIndexOrSlice(root ast.ASTExpr) ast.ASTExpr {
 
 		return &ast.Slice{
 			ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+			Root:     root,
 			Start:    nil,
 			End:      endExpr,
 		}
@@ -334,6 +335,7 @@ func (p *Parser) parseIndexOrSlice(root ast.ASTExpr) ast.ASTExpr {
 			if p.has(TOK_LBRACKET) {
 				return &ast.Slice{
 					ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+					Root:     root,
 					Start:    firstExpr,
 					End:      nil,
 				}
@@ -343,6 +345,7 @@ func (p *Parser) parseIndexOrSlice(root ast.ASTExpr) ast.ASTExpr {
 
 			return &ast.Slice{
 				ExprBase: ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+				Root:     root,
 				Start:    firstExpr,
 				End:      endExpr,
 			}
@@ -350,6 +353,7 @@ func (p *Parser) parseIndexOrSlice(root ast.ASTExpr) ast.ASTExpr {
 
 		return &ast.Index{
 			ExprBase:  ast.NewExprBase(report.NewSpanOver(startSpan, p.want(TOK_RBRACKET).Span)),
+			Root:      root,
 			Subscript: firstExpr,
 		}
 	}

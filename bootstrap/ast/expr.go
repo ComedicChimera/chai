@@ -193,6 +193,9 @@ type Slice struct {
 	// The slice operator.
 	Op *AppliedOperator
 
+	// The value being sliced.
+	Root ASTExpr
+
 	// The start value of the slice if it exists.
 	Start ASTExpr
 

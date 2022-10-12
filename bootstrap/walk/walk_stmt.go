@@ -39,7 +39,7 @@ func (w *Walker) walkVarDecl(vd *ast.VarDecl) {
 
 // walkAssign walks an assignment statement.
 func (w *Walker) walkAssign(as *ast.Assignment) {
-	// Walk the LHS vars and the RHS expressions.
+	// Walk the RHS expressions.
 	for _, lhsVar := range as.LHSVars {
 		w.walkLHSExpr(lhsVar)
 	}
